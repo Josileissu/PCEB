@@ -1,0 +1,205 @@
+# SITUAÇÃO ATUAL (2026-10-27): versão 0.1.14 (instalador só quando o usuário pedir) — autoteste 172/172, unidade 107/107
+Último instalador: `instalador\saida\ArmaduraBR_Setup_0.1.14.exe`. Novo Setup SÓ quando o usuário pedir (aí: subir
+`<Version>` e rodar `instalador\gerar.bat`).
+Em andamento: templates — base de reservatório feita; aguardando a avaliação dele da prancha gerada. Próximos
+elementos (blocos 1/2 estacas, pilares/vigas pré-moldados e in loco, lajes) conforme ele indicar os padrões.
+Aguardando o usuário também: paleta com "ocultar automaticamente" no uso real, gancho padrão do ARMESTRIBO
+(45° como no QiArmaduras?), RA por pasta, DOCX/XLSX, reconhecimento de DWG (só quando ele mandar), port AutoCAD,
+BEDIT. Telas identificadas: modelo com hífen ("Q-92", do catálogo) ou sem ("Q92", como no exemplo dele)? T global
+ou por detalhamento? Retomar pela última seção deste arquivo.
+
+# Progresso — Fase 2 (iniciada em 2026-10-26)
+
+Pedido do usuário (2026-10-26): seguir a fase 2; desenhar em **cm** (não mm); **escala base 1:10**
+como propriedade na paleta; texto = 2 un em 1:10 → em 1:25 = 5 un (altura = 0,2 × escala).
+"Se os tokens acabarem, abra uma nova sessão e continue de onde parou" → continuar por esta lista.
+
+## Etapas
+- [x] 0. (feito, autoteste 50/50) Unidade cm fixa (config `UnidadeDesenho`), escala por barra e por tabela (XData "ESC"),
+        propriedade "Escala" na paleta, migração do config.json antigo (Escala 50 → 10).
+- [x] 1. (feito, autoteste 63/63; corte-chamada-arco sem teste no CAD) Faixas: ortogonal, alinhada, corte+cota (ort/ali), corte+chamada, chamada, indicação.
+        Quantidade da barra = soma das faixas. Dimension com texto sobrescrito + XData FAIXA;
+        círculos CORTE; chamadas.
+- [x] 2. (feito, autoteste 75/75; o diálogo em si precisa de teste manual) Estribos: gerador no Core (simples, aberto, múltiplo, pente, circular ext/int; ganchos
+        45/90/180; cobrimento) + ARMESTRIBO (diálogo WinForms) + ARMESTRIBOREP.
+- [x] 3. (feito, autoteste 83/83) ARMREBATER: rebatida vinculada (deslocamento guardado; edição propaga nos dois sentidos).
+- [x] 4. (feito, autoteste 87/87) Ponto no cobrimento (opção do ARMBARRA) + ARMRECOTA.
+
+**Fase 2 concluída em 2026-10-26.** Pendências para validar com o usuário: diálogo do ARMESTRIBO
+(teste manual), regra de quantidade das faixas (⌊L/s⌋+1), representação dos ganchos de estribo
+(traço a 45°), corte e chamada em arco (sem teste no CAD). Próxima: fase 3 (detalhamentos, RA
+individual/sequencial/parcial, bloquear RA, repetições, camadas).
+
+# Fase 3 (iniciada em 2026-10-26)
+
+Pedido do usuário: seguir para a fase 3; "a relação de aço parcial pode ser vinculada a quando as
+barras pertencerem a um bloco do CAD" → **detalhamento = bloco** (BlockReference/BlockTableRecord).
+
+**Fase 3 concluída em 2026-10-26 (autoteste 109/109).** Sem teste automático: edição dentro do bloco
+(BEDIT) com a sincronização, os diálogos/grade (só montagem), ARMDETCRIAR digitado (testado pela API).
+Não feito (opcional da especificação): "exibir somente layout", reordenar/renumerar detalhamentos na
+folha, área útil da prancha. Próxima: fase 4 (traspasse, treliças, telas soldadas).
+
+- [x] A. Handles do XData como 1005 (o CAD traduz em BLOCK/COPY/WBLOCK/INSERT); cópia de barra não
+        limpa mais as listas (a validação recíproca resolve); índice de GUID inclui blocos.
+- [x] B. RA com blocos: barras em blocos × nº de inserções (recursivo); tabela parcial por bloco
+        (tabela dentro do bloco ou ARMRAPARCIAL/ARMRAASSOCIAR); numeração Global/Individual/Sequencial
+        + coluna ELEMENTO.
+- [x] C. Detalhamentos: ARMDETCRIAR (seleção → bloco), propriedades do detalhamento (XData no
+        BlockTableRecord) na paleta, ARMDETGERENCIAR (grade).
+- [x] D. Bloquear RA (ARMRABLOQUEAR): números travados, novas/alteradas acima do maior, "*" na tabela.
+- [x] E. Camadas ("3+1") nas barras.
+
+# Fase 4 (iniciada em 2026-10-26)
+
+**Fase 4 concluída em 2026-10-26 (autoteste 122/122).** Valores de catálogo (cordoalhas, treliças, telas) e
+regras de traspasse marcados [VALIDAR]. Próxima: fase 5 (RA por pasta, relatórios, corte e dobra,
+reconhecimento de DWG) e depois o port para AutoCAD.
+
+Pedido do usuário: seguir para a fase 4 e considerar **cordoalhas CP-190** como armadura (além de
+CA-50/CA-60). Respostas da fase 3: barras de blocos não inseridos ficam fora (confirmado); bloco de
+nível mais alto = elemento (confirmado); BEDIT ele confirma no fim.
+
+- [x] A. Cordoalhas CP-190 RB (9,5/12,7/15,2) na tabela de bitolas; sem ganchos/curvatura; aço na descrição.
+- [x] B. Traspasse (NBR 6118: fck, aderência, % emendada; ou fixo) + ARMDIVIDIR (ponto / automático
+        pelo comprimento comercial) + verificação de comprimento limite (config).
+- [x] C. Treliças: catálogo, ARMTRELICA (2 pontos), desenho gerado (partes), RA por modelo/peso.
+- [x] D. Telas soldadas: catálogo, ARMTELA (2 cantos), resumo por massa (área × kg/m²).
+
+# Fase 5 (iniciada em 2026-10-26)
+
+**Etapas pedidas concluídas em 2026-10-26 (autoteste 129/129).** Pendentes da fase 5, aguardando o usuário:
+RA por pasta (explicada), relatórios DOCX/XLSX, reconhecimento de DWG (SÓ quando ele mandar).
+
+Pedido do usuário: seguir com a **lista de corte e dobra**; nova apresentação da RA com **detalhe de
+dobra** (prévia da forma da barra) — mesma estrutura atual + uma coluna no FIM com o formato (modelo:
+imagem com "DETALHE DE DOBRA (DIMENSÕES EXTERNAS EM cm)"). **Reconhecimento de barras em DWG de outros
+programas: só quando o usuário der o comando.** RA por pasta: explicada, não pedida ainda. Port AutoCAD: depois.
+
+- [x] A. Gerador do esquema da barra (Core, testável): ângulos reais, segmentos curtos ampliados, cotas.
+- [x] B. Coluna "DETALHE DE DOBRA" opcional na tabela (OpcoesTabelaRA), desenhada sobre a tabela como
+        partes vinculadas (acompanham MOVE/COPY/ERASE da tabela); opção na paleta e no ARMRAINSERIR.
+- [x] C. ARMCORTEDOBRA: CSV (Excel, ;) + HTML com SVG de cada posição, ao lado do DWG.
+
+# Uso, instalação e ajustes (2026-10-26 a 2026-10-27)
+
+(Situação ao fim desta etapa, manhã de 2026-10-27: versão 0.1.4, autoteste 132/132, unidade 88/88 — ver o topo do arquivo.)
+
+- [x] Resumo dos comandos inserido no DWG aberto do usuário (MText na layer ARM-AJUDA; não salvo).
+- [x] Autocompletar da linha de comando: o GstarCAD lê uma lista fixa (`alias.pgc`); `Infra/Autocompletar.cs`
+        acrescenta os comandos do plugin ao carregar (backup `alias.pgc.antes_armadura`).
+- [x] "Ribbon": o GstarCAD 2021 não tem API .NET de ribbon. Virou a paleta separada **"Armadura - Comandos"**
+        (ARMCOMANDOS; a paleta "Armadura" ficou só com Propriedades). Layout manual dos botões (os painéis
+        automáticos sumiam ao re-encaixar); clique com comando em andamento cancela antes com ESC
+        (`\x03` não funciona no GstarCAD); aceita clique com a paleta inativa.
+- [x] Carregador (`src/Armadura.Carregador`): copia o plugin para `%LocalAppData%\ArmaduraBR\run\` e faz
+        NETLOAD da cópia → o build não fica preso com o GstarCAD aberto.
+- [x] Instalador Inno Setup (sem administrador): instala em `%LocalAppData%\Programs\ArmaduraBR`, grava a
+        chave de carregamento automático por idioma, avisa se o GstarCAD estiver aberto, desinstalador
+        (opção de restaurar o alias.pgc). Testado: instala, carrega sozinho, desinstala limpo.
+        `INSTALACAO.txt` com o passo a passo (Setup e manual).
+- [x] Estribo fechado no padrão do escritório (exemplo do usuário no Drawing1; depois ESPELHADO para o canto superior esquerdo, v0.1.6): ganchos no canto superior
+        direito, sem sobreposição; cada gancho passa do canto o diâmetro externo de curvatura (pino + 2φ =
+        2,5 no ø5); gancho padrão 90° (perpendicular, os ganchos se cruzam como no exemplo); 45°/180° em
+        diagonal. As passagens do canto (`Segmento.Sobreposto`) contam como aço, sem cota e sem medida no
+        esboço da RA.
+- [x] Comprimento real (C= e RA), pela planilha do usuário (`Estudo_comprimento_real_barra_vergalhao.xlsx`):
+        soma das medidas externas − desconto por dobra (2·re2·tan(δ/2) − re·δ; nos ganchos 2·re2 − re·δ com
+        ângulo NOMINAL, confirmado pelo usuário); pinos da NBR 6118 (tab. 9.1 e 9.2, já eram os do plugin);
+        ângulos pelos vértices (produto escalar/vetorial); barra fechada conta a dobra do fecho.
+        Opção `DescontarDobras` (padrão true) no config.json. Cotas continuam externas.
+- [x] REGEN/REGENALL recalculam descrições e tabelas (na lista `ComandosQueAtualizamRA`; config v4 migra).
+
+Observações: a planilha do usuário conta só uma dobra na barra em U (ø só na linha 4) e tem o "raio do
+centro" errado nas linhas CA-60 da tabela 9.1 — o plugin usa as fórmulas. Estribos já desenhados
+mantêm o formato antigo; o C= das barras existentes muda na próxima atualização (REGEN, salvar, plotar).
+
+# Ajustes pedidos em 2026-10-27 (tarde) — versão 0.1.6, autoteste 147/147, unidade 95/95
+
+- [x] Paleta com "ocultar automaticamente": recolhida, o GstarCAD informa Visible = false e a paleta não
+        relia a seleção. Agora relê sempre (e ao ativar/abrir). `AutoRollUp`/`RolledUp` não existem na API
+        do GstarCAD (NotImplementedException): o teste oculta a paleta. [CONFIRMAR com o usuário no uso real]
+- [x] Faixa com escala própria (`DadosFaixa.Escala`, XData "ESC"; 0 = a da barra): opção [Escala] nos
+        comandos de faixa (vira padrão das próximas: `EscalaFaixa`), propriedades da faixa na paleta
+        (selecionar só faixas/cortes/chamadas mostra a faixa).
+- [x] Poligonal fechada → estribo com ganchos (`GeradorEstribo.FechadoPoligono`, qualquer forma; ganchos no
+        vértice superior esquerdo por padrão): Estribo = Sim na paleta, ARMCONVERTER (pergunta), ARMOFFSET.
+        Na paleta: "Gancho do estribo" (90°/45°/180°) e "Ganchos no canto" (4 cantos ou próximo vértice);
+        bitola/aço refazem a passagem; Estribo = Não volta à poligonal fechada.
+        Todos os estribos fechados (ARMESTRIBO inclusive) com os ganchos no canto superior ESQUERDO (decisão do usuário; v0.1.6).
+- [x] ARMOFFSET: armadura paralela a uma poligonal aberta ou fechada, do lado clicado (Enter = para dentro).
+- [x] Templates: ambiente (`docs/TEMPLATES.md`, `Core/Templates`, ARMTEMPLATE, pastas
+        `info_auxiliar/templates/<elemento>/`). Nenhum template implementado — aguardando PDFs/DWGs.
+- [x] Menu de configurações (ARMCONFIG abre a janela; `-ARMCONFIG` = linha de comando).
+- [x] RA: numeração Global/Individual/Sequencial já existia (só no JSON) → agora na paleta da tabela
+        ("Numeração (do desenho)") e no menu; tabela com "Coluna do detalhamento" (Automática/Sempre/Nunca)
+        e "Nome no título" ("RELAÇÃO DO AÇO - V1").
+
+## Como testar
+Ver `armadura/CLAUDE.md` (autoteste numa instância nova do GstarCAD; relatório em
+`%AppData%\ArmaduraBR\logs\autoteste.txt`).
+
+# Importação do QiArmaduras (2026-10-27) — versão 0.1.7
+
+Pedido do usuário: importar o .cad do QiArmaduras (AltoQi Builder) e fazer a equivalência com o plugin.
+- [x] Formato decifrado (esquema autodescritivo; `docs/FORMATO_QICAD.md`, scripts de estudo em `tools/qicad/`).
+- [x] Leitor + conversor no Core (testes com `auxiliar_cad/Desenho 1.cad` e o projeto real `PRANCHAS_Blocos_R00.cad`).
+- [x] ARMIMPORTARCAD (botão "Importar .cad"): barras/estribos (ganchos 90°/45°, passagens), faixas,
+        indicações, rebatidas vinculadas, detalhamentos (blocos, repetições nas barras), relações do aço
+        parciais com o nome no título, desenho de forma (linhas, polilinhas, círculos, arcos, textos, cotas).
+        Projeto real: 327 armaduras, 20 detalhamentos, 20 RAs, 9139 entidades em ~2,5 s.
+- [x] Correção junto: faixas (chamada/indicação) dentro de detalhamentos criados por bloco ficavam com as
+        referências no lugar antigo (`ServicoFaixa.Transformar`).
+Pendente: exemplos de gancho 180°, barra com arco, corte+chamada, treliça/tela no .cad; rebatidas giradas/
+espelhadas (hoje viram polilinha comum); hachuras não são importadas; MOVE comum de chamadas.
+# Tela soldada: apresentação (2026-10-27) — versão 0.1.8
+- [x] Opção "Mostrar distribuição do aço": desenha os fios do modelo (Q-196 245×600: 25 + 60 fios).
+- [x] Texto da tela ("1 Q-92") no meio da diagonal, girado com ela (opção "Texto na diagonal", padrão sim).
+- [x] Dimensões do painel cotadas (opção "Cotar dimensões do painel", padrão sim).
+- [x] Na paleta, as opções de tela só aparecem para telas; gancho/canto só para estribos com ganchos.
+Telas já desenhadas passam a ter cotas e texto na diagonal na próxima atualização (REGEN, salvar, plotar).
+# Templates: base de reservatório (2026-10-27)
+Pedido: começar os templates pelas bases de reservatório (PDFs SPA, SRP, ASC abertos no PDF24). Decisões do
+usuário: circular e retangular juntas; posição VAR única COM opção de uma posição por barra; não extrair os
+DWGs (o padrão se repete); sem nichos/chumbadores/tabela de cargas.
+- [x] Grupo VAR no modelo (lista de comprimentos), RA, descrição C=VAR, numeração, paleta ("Barras VAR").
+- [x] Templates com faixas, indicações, textos, círculos, cotas, tabelas, detalhamento e RA parcial.
+- [x] Template da base (docs/TEMPLATES.md); registrado no ARMTEMPLATE ("Base de reservatório").
+- [x] Testes: 5 de unidade (cordas, simetria, faixa central, retangular, VAR na RA) + autoteste desenhando as duas.
+Pendente: o usuário avaliar a prancha gerada (posições, textos, padrões) e o "uma posição por barra" (sem faixas).
+# Correção: ARMTEMPLATE não abria (2026-10-27) — versão 0.1.10
+- [x] A classe `ComandosTemplate` não estava em `[assembly: CommandClass]`: o GstarCAD não registrava o
+        ARMTEMPLATE (nem pelo botão). Corrigido; o autoteste agora confere que toda classe com comandos está na
+        lista e que o template da base está registrado (161/161). Testado também pelo comando numa instância nova.
+- [x] Instalador 0.1.10 gerado a pedido do usuário (o 0.1.9 tinha o defeito e foi apagado).
+# Chamada sem linha de chamada (2026-10-27)
+- [x] Opção para ocultar a linha de chamada (`DadosFaixa.OcultarLinhas`, XData "OCL"): no ARMCHAMADA, palavra-chave
+        [SemLinha]/[ComLinha] na posição do texto; na paleta da faixa, "Mostrar linha de chamada" (chamada,
+        indicação e corte+chamada). Os pontos ficam guardados: religar redesenha as linhas.
+- [x] Instalador 0.1.11 gerado a pedido do usuário.
+# Relação do aço ordenada pelo N (2026-10-27)
+- [x] Numeração Global: linhas pela posição N (antes: aço, depois N). Individual/Sequencial: detalhamento, depois N.
+- [x] Instalador 0.1.12 gerado a pedido do usuário.
+# Faixas: campos opcionais do texto e linha de chamada apagada (2026-10-27)
+- [x] Texto da faixa com campos opcionais (paleta, grupo "Texto da faixa"): quantidade, posição (N), diâmetro e
+        espaçamento (XData MQTD/MPOS/MDIA/MESP, gravados só quando desligados). Cada tipo só oferece os seus campos
+        (indicação: N; chamada: quantidade e N). Tudo desligado → fica o N (texto nunca vazio).
+- [x] Linha de chamada apagada pelo usuário NÃO volta na regeneração: a faixa guarda o índice da referência
+        (`LinhasApagadas`, XData "LAP"; cada linha guarda o seu no vínculo "IDX"). Só volta com
+        "Mostrar linha de chamada" = Sim (aparece "Não" quando alguma foi apagada; Sim recria todas).
+- [x] Autoteste: o COPY do roteiro termina com ESC (com COPYMODE de cópia única o Enter extra repetia o COPY e
+        engolia o comando seguinte). 167/167; unidade 105/105.
+- [x] Instalador 0.1.13 gerado a pedido do usuário.
+# Repetições nas faixas (2026-10-27, depois da 0.1.13)
+- [x] Propriedade "Repetições" na faixa (paleta; XData "REP" só quando > 1): a quantidade que a faixa soma na barra
+        é multiplicada (`DadosFaixa.QuantidadeTotal`) e o texto fica "2x(...)", como a descrição da barra. A
+        indicação não tem (não soma quantidade). Autoteste 168/168, unidade 106/106. Instalador não gerado.
+# Telas identificadas T1, T2… (2026-10-27, depois da 0.1.13)
+Pedido: representar as telas como no exemplo do escritório ("T2 - 2x Q92" e "213 x 348" no meio da diagonal).
+- [x] Opção da tela "Identificar (T1, T2…)" (paleta; XData TID/TN) e padrão das telas novas no menu de configurações
+        (`TelaIdentificada`, usado pelo ARMTELA). Texto em 2 linhas centrado SOBRE a diagonal, que fica interrompida
+        no texto (largura do MText + folga); dimensões menor × maior (cm); "2x" = quantidade × repetições; sem cotas
+        nos lados. T dado na renumeração (`ServicoRA.NumerarTelas`): ordem de criação, painéis iguais (modelo, lados,
+        quantidade; girado conta igual) = mesmo T; numeração do desenho todo.
+- [x] Autoteste com 3 painéis (T1, T2, T1) + `autoteste_telas_T.png`; 172/172, unidade 107/107.
+- [x] Instalador 0.1.14 gerado a pedido do usuário (repetições nas faixas + telas identificadas).

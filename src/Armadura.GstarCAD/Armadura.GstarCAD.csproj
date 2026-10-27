@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Plugin para GstarCAD 2021 (x64, .NET Framework 4.8).
+    Os fontes da camada CAD ficam em ..\Armadura.Cad (compartilhados com o futuro projeto AutoCAD);
+    os namespaces GrxCAD.* entram pelos "global using" de GlobalUsings.cs.
+    Carregar no GstarCAD: NETLOAD → bin\GstarCAD2021\ArmaduraBR.GstarCAD.dll
+  -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>ArmaduraBR.GstarCAD</AssemblyName>
+    <RootNamespace>Armadura.Cad</RootNamespace>
+    <DefineConstants>$(DefineConstants);GSTARCAD</DefineConstants>
+    <GrxSdk>$(MSBuildThisFileDirectory)..\..\sdk\grxsdk</GrxSdk>
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\GstarCAD2021\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.1.14</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="gmap">
+      <HintPath>$(GrxSdk)\inc\gmap.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="gmdb">
+      <HintPath>$(GrxSdk)\inc\gmdb.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Armadura.Cad\**\*.cs" LinkBase="Cad" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Armadura.Core\Armadura.Core.csproj" />
+  </ItemGroup>
+
+</Project>
