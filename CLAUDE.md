@@ -155,3 +155,10 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
 Espelhadas = mesmo N; catálogos (cordoalhas, treliças, telas) e traspasse;
 BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho = ponta reta + pino/2 + φ
 (medida externa, "compr. reto"), pinos e pontas da NBR 6118 (tab. 9.1/9.2) e comprimento real pelas dobras.
+
+## Git (2026-10-27)
+- Git instalado para o usuário: `%LocalAppData%\Programs\Git\cmd\git.exe` (fora do PATH desta sessão; use o caminho).
+- Repositório local em `armadura/` (branch `main`), 1º commit 0.1.14. Fora do repositório (decisão do usuário):
+  `auxiliar_cad/` (projetos do escritório) e `info_auxiliar/` (especificação); bin/obj e `instalador/saida/` também.
+  O `sdk/` VAI (o build referencia `sdk\grxsdk\inc\gmap.dll`/`gmdb.dll`).
+- Remoto: ainda não existe — o usuário vai criar um repositório VAZIO e passar a URL; aí `git remote add origin <url>` e `git push -u origin main`.
