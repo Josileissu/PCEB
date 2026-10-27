@@ -1,0 +1,19 @@
+# compilação
+bin/
+obj/
+*.user
+.vs/
+
+# instaladores gerados (gerar de novo com instalador\gerar.bat)
+instalador/saida/
+
+# arquivos de projetos do escritório e especificação (fora do repositório, decisão do usuário)
+auxiliar_cad/
+info_auxiliar/
+
+# temporários do CAD
+*.bak
+*.cad-bak
+*.dwl
+*.dwl2
+*.sv$
