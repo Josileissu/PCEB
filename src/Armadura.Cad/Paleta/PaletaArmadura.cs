@@ -64,7 +64,7 @@ internal static class PaletaArmadura
         _status = new Label { Dock = DockStyle.Top, Height = 34, Padding = new Padding(4), AutoEllipsis = true };
         painel.Controls.Add(_grid);
         painel.Controls.Add(_status);
-        AplicarTema(painel);
+        AplicarTema(painel, _status, _grid);
         _ps.Add("Propriedades", painel);
         // ocultar automaticamente: recolhida, a paleta não fica "Visible"; ao abrir ou ativar, relê a seleção
         _ps.StateChanged += (s, e) => { if (!_aplicando) Recarregar(); };
@@ -76,7 +76,7 @@ internal static class PaletaArmadura
     }
 
     /// <summary>Cores escuras quando o CAD está no tema escuro (COLORTHEME = 0).</summary>
-    private static void AplicarTema(Panel painel)
+    internal static void AplicarTema(Control painel, Label status, PropertyGrid grid)
     {
         bool escuro;
         try { escuro = Convert.ToInt32(CadApp.GetSystemVariable("COLORTHEME")) == 0; }
@@ -86,19 +86,19 @@ internal static class PaletaArmadura
         var campo = Color.FromArgb(43, 49, 59);
         var texto = Color.FromArgb(230, 230, 230);
         painel.BackColor = fundo;
-        _status.BackColor = fundo;
-        _status.ForeColor = texto;
-        _grid.BackColor = fundo;
-        _grid.ViewBackColor = campo;
-        _grid.ViewForeColor = texto;
-        _grid.LineColor = fundo;
-        _grid.CategoryForeColor = texto;
-        _grid.HelpBackColor = fundo;
-        _grid.HelpForeColor = texto;
-        _grid.DisabledItemForeColor = Color.FromArgb(150, 150, 150);
-        _grid.CategorySplitterColor = fundo;
-        _grid.ViewBorderColor = fundo;
-        _grid.HelpBorderColor = fundo;
+        status.BackColor = fundo;
+        status.ForeColor = texto;
+        grid.BackColor = fundo;
+        grid.ViewBackColor = campo;
+        grid.ViewForeColor = texto;
+        grid.LineColor = fundo;
+        grid.CategoryForeColor = texto;
+        grid.HelpBackColor = fundo;
+        grid.HelpForeColor = texto;
+        grid.DisabledItemForeColor = Color.FromArgb(150, 150, 150);
+        grid.CategorySplitterColor = fundo;
+        grid.ViewBorderColor = fundo;
+        grid.HelpBorderColor = fundo;
     }
 
     private static void LigarDocumento(Document doc)
@@ -134,57 +134,64 @@ internal static class PaletaArmadura
         if (_ps == null || _grid == null) return;
         try
         {
-            var doc = CadApp.DocumentManager.MdiActiveDocument;
-            var objetos = new List<PropriedadesBarra>();
-            var tabelas = new List<PropriedadesTabela>();
-            int outros = 0;
-            if (doc != null)
-            {
-                var sel = doc.Editor.SelectImplied();
-                if (sel.Status == PromptStatus.OK && sel.Value != null)
-                {
-                    var ids = sel.Value.GetObjectIds();
-                    // só faixas (cota, corte, chamada) selecionadas: propriedades da faixa (escala própria)
-                    var faixas = LerFaixas(doc.Database, ids, out bool soFaixas);
-                    if (soFaixas && faixas.Count > 0)
-                    {
-                        _grid.SelectedObjects = faixas.Cast<object>().ToArray();
-                        _status.Text = faixas.Count == 1 ? faixas[0].Tipo : $"{faixas.Count} faixas — valores diferentes ficam em branco.";
-                        return;
-                    }
-                    objetos = Ler(doc.Database, ids, out outros);
-                    tabelas = LerTabelas(doc.Database, ids);
-                    outros -= tabelas.Count;
-                }
-            }
-            // armaduras têm prioridade; depois tabelas; depois detalhamentos (blocos)
-            if (objetos.Count == 0 && tabelas.Count > 0)
-            {
-                _grid.SelectedObjects = tabelas.Cast<object>().ToArray();
-                _status.Text = tabelas.Count == 1 ? "Relação do aço" : $"{tabelas.Count} tabelas de relação do aço";
-                return;
-            }
-            if (objetos.Count == 0 && doc != null)
-            {
-                var sel = doc.Editor.SelectImplied();
-                var dets = sel.Status == PromptStatus.OK && sel.Value != null
-                    ? LerDetalhamentos(doc.Database, sel.Value.GetObjectIds()) : new List<PropriedadesDetalhamento>();
-                if (dets.Count > 0)
-                {
-                    _grid.SelectedObjects = dets.Cast<object>().ToArray();
-                    _status.Text = dets.Count == 1 ? $"Detalhamento {dets[0].Nome}" : $"{dets.Count} detalhamentos";
-                    return;
-                }
-            }
-            _grid.SelectedObjects = objetos.Cast<object>().ToArray();
-            _status.Text = objetos.Count switch
-            {
-                0 => "Selecione armaduras ou uma relação do aço no desenho." + (outros > 0 ? $"\n{outros} objeto(s) que não são armadura." : ""),
-                1 => objetos[0].Descricao,
-                _ => $"{objetos.Count} armaduras — valores diferentes ficam em branco." + (outros > 0 ? $" ({outros} outro(s) ignorado(s))" : ""),
-            };
+            _grid.SelectedObjects = LerSelecao(CadApp.DocumentManager.MdiActiveDocument, out var status);
+            _status.Text = status;
         }
         catch (Exception ex) { Log.Erro("Paleta.Recarregar", ex); }
+    }
+
+    /// <summary>Gravação em andamento (as janelas ignoram os eventos de seleção que ela provoca).</summary>
+    internal static bool Aplicando => _aplicando;
+
+    /// <summary>
+    /// Objetos de propriedades da seleção atual — armaduras têm prioridade; depois faixas (se só houver
+    /// faixas), tabelas e detalhamentos (blocos). Usado pela paleta e pela janela rápida.
+    /// </summary>
+    internal static object[] LerSelecao(Document doc, out string status)
+    {
+        var objetos = new List<PropriedadesBarra>();
+        var tabelas = new List<PropriedadesTabela>();
+        int outros = 0;
+        ObjectId[] ids = null;
+        if (doc != null)
+        {
+            var sel = doc.Editor.SelectImplied();
+            if (sel.Status == PromptStatus.OK && sel.Value != null)
+            {
+                ids = sel.Value.GetObjectIds();
+                // só faixas (cota, corte, chamada) selecionadas: propriedades da faixa (escala própria)
+                var faixas = LerFaixas(doc.Database, ids, out bool soFaixas);
+                if (soFaixas && faixas.Count > 0)
+                {
+                    status = faixas.Count == 1 ? faixas[0].Tipo : $"{faixas.Count} faixas — valores diferentes ficam em branco.";
+                    return faixas.Cast<object>().ToArray();
+                }
+                objetos = Ler(doc.Database, ids, out outros);
+                tabelas = LerTabelas(doc.Database, ids);
+                outros -= tabelas.Count;
+            }
+        }
+        if (objetos.Count == 0 && tabelas.Count > 0)
+        {
+            status = tabelas.Count == 1 ? "Relação do aço" : $"{tabelas.Count} tabelas de relação do aço";
+            return tabelas.Cast<object>().ToArray();
+        }
+        if (objetos.Count == 0 && ids != null)
+        {
+            var dets = LerDetalhamentos(doc.Database, ids);
+            if (dets.Count > 0)
+            {
+                status = dets.Count == 1 ? $"Detalhamento {dets[0].Nome}" : $"{dets.Count} detalhamentos";
+                return dets.Cast<object>().ToArray();
+            }
+        }
+        status = objetos.Count switch
+        {
+            0 => "Selecione armaduras ou uma relação do aço no desenho." + (outros > 0 ? $"\n{outros} objeto(s) que não são armadura." : ""),
+            1 => objetos[0].Descricao,
+            _ => $"{objetos.Count} armaduras — valores diferentes ficam em branco." + (outros > 0 ? $" ({outros} outro(s) ignorado(s))" : ""),
+        };
+        return objetos.Cast<object>().ToArray();
     }
 
     internal static List<PropriedadesBarra> Ler(Database db, IEnumerable<ObjectId> ids, out int outros)
@@ -397,16 +404,22 @@ internal static class PaletaArmadura
     /// <summary>Grava no desenho as alterações pendentes de todos os objetos mostrados.</summary>
     private static void Aplicar()
     {
+        AplicarObjetos(_grid.SelectedObjects);
+        Recarregar();
+    }
+
+    /// <summary>Grava as alterações pendentes de objetos de propriedades (paleta ou janela rápida).</summary>
+    internal static void AplicarObjetos(object[] objetos)
+    {
         var doc = CadApp.DocumentManager.MdiActiveDocument;
-        if (doc == null) return;
-        try { AplicarTabelas(doc, _grid.SelectedObjects.OfType<PropriedadesTabela>()); }
+        if (doc == null || objetos == null) return;
+        try { AplicarTabelas(doc, objetos.OfType<PropriedadesTabela>()); }
         catch (Exception ex) { Log.Erro("Paleta.AplicarTabelas", ex); MessageBox.Show("Erro ao aplicar: " + ex.Message, "Armadura"); }
-        var erros = AplicarDetalhamentos(doc, _grid.SelectedObjects.OfType<PropriedadesDetalhamento>());
-        erros.AddRange(AplicarFaixas(doc, _grid.SelectedObjects.OfType<PropriedadesFaixa>()));
-        erros.AddRange(Aplicar(doc, Mostradas));
+        var erros = AplicarDetalhamentos(doc, objetos.OfType<PropriedadesDetalhamento>());
+        erros.AddRange(AplicarFaixas(doc, objetos.OfType<PropriedadesFaixa>()));
+        erros.AddRange(Aplicar(doc, objetos.OfType<PropriedadesBarra>()));
         if (erros.Count > 0)
             MessageBox.Show(string.Join("\n", erros.Distinct()), "Armadura", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        Recarregar();
         try { doc.Editor.UpdateScreen(); } catch (Rt.Exception) { }
     }
 

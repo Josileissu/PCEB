@@ -219,3 +219,15 @@ Pedido: "2x11 N1 ø10.0 c/15" em vez de "2x(11 N1 ø10.0 c/15)".
 - [x] Instalador 0.1.15 gerado a pedido do usuário (Enter nos textos + repetição sem parênteses). Com o Git, o
         .NET punha o hash do commit na ProductVersion (Setup "0.1.15+hash"): desligado no csproj
         (`IncludeSourceRevisionInInformationalVersion=false`).
+# Propriedades rápidas — ARMPALETARAPIDA (2026-10-28)
+Pedido: algo como o QQ (Quick Properties) do GstarCAD para a armadura; o usuário escolhe o atalho (alias) depois.
+- [x] `Paleta/PaletaRapida.cs`: janela flutuante (tool window, sem roubar o foco) ao lado do cursor, mesmo PropertyGrid
+        e mesmas classes da paleta (`PaletaArmadura.LerSelecao`/`AplicarObjetos`, extraídos do Recarregar/Aplicar).
+        Só o 1º grupo aberto; os outros lembram o estado. Acompanha a seleção; some com Esc, no X ou com a seleção
+        vazia. Sem seleção prévia o comando pede os objetos e os deixa selecionados. Botão "Prop. rápida" no painel.
+- [x] Autoteste: abre com 2 barras, título "Armadura (2)", só o 1º grupo aberto, some com a seleção vazia;
+        `autoteste_paleta_rapida.png`.
+- [x] Instalador 0.1.16 gerado a pedido do usuário (propriedades rápidas).
+- Obs.: o autoteste supõe a configuração de fábrica de escala (Escala 10, EscalaFaixa 0). Com o config do usuário
+        (Escala 25, EscalaFaixa 50 em 2026-10-28) falham 5 testes de escala/ARMDIVIDIR que não têm relação com a
+        mudança; com Escala 10 sobra 1 (texto da faixa, pela EscalaFaixa 50).

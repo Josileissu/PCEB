@@ -77,6 +77,7 @@ pela unidade do desenho (`INSUNITS`; se indefinida, a configuração — padrão
 | `ARMIMPORTARCAD` | Importa um .cad do QiArmaduras (AltoQi Builder): barras, estribos, faixas, indicações, rebatidas, detalhamentos (blocos), relações do aço e o desenho de forma (`docs/FORMATO_QICAD.md`) |
 | `ARMTEMPLATE` | Templates de elementos (bases, blocos, pilares, vigas, lajes) — ambiente pronto, templates a implementar (`docs/TEMPLATES.md`) |
 | `ARMPALETA` | Liga/desliga a paleta "Armadura" (PropertyGrid ligado à seleção; vários objetos = valores diferentes em branco; segmentos só com 1 barra). Abre sozinha ao carregar, se estava aberta |
+| `ARMPALETARAPIDA` | Propriedades rápidas (como o QQ/Quick Properties): janela pequena ao lado do cursor para a seleção (pickfirst ou pede), mesmo PropertyGrid da paleta; só o 1º grupo aberto (os outros lembram o estado). Some com Esc, no X ou quando a seleção fica vazia. O atalho fica a critério do usuário (alias) |
 | `ARMPROP` | Seleciona barra (ou descrição/cota) → edita bitola, aço, quantidade, espaçamento, repetições, estribo, corrido, visível |
 | `ARMEDITSEG` | Clica no segmento → comprimento, formato (Linha/Gancho 45/90/180), VAR, cotar |
 | `ARMRAATUALIZAR` | Renumera (RA global) e atualiza descrições e tabelas |

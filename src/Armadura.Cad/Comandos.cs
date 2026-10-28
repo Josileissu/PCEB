@@ -433,6 +433,25 @@ public sealed class Comandos
         Plugin.SalvarConfig();
     }, suspender: false);
 
+    /// <summary>
+    /// Propriedades rápidas: janela pequena ao lado do cursor para a seleção (como o Quick Properties).
+    /// Sem seleção prévia, pede os objetos e os deixa selecionados (a janela acompanha a seleção).
+    /// </summary>
+    [Rt.CommandMethod("ARMPALETARAPIDA", Rt.CommandFlags.UsePickSet | Rt.CommandFlags.Redraw)]
+    public void ArmPaletaRapida() => Executar("ARMPALETARAPIDA", (doc, ed, db, cfg) =>
+    {
+        var impl = ed.SelectImplied();
+        if (impl.Status != PromptStatus.OK || impl.Value == null || impl.Value.Count == 0)
+        {
+            var r = ed.GetSelection(new PromptSelectionOptions { MessageForAdding = "\nSelecione armaduras, faixas, tabelas ou detalhamentos" });
+            if (r.Status != PromptStatus.OK) return;
+            ed.SetImpliedSelection(r.Value.GetObjectIds());
+        }
+        if (!Paleta.PaletaRapida.Mostrar(doc))
+            ed.WriteMessage("\nNada do plugin Armadura na seleção.");
+        try { GrxCAD.Internal.Utils.SetFocusToDwgView(); } catch (Exception) { }
+    }, suspender: false);
+
     // ================= Relação do aço =================
 
     [Rt.CommandMethod("ARMRAATUALIZAR")]
