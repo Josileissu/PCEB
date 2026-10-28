@@ -45,6 +45,8 @@ public sealed class DadosArmadura
     public double DescricaoDx { get; set; }
     public double DescricaoDy { get; set; }
     public bool TemPosicaoDescricao { get; set; }
+    /// <summary>Quebras de linha que o usuário deu na descrição (depois da palavra k; ver QuebrasTexto).</summary>
+    public List<int> QuebrasDescricao { get; set; } = new List<int>();
 
     public List<Segmento> Segmentos { get; set; } = new List<Segmento>();
 

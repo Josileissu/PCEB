@@ -1,4 +1,4 @@
-# SITUAÇÃO ATUAL (2026-10-27): versão 0.1.14 (instalador só quando o usuário pedir) — autoteste 172/172, unidade 107/107
+# SITUAÇÃO ATUAL (2026-10-27): versão 0.1.14 (instalador só quando o usuário pedir) — autoteste 174/174, unidade 108/108
 Último instalador: `instalador\saida\ArmaduraBR_Setup_0.1.14.exe`. Novo Setup SÓ quando o usuário pedir (aí: subir
 `<Version>` e rodar `instalador\gerar.bat`).
 Em andamento: templates — base de reservatório feita; aguardando a avaliação dele da prancha gerada. Próximos
@@ -203,3 +203,11 @@ Pedido: representar as telas como no exemplo do escritório ("T2 - 2x Q92" e "21
         quantidade; girado conta igual) = mesmo T; numeração do desenho todo.
 - [x] Autoteste com 3 painéis (T1, T2, T1) + `autoteste_telas_T.png`; 172/172, unidade 107/107.
 - [x] Instalador 0.1.14 gerado a pedido do usuário (repetições nas faixas + telas identificadas).
+# Texto em duas linhas (Enter na edição) (2026-10-27, depois da 0.1.14)
+Pedido: poder editar a descrição da barra e o texto da faixa e dar Enter, deixando em duas linhas.
+- [x] Ao editar (MTEDIT/DDEDIT), o Sincronizador lê as quebras (`QuebrasTexto.Ler`, ignora a formatação do editor)
+        e guarda "depois da palavra k" (barra: XData QBR em `QuebrasDescricao`; faixa: QBR em `Quebras`). O texto
+        continua gerado (quantidade, N, C= mudam) e as quebras são reaplicadas (`QuebrasTexto.Aplicar`). Tirar o
+        Enter volta a uma linha. Tela identificada não usa (já tem as 2 linhas dela).
+- [x] Autoteste: edição real da descrição de H e da cota de uma faixa (eventos) → 2 linhas após regenerar.
+        174/174, unidade 108/108. Instalador não gerado.

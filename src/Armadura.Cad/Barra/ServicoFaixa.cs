@@ -113,7 +113,7 @@ internal static class ServicoFaixa
             f.Quantidade = CalculoFaixa.Quantidade(comprimentoCm, f.Espacamento, f.EspacamentoInicial, cfg.ModoQuantidadeFaixa, fechado);
 
         // texto
-        string texto = TextoFaixa.Formatar(f, barra, cfg);
+        string texto = Core.Descricao.QuebrasTexto.Aplicar(TextoFaixa.Formatar(f, barra, cfg), f.Quebras); // Enter do usuário
         if (ent is Dimension d2)
         {
             bool mudou = d2.DimensionText != texto || Math.Abs(d2.Dimtxt - h) > 1e-9;
