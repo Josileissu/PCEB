@@ -1347,6 +1347,26 @@ public sealed class AutoTeste
             Paleta.PaletaArmadura.Recarregar();
             Rel.AppendLine($"        paleta com a seleção implícita: {Paleta.PaletaArmadura.Mostradas.Count} barra(s)");
 
+            // propriedades rápidas (ARMPALETARAPIDA): mesma seleção, janela flutuante
+            Checar(Paleta.PaletaRapida.Mostrar(doc), "paleta rápida: abre com a seleção");
+            var rapida = Paleta.PaletaRapida.Atual;
+            Checar(rapida != null && rapida.Objetos.OfType<Paleta.PropriedadesBarra>().Count() == 2 && rapida.Text == "Armadura (2)",
+                $"paleta rápida: 2 barras, título \"{rapida?.Text}\"");
+            var grupos = rapida?.GruposParaTeste ?? new List<(string, bool)>();
+            Rel.AppendLine("        paleta rápida, grupos: " + string.Join(", ", grupos.Select(g => g.Item1 + (g.Item2 ? " (aberto)" : ""))));
+            Checar(grupos.Count > 1 && grupos[0].Item2 && grupos.Skip(1).All(g => !g.Item2), "paleta rápida: só o 1º grupo aberto");
+            var saidaRapida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+            if (rapida != null && !string.IsNullOrEmpty(saidaRapida))
+            {
+                using var bmp = new System.Drawing.Bitmap(rapida.Width, rapida.Height);
+                rapida.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, rapida.Width, rapida.Height));
+                bmp.Save(Path.Combine(Path.GetDirectoryName(saidaRapida), "autoteste_paleta_rapida.png"));
+            }
+            doc.Editor.SetImpliedSelection(new ObjectId[0]);
+            rapida?.Recarregar();
+            Checar(Paleta.PaletaRapida.Atual == null, "paleta rápida: some quando a seleção fica vazia");
+            doc.Editor.SetImpliedSelection(ids);
+
             // seleção pela descrição também resolve para a barra; barra + descrição contam uma vez
             var duas = Paleta.PaletaArmadura.Ler(db, new[] { ids[0], Id(db, H["descA"]), ids[1] }, out _);
             Checar(duas.Count == 2, $"paleta: A + descrição de A + B = 2 barras ({duas.Count})");

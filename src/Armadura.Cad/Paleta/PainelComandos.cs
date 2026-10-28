@@ -25,7 +25,7 @@ internal static class PainelComandos
         ("Relação do aço", new[] { ("Inserir", "ARMRAINSERIR"), ("Atualizar", "ARMRAATUALIZAR"), ("Parcial", "ARMRAPARCIAL"),
                                    ("Associar", "ARMRAASSOCIAR"), ("Bloquear", "ARMRABLOQUEAR"), ("Corte e dobra", "ARMCORTEDOBRA") }),
         ("Detalhamentos", new[] { ("Criar", "ARMDETCRIAR"), ("Gerenciar", "ARMDETGERENCIAR"), ("Templates", "ARMTEMPLATE") }),
-        ("Geral", new[] { ("Importar .cad", "ARMIMPORTARCAD"), ("Paleta prop.", "ARMPALETA"), ("Configuração", "ARMCONFIG"), ("Sobre", "ARMSOBRE") }),
+        ("Geral", new[] { ("Importar .cad", "ARMIMPORTARCAD"), ("Paleta prop.", "ARMPALETA"), ("Prop. rápida", "ARMPALETARAPIDA"), ("Configuração", "ARMCONFIG"), ("Sobre", "ARMSOBRE") }),
     };
 
     private static GrxCAD.Windows.PaletteSet _ps;
