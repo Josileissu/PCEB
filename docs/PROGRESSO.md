@@ -1,5 +1,5 @@
-# SITUAÇÃO ATUAL (2026-10-27): versão 0.1.14 (instalador só quando o usuário pedir) — autoteste 174/174, unidade 108/108
-Último instalador: `instalador\saida\ArmaduraBR_Setup_0.1.14.exe`. Novo Setup SÓ quando o usuário pedir (aí: subir
+# SITUAÇÃO ATUAL (2026-10-27): versão 0.1.15 (instalador só quando o usuário pedir) — autoteste 174/174, unidade 108/108
+Último instalador: `instalador\saida\ArmaduraBR_Setup_0.1.15.exe`. Novo Setup SÓ quando o usuário pedir (aí: subir
 `<Version>` e rodar `instalador\gerar.bat`).
 Em andamento: templates — base de reservatório feita; aguardando a avaliação dele da prancha gerada. Próximos
 elementos (blocos 1/2 estacas, pilares/vigas pré-moldados e in loco, lajes) conforme ele indicar os padrões.
@@ -216,3 +216,6 @@ Pedido: "2x11 N1 ø10.0 c/15" em vez de "2x(11 N1 ø10.0 c/15)".
 - [x] Descrição da barra, texto da faixa e tela ("2x1 Q-92"): a repetição fica colada na quantidade
         (`FormatadorDescricao.Repeticao`). Nos padrões "N primeiro"/"N no fim" também ("N3 – 2x4ø8.0"); com a
         quantidade oculta, o "2x" vai na frente. Camadas continuam "10x(3+1)". Autoteste 174/174, unidade 108/108.
+- [x] Instalador 0.1.15 gerado a pedido do usuário (Enter nos textos + repetição sem parênteses). Com o Git, o
+        .NET punha o hash do commit na ProductVersion (Setup "0.1.15+hash"): desligado no csproj
+        (`IncludeSourceRevisionInInformationalVersion=false`).
