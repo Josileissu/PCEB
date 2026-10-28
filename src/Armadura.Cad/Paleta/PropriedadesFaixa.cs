@@ -85,7 +85,7 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
 
     [Category(G), DisplayName("Repetições"), SoQuando("Quantidade"),
      Description("Multiplica a quantidade que a faixa soma na barra (ex.: a mesma distribuição em 2 camadas). " +
-                 "O texto fica \"2x(...)\".")]
+                 "O texto fica \"2x11 N1 …\" (sem parênteses).")]
     public int Repeticoes
     {
         get => Math.Max(1, F.Repeticoes);

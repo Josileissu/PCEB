@@ -55,7 +55,7 @@ public class BarraTests
     {
         var d = new DadosArmadura { Numero = 0, Quantidade = 2, Bitola = 12.5, Repeticoes = 3 };
         d.Segmentos.Add(new Segmento { Var = true });
-        Assert.Equal("3x(2 N0 ø12.5 C=VAR)", FormatadorDescricao.Formatar(d, 150, Cfg()));
+        Assert.Equal("3x2 N0 ø12.5 C=VAR", FormatadorDescricao.Formatar(d, 150, Cfg()));
     }
 
     [Fact]
