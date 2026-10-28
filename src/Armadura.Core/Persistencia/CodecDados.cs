@@ -116,6 +116,7 @@ public static class CodecDados
         foreach (var c in d.ComprimentosVar) R("CVAR", c);
         H("HDESC", d.HandleDescricao);
         B("DPOS", d.TemPosicaoDescricao);
+        foreach (var q in d.QuebrasDescricao) I("QBR", q);
         R("DDX", d.DescricaoDx);
         R("DDY", d.DescricaoDy);
         foreach (var fx in d.Faixas) H("FX", fx);
@@ -169,6 +170,7 @@ public static class CodecDados
                 case "CVAR": d.ComprimentosVar.Add(Real(v)); break;
                 case "HDESC": d.HandleDescricao = v as string ?? ""; break;
                 case "DPOS": d.TemPosicaoDescricao = Int(v) != 0; break;
+                case "QBR": if (!d.QuebrasDescricao.Contains(Int(v))) d.QuebrasDescricao.Add(Int(v)); break;
                 case "DDX": d.DescricaoDx = Real(v); break;
                 case "DDY": d.DescricaoDy = Real(v); break;
                 case "FX": if (v is string fx && fx.Length > 0) d.Faixas.Add(fx); break;
@@ -244,6 +246,7 @@ public static class CodecDados
         if (f.Escala > 0) R("ESC", f.Escala); // 0 = escala da barra (faixas antigas)
         if (f.OcultarLinhas) I("OCL", 1);
         foreach (var i in f.LinhasApagadas) I("LAP", i);
+        foreach (var q in f.Quebras) I("QBR", q);
         if (f.Repeticoes > 1) I("REP", f.Repeticoes);
         // campos do texto: só grava os desligados (faixas antigas mostram tudo)
         if (!f.MostrarQuantidade) I("MQTD", 0);
@@ -283,6 +286,7 @@ public static class CodecDados
                 case "PT": if (v is string p && p.Length > 0) f.Partes.Add(p); break;
                 case "ESC": f.Escala = Real(v); break;
                 case "OCL": f.OcultarLinhas = Int(v) != 0; break;
+                case "QBR": if (!f.Quebras.Contains(Int(v))) f.Quebras.Add(Int(v)); break;
                 case "LAP": if (!f.LinhasApagadas.Contains(Int(v))) f.LinhasApagadas.Add(Int(v)); break;
                 case "REP": f.Repeticoes = Math.Max(1, Int(v)); break;
                 case "MQTD": f.MostrarQuantidade = Int(v) != 0; break;

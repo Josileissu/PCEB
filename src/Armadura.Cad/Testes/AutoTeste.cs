@@ -378,6 +378,23 @@ public sealed class AutoTeste
                 linha.UpgradeOpen();
                 linha.Erase();
             }
+
+            // Enter dado pelo usuário ao editar a descrição de H e o texto de uma faixa de cota (eventos)
+            var descH = Ent<MText>(tr, db, Barra(tr, db, "H").HandleDescricao);
+            if (descH != null)
+            {
+                descH.UpgradeOpen();
+                var pal = descH.Contents.Split(' ');
+                descH.Contents = string.Join(" ", pal.Take(2)) + "\\P" + string.Join(" ", pal.Skip(2));
+            }
+            var fCota = Faixas(tr, db, "H").FirstOrDefault(x => x.f.TemCota);
+            if (fCota.ent is Dimension dimQ)
+            {
+                H["faixaQuebra"] = XDataCad.Hex(dimQ.ObjectId);
+                dimQ.UpgradeOpen();
+                var pal = dimQ.DimensionText.Split(' ');
+                dimQ.DimensionText = pal[0] + "\\P" + string.Join(" ", pal.Skip(1));
+            }
             tr.Commit();
         }
         Gravar();
@@ -395,6 +412,21 @@ public sealed class AutoTeste
             Checar(Barra(tr, db, "H").Quantidade == 12, $"apagar a chamada tira 3 da quantidade ({Barra(tr, db, "H").Quantidade})");
             Checar(Id(db, H["linhaChamada"]).IsErased, "apagar a chamada apaga as linhas dela");
             Checar(Faixas(tr, db, "H").Count == 3, "a barra deixou de listar a faixa apagada");
+            {
+                // Enter na edição: a quebra fica guardada e sobrevive à regeneração
+                var dH = Barra(tr, db, "H");
+                var plH = (Polyline)tr.GetObject(Id(db, H["H"]), OpenMode.ForWrite);
+                using (Sincronizador.Suspender(doc)) ServicoBarra.Atualizar(tr, plH, cfg);
+                string cH = Ent<MText>(tr, db, Barra(tr, db, "H").HandleDescricao)?.Contents ?? "";
+                Checar(dH.QuebrasDescricao.SequenceEqual(new[] { 2 }) && cH.Split(new[] { "\\P" }, StringSplitOptions.None).Length == 2,
+                    $"descrição editada com Enter fica em 2 linhas após regenerar (\"{cH}\")");
+                if (H.ContainsKey("faixaQuebra"))
+                {
+                    var dq = (Dimension)tr.GetObject(Id(db, H["faixaQuebra"]), OpenMode.ForRead);
+                    Checar(ServicoFaixa.Ler(dq).Quebras.SequenceEqual(new[] { 1 }) && dq.DimensionText.Contains("\\P"),
+                        $"texto da faixa editado com Enter fica em 2 linhas (\"{dq.DimensionText}\")");
+                }
+            }
             if (H.ContainsKey("indicacao"))
             {
                 var indE = (Entity)tr.GetObject(Id(db, H["indicacao"]), OpenMode.ForWrite);

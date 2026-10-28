@@ -107,6 +107,7 @@ internal static class ServicoBarra
             var (l1, l2) = FormatadorDescricao.TextoTela(d, geo[0].Comprimento, geo[1].Comprimento);
             texto = l1 + "\\P" + l2;
         }
+        texto = Core.Descricao.QuebrasTexto.Aplicar(texto, d.QuebrasDescricao); // Enter dado pelo usuário
         var desc = Parte<MText>(tr, db, d.HandleDescricao, TipoParte.Descricao, hBarra);
         if (desc == null)
         {

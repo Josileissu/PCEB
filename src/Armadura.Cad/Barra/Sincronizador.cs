@@ -367,6 +367,8 @@ internal sealed class Sincronizador
                         Relacao.ServicoRA.AcompanharMovimento(tr, tm, cfg); // MOVE da tabela leva os detalhes
                         continue;
                     }
+                    // texto editado pelo usuário: guarda as quebras de linha (Enter) antes de regenerar
+                    GuardarQuebras(tr, ent);
                     // qualquer parte (descrição movida, faixa esticada, chamada movida…) atualiza a barra dona
                     var dona = ServicoBarra.BarraDe(tr, ent);
                     if (dona != null) barras.Add(dona.ObjectId);
@@ -401,6 +403,36 @@ internal sealed class Sincronizador
             try { _doc.Editor.WriteMessage("\nArmadura: erro ao atualizar as barras (veja o log). " + ex.Message); } catch { }
         }
         finally { _suspenso--; }
+    }
+
+    /// <summary>
+    /// Descrição da barra ou texto da faixa editado (MTEDIT/DDEDIT): as quebras de linha que o usuário deu
+    /// passam para os dados, e o texto regenerado as mantém. O restante da edição volta ao texto gerado.
+    /// </summary>
+    internal static void GuardarQuebras(Transaction tr, Entity ent)
+    {
+        var tipo = XDataCad.Tipo(ent);
+        if (tipo == TipoParte.Descricao && ent is MText mt)
+        {
+            var pl = ServicoBarra.BarraDaParte(tr, ent) as Polyline;
+            var d = pl == null ? null : XDataCad.LerBarra(pl);
+            if (d == null || d.EhTela && d.TelaIdentificada) return; // a tela identificada já tem as 2 linhas dela
+            var q = Core.Descricao.QuebrasTexto.Ler(mt.Contents);
+            if (Core.Descricao.QuebrasTexto.Iguais(q, d.QuebrasDescricao)) return;
+            d.QuebrasDescricao = q;
+            if (!pl.IsWriteEnabled) pl.UpgradeOpen();
+            XDataCad.Gravar(pl, CodecDados.Codificar(d));
+        }
+        else if (tipo == TipoParte.Faixa && (ent is MText || ent is Dimension))
+        {
+            var f = ServicoFaixa.Ler(ent);
+            if (f == null) return;
+            var q = Core.Descricao.QuebrasTexto.Ler(ent is MText m ? m.Contents : ((Dimension)ent).DimensionText);
+            if (Core.Descricao.QuebrasTexto.Iguais(q, f.Quebras)) return;
+            f.Quebras = q;
+            if (!ent.IsWriteEnabled) ent.UpgradeOpen();
+            XDataCad.Gravar(ent, CodecDados.Codificar(f));
+        }
     }
 
     private static Dictionary<Guid, List<ObjectId>> IndicePorGuid(Database db, Transaction tr)

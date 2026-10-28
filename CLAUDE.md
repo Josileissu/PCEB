@@ -21,7 +21,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   2. script `.scr` com `(command "_.NETLOAD" "<dll com />")` + `ARMTESTE`, variáveis
      `ARM_AUTOTESTE_SAIDA=<scratchpad>\autoteste.dwg` e `ARM_LOG_DETALHADO=1`, e
      `gcad.exe /nologo /b "<scr>"` numa instância NOVA (a do usuário nunca é tocada).
-  Relatório em `%AppData%\ArmaduraBR\logs\autoteste.txt` (2026-10-27: 172 ok); PNG ao lado do DWG de saída.
+  Relatório em `%AppData%\ArmaduraBR\logs\autoteste.txt` (2026-10-27: 174 ok); PNG ao lado do DWG de saída.
   Depois confira o `FILEDIA` em `HKCU\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Profiles\<<Unnamed Profile>>\Config`
   (valor ausente = padrão 1; o GstarCAD só grava o que difere do padrão).
 - Antes de encerrar um gcad, confira de onde veio (`Win32_Process` → pai `explorer.exe` = o USUÁRIO abriu).
@@ -29,7 +29,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   → `ActiveDocument.ModelSpace`. Formate números com `InvariantCulture` (o Windows é pt-BR).
 - Planilhas do usuário (xlsx): `openpyxl` instalado com `pip --user`; rode `python -E -P script.py` (o `-I`
   ignora o site do usuário). Copie o arquivo para uma pasta própria no scratchpad antes.
-- Testes de unidade: `tests/Armadura.Core.Tests` (107 em 2026-10-27).
+- Testes de unidade: `tests/Armadura.Core.Tests` (108 em 2026-10-27).
 - Log do plugin: `%AppData%\ArmaduraBR\logs\armadura_AAAAMMDD.log`; configuração do usuário: `%AppData%\ArmaduraBR\config.json`.
 
 ## Estrutura
@@ -96,6 +96,9 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
 - Tela identificada (T1, T2…): `TelaIdentificada`/`NumeroTela` (XData TID/TN); o T vem de
   `ServicoRA.NumerarTelas` (na renumeração; a paleta e o ARMTELA chamam `ServicoRA.Atualizar`). Texto de
   `FormatadorDescricao.TextoTela`; diagonal em 2 trechos em `ServicoDesenhoGerado` (vão = largura do MText + h).
+- Enter do usuário nos textos: `Sincronizador.GuardarQuebras` lê as quebras da descrição/faixa editada e guarda
+  o índice da palavra (XData QBR); `QuebrasTexto.Aplicar` reaplica no texto gerado. Só as quebras sobrevivem; o resto
+  da edição volta ao texto gerado.
 - Roteiro do autoteste: COPY termina com ESC (`\x1B\x1B`), não com Enter extra — com COPYMODE de cópia única
   no perfil o Enter repete o COPY e engole o comando seguinte. Não mude o COPYMODE (é do perfil do usuário).
 - Numeração (Global/Individual/Sequencial) é do DESENHO: `ConfigDesenho.Alterar` grava no DWG se ele tem

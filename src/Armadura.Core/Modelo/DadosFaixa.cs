@@ -74,6 +74,9 @@ public sealed class DadosFaixa
     /// </summary>
     public List<int> LinhasApagadas { get; set; } = new List<int>();
 
+    /// <summary>Quebras de linha que o usuário deu no texto da faixa (depois da palavra k; ver QuebrasTexto).</summary>
+    public List<int> Quebras { get; set; } = new List<int>();
+
     /// <summary>
     /// Repetições da faixa (ex.: a mesma distribuição em 2 camadas): a quantidade que ela soma na barra é
     /// multiplicada, e o texto vira "2x(...)" como a descrição da barra (pedido do usuário, 2026-10-27).

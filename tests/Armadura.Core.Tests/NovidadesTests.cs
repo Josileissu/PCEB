@@ -179,6 +179,26 @@ public class NovidadesTests
     }
 
     [Fact]
+    public void QuebrasDeLinhaDoUsuario()
+    {
+        // Enter depois da 2ª palavra, com formatação do editor no meio
+        var q = Descricao.QuebrasTexto.Ler("{\\fArial|b0|i0|c0|p34;4 N3}\\P%%c10.0 c/15 C=309");
+        Assert.Equal(new[] { 2 }, q);
+        Assert.Equal("4 N3\\P%%c10.0 c/15 C=309", Descricao.QuebrasTexto.Aplicar("4 N3 %%c10.0 c/15 C=309", q));
+        // o texto muda (quantidade, C=) e a quebra continua no mesmo ponto
+        Assert.Equal("12 N3\\P%%c10.0 c/15 C=410", Descricao.QuebrasTexto.Aplicar("12 N3 %%c10.0 c/15 C=410", q));
+        Assert.Empty(Descricao.QuebrasTexto.Ler("4 N3 %%c10.0 c/15"));               // sem Enter: uma linha
+        Assert.Equal(new[] { 1, 3 }, Descricao.QuebrasTexto.Ler("4\r\nN3 %%c10.0\nc/15"));
+        Assert.Equal("4 N3", Descricao.QuebrasTexto.Aplicar("4 N3", new[] { 5 }));    // fora do texto: ignora
+        Assert.Equal("T1 - Q-92\\P245 x 348", Descricao.QuebrasTexto.Aplicar("T1 - Q-92\\P245 x 348", new[] { 1 }));
+
+        var d = CodecDados.DecodificarBarra(CodecDados.Codificar(new DadosArmadura { QuebrasDescricao = { 2 } }));
+        Assert.Equal(new[] { 2 }, d.QuebrasDescricao);
+        var f = CodecDados.DecodificarFaixa(CodecDados.Codificar(new DadosFaixa { Quebras = { 1 } }));
+        Assert.Equal(new[] { 1 }, f.Quebras);
+    }
+
+    [Fact]
     public void EscalaDaFaixaNaConfiguracao()
     {
         var cfg = ConfiguracaoArmadura.DeJson(new ConfiguracaoArmadura { EscalaFaixa = 25 }.ParaJson());
