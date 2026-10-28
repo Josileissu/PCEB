@@ -192,7 +192,7 @@ Pendente: o usuário avaliar a prancha gerada (posições, textos, padrões) e o
 - [x] Instalador 0.1.13 gerado a pedido do usuário.
 # Repetições nas faixas (2026-10-27, depois da 0.1.13)
 - [x] Propriedade "Repetições" na faixa (paleta; XData "REP" só quando > 1): a quantidade que a faixa soma na barra
-        é multiplicada (`DadosFaixa.QuantidadeTotal`) e o texto fica "2x(...)", como a descrição da barra. A
+        é multiplicada (`DadosFaixa.QuantidadeTotal`) e o texto fica "2x11 N1 …", como a descrição da barra. A
         indicação não tem (não soma quantidade). Autoteste 168/168, unidade 106/106. Instalador não gerado.
 # Telas identificadas T1, T2… (2026-10-27, depois da 0.1.13)
 Pedido: representar as telas como no exemplo do escritório ("T2 - 2x Q92" e "213 x 348" no meio da diagonal).
@@ -211,3 +211,8 @@ Pedido: poder editar a descrição da barra e o texto da faixa e dar Enter, deix
         Enter volta a uma linha. Tela identificada não usa (já tem as 2 linhas dela).
 - [x] Autoteste: edição real da descrição de H e da cota de uma faixa (eventos) → 2 linhas após regenerar.
         174/174, unidade 108/108. Instalador não gerado.
+# Repetição sem parênteses (2026-10-28)
+Pedido: "2x11 N1 ø10.0 c/15" em vez de "2x(11 N1 ø10.0 c/15)".
+- [x] Descrição da barra, texto da faixa e tela ("2x1 Q-92"): a repetição fica colada na quantidade
+        (`FormatadorDescricao.Repeticao`). Nos padrões "N primeiro"/"N no fim" também ("N3 – 2x4ø8.0"); com a
+        quantidade oculta, o "2x" vai na frente. Camadas continuam "10x(3+1)". Autoteste 174/174, unidade 108/108.

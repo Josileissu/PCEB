@@ -21,13 +21,12 @@ public static class FormatadorDescricao
         // em camadas: "10x(3+1)" = 10 nervuras com 3+1 barras cada
         string qtd = d.Quantidade.ToString(CultureInfo.InvariantCulture)
                      + (string.IsNullOrWhiteSpace(d.Camadas) ? "" : "x(" + d.Camadas.Replace(" ", "") + ")");
+        // repetições coladas na quantidade, sem parênteses: "2x11 N1 ø10.0" (pedido do usuário, 2026-10-28)
+        string rep = Repeticao(d.Repeticoes);
+        qtd = rep + qtd;
         string n = cfg.PrefixoPosicao + d.Numero.ToString(CultureInfo.InvariantCulture);
-        // tela soldada: sem numeração, só quantidade e modelo ("2 Q-138")
-        if (d.EhTela)
-        {
-            string tela = d.Quantidade.ToString(CultureInfo.InvariantCulture) + " " + d.Tela.Trim();
-            return d.Repeticoes > 1 ? d.Repeticoes.ToString(CultureInfo.InvariantCulture) + "x(" + tela + ")" : tela;
-        }
+        // tela soldada: sem numeração, só quantidade e modelo ("2 Q-138"; repetida: "2x1 Q-138")
+        if (d.EhTela) return rep + d.Quantidade.ToString(CultureInfo.InvariantCulture) + " " + d.Tela.Trim();
         string bitola = d.EhTrelica
             ? d.Trelica.Trim() // treliça: o modelo no lugar da bitola ("4 N5 TR 8644 C=300")
             : cfg.SimboloDiametro + d.Bitola.ToString("0.0", CultureInfo.InvariantCulture);
@@ -68,9 +67,14 @@ public static class FormatadorDescricao
         }
 
         string texto = string.Join(" ", partes);
-        if (d.Repeticoes > 1) texto = d.Repeticoes.ToString(CultureInfo.InvariantCulture) + "x(" + texto + ")";
+        // sem a quantidade no texto, a repetição vai na frente: "2x N1 ø10.0"
+        if (!usaQtd && rep.Length > 0) texto = rep + " " + texto;
         return texto;
     }
+
+    /// <summary>Prefixo das repetições ("2x"); vazio sem repetição.</summary>
+    public static string Repeticao(int repeticoes) =>
+        repeticoes > 1 ? repeticoes.ToString(CultureInfo.InvariantCulture) + "x" : "";
 
     /// <summary>Lados da tela em cm, menor primeiro e arredondados a 1 casa.</summary>
     private static (double menor, double maior) Lados(double lado1Cm, double lado2Cm)

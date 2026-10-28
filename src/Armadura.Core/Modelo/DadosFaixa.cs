@@ -79,7 +79,7 @@ public sealed class DadosFaixa
 
     /// <summary>
     /// Repetições da faixa (ex.: a mesma distribuição em 2 camadas): a quantidade que ela soma na barra é
-    /// multiplicada, e o texto vira "2x(...)" como a descrição da barra (pedido do usuário, 2026-10-27).
+    /// multiplicada, e o texto vira "2x11 N1 …" como a descrição da barra (pedido do usuário, 2026-10-27).
     /// </summary>
     public int Repeticoes { get; set; } = 1;
 
@@ -165,16 +165,17 @@ public static class TextoFaixa
         string n = cfg.PrefixoPosicao + barra.Numero.ToString(CultureInfo.InvariantCulture);
         string bit = cfg.SimboloDiametro + barra.Bitola.ToString("0.0", CultureInfo.InvariantCulture);
         string esp = "c/" + Calculo.CalculoComprimento.NumeroCompacto(f.Espacamento);
+        // repetições coladas na quantidade, sem parênteses: "2x11 N1 ø10.0 c/15" (a indicação não soma: não repete)
+        string rep = f.SomaQuantidade ? Descricao.FormatadorDescricao.Repeticao(f.Repeticoes) : "";
         var campos = new List<string>();
-        if (f.TextoTemQuantidade && f.MostrarQuantidade) campos.Add(f.Quantidade.ToString(CultureInfo.InvariantCulture));
+        bool comQtd = f.TextoTemQuantidade && f.MostrarQuantidade;
+        if (comQtd) campos.Add(rep + f.Quantidade.ToString(CultureInfo.InvariantCulture));
         if (f.MostrarPosicao) campos.Add(n);
         if (f.TextoTemDiametroEspacamento && f.MostrarDiametro) campos.Add(bit);
         if (f.TextoTemDiametroEspacamento && f.MostrarEspacamento) campos.Add(esp);
         // texto vazio deixaria a faixa invisível e impossível de selecionar: fica ao menos a posição
         string texto = campos.Count > 0 ? string.Join(" ", campos) : n;
-        // repetições como na descrição da barra (a indicação não soma quantidade: não repete)
-        return f.Repeticoes > 1 && f.SomaQuantidade
-            ? f.Repeticoes.ToString(CultureInfo.InvariantCulture) + "x(" + texto + ")"
-            : texto;
+        // sem a quantidade no texto, a repetição vai na frente: "2x N1 ø10.0 c/15"
+        return !comQtd && rep.Length > 0 ? rep + " " + texto : texto;
     }
 }

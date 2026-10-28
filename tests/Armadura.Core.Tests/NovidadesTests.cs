@@ -153,7 +153,7 @@ public class NovidadesTests
         var barra = new DadosArmadura { Numero = 4, Bitola = 10 };
         var f = new DadosFaixa { Tipo = TipoFaixa.Ortogonal, Quantidade = 7, Espacamento = 15, Repeticoes = 2 };
         Assert.Equal(14, f.QuantidadeTotal);
-        Assert.StartsWith("2x(7 " + cfg.PrefixoPosicao + "4", TextoFaixa.Formatar(f, barra, cfg));
+        Assert.StartsWith("2x7 " + cfg.PrefixoPosicao + "4", TextoFaixa.Formatar(f, barra, cfg));
         Assert.Equal(2, CodecDados.DecodificarFaixa(CodecDados.Codificar(f)).Repeticoes);
         Assert.Equal(1, CodecDados.DecodificarFaixa(CodecDados.Codificar(new DadosFaixa())).Repeticoes);
         var ind = new DadosFaixa { Tipo = TipoFaixa.Indicacao, Repeticoes = 3 };

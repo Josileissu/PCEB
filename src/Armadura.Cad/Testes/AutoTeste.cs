@@ -455,14 +455,14 @@ public sealed class AutoTeste
                 string txt = ((Dimension)tr.GetObject(fo.ent.ObjectId, OpenMode.ForRead)).DimensionText;
                 Checar(txt.StartsWith("N") && !txt.Contains("c/"), $"faixa sem quantidade e sem espaçamento: \"{txt}\"");
                 fod.MostrarQuantidade = true; fod.MostrarEspacamento = true;
-                // repetições da faixa: a barra soma 2× a quantidade dela; o texto fica "2x(...)"
+                // repetições da faixa: a barra soma 2× a quantidade dela; o texto fica "2x6 N…" (sem parênteses)
                 int antesRep = XDataCad.LerBarra(barH).Quantidade;
                 fod.Repeticoes = 2;
                 XDataCad.Gravar(fo.ent, CodecDados.Codificar(fod));
                 using (Sincronizador.Suspender(doc)) ServicoBarra.Atualizar(tr, barH, cfg);
                 string txtRep = ((Dimension)tr.GetObject(fo.ent.ObjectId, OpenMode.ForRead)).DimensionText;
                 int depoisRep = XDataCad.LerBarra(barH).Quantidade;
-                Checar(depoisRep == antesRep + fod.Quantidade && txtRep.StartsWith("2x("),
+                Checar(depoisRep == antesRep + fod.Quantidade && txtRep.Replace("\\P", " ").StartsWith("2x" + fod.Quantidade + " "),
                     $"faixa com 2 repetições: barra {antesRep} → {depoisRep}, texto \"{txtRep}\"");
                 fod.Repeticoes = 1;
                 XDataCad.Gravar(fo.ent, CodecDados.Codificar(fod));
