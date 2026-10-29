@@ -1657,6 +1657,30 @@ public sealed class AutoTeste
         catch (Exception ex) { Log.Erro("ARMTESTEFIM", ex); }
     }
 
+    /// <summary>
+    /// Ferramenta de estudo: converte o DWG de ARM_DXF_ENTRADA em DXF (ARM_DXF_SAIDA) num banco lateral — o
+    /// desenho de referência do usuário só é lido — e fecha o CAD. Uso: script com NETLOAD + ARMTESTEDXF.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEDXF", Rt.CommandFlags.Session)]
+    public void ParaDxf()
+    {
+        try
+        {
+            var entrada = Environment.GetEnvironmentVariable("ARM_DXF_ENTRADA");
+            var saida = Environment.GetEnvironmentVariable("ARM_DXF_SAIDA");
+            using (var db = new Database(false, true))
+            {
+                db.ReadDwgFile(entrada, FileOpenMode.OpenForReadAndAllShare, true, "");
+                db.CloseInput(true);
+                db.DxfOut(saida, 16, DwgVersion.Current);
+            }
+            Log.Info($"ARMTESTEDXF: {entrada} → {saida}");
+        }
+        catch (Exception ex) { Log.Erro("ARMTESTEDXF", ex); }
+        foreach (Document d in CadApp.DocumentManager.Cast<Document>().ToList()) d.CloseAndDiscard();
+        CadApp.Quit();
+    }
+
     private static ObjectId Id(Database db, string h) => XDataCad.IdDoHandle(db, h);
 
     private static DadosArmadura Barra(Transaction tr, Database db, string nome) =>

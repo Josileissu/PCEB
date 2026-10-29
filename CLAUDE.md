@@ -164,6 +164,17 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
 - Progresso por etapas: `docs/PROGRESSO.md` (retomar por ele numa sessão nova).
+- **Normas** (2026-10-29): os PDFs ficam em `S:\Meu Drive\Normas` (Google Drive, lento). Índice local de texto por
+  página em `info_auxiliar/indice_normas/normas.sqlite` (FTS5, sem acentos; fora do Git) + `CATALOGO.md`.
+  Consultar: `python -E -P tools/normas/buscar.py "termos" --doc 9062` · `--pagina "NBR 9062" 58` · `--docs filtro`.
+  Atualizar (incremental, ~3 min): `python -E -P tools/normas/indexar.py` (rode em segundo plano). As 2 cópias da
+  NBR 6118:2023 têm texto embaralhado (fonte deslocada +29: "$UPDGXUDV" = "Armaduras") → use a 2014 (`Antigos`)
+  ou decodifique [pendente]. 15 PDFs são escaneados (sem texto).
+- **Ler um DWG de referência sem abrir no CAD do usuário**: `ARMTESTEDXF` (em AutoTeste.cs) converte
+  `ARM_DXF_ENTRADA` → `ARM_DXF_SAIDA` num banco lateral (script NETLOAD + ARMTESTEDXF numa instância nova; copie o
+  DWG para o scratchpad antes). A instância NÃO fecha sozinha: encerre só ela (confira o pai e a linha de comando
+  com o .scr). Depois `ezdxf` (instalado com pip --user) lê o DXF.
+- Pilar pré-moldado: requisitos e regras conferidas na norma em `docs/PILAR_PREMOLDADO_REQUISITOS.md`.
 
 ## Pendências [VALIDAR com o engenheiro]
 Espelhadas = mesmo N; catálogos (cordoalhas, treliças, telas) e traspasse;

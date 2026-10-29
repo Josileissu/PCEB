@@ -52,47 +52,67 @@ Fontes usadas neste levantamento:
 - Notas: "dimensões em cm", "utilizar neoprene 15 mm", "insertos metálicos são de responsabilidade da fornecedora".
 - **Informações p/ produção**: fcj saque (30), fcj montagem (35), fck 28 dias (40), volume (m³), peso (t), quantidade.
 
+### 1.3 O DWG do P61 (`316-CON-AB-100-6098-DET-BAS-R00.dwg`, analisado em 2026-10-29)
+- O arquivo traz **3 pilares na mesma folha** (P60, P61, P71; folhas 6097/6098/6110) — a folha é reaproveitada
+  trocando o conteúdo.
+- **Modelo em tamanho real (cm)**; as escalas saem das **viewports do Layout1** (papel em mm): vistas 1:50,
+  seções/cortes 1:25, consolo 1:25, alça 1:20, chaves de cisalhamento 1:10, espaçamento no canto 1:5. → O template
+  desenha tudo em verdadeira grandeza; a escala de cada região define a altura dos textos e o estilo de cota
+  (igual ao que o plugin já faz com a escala por barra).
+- Textos: Arial; 2 mm no papel (10 un em 1:50, 5 un em 1:25); títulos maiores (11 a 16 un).
+- Estilos de cota: **ESTRUT5, ESTRUT10, ESTRUT20, ESTRUT25, ESTRUT50** (um por escala) e ESTRUT50_QLEADER; cotas
+  da forma em "DIM"/"Cotas"; "COMPRIMENTO TOTAL DO PILAR: <>" é uma cota com texto prefixado.
+- Barras na seção = **círculos com o diâmetro real** (r 1,0 ø20; r 0,625 ø12,5; r 1,25 ø25).
+- Layers usados: `DT-Forma`/`Pilares` (forma), `DT-Armadura`/`Armadura` (barras), `DT-Barras no corte`,
+  `DT-Barras na forma`, `Descrição da armadura`, `Textos armaduras`, `Texto da cota`, `Cotas`/`DIM`/`DT-Cotas`,
+  `Relação do aço`, `Insertos`, `DT-Furo`, `Cortes`, `DT-Pontilhado` (DASHDOT), `Hachuras` (AR-CONC), `TEXTOS`.
+  [DECIDIR na implementação: usar estes nomes ou os layers ARM-* do plugin.]
+- Blocos: `INSERTO_25CB660_FRONTAL` (inserto do topo, espelhado conforme a vista), `GC1A` (gabarito no corte A-A),
+  `embutimento_100_50` (trecho embutido com as chaves, nas 4 vistas), `50` (alça na vista, espelhada).
+
 ---
 
 ## 2. Normas e regras que afetam o DESENHO
 
-### 2.1 NBR 6118:2023 (detalhamento geral)
-| Tema | Regra (para valor padrão ou aviso) | Item |
-|---|---|---|
-| Cobrimento nominal | pilar: CAA I 25 / II 30 / III 40 / IV 50 mm; cnom ≥ φ barra, ≥ φ feixe, ≥ 0,5 φ bainha | tab. 7.2, 7.4.7.5 |
-| Longitudinal | φ ≥ 10 mm e ≤ b/8 | 18.4.2.1 |
-| Espaçamento livre | ≥ 20 mm, ≥ φ (barra, feixe ou luva), ≥ 1,2 dmáx agregado; entre eixos ≤ 2b e ≤ 400 mm | 18.4.2.2 |
-| Taxas | As,mín = 0,15 Nd/fyd ≥ 0,4 % Ac; As,máx = 8 % Ac **inclusive na emenda** (na prática ≤ 4 % fora dela) | 17.3.5.3 — só aviso |
-| Estribos | φt ≥ 5 mm e ≥ φ/4 (φ do feixe); s ≤ 200 mm, ≤ menor dimensão, ≤ 24φ (CA-25) / 12φ (CA-50) | 18.4.3 |
-| Flambagem das barras | estribo poligonal protege até 20 φt do canto; barras além disso → **estribo suplementar/grampo**, com gancho envolvendo a barra | 18.2.4 |
-| Pinos de dobramento | barras CA-50: 5φ (φ < 20) e 8φ (φ ≥ 20); CA-60 6φ; estribos (φ ≤ 10): 3φ | tab. 9.1 e 9.2 (já no plugin) |
-| Ganchos | barras: 180° ponta ≥ 2φ, 135° ≥ 4φ, 90° ≥ 8φ; estribos: 180°/135° ≥ 5φt e ≥ 5 cm, 90° ≥ 10φt e ≥ 7 cm | 9.4.2.3 e 9.4.6.1 (já no plugin) |
-| Emenda por traspasse | proibida para φ > 32 mm; comprimida: l0c ≥ máx(lb,nec; 0,6 lb; 15φ; 200 mm) — o escritório usa ≥ 45φ na nota padrão | 9.5.2 |
-| Emenda por solda / luva | traspasse com cordões ≥ 5φ (nota padrão do escritório); luvas mecânicas conforme fabricante | 9.5.4 / 9.5.3 |
-| Feixes | até 3 barras em feixe em pilares; φn = φ√n | 9.4.3 |
-| Consolos (in loco) | regras de consolo curto/muito curto também na 6118 | 22.5 [CONFERIR] |
+Conferido em 2026-10-29 no índice local (`tools/normas/buscar.py`). Página = página do PDF. **NBR 9062:2017**
+= `Pré-Moldado\NBR 9062 - 2017 … Marquezin.pdf`. **NBR 6118**: as duas cópias de 2023 da pasta têm o texto
+embaralhado (fonte com codificação própria) — conferido na **edição 2014** (`Concreto\Antigos`), cujos itens de
+detalhamento de pilares se mantêm; [CONFERIR na 2023 impressa] se algum valor mudou.
 
-### 2.2 NBR 9062:2017 (pré-moldado) — itens que mudam o desenho [CONFERIR todos na norma]
-- **Cobrimento** pode ser reduzido em relação à 6118 para peças com controle rigoroso de produção (Δc = 5 mm);
-  mínimos próprios para pré-fabricados.
-- **Situações transitórias**: desforma, manuseio, armazenamento, transporte e montagem, com **coeficiente de
-  ação dinâmica** e fcj de cada fase. Por isso a prancha traz "fcj saque" e "fcj montagem".
-- **Dispositivos de içamento**: aço permitido nas alças (CA-25 e cordoalhas; restrições ao CA-50/CA-60),
-  coeficiente de segurança, ancoragem mínima e diâmetro do pino de dobra da alça. O escritório usa **cordoalha ø12,7**.
-- **Consolos**: classificação por a/d (curto 0,5 < a/d ≤ 1; muito curto a/d ≤ 0,5); tirante **ancorado na ponta**
-  com barra transversal soldada de mesmo φ, laço horizontal ou chapa; **costura** horizontal (As,cost ≥ 0,4 As,tir
-  no curto, ≥ 0,5 no muito curto [CONFERIR]) distribuída em 2/3 d; altura na face externa ≥ h/2; distância da
-  almofada à borda e à ancoragem do tirante; armadura de suspensão quando a carga é indireta.
-- **Dentes Gerber**, que são o par do consolo na viga apoiada.
-- **Aparelhos de apoio**: elastômero simples (neoprene dureza Shore A 60±5, espessura mínima, folga às bordas),
-  argamassa, chapa metálica. O escritório usa nota "neoprene 15 mm".
-- **Cálice de fundação**: comprimento de embutimento lemb em função de e/h e da rugosidade (lisa ~1,5h a 2,0h;
-  rugosa ~1,2h a 1,6h; mínimo absoluto). Rugosidade por **chaves de cisalhamento**; o escritório usa dentes de
-  4 cm a cada 5 cm com 1 cm de profundidade (P61, detalhe 01).
-- **Ligações**: pinos/chumbadores (furo grauteado + elastômero), ligações soldadas por chapas, ligações
-  **semirrígidas** (chapas inferior e superior, barras passantes grauteadas, armadura de continuidade).
-- **Tolerâncias** de fabricação e montagem (comprimento, seção, posição de insertos, prumo). Entram como nota e
-  como folgas nas ligações.
+### 2.1 NBR 6118 (detalhamento geral)
+| Tema | Regra (valor padrão ou aviso) | Item (pág. 2014) |
+|---|---|---|
+| Cobrimento nominal | pilar: CAA I 25 / II 30 / III 40 / IV 50 mm; cnom ≥ φ barra/feixe | tab. 7.2 |
+| Longitudinal | φ ≥ 10 mm e ≤ 1/8 da menor dimensão; **≥ 1 barra em cada vértice**; seção circular ≥ 6 barras | 18.4.2.1–2 (p. 169) |
+| Espaçamento livre | ≥ 20 mm, ≥ φ (barra, feixe φn = φ√n, ou luva), ≥ 1,2 dmáx — vale também na região de traspasse; entre eixos ≤ 2× menor dimensão e ≤ 400 mm | 18.4.2.2 (p. 169) |
+| Taxas | limites de 17.3.5.3 (só aviso) | 17.3.5.3 |
+| Estribos | em toda a altura, obrigatórios no cruzamento com vigas/lajes; φt ≥ 5 mm e ≥ φ/4; s ≤ 200 mm, ≤ menor dimensão, ≤ 24φ (CA-25) / 12φ (CA-50); C55–C90: s reduzido 50 % e ganchos ≥ 135° | 18.4.3 (p. 169–170) |
+| Flambagem das barras | estribo protege as barras até **20 φt do canto** se nesse trecho não houver mais de 2 barras (sem contar a do canto); as demais → grampo/estribo suplementar | 18.2.4 (p. 163–164) |
+| Pilar-parede | maior dimensão > 5× a menor → pilar-parede; armadura transversal ≥ 25 % da longitudinal por metro da maior face | 18.5 (p. 170) |
+| Pinos de dobramento | barras CA-50: 5φ (φ < 20) / 8φ (φ ≥ 20); estribos φ ≤ 10: 3φ | tab. 9.1/9.2 (já no plugin) |
+| Ganchos | já no plugin | 9.4.2.3 / 9.4.6.1 |
+| Traspasse | tração: l0t = α0t·lb,nec ≥ máx(0,3 α0t lb; 15φ; 200 mm), α0t 1,2…2,0 pela % emendada (tab. 9.4); **comprimida: l0c = lb,nec ≥ máx(0,6 lb; 15φ; 200 mm)**; barra **permanentemente comprimida: todas podem ser emendadas na mesma seção**; proibido para φ > 32 mm | 9.5.2.1–3 (p. 61) |
+| **Regra do escritório** | traspasse = norma, **nunca < 45φ**, com **nota ao lado da emenda** para o projetista ajustar | decisão de 2026-10-29 |
+
+### 2.2 NBR 9062:2017 (pré-moldado) — conferida
+| Tema | Regra | Item (pág.) |
+|---|---|---|
+| Tolerâncias de fabricação (pilares) | comprimento ±10 mm (L ≤ 5 m), ±15 (5–10 m), ±20 (> 10 m); seção −5/+10 mm; distorção ±5 mm; linearidade ±L/1000; **insertos ±15 mm** | 5.2.2.2, tab. 2; 5.2.2.5 (p. 24–25) |
+| Tolerâncias de montagem | prumo ±1/300 da altura ≤ 2,5 cm; pilar em planta/elevação ±1,0 cm; nível dos apoios ±1,0 cm (acumulado 3,0) | 5.2.2.6 (p. 25) |
+| Amplificação dinâmica | βa = 1,3 (saque, manuseio, montagem; transporte desfavorável), 1,4 (circunstâncias desfavoráveis), 0,8 (transporte favorável), **3,0 para os dispositivos de içamento**; pilares: βa 1,3 com tensão na armadura longitudinal ≤ 0,50 fyk; γf = 1,30 | 5.3.2 (p. 31) |
+| **Alças de içamento** | **proibido CA-25, CA-50 e CA-60**; ASTM A36 só ø10–25 sem feixe; **cordoalha** (NBR 7483, não engraxada) ou cabo de aço (ISO 2408); içamento só no plano dos ramos; ângulo do cabo ≥ 45° com a peça; ancoragem por aderência verificada; prioridade a furos de içamento e dispositivos mecânicos | 5.3.3 (p. 31–32) |
+| **Conteúdo obrigatório do desenho** | fck; fcj de manuseio/transporte; aços, bitolas, quantidades, formas, **soldas e emendas**; **cobrimento das armaduras e insertos em todas as faces**; armadura adicional de obra identificada à parte; **volume e peso**; ligações de obra; **tolerâncias dimensionais**; detalhamento do **içamento (tipo, posição, ancoragem das alças)** | 5.6.1.2 (p. 36–37) |
+| Aparelho de apoio elastomérico | NBR 19783; simples ou fretado (camadas ≤ 25 mm, chapas ≥ 2 mm); Shore A 50/60/70 → G 0,8/1,0/1,2 MPa; σk ≤ 7 MPa (simples); não sobrepor nem encostar dois aparelhos simples | 7.2.1.6 (p. 43–45) |
+| Consolo — classes | 1 < a/d ≤ 2: viga em balanço; 0,5 < a/d ≤ 1: curto (biela-tirante); a/d ≤ 0,5: muito curto (atrito-cisalhamento) | 7.3.2.2 (p. 57–58) |
+| Consolo — geometria | altura na face externa h1 ≥ h/2 (deduzido o afastamento do apoio); a1 e b com folga (fig. 17); afastamento lateral do apoio > cobrimento → armar fendilhamento | 7.3.3.1–3 (p. 58) |
+| Consolo — a2 (apoio → face externa) | **c + φ** (tirante com barra transversal soldada de mesmo φ); c + 3,5φ (alça horizontal φ < 20); c + 5φ (alça horizontal φ ≥ 20); c + 4φ (alça vertical φ ≤ 16) | 7.3.3.4 (p. 58) |
+| Consolo — tirante | φ ≤ 1/6 da menor dimensão do consolo e ≤ 25 mm (barra soldada) ou ≤ 1/8 (alça horizontal); espaçamento ≤ 20φ ou d (soldada) / 15φ ou d (alça); **no quinto superior da altura**; sem redução de seção até o engaste; **alça vertical proibida para φ > 16** | 7.3.3.6–16, 7.3.5.1 (p. 58–61) |
+| Consolo — costura | φ ≤ 1/15 da menor dimensão; espaçamento vertical ≤ 10 cm e ≤ a; distribuída em 2/3 d junto ao tirante; As,cost/s ≥ 0,4 As,v/d (curto) ou 0,5 (muito curto); mínimo 0,15·b cm²/m | 7.3.3.12, 7.3.6 (p. 59–62) |
+| Consolo — demais | estribos verticais ≥ 0,15 % bw·h (a/d ≤ 1, carga direta); suspensão para carga indireta; **no pilar, armadura igual à do tirante na face do engaste** (fig. 20a) | 7.3.7, 7.3.8, 7.3.3.14 (p. 60–62) |
+| Cálice — interface | lisa; **rugosa = 3 mm a cada 3 cm**; **chaves = profundidade ≥ 1 cm a cada ≤ 5 cm** (inclinação ≤ 45°), em toda a altura de embutimento (o P61, 4/1 a cada 5, atende) | 7.7.1.3, fig. 25 (p. 68) |
+| Cálice — embutimento | tab. 15: lisa/rugosa 1,5h (Md/Ndh ≤ 0,15) a 2,0h (≥ 2); com chaves 1,2h a 1,6h; tração: 2,0h e não lisa; **≥ 40 cm** e compatível com a ancoragem; ancoragem do pilar conta a partir de 0,5 Lemb (liso/rugoso) ou como traspasse (chaves) | 7.7.2, 7.7.5.4 (p. 68–72) |
+| Cálice — construtivo | colarinho ≥ 15 cm; fundo ≥ 20 cm; folga para o enchimento e o vibrador | 7.7.5 (p. 72) |
+| Cobrimento | pré-moldado: Δc = 5 mm sobre a 6118; pré-fabricado com fck ≥ 40 e a/c ≤ 0,45: mais −5 mm, **mínimo 20 mm para pilares** de concreto armado | 9.2.1.1 (p. 77) |
 
 ### 2.3 Outras normas que tocam o detalhamento
 | Norma | Uso no template |
@@ -103,7 +123,7 @@ Fontes usadas neste levantamento:
 | NBR 15200 (incêndio) | dimensão mínima da seção e distância c1 ao eixo da barra por TRRF — **aviso opcional** |
 | NBR 14931 (execução) | tolerâncias, espaçadores, notas de execução |
 | NBR 5419 (SPDA) | detalhe de aterramento: continuidade elétrica, barra ø ≥ 8 mm, aterrinserte |
-| Elastômero (aparelhos de apoio) | especificação do neoprene na nota [CONFERIR a norma vigente] |
+| NBR 19783 (aparelhos de apoio elastoméricos, citada na 9062 7.2.1.6) | especificação do neoprene na nota |
 | NBR 6122 / cálice | lado da fundação (fora do escopo do pilar, mas o embutimento é cotado no pilar) |
 
 ---
@@ -236,7 +256,11 @@ entre pernas.
 Sugestão de ordem: PP-1 completo e validado com o P61/PP127 → PP-2 → PP-3. As ligações (PP-4) e os
 pilares-parede (PP-5) ficam para depois, quando houver exemplos reais.
 
-## 13. Referências que preciso (deixar em `armadura/info_auxiliar/referencias_pilar_premoldado/`)
+## 13. Referências
+**Normas: resolvido** — ficam em `S:\Meu Drive\Normas` e foram indexadas (117 PDFs; ver CLAUDE.md, "Normas"). A pasta `info_auxiliar/referencias_pilar_premoldado/` fica para bibliografia e catálogos que não estejam lá.
+**DWG do P61: recebido** (seção 1.3). Ainda úteis: os itens abaixo marcados como bibliografia/escritório.
+
+### 13.1 Lista original
 A pasta está fora do Git (as normas não vão para o repositório).
 **Normas (PDF):**
 1. ABNT NBR 9062:2017 — Projeto e execução de estruturas de concreto pré-moldado (**prioritária**).
@@ -254,24 +278,33 @@ A pasta está fora do Git (as normas não vão para o repositório).
 - DWG do P61 (para medir blocos, layers, estilos de texto e cotas, além das imagens).
 - Os blocos padrão (inserto, alça, almofada, gabarito, carimbo) e a prancha de "informações gerais" citada na nota.
 
-## 14. Perguntas abertas (decidir antes de implementar)
+## 14. Decisões do usuário (2026-10-29)
+- **O template monta o detalhamento** (o bloco do plugin com todas as regiões), não a folha/carimbo; a folha
+  continua sendo montada com viewports no layout, como no P61.
+- **Numeração automática** do plugin.
+- **Detalhes padrão desenhados pelo template** (raio de curvatura, emendas, chaves, espaçamento no canto,
+  reforço do furo, alça, consolo).
+- **Traspasse**: calculado pela norma (o plugin já calcula), **nunca menor que 45φ**; onde houver emenda, uma
+  **nota ao lado** para o projetista ajustar se necessário.
+- Normas: índice local de `S:\Meu Drive\Normas` (`tools/normas/`, ver CLAUDE.md).
+
+## 15. Perguntas ainda abertas
 1. Entrada: o template recebe a armadura pronta (posições, bitolas, quantidades) por parâmetros/tabela, ou
    também importa de outro programa (TQS/Eberick)?
 2. As 4 vistas sempre (mesmo sem nada em uma face) ou só as faces com elementos?
 3. Cobrimento padrão (P61 aparenta 3,5 cm ao estribo) e se aplica a redução da NBR 9062.
-4. Traspasse padrão das emendas: o "≥ 45φ" da nota ou o lb,nec calculado pela 6118 (o plugin já calcula o traspasse)?
-5. Comprimento máximo das barras (12 m) e posição das emendas (todas na mesma seção ou alternadas)?
+4. ~~Traspasse padrão~~ (respondida: norma, mín. 45φ, com nota)
+5. Comprimento máximo das barras (12 m) e posição das emendas: a 6118 (9.5.2.1) permite emendar todas as barras
+   permanentemente comprimidas na mesma seção — o escritório emenda todas juntas ou alterna?
 6. Posição das alças (regra do escritório: distância às extremidades) e quando usar furo ø100 × alça de topo.
 7. Consolo: a ancoragem do tirante é sempre barra transversal soldada? Quando usar laço?
-8. Nomes e ordem da numeração N (P61: estribos N1, N2, N4… longitudinais N9…N17) — numeração automática do
-   plugin (por bitola) ou ordem do escritório?
-9. Detalhes padrão (raio de curvatura, emendas, chaves, espaçamento no canto, reforço do furo): blocos fixos do
-   escritório ou desenhados pelo template?
-10. Carimbo e tamanho da folha: o template monta a folha inteira (A1 com regiões) ou só o detalhamento (bloco)?
+8. ~~Numeração~~ (respondida: automática)
+9. ~~Detalhes padrão~~ (respondida: desenhados pelo template)
+10. ~~Folha~~ (respondida: só o detalhamento)
 11. Bilíngue sempre (PT/EN) ou opcional por obra?
 12. "Informações p/ produção": volume e peso calculados pelo template (da forma) — confirmar o peso específico (2,5 t/m³).
 
-## 15. O que o plugin já tem e o que falta
+## 16. O que o plugin já tem e o que falta
 Já existe: barras com ganchos/pinos da norma, estribos fechados e de qualquer poligonal, faixas (distribuição
 com quantidade), cortes/chamadas, cordoalha, traspasse e ARMDIVIDIR, grupo VAR, RA/resumo por detalhamento,
 detalhamento = bloco, infraestrutura de templates (ARMTEMPLATE), templates de base de reservatório.
