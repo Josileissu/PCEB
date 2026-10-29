@@ -7,6 +7,7 @@ using Xunit;
 namespace Armadura.Core.Tests;
 
 /// <summary>Template do pilar pré-moldado (etapa 1: forma), com as medidas do P61 do escritório.</summary>
+[Collection("Pilar")]
 public class PilarPreMoldadoTests
 {
     private static readonly TemplatePilarPreMoldado T = new TemplatePilarPreMoldado();
@@ -26,7 +27,7 @@ public class PilarPreMoldadoTests
         // 50 x 50 x 1390,5 = 3,476 m³ (o P61 tem 3,523 com os 2 consolos 40x25x23,5 = 0,047 — etapa 3)
         Assert.Equal(3.476, TemplatePilarPreMoldado.Volume(50, 50, 1390.5, 0), 3);
         var r = Gerar();
-        var prod = Assert.Single(r.Tabelas);
+        var prod = r.Tabelas.First(t => t.Titulo.StartsWith("INFORMAÇÕES"));
         Assert.Equal("INFORMAÇÕES PARA PRODUÇÃO" + TabelaTemplate.Quebra + "(MANUFACTURING INFORMATION)", prod.Titulo);
         // com os 2 consolos 40x25x23,5 do P61: 3,523 m³ e 8,808 t — os valores da prancha do escritório
         Assert.Contains(prod.Linhas, l => l[0] == "VOLUME DE CONCRETO:" + TabelaTemplate.Quebra + "(CONCRETE VOLUME)" && l[1] == "3,523 m³");

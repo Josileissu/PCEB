@@ -12,11 +12,15 @@ namespace Armadura.Core.Templates.PilarPreMoldado;
 public sealed class ConsoloPilar
 {
     public int Slot { get; set; }
+    /// <summary>Nome do tipo no catálogo de consolos padrão.</summary>
+    public string Tipo { get; set; } = "";
+    /// <summary>O tipo é duplo (tirante passante nas faces opostas).</summary>
+    public bool TipoDuplo { get; set; }
     /// <summary>Letra do corte de forma (B, C…).</summary>
     public string Letra { get; set; } = "B";
     public List<int> Faces { get; set; } = new List<int>();
-    /// <summary>Cota do topo (m).</summary>
-    public double CotaTopo { get; set; }
+    /// <summary>Distância da base do pilar ao topo do consolo (cm).</summary>
+    public double ZTopo { get; set; }
     /// <summary>Largura (ao longo da face), balanço, altura no pilar e na ponta, deslocamento lateral (cm).</summary>
     public double B { get; set; }
     public double A { get; set; }
@@ -43,7 +47,8 @@ public sealed class ConsoloPilar
     public double AlmE { get; set; }
 
     /// <summary>Pares de faces opostas (tirante passante) e faces sozinhas (tirante ancorado no pilar).</summary>
-    public List<(int F1, int F2)> Pares => new[] { (1, 3), (2, 4) }.Where(p => Faces.Contains(p.Item1) && Faces.Contains(p.Item2)).ToList();
+    public List<(int F1, int F2)> Pares => !TipoDuplo ? new List<(int, int)>()
+        : new[] { (1, 3), (2, 4) }.Where(p => Faces.Contains(p.Item1) && Faces.Contains(p.Item2)).ToList();
     public List<int> Sozinhas => Faces.Where(f => !Pares.Any(p => p.F1 == f || p.F2 == f)).ToList();
     public bool Duplo => Pares.Count > 0;
 
@@ -60,70 +65,63 @@ public sealed class ConsoloPilar
 public sealed partial class TemplatePilarPreMoldado
 {
     public const string AncSoldada = "Barra transversal soldada", AncLaco = "Laço (alça horizontal)";
-    private static readonly string[] LetrasCorte = { "B", "C", "D", "E" };
+    private static readonly string[] LetrasCorte = { "B", "C", "D", "E", "F", "G" };
 
-    private static readonly ParametroTemplate[] ParametrosConsolos = Enumerable.Range(1, 2).SelectMany(ParametrosConsolo).ToArray();
+    public const string SemConsolo = "(nenhum)";
+    private const int PosicoesConsolo = 5;
+
+    /// <summary>
+    /// Catálogo de consolos padrão usado pelo template (o plugin põe aqui o da configuração do usuário ao carregar e
+    /// depois do ARMCONSOLOS). As opções do parâmetro "tipo" saem dele.
+    /// </summary>
+    public static List<TipoConsolo> Catalogo { get; set; } = TipoConsolo.Padrao();
+
+    private static IEnumerable<ParametroTemplate> ParametrosConsolos() => Enumerable.Range(1, PosicoesConsolo).SelectMany(ParametrosConsolo);
 
     private static IEnumerable<ParametroTemplate> ParametrosConsolo(int k)
     {
-        string g = $"{11 + k}. Consolo {k} (corte {LetrasCorte[k - 1]}-{LetrasCorte[k - 1]})", p = $"C{k}";
-        yield return P(g, p, "Consolo", k == 1 ? "Sim" : "Não", tipo: TipoParametro.SimNao);
-        yield return P(g, p + "Faces", "Faces (ex.: 1,3 = duplo)", k == 1 ? "1,3" : "2", tipo: TipoParametro.Texto,
-            descricao: "Faces do pilar (1 = +x, 2 = −y, 3 = −x, 4 = +y) que recebem este consolo, no mesmo nível.");
-        yield return P(g, p + "Nivel", "Cota do topo do consolo", k == 1 ? "3.025" : "6.50", "m");
-        yield return P(g, p + "B", "Largura (ao longo da face)", "40", "cm", min: 10);
-        yield return P(g, p + "A", "Balanço", "25", "cm", min: 5);
-        yield return P(g, p + "H", "Altura junto ao pilar", "23.5", "cm", min: 10);
-        yield return P(g, p + "H1", "Altura na ponta", "23.5", "cm", min: 5, descricao: "Menor que a altura junto ao pilar = consolo trapezoidal.");
+        string g = $"{11 + k}. Consolo {k}", p = $"C{k}";
+        var nomes = new[] { SemConsolo }.Concat(Catalogo.Select(t => t.Nome)).ToArray();
+        yield return P(g, p + "Tipo", "Tipo (catálogo de consolos)", k == 1 && Catalogo.Count > 0 ? Catalogo[0].Nome : SemConsolo,
+            tipo: TipoParametro.Opcao, opcoes: nomes, descricao: "Consolos padrão do escritório: ARMCONSOLOS cria e edita os tipos.");
+        yield return P(g, p + "Faces", "Faces (ex.: 1,3)", k == 1 ? "1,3" : "1", tipo: TipoParametro.Texto,
+            descricao: "Faces do pilar (1 = +x, 2 = −y, 3 = −x, 4 = +y). Tipo duplo: um par de faces opostas (1,3 ou 2,4).");
+        yield return P(g, p + "Dist", "Distância da base ao topo do consolo", k == 1 ? "592.5" : "800", "cm", min: 0);
         yield return P(g, p + "Desl", "Deslocamento lateral (do centro da face)", "0", "cm");
-        yield return P(g, p + "TirN", "Tirante: barras", "5", tipo: TipoParametro.Inteiro, min: 1, max: 20);
-        yield return P(g, p + "TirBitola", "Tirante: bitola", "16", "mm", TipoParametro.Bitola, 6.3, 25);
-        yield return P(g, p + "TirAnc", "Tirante: ancoragem na ponta", AncSoldada, tipo: TipoParametro.Opcao, opcoes: new[] { AncSoldada, AncLaco });
-        yield return P(g, p + "CostN", "Costura: estribos horizontais", "4", tipo: TipoParametro.Inteiro, min: 0, max: 20);
-        yield return P(g, p + "CostBitola", "Costura: bitola", "8", "mm", TipoParametro.Bitola, 5, 16);
-        yield return P(g, p + "VertN", "Estribos verticais (por consolo)", "5", tipo: TipoParametro.Inteiro, min: 0, max: 20);
-        yield return P(g, p + "VertBitola", "Estribos verticais: bitola", "6.3", "mm", TipoParametro.Bitola, 5, 16);
-        yield return P(g, p + "InfN", "Armadura inferior (por consolo)", "5", tipo: TipoParametro.Inteiro, min: 0, max: 20);
-        yield return P(g, p + "InfBitola", "Armadura inferior: bitola", "10", "mm", TipoParametro.Bitola, 5, 20);
-        yield return P(g, p + "InfAnc", "Armadura inferior: comprimento dentro do pilar", "30", "cm", min: 0);
-        yield return P(g, p + "PinoN", "Pinos (por consolo)", "2", tipo: TipoParametro.Inteiro, min: 0, max: 8);
-        yield return P(g, p + "PinoBitola", "Pinos: bitola", "20", "mm", TipoParametro.Bitola, 10, 32);
-        yield return P(g, p + "PinoAcima", "Pinos: altura acima do consolo", "47", "cm", min: 0);
-        yield return P(g, p + "PinoEmb", "Pinos: embutimento no consolo", "18", "cm", min: 5);
-        yield return P(g, p + "PinoPe", "Pinos: pé (dobra)", "20", "cm", min: 0);
-        yield return P(g, p + "AlmA", "Almofada: no sentido do balanço", "15", "cm", min: 0, descricao: "0 = sem almofada.");
-        yield return P(g, p + "AlmB", "Almofada: no sentido da largura", "30", "cm", min: 0);
-        yield return P(g, p + "AlmE", "Almofada: espessura", "1.5", "cm", min: 0);
     }
 
     // ======================== leitura e cálculos (testáveis) ========================
 
-    public static List<ConsoloPilar> LerConsolos(ValoresTemplate v, double cotaBase, double L, List<string> avisos)
+    public static List<ConsoloPilar> LerConsolos(ValoresTemplate v, IReadOnlyList<TipoConsolo> catalogo, double L, List<string> avisos)
     {
         var r = new List<ConsoloPilar>();
-        for (int k = 1; k <= 2; k++)
+        for (int k = 1; k <= PosicoesConsolo; k++)
         {
-            string p = $"C{k}";
-            if (!v.SimNao(p)) continue;
+            string p = $"C{k}", nomeTipo = v[p + "Tipo"];
+            if (string.IsNullOrWhiteSpace(nomeTipo) || nomeTipo == SemConsolo) continue;
+            var t = TipoConsolo.Obter(catalogo, nomeTipo);
+            if (t == null) { avisos.Add($"Consolo {k}: tipo \"{nomeTipo}\" não existe no catálogo (ARMCONSOLOS)."); continue; }
             var faces = (v[p + "Faces"] ?? "").Split(new[] { ',', ';', ' ', '/' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var f) ? f : 0)
                 .Where(f => f >= 1 && f <= 4).Distinct().OrderBy(f => f).ToList();
             if (faces.Count == 0) { avisos.Add($"Consolo {k}: nenhuma face válida (use 1 a 4)."); continue; }
+            if (t.Duplo && !((faces.Contains(1) && faces.Contains(3)) || (faces.Contains(2) && faces.Contains(4))))
+            {
+                avisos.Add($"Consolo {k}: o tipo \"{t.Nome}\" é duplo e precisa de duas faces opostas (1,3 ou 2,4).");
+                continue;
+            }
             var c = new ConsoloPilar
             {
-                Slot = k, Letra = LetrasCorte[r.Count], Faces = faces, CotaTopo = v.Numero(p + "Nivel"),
-                B = v.Numero(p + "B"), A = v.Numero(p + "A"), H = v.Numero(p + "H"), H1 = Math.Min(v.Numero(p + "H1"), v.Numero(p + "H")),
-                Desl = v.Numero(p + "Desl"),
-                TirN = Math.Max(1, v.Inteiro(p + "TirN")), TirPhi = v.Numero(p + "TirBitola"), Laco = v[p + "TirAnc"] == AncLaco,
-                CostN = v.Inteiro(p + "CostN"), CostPhi = v.Numero(p + "CostBitola"),
-                VertN = v.Inteiro(p + "VertN"), VertPhi = v.Numero(p + "VertBitola"),
-                InfN = v.Inteiro(p + "InfN"), InfPhi = v.Numero(p + "InfBitola"), InfAnc = v.Numero(p + "InfAnc"),
-                PinoN = v.Inteiro(p + "PinoN"), PinoPhi = v.Numero(p + "PinoBitola"), PinoAcima = v.Numero(p + "PinoAcima"),
-                PinoEmb = v.Numero(p + "PinoEmb"), PinoPe = v.Numero(p + "PinoPe"),
-                AlmA = v.Numero(p + "AlmA"), AlmB = v.Numero(p + "AlmB"), AlmE = v.Numero(p + "AlmE"),
+                Slot = k, Tipo = t.Nome, TipoDuplo = t.Duplo, Letra = LetrasCorte[r.Count % LetrasCorte.Length], Faces = faces,
+                ZTopo = v.Numero(p + "Dist"), Desl = v.Numero(p + "Desl"),
+                B = t.B, A = t.A, H = t.H, H1 = Math.Min(t.H1, t.H),
+                TirN = Math.Max(1, t.TirN), TirPhi = t.TirPhi, Laco = t.Laco,
+                CostN = t.CostN, CostPhi = t.CostPhi, VertN = t.VertN, VertPhi = t.VertPhi,
+                InfN = t.InfN, InfPhi = t.InfPhi, InfAnc = t.InfAnc,
+                PinoN = t.PinoN, PinoPhi = t.PinoPhi, PinoAcima = t.PinoAcima, PinoEmb = t.PinoEmb, PinoPe = t.PinoPe,
+                AlmA = t.AlmA, AlmB = t.AlmB, AlmE = t.AlmE,
             };
-            double z = (c.CotaTopo - cotaBase) * 100;
-            if (z - c.H < 0 || z > L) { avisos.Add($"Consolo {k}: fora do pilar (topo na cota {FormatarCota(c.CotaTopo)})."); continue; }
+            if (c.ZTopo - c.H < 0 || c.ZTopo > L) { avisos.Add($"Consolo {k}: fora do pilar (topo a {Num(c.ZTopo, "0.#")} cm da base)."); continue; }
             r.Add(c);
         }
         return r;
@@ -144,12 +142,12 @@ public sealed partial class TemplatePilarPreMoldado
         Volume(b, h, l, chanfro) + consolos.Sum(c => c.Volume);
 
     /// <summary>Altura do CG (cm, a partir da base): pilar no meio do comprimento, consolos no seu centro.</summary>
-    public static double AlturaCG(double b, double h, double l, double chanfro, double cotaBase, IEnumerable<ConsoloPilar> consolos)
+    public static double AlturaCG(double b, double h, double l, double chanfro, IEnumerable<ConsoloPilar> consolos)
     {
         double v0 = Volume(b, h, l, chanfro), m = v0 * l / 2, vt = v0;
         foreach (var c in consolos)
         {
-            double z = (c.CotaTopo - cotaBase) * 100 - c.H / 2;
+            double z = c.ZTopo - c.H / 2;
             m += c.Volume * z;
             vt += c.Volume;
         }
@@ -179,12 +177,12 @@ public sealed partial class TemplatePilarPreMoldado
         return (n0, n1, c.AlmA > 0 ? (n0 + n1) / 2 : c.A / 2);
     }
 
-    private void DesenharConsolosNasVistas(Ctx c, List<ConsoloPilar> consolos, double[] xs, double[] larguras, double cotaBase, double[] cob)
+    private void DesenharConsolosNasVistas(Ctx c, List<ConsoloPilar> consolos, double[] xs, double[] larguras, double[] cob)
     {
         double hv = c.hV;
         foreach (var co in consolos)
         {
-            double zTop = (co.CotaTopo - cotaBase) * 100;
+            double zTop = co.ZTopo;
             foreach (int f in co.Faces)
             {
                 double cf = cob[f - 1];
@@ -321,22 +319,24 @@ public sealed partial class TemplatePilarPreMoldado
     /// Detalhe "ARMADURAS CONSOLO b x h x a" (como no P61), abaixo das vistas: corte pelo consolo com as barras e
     /// indicações, e as formas das barras (as armaduras do plugin, com descrição e cotas). Devolve o y livre abaixo.
     /// </summary>
-    private double DetalheConsolo(Ctx c, ConfiguracaoArmadura cfg, ConsoloPilar co, double b, double h, double[] cob, double x0, double yTopo, string acoLong, string acoEst)
+    private double DetalheConsolo(Ctx c, ConfiguracaoArmadura cfg, ConsoloPilar co, int nPares, int nSoz, string id,
+        double b, double h, double[] cob, double x0, double yTopo, string acoLong, string acoEst)
     {
         var r = c.R;
         double hc = c.hC;
         double cc = co.Faces.Select(f => cob[f - 1]).Min();
         string tipo = co.Duplo ? " - DUPLO" : "";
-        string titulo = $"ARMADURAS CONSOLO {Num(co.B, "0.#")}x{Num(co.H, "0.#")}" + (co.H1 < co.H - 1e-6 ? $"/{Num(co.H1, "0.#")}" : "") + $"x{Num(co.A, "0.#")}";
+        string dims = $"{Num(co.B, "0.#")}x{Num(co.H, "0.#")}" + (co.H1 < co.H - 1e-6 ? $"/{Num(co.H1, "0.#")}" : "") + $"x{Num(co.A, "0.#")}";
+        string titulo = $"ARMADURAS CONSOLO {co.Tipo} ({dims})";
         double y = yTopo;
-        foreach (var t in c.Linhas(titulo + tipo, $"CORBEL REINFORCEMENT {co.B:0.#}x{co.H:0.#}x{co.A:0.#}" + (co.Duplo ? " - DOUBLE" : "")))
+        foreach (var t in c.Linhas(titulo + tipo, $"CORBEL REINFORCEMENT {co.Tipo}" + (co.Duplo ? " - DOUBLE" : "")))
         { c.Texto(t, x0, y, 1.4 * hc); y -= 2.2 * hc; }
         c.Texto($"ESC 1:{c.escC:0}", x0, y, 0.8 * hc);
         y -= 8 * hc;
 
         // corte pelo consolo: pilar (largura na direção do balanço) com o(s) consolo(s); barras em linhas finas
         int fDir = co.Pares.Count > 0 ? co.Pares[0].F1 : co.Faces[0];
-        bool duplo = co.Pares.Count > 0;
+        bool duplo = nPares > 0;
         double colW = fDir == 1 || fDir == 3 ? b : h;
         double ox = x0 + 6 * hc + (duplo ? co.A : 0), zt = y;
         double tirZ = zt - cc - co.TirPhi / 20;
@@ -354,11 +354,9 @@ public sealed partial class TemplatePilarPreMoldado
         if (duplo) Consolo(ox, -1);
 
         // ---- formas das barras (armaduras do plugin), em linha abaixo do corte ----
-        int nConsolos = co.Faces.Count;
-        int nPares = co.Pares.Count, nSoz = co.Sozinhas.Count;
+        int nConsolos = 2 * nPares + nSoz;
         double fy = zt - co.H - 30 * hc, fx = x0 + 4 * hc;
         void Forma(BarraTemplate bt, double largura) { r.Barras.Add(bt); fx += largura + 14 * hc; }
-        string id = $"cons{co.Slot}";
         var indic = new List<(string barra, double X, double Y)>();
 
         // tirante

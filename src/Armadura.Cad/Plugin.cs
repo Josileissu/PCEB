@@ -83,6 +83,8 @@ public sealed class Plugin : Rt.IExtensionApplication
             CadApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage("\n" + aviso);
         });
         ConfigDesenho.EsquecerTodos(); // relê as configurações dos desenhos com os correntes novos
+        // catálogo de consolos padrão do template do pilar pré-moldado (ARMCONSOLOS)
+        Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Config.Consolos;
     }
 
     public static void SalvarConfig()

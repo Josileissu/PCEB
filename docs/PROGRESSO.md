@@ -275,3 +275,10 @@ consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálcu
         P61: volume 3,523 m³ e peso 8,808 t (iguais à prancha); tirante C=93, pinos 47+18+20. Unidade 154/154,
         autoteste 201/201 (`autoteste_pilar_p61_{consolo,corteB,vistas_consolo}.png`).
 - [ ] Usuário: conferir. Próxima: etapa 4 (alças pelo CG, furo/alça de topo, inserto, detalhes padrão).
+# Pilar pré-moldado — catálogo de consolos e etapa 4 (2026-10-29)
+- [x] Catálogo de consolos padrão (ARMCONSOLOS; 3 tipos de partida das pranchas P61/PP127); pilar escolhe tipo, faces,
+        distância da base ao topo e deslocamento (5 posições); um detalhe por tipo.
+- [x] Etapa 4: alças pelo CG (cordoalha), furo com reforço ou alça de topo, inserto/gabarito, detalhes padrão (chaves,
+        canto, alça, reforço, raio de curvatura, emendas, comprimento, SPDA). Unidade 160/160, autoteste 201/201
+        (`autoteste_pilar_p61_{detalhes,vistas_alcas}.png`).
+- [ ] Usuário: conferir. Próxima: etapa 5 (entrada por tabela/Excel/janela: armadura e consolos).

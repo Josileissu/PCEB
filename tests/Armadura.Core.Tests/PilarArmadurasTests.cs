@@ -10,6 +10,7 @@ using Xunit;
 namespace Armadura.Core.Tests;
 
 /// <summary>Etapa 2 do template do pilar: armaduras (medidas do P61).</summary>
+[Collection("Pilar")]
 public class PilarArmadurasTests
 {
     private static readonly TemplatePilarPreMoldado T = new TemplatePilarPreMoldado();
@@ -99,7 +100,8 @@ public class PilarArmadurasTests
         Assert.Contains(r.Textos, t => t.Texto == "SEÇÃO 3-3 - ARMADURA");
         Assert.Contains(r.Faixas, f => f.Tipo == TipoFaixa.Indicacao && f.Barra.StartsWith("Utopo"));
         Assert.True(r.Faixas.Count(f => f.Tipo == TipoFaixa.Indicacao && f.Barra.StartsWith("long")) >= 6);
-        Assert.Equal(12 * 3 + 2 * 3 * 2 * 2, r.Circulos.Count(cc => cc.Layer == "ARM-BARRA-SECAO")); // 12 barras × 3 seções + pernas dos U (topo e base)
+        // 12 barras × 3 seções + pernas dos U (topo e base) + as 3 do detalhe "espaçamento das barras" no canto
+        Assert.Equal(12 * 3 + 2 * 3 * 2 * 2 + 3, r.Circulos.Count(cc => cc.Layer == "ARM-BARRA-SECAO"));
         Assert.NotNull(r.PosicaoRA);
         // estribo com ganchos de 90° (passagem pelo canto)
         var est = r.Barras.First(b => b.Nome.StartsWith("estribo"));
@@ -115,7 +117,7 @@ public class PilarArmadurasTests
         Assert.Equal(2, longs.Count);
         Assert.All(longs, b => Assert.Equal(1383.5, b.Vertices[1].Y - b.Vertices[0].Y, 6));
         Assert.Contains(r.Avisos, a => a.Contains("rolo"));
-        Assert.DoesNotContain(r.Textos, t => t.Texto.StartsWith("EMENDA"));
+        Assert.DoesNotContain(r.Textos, t => t.Texto.StartsWith("EMENDA:"));
     }
 
     [Fact]
