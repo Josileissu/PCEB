@@ -89,6 +89,12 @@ internal sealed class FormTabela : Form
             }
         };
         _grade.DataError += (s, e) => e.ThrowException = false; // valor fora da lista de um combo: fica em branco
+        // combo confirma na hora (trocar o tipo já refaz a lista de faces da linha)
+        _grade.CurrentCellDirtyStateChanged += (s, e) =>
+        {
+            if (_grade.IsCurrentCellDirty && _grade.CurrentCell is DataGridViewComboBoxCell) _grade.CommitEdit(DataGridViewDataErrorContexts.Commit);
+        };
+        _grade.CellValueChanged += (s, e) => { if (e.RowIndex >= 0) AtualizarDependentes(e.RowIndex, e.ColumnIndex); };
         ok.Click += (s, e) =>
         {
             _grade.EndEdit();
@@ -106,19 +112,62 @@ internal sealed class FormTabela : Form
         Controls.Add(botoes);
     }
 
+    private bool _ajustando;
+
+    /// <summary>Autoteste: lê e escreve uma célula como o usuário (dispara a atualização das colunas dependentes).</summary>
+    internal string Celula(int r, int c) => Convert.ToString(_grade.Rows[r].Cells[c].Value, CultureInfo.InvariantCulture) ?? "";
+    internal void Digitar(int r, int c, string v) => _grade.Rows[r].Cells[c].Value = v;
+
     private void AdicionarLinha(string[] valores)
     {
         int i = _grade.Rows.Add();
         for (int c = 0; c < _p.Colunas.Count; c++)
+            Definir(i, c, c < valores.Length ? valores[c] : _p.Colunas[c].Padrao);
+    }
+
+    private string[] ValoresDaLinha(int r) =>
+        _grade.Rows[r].Cells.Cast<DataGridViewCell>().Select(c => Convert.ToString(c.Value, CultureInfo.InvariantCulture) ?? "").ToArray();
+
+    private List<string> OpcoesDe(int r, int c)
+    {
+        var col = _p.Colunas[c];
+        return col.OpcoesDaLinha?.Invoke(ValoresDaLinha(r)) ?? col.Opcoes;
+    }
+
+    /// <summary>Escreve a célula: lista da linha (combo), conversão da coluna e, no combo, só valor da lista (sem maiúsculas).</summary>
+    private void Definir(int r, int c, string v)
+    {
+        var col = _p.Colunas[c];
+        bool antes = _ajustando;
+        _ajustando = true;
+        try
         {
-            string v = c < valores.Length ? valores[c] : _p.Colunas[c].Padrao;
-            var col = _p.Colunas[c];
             if (col.Tipo == TipoParametro.Opcao)
             {
-                // aceita o valor sem diferenciar maiúsculas; fora da lista fica em branco
-                v = col.Opcoes.FirstOrDefault(o => string.Equals(o, v, StringComparison.OrdinalIgnoreCase)) ?? "";
+                var ops = OpcoesDe(r, c);
+                if (col.OpcoesDaLinha != null && _grade.Rows[r].Cells[c] is DataGridViewComboBoxCell cb)
+                {
+                    cb.Items.Clear();
+                    cb.Items.AddRange(ops.Cast<object>().ToArray());
+                }
+                if (col.Ajustar != null) v = col.Ajustar(ValoresDaLinha(r), v);
+                v = ops.FirstOrDefault(o => string.Equals(o, v, StringComparison.OrdinalIgnoreCase)) ?? "";
             }
-            _grade.Rows[i].Cells[c].Value = v;
+            else if (col.Ajustar != null) v = col.Ajustar(ValoresDaLinha(r), v);
+            _grade.Rows[r].Cells[c].Value = v;
+        }
+        finally { _ajustando = antes; }
+    }
+
+    /// <summary>Mudou uma célula: as colunas com lista dependente da linha refazem a lista e convertem o valor.</summary>
+    private void AtualizarDependentes(int r, int mudou)
+    {
+        if (_ajustando) return;
+        for (int c = 0; c < _p.Colunas.Count; c++)
+        {
+            var col = _p.Colunas[c];
+            if (c == mudou || (col.OpcoesDaLinha == null && col.Ajustar == null)) continue;
+            Definir(r, c, Convert.ToString(_grade.Rows[r].Cells[c].Value, CultureInfo.InvariantCulture) ?? "");
         }
     }
 
@@ -151,12 +200,7 @@ internal sealed class FormTabela : Form
             if (r >= _grade.Rows.Count) AdicionarLinha(_p.Colunas.Select(c => c.Padrao).ToArray());
             var cels = linhas[i].Split('\t');
             for (int j = 0; j < cels.Length && c0 + j < _p.Colunas.Count; j++)
-            {
-                var col = _p.Colunas[c0 + j];
-                string v = cels[j].Trim();
-                if (col.Tipo == TipoParametro.Opcao) v = col.Opcoes.FirstOrDefault(o => string.Equals(o, v, StringComparison.OrdinalIgnoreCase)) ?? "";
-                _grade.Rows[r].Cells[c0 + j].Value = v;
-            }
+                Definir(r, c0 + j, cels[j].Trim());
         }
     }
 
@@ -170,7 +214,7 @@ internal sealed class FormTabela : Form
                 if (col.Tipo == TipoParametro.Numero && v.Length > 0 &&
                     !double.TryParse(v.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out _))
                     return $"Linha {r + 1}, \"{col.Rotulo}\": informe um número.";
-                if (col.Tipo == TipoParametro.Opcao && v.Length == 0)
+                if (col.Tipo == TipoParametro.Opcao && !OpcoesDe(r, c).Contains(v))
                     return $"Linha {r + 1}, \"{col.Rotulo}\": escolha da lista.";
             }
         return null;

@@ -78,22 +78,50 @@ public sealed partial class TemplatePilarPreMoldado
     /// <summary>Uma lista (janela) com os consolos do pilar: tipo do catálogo, faces, distância da base ao topo, deslocamento.</summary>
     private static IEnumerable<ParametroTemplate> ParametrosConsolos()
     {
-        string padrao = Catalogo.Count > 0 ? $"{Catalogo[0].Nome}|1,3|592.5|0" : "";
+        string padrao = Catalogo.Count > 0 ? $"{Catalogo[0].Nome}|{AjustarFaces(Catalogo[0].Nome, "1")}|592.5|0" : "";
         yield return new ParametroTemplate
         {
             Grupo = "12. Consolos", Nome = "Consolos", Rotulo = "Consolos do pilar", Tipo = TipoParametro.Tabela, NomeItem = "consolo",
             Padrao = padrao,
-            Descricao = "Clique em … para incluir os consolos: tipo (catálogo do ARMCONSOLOS), faces (1 = +x, 2 = −y, 3 = −x, 4 = +y; " +
-                        "duplo = 1,3 ou 2,4), distância da base ao topo do consolo e deslocamento lateral.",
+            Descricao = "Clique em … para incluir os consolos: tipo (catálogo do ARMCONSOLOS), face (1 = +x, 2 = −y, 3 = −x, 4 = +y; " +
+                        "tipo duplo já ocupa as duas faces opostas: 1 e 3 ou 2 e 4), distância da base ao topo e deslocamento lateral.",
             Colunas =
             {
                 new ColunaTabela { Nome = "Tipo", Rotulo = "Tipo", Tipo = TipoParametro.Opcao, Opcoes = Catalogo.Select(t => t.Nome).ToList(),
                     Padrao = Catalogo.Count > 0 ? Catalogo[0].Nome : "", Largura = 170 },
-                new ColunaTabela { Nome = "Faces", Rotulo = "Faces", Padrao = "1", Largura = 70 },
+                new ColunaTabela
+                {
+                    Nome = "Faces", Rotulo = "Faces", Tipo = TipoParametro.Opcao, Opcoes = FacesSimples.Concat(FacesDuplas).ToList(),
+                    Padrao = "1", Largura = 80,
+                    OpcoesDaLinha = l => OpcoesFaces(l.Count > 0 ? l[0] : ""),
+                    Ajustar = (l, f) => AjustarFaces(l.Count > 0 ? l[0] : "", f),
+                },
                 new ColunaTabela { Nome = "Dist", Rotulo = "Base → topo (cm)", Tipo = TipoParametro.Numero, Padrao = "300", Largura = 110 },
                 new ColunaTabela { Nome = "Desl", Rotulo = "Deslocamento (cm)", Tipo = TipoParametro.Numero, Padrao = "0", Largura = 110 },
             },
         };
+    }
+
+    private static readonly string[] FacesSimples = { "1", "2", "3", "4" };
+    private static readonly string[] FacesDuplas = { "1 e 3", "2 e 4" };
+
+    private static bool TipoEhDuplo(string tipo) => TipoConsolo.Obter(Catalogo, tipo)?.Duplo == true;
+
+    /// <summary>Lista de faces da janela conforme o tipo: duplo = pares opostos ("1 e 3", "2 e 4"); simples = 1 a 4.</summary>
+    public static List<string> OpcoesFaces(string tipo) => (TipoEhDuplo(tipo) ? FacesDuplas : FacesSimples).ToList();
+
+    /// <summary>
+    /// Face escolhida → valor da lista do tipo (pedido do usuário, 2026-10-29): no duplo, a face 1 (ou 3) vira "1 e 3" e a 2 (ou 4)
+    /// vira "2 e 4"; no simples, um par vira a 1ª face. Aceita "1,3", "1 e 3", "3". Sem face válida: "".
+    /// </summary>
+    public static string AjustarFaces(string tipo, string valor)
+    {
+        var f = (valor ?? "").Split(new[] { ',', ';', ' ', '/', 'e', 'E', '+' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0)
+            .Where(n => n >= 1 && n <= 4).ToList();
+        if (f.Count == 0) return "";
+        if (TipoEhDuplo(tipo)) return f[0] % 2 == 1 ? "1 e 3" : "2 e 4";
+        return f[0].ToString(CultureInfo.InvariantCulture);
     }
 
     // ======================== leitura e cálculos (testáveis) ========================

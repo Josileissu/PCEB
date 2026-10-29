@@ -46,12 +46,35 @@ public class PilarConsolosTests
         var p = T.Parametros.Single(x => x.Nome == "Consolos");
         Assert.Equal(TipoParametro.Tabela, p.Tipo);
         Assert.Equal(tipos.Select(t => t.Nome), p.Colunas[0].Opcoes);
-        Assert.Equal("CD 40x23,5x25|1,3|592.5|0", p.Padrao);
+        Assert.Equal("CD 40x23,5x25|1 e 3|592.5|0", p.Padrao);
         // grupos com dois dígitos: o PropertyGrid ordena como texto
         Assert.All(T.Parametros, x => Assert.Matches(@"^\d\d\. ", x.Grupo));
         // serialização com a configuração (catálogo salvo no config.json do usuário)
         var cfg = new ConfiguracaoArmadura();
         Assert.Equal(3, cfg.Consolos.Count);
+    }
+
+    [Fact]
+    public void FacesEmListaConformeOTipo()
+    {
+        var col = T.Parametros.Single(x => x.Nome == "Consolos").Colunas[1];
+        Assert.Equal(TipoParametro.Opcao, col.Tipo);
+        // duplo: a face escolhida já leva a oposta
+        Assert.Equal(new[] { "1 e 3", "2 e 4" }, col.OpcoesDaLinha(new[] { "CD 40x23,5x25" }));
+        Assert.Equal("1 e 3", col.Ajustar(new[] { "CD 40x23,5x25" }, "1"));
+        Assert.Equal("1 e 3", col.Ajustar(new[] { "CD 40x23,5x25" }, "3"));
+        Assert.Equal("2 e 4", col.Ajustar(new[] { "CD 40x23,5x25" }, "4"));
+        Assert.Equal("1 e 3", col.Ajustar(new[] { "CD 40x23,5x25" }, "1,3")); // formato antigo
+        // simples: uma face; trocar de duplo para simples fica com a 1ª
+        Assert.Equal(new[] { "1", "2", "3", "4" }, col.OpcoesDaLinha(new[] { "CS 20x28,5x25" }));
+        Assert.Equal("2", col.Ajustar(new[] { "CS 20x28,5x25" }, "2 e 4"));
+        Assert.Equal("", col.Ajustar(new[] { "CS 20x28,5x25" }, "x"));
+        // "1 e 3" é lido como as duas faces
+        var v = new ValoresTemplate(T.Parametros);
+        v["Consolos"] = "CD 40x23,5x25|2 e 4|592.5|0";
+        var c = TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1000, new List<string>()).Single();
+        Assert.Equal(new[] { 2, 4 }, c.Faces);
+        Assert.True(c.Duplo);
     }
 
     [Fact]

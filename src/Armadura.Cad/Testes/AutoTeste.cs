@@ -1544,8 +1544,16 @@ public sealed class AutoTeste
                     f.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, f.Width, f.Height));
                     bmp.Save(Path.Combine(Path.GetDirectoryName(saidaF), "autoteste_janela_consolos.png"));
                 }
+            // faces em lista conforme o tipo: duplo já ocupa as duas faces opostas
+            bool facesOk = f.Celula(0, 1) == "1 e 3" && f.Celula(1, 1) == "2";
+            f.Digitar(1, 0, "CD 40x23,5x25");
+            facesOk &= f.Celula(1, 1) == "2 e 4";
+            f.Digitar(0, 0, "CS 20x28,5x25");
+            facesOk &= f.Celula(0, 1) == "1";
+            Rel.AppendLine($"        faces após trocar o tipo: \"{f.Celula(0, 1)}\", \"{f.Celula(1, 1)}\"");
             f.Close();
             Checar(true, "janela da lista de consolos abre");
+            Checar(facesOk, "lista de consolos: faces conforme o tipo (duplo = 1 e 3 / 2 e 4)");
         }
         catch (Exception ex) { Checar(false, "janela da lista de consolos: " + ex.Message); }
         // 2ª inserção do mesmo detalhamento, para o EXPLODE no fim do roteiro
