@@ -231,3 +231,16 @@ Pedido: algo como o QQ (Quick Properties) do GstarCAD para a armadura; o usuári
 - Obs.: o autoteste supõe a configuração de fábrica de escala (Escala 10, EscalaFaixa 0). Com o config do usuário
         (Escala 25, EscalaFaixa 50 em 2026-10-28) falham 5 testes de escala/ARMDIVIDIR que não têm relação com a
         mudança; com Escala 10 sobra 1 (texto da faixa, pela EscalaFaixa 50).
+# Reconhecimento pelo texto + cotas móveis (2026-10-29)
+Pedido: "faça isso [o reconhecimento pelo texto próximo], e não somente para o layer 'armadura'. Também, quero a
+possibilidade de poder mover os textos/comprimento que aparecem junto às barras."
+- [x] ARMRECONHECER (`ComandosReconhecimento.cs`; interpretador `Core/Reconhecimento/TextoArmadura.cs`): qualquer layer,
+        polilinhas e LINEs (viram polilinhas), TEXT/MTEXT. Formatos: "25 N1 ø10 c/15 C=300", "N5 22ø5.0", "4ø10", "2x11 N1",
+        "2x(11 N1", %%c/Ø/∅/φ, vírgula decimal, formatação de MText. Associação um-para-um pelo menor custo. Escala pela altura
+        do texto (2 un → 1:10). Aviso quando o C= não confere nem com a soma externa nem com o comprimento real.
+- [x] Cotas móveis: `Segmento.CotaMovida/CotaDx/CotaDy` (XData SM/SMX/SMY, só quando movida), deslocamento nos eixos do
+        trecho; o Sincronizador grava ao mover (MOVE/grip) e a cota acompanha a barra. A descrição já era móvel.
+        ARMTEXTOPADRAO desfaz. Botões "Reconhecer" e "Textos padrão" no grupo Barras.
+- [x] Autoteste 194/194 (com Escala 10/EscalaFaixa 0), unidade 129/129. Instalador não gerado.
+- Sem DWG real de outro programa ainda: o formato dos textos foi tirado da especificação e dos padrões usuais; pedir
+        um exemplo ao usuário para calibrar.

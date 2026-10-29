@@ -130,6 +130,7 @@ public static class CodecDados
             R("SL", s.ComprimentoRegistrado);
             H("SH", s.HandleCota);
             if (s.Sobreposto) B("SO", true); // só quando marcado: não regrava as barras antigas
+            if (s.CotaMovida) { B("SM", true); R("SMX", s.CotaDx); R("SMY", s.CotaDy); }
         }
         return l;
     }
@@ -181,6 +182,9 @@ public static class CodecDados
                 case "SL": if (seg != null) seg.ComprimentoRegistrado = Real(v); break;
                 case "SH": if (seg != null) seg.HandleCota = v as string ?? ""; break;
                 case "SO": if (seg != null) seg.Sobreposto = Int(v) != 0; break;
+                case "SM": if (seg != null) seg.CotaMovida = Int(v) != 0; break;
+                case "SMX": if (seg != null) seg.CotaDx = Real(v); break;
+                case "SMY": if (seg != null) seg.CotaDy = Real(v); break;
             }
         }
         return d;

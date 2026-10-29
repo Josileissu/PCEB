@@ -369,6 +369,9 @@ internal sealed class Sincronizador
                     }
                     // texto editado pelo usuário: guarda as quebras de linha (Enter) antes de regenerar
                     GuardarQuebras(tr, ent);
+                    // cota movida pelo usuário: o deslocamento fica guardado e acompanha a barra
+                    if (ent is DBText cotaMovida && XDataCad.Tipo(ent) == TipoParte.Cota)
+                        ServicoBarra.RegistrarMovimentoCota(tr, cotaMovida, cfg);
                     // qualquer parte (descrição movida, faixa esticada, chamada movida…) atualiza a barra dona
                     var dona = ServicoBarra.BarraDe(tr, ent);
                     if (dona != null) barras.Add(dona.ObjectId);

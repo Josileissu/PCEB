@@ -16,7 +16,7 @@ internal static class PainelComandos
 {
     private static readonly (string grupo, (string rotulo, string cmd)[] botoes)[] Grupos =
     {
-        ("Barras", new[] { ("Barra", "ARMBARRA"), ("Converter", "ARMCONVERTER"), ("Offset", "ARMOFFSET"), ("Propriedades", "ARMPROP"),
+        ("Barras", new[] { ("Barra", "ARMBARRA"), ("Converter", "ARMCONVERTER"), ("Reconhecer", "ARMRECONHECER"), ("Textos padrão", "ARMTEXTOPADRAO"), ("Offset", "ARMOFFSET"), ("Propriedades", "ARMPROP"),
                            ("Segmento", "ARMEDITSEG"), ("Recotar", "ARMRECOTA"), ("Rebater", "ARMREBATER"), ("Dividir", "ARMDIVIDIR") }),
         ("Estribos / treliças / telas", new[] { ("Estribo", "ARMESTRIBO"), ("Repetir estribo", "ARMESTRIBOREP"), ("Treliça", "ARMTRELICA"), ("Tela", "ARMTELA") }),
         ("Faixas", new[] { ("Faixa ort.", "ARMFAIXAORT"), ("Faixa ali.", "ARMFAIXAALI"), ("Corte+cota ort.", "ARMCORTECOTAORT"),

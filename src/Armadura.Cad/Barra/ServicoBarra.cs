@@ -137,8 +137,7 @@ internal static class ServicoBarra
         d.TemPosicaoDescricao = true;
 
         // ---- cotas dos segmentos ----
-        var extensao = pl.GeometricExtents;
-        var centroDesenho = new Point2d((extensao.MinPoint.X + extensao.MaxPoint.X) / 2, (extensao.MinPoint.Y + extensao.MaxPoint.Y) / 2);
+        var centroDesenho = CentroDesenho(pl);
         for (int i = 0; i < geo.Count; i++)
         {
             var s = d.Segmentos[i];
@@ -149,16 +148,9 @@ internal static class ServicoBarra
                 s.HandleCota = "";
                 continue;
             }
-            var (meio, dir) = GeometriaBarra.Meio(pl, i);
-            // texto sempre legível: direção entre -90° e +90°
-            if (dir.X < -1e-9 || (Math.Abs(dir.X) <= 1e-9 && dir.Y < 0)) dir = dir.Negate();
-            var normal = dir.GetPerpendicularVector();
-            // cota do lado de fora do desenho: se "acima do texto" aponta para dentro, o texto vai
-            // para o outro lado, alinhado pelo topo (sem encostar na linha)
-            // treliça: o desenho fica acima do banzo inferior, então a cota vai para baixo
-            bool porCima = !d.EhTrelica && (centroDesenho - meio).DotProduct(normal) <= 1e-6;
-            var p = meio + normal * (porCima ? afast : -afast);
-            var vertical = porCima ? TextVerticalMode.TextBottom : TextVerticalMode.TextTop;
+            var (padrao, dir, normal, vertical) = PosicaoPadraoCota(pl, d, i, centroDesenho, afast);
+            // cota movida pelo usuário: o deslocamento (nos eixos do trecho) acompanha a barra
+            var p = s.CotaMovida ? padrao + dir * s.CotaDx + normal * s.CotaDy : padrao;
             var ponto = new Point3d(p.X, p.Y, pl.Elevation);
             string valor = CalculoComprimento.TextoCota(geo[i].Comprimento, s.Var, cfg);
             double rot = Math.Atan2(dir.Y, dir.X);
@@ -202,6 +194,79 @@ internal static class ServicoBarra
         if (d.Rebatidas.Count > 0) d.Rebatidas = ServicoRebatida.Atualizar(tr, pl, d, hBarra);
         if (!d.EhBarraComum || d.PartesDesenho.Count > 0) d.PartesDesenho = ServicoDesenhoGerado.Atualizar(tr, pl, d, hBarra, cfg);
         XDataCad.GravarSeMudou(pl, CodecDados.Codificar(d));
+    }
+
+    /// <summary>
+    /// Posição padrão da cota do trecho i (sem o deslocamento do usuário) e os eixos do trecho: direção
+    /// sempre legível (entre -90° e +90°) e a perpendicular a ela.
+    /// </summary>
+    private static (Point2d ponto, Vector2d dir, Vector2d normal, TextVerticalMode vertical) PosicaoPadraoCota(
+        Polyline pl, DadosArmadura d, int i, Point2d centroDesenho, double afast)
+    {
+        var (meio, dir) = GeometriaBarra.Meio(pl, i);
+        if (dir.X < -1e-9 || (Math.Abs(dir.X) <= 1e-9 && dir.Y < 0)) dir = dir.Negate();
+        var normal = dir.GetPerpendicularVector();
+        // cota do lado de fora do desenho: se "acima do texto" aponta para dentro, o texto vai
+        // para o outro lado, alinhado pelo topo (sem encostar na linha)
+        // treliça: o desenho fica acima do banzo inferior, então a cota vai para baixo
+        bool porCima = !d.EhTrelica && (centroDesenho - meio).DotProduct(normal) <= 1e-6;
+        var p = meio + normal * (porCima ? afast : -afast);
+        return (p, dir, normal, porCima ? TextVerticalMode.TextBottom : TextVerticalMode.TextTop);
+    }
+
+    private static Point2d CentroDesenho(Polyline pl)
+    {
+        var ext = pl.GeometricExtents;
+        return new Point2d((ext.MinPoint.X + ext.MaxPoint.X) / 2, (ext.MinPoint.Y + ext.MaxPoint.Y) / 2);
+    }
+
+    /// <summary>
+    /// Cota movida pelo usuário (MOVE, grip): guarda o deslocamento em relação à posição padrão, nos eixos do
+    /// trecho. Devolvida à posição padrão (≈ 0), deixa de ser "movida". True se gravou na barra.
+    /// </summary>
+    public static bool RegistrarMovimentoCota(Transaction tr, DBText cota, ConfiguracaoArmadura cfg)
+    {
+        var pl = BarraDaParte(tr, cota);
+        var v = XDataCad.LerVinculo(cota);
+        if (pl == null || v == null) return false;
+        var d = XDataCad.LerBarra(pl);
+        if (d == null || v.Indice < 0 || v.Indice >= d.Segmentos.Count || v.Indice >= GeometriaBarra.NumeroSegmentos(pl)) return false;
+        double cpu = Desenho.CmPorUnidade(pl.Database, cfg);
+        double afast = cfg.AfastamentoTexto(cpu, d.Escala);
+        double tol = 1e-3 * cfg.AlturaTexto(cpu, d.Escala);
+        var (padrao, dir, normal, _) = PosicaoPadraoCota(pl, d, v.Indice, CentroDesenho(pl), afast);
+        var a = cota.HorizontalMode == TextHorizontalMode.TextLeft && cota.VerticalMode == TextVerticalMode.TextBase
+            ? cota.Position : cota.AlignmentPoint;
+        var delta = new Point2d(a.X, a.Y) - padrao;
+        var s = d.Segmentos[v.Indice];
+        bool movida = delta.Length > tol;
+        double dx = movida ? delta.DotProduct(dir) : 0, dy = movida ? delta.DotProduct(normal) : 0;
+        if (movida == s.CotaMovida && Math.Abs(dx - s.CotaDx) <= tol && Math.Abs(dy - s.CotaDy) <= tol) return false;
+        s.CotaMovida = movida;
+        s.CotaDx = dx;
+        s.CotaDy = dy;
+        if (!pl.IsWriteEnabled) pl.UpgradeOpen();
+        XDataCad.Gravar(pl, CodecDados.Codificar(d));
+        return true;
+    }
+
+    /// <summary>Descrição e cotas de volta às posições padrão (ARMTEXTOPADRAO).</summary>
+    public static void RestaurarPosicoes(Transaction tr, Polyline pl, ConfiguracaoArmadura cfg)
+    {
+        var d = XDataCad.LerBarra(pl);
+        if (d == null) return;
+        foreach (var s in d.Segmentos) { s.CotaMovida = false; s.CotaDx = 0; s.CotaDy = 0; }
+        double cpu = Desenho.CmPorUnidade(pl.Database, cfg);
+        var desc = Parte<MText>(tr, pl.Database, d.HandleDescricao, TipoParte.Descricao, XDataCad.Hex(pl.ObjectId));
+        if (desc != null)
+        {
+            var pos = PosicaoPadraoDescricao(pl, d, GeometriaBarra.Ler(pl, cpu), cfg.AlturaTexto(cpu, d.Escala));
+            desc.UpgradeOpen();
+            desc.Location = new Point3d(pos.X, pos.Y, pl.Elevation);
+        }
+        if (!pl.IsWriteEnabled) pl.UpgradeOpen();
+        XDataCad.Gravar(pl, CodecDados.Codificar(d));
+        Atualizar(tr, pl, cfg);
     }
 
     /// <summary>
