@@ -72,6 +72,8 @@ pela unidade do desenho (`INSUNITS`; se indefinida, a configuração — padrão
 |---|---|
 | `ARMBARRA` | Bitola/quantidade/espaçamento correntes → "Primeiro ponto:" → "Próximo ponto [Arco/Desfazer/Config]:" (linha elástica) → Enter termina |
 | `ARMCONVERTER` | Seleciona polilinhas → viram armaduras com os valores correntes; fechadas podem virar estribo com ganchos |
+| `ARMRECONHECER` | Barras de outros programas/desenho à mão, em QUALQUER layer: polilinhas e LINEs + textos ("25 N1 ø10 c/15 C=300", `Core/Reconhecimento/TextoArmadura`). Cada texto vai para a curva mais próxima (até 8 alturas; C= que confere pesa a favor), um para um; a descrição nasce no lugar do texto, a escala sai da altura do texto, medidas "35"/"42" viram as cotas no mesmo lugar (trechos sem medida ficam sem cota). Fechadas: pergunta estribo. Textos originais: Apagar/Manter. Sem texto → ficam selecionadas |
+| `ARMTEXTOPADRAO` | Descrição e cotas das armaduras selecionadas voltam à posição padrão (desfaz as cotas movidas) |
 | `ARMOFFSET` | Poligonal (aberta ou fechada) → armadura paralela, afastada (ex.: cobrimento) do lado clicado; fechada pode virar estribo |
 | `ARMCOMANDOS` | Liga/desliga a paleta "Armadura - Comandos" (botões; o GstarCAD 2021 não tem ribbon em .NET) |
 | `ARMIMPORTARCAD` | Importa um .cad do QiArmaduras (AltoQi Builder): barras, estribos, faixas, indicações, rebatidas, detalhamentos (blocos), relações do aço e o desenho de forma (`docs/FORMATO_QICAD.md`) |

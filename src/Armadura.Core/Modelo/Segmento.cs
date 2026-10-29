@@ -41,6 +41,13 @@ public sealed class Segmento
     /// nem tem medida no esboço da RA (decisão do usuário, 2026-10-27).
     /// </summary>
     public bool Sobreposto { get; set; }
+    /// <summary>
+    /// Cota movida pelo usuário: deslocamento (unidades do desenho) em relação à posição padrão, nos eixos
+    /// do trecho (Dx ao longo dele, Dy na perpendicular), para acompanhar a barra quando ela muda.
+    /// </summary>
+    public bool CotaMovida { get; set; }
+    public double CotaDx { get; set; }
+    public double CotaDy { get; set; }
 
     public static bool EhGancho(FormatoSegmento f) =>
         f == FormatoSegmento.Gancho45 || f == FormatoSegmento.Gancho90 || f == FormatoSegmento.Gancho180;

@@ -890,6 +890,7 @@ public sealed class AutoTeste
     {
         TestarRelacaoParcialEBloqueio(doc, db, cfg);
         TestarNovidades(doc, db, cfg);
+        TestarReconhecimento(doc, db, cfg);
 
         // ----- fase 4: cordoalha, traspasse, treliça, tela -----
         TestarCordoalha(doc, db, cfg);
@@ -923,12 +924,139 @@ public sealed class AutoTeste
         doc.SendStringToExecute("ARMTELA\nModelo\nQ-196\n6000,700\n6245,1300\n", true, false, true);
         doc.SendStringToExecute("_.STRETCH _C 6995,1495 7005,1505\n\n0,0\n500,0\n", true, false, true);
         doc.SendStringToExecute("ARMRAATUALIZAR\n", true, false, true);
+        // cota movida com o MOVE de verdade (o Sincronizador guarda o deslocamento)
+        if (H.TryGetValue("recRetaCota", out var hCota))
+        {
+            doc.SendStringToExecute($"_.MOVE (handent \"{hCota}\")\n\n0,0\n0,8\n", true, false, true);
+        }
         doc.SendStringToExecute("ARMTESTE6\n", true, false, true);
     }, suspender: false);
 
     private static string _zoomTabela;
 
     /// <summary>Detalhe de dobra na tabela (paleta), MOVE da tabela e lista de corte e dobra.</summary>
+    /// <summary>
+    /// ARMRECONHECER (2026-10-29): barras "de outro programa" em layers quaisquer, com o texto ao lado e as
+    /// medidas dos trechos; e cotas movidas pelo usuário acompanhando a barra (ARMTEXTOPADRAO desfaz).
+    /// </summary>
+    private static void TestarReconhecimento(Document doc, Database db, Core.Configuracao.ConfiguracaoArmadura cfg)
+    {
+        try
+        {
+            var ids = new List<ObjectId>();
+            ObjectId idL, idReta, idEst, idSolta;
+            using (var tr = db.TransactionManager.StartTransaction())
+            using (Sincronizador.Suspender(doc))
+            {
+                var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+                var layer = Desenho.GarantirLayer(db, tr, "PILARES_TERCEIROS", 3);
+                ObjectId Add(Entity e) { esp.AppendEntity(e); tr.AddNewlyCreatedDBObject(e, true); ids.Add(e.ObjectId); return e.ObjectId; }
+                Polyline Pl(bool fechada, params (double x, double y)[] pts)
+                {
+                    var p = new Polyline();
+                    p.SetDatabaseDefaults(db);
+                    for (int i = 0; i < pts.Length; i++) p.AddVertexAt(i, new Point2d(pts[i].x, pts[i].y), 0, 0, 0);
+                    p.Closed = fechada;
+                    p.LayerId = layer;
+                    return p;
+                }
+                DBText Txt(string s, double x, double y)
+                {
+                    var t = new DBText { TextString = s, Height = 2, Position = new Point3d(x, y, 0) };
+                    t.SetDatabaseDefaults(db);
+                    t.LayerId = layer;
+                    return t;
+                }
+                // L como na imagem do usuário: 35 na vertical, 42 na horizontal, texto embaixo
+                idL = Add(Pl(false, (20000, -7965), (20000, -8000), (20042, -8000)));
+                Add(Txt("35", 19994, -7983));
+                Add(Txt("42", 20019, -8004));
+                Add(Txt("25 N0 %%c16.0 c/10 C=73", 20005, -8010));
+                // barra reta desenhada como LINE (layer 0) com MText
+                idReta = Add(new Line(new Point3d(20100, -8000, 0), new Point3d(20400, -8000, 0)));
+                var mt = new MText { Contents = "{\\H2;4 N2 %%c10 C=300}", TextHeight = 2, Location = new Point3d(20250, -7997, 0), Attachment = AttachmentPoint.MiddleCenter };
+                mt.SetDatabaseDefaults(db);
+                Add(mt);
+                // retângulo fechado com texto de estribo
+                idEst = Add(Pl(true, (20500, -8000), (20520, -8000), (20520, -7960), (20500, -7960)));
+                Add(Txt("N3 22 %%c5.0 c/15 C=114", 20495, -8006));
+                // polilinha sem texto e texto sem barra
+                idSolta = Add(Pl(false, (20700, -8000), (20800, -8000)));
+                Add(Txt("10 N9 %%c8.0 C=100", 21000, -9000));
+                tr.Commit();
+            }
+
+            var res = ComandosReconhecimento.Reconhecer(db, ids, cfg, true, () => true);
+            Rel.AppendLine($"        reconhecimento: {res?.Barras.Count} barras, {res?.Estribos} estribo(s), {res?.CotasAproveitadas} cotas, " +
+                           $"{res?.CurvasSemTexto.Count} curva(s) sem texto, textos sem barra: {string.Join(" | ", res?.TextosSemBarra ?? new List<string>())}");
+            foreach (var a in res?.Avisos ?? new List<string>()) Rel.AppendLine("        aviso: " + a);
+            Checar(res != null && res.Barras.Count == 3 && res.Estribos == 1, "reconhecer: 3 barras (L, LINE, estribo)");
+            Checar(res != null && res.CurvasSemTexto.Count == 1 && res.CurvasSemTexto[0] == idSolta, "reconhecer: polilinha sem texto fica de fora");
+            Checar(res != null && res.TextosSemBarra.Count == 1 && res.TextosSemBarra[0].StartsWith("10 N9"), "reconhecer: texto sem barra informado");
+            Checar(res != null && res.CotasAproveitadas == 2, $"reconhecer: medidas 35 e 42 viram cotas ({res?.CotasAproveitadas})");
+
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var pl = (Polyline)tr.GetObject(idL, OpenMode.ForRead);
+                var d = XDataCad.LerBarra(pl);
+                Checar(d != null && d.Bitola == 16 && d.Quantidade == 25 && d.Espacamento == 10 && d.Escala == 10,
+                    $"reconhecer: L = 25 ø16 c/10, escala 1:10 pelo texto ({d?.Quantidade} ø{d?.Bitola} c/{d?.Espacamento} 1:{d?.Escala})");
+                var desc = Ent<MText>(tr, db, d.HandleDescricao);
+                Checar(desc != null && desc.Location.DistanceTo(new Point3d(20005 + 0, -8010, 0)) < 20, $"reconhecer: descrição no lugar do texto ({desc?.Location})");
+                var c0 = Ent<DBText>(tr, db, d.Segmentos[0].HandleCota);
+                var c1 = Ent<DBText>(tr, db, d.Segmentos[1].HandleCota);
+                Checar(c0 != null && c0.TextString == "35" && d.Segmentos[0].CotaMovida && c1 != null && c1.TextString == "42",
+                    $"reconhecer: cotas 35/42 no lugar das medidas ({c0?.AlignmentPoint}, {c1?.AlignmentPoint})");
+                Checar(pl.Layer == cfg.LayerBarra, $"reconhecer: barra de layer qualquer vai para {cfg.LayerBarra}");
+                int restantes = ids.Count(id => !id.IsErased && tr.GetObject(id, OpenMode.ForRead) is DBText or MText);
+                Checar(restantes == 1, $"reconhecer: textos originais apagados (sobrou só o sem barra: {restantes})");
+                Checar(idReta.IsErased, "reconhecer: LINE trocada por polilinha");
+                var reta = res.Barras.Select(id => (Polyline)tr.GetObject(id, OpenMode.ForRead)).Select(p => XDataCad.LerBarra(p)).FirstOrDefault(x => x.Numero == 2);
+                Checar(reta != null && reta.Bitola == 10 && reta.Quantidade == 4, "reconhecer: LINE = 4 N2 ø10");
+                if (reta != null)
+                {
+                    var plReta = res.Barras.Select(id => (Polyline)tr.GetObject(id, OpenMode.ForRead)).First(p => XDataCad.LerBarra(p).Numero == 2);
+                    H["recReta"] = XDataCad.Hex(plReta.ObjectId);
+                    H["recRetaCota"] = reta.Segmentos[0].HandleCota;
+                    Antes["recRetaCotaY"] = Ent<DBText>(tr, db, reta.Segmentos[0].HandleCota).AlignmentPoint.Y;
+                }
+                var est = XDataCad.LerBarra(tr.GetObject(idEst, OpenMode.ForRead));
+                Checar(est != null && est.Estribo && est.Bitola == 5 && est.Quantidade == 22 && est.Espacamento == 15, "reconhecer: estribo N3 22 ø5 c/15");
+                tr.Commit();
+            }
+
+            // cota movida acompanha a barra; ARMTEXTOPADRAO devolve ao padrão
+            using (var tr = db.TransactionManager.StartTransaction())
+            using (Sincronizador.Suspender(doc))
+            {
+                var pl = (Polyline)tr.GetObject(idL, OpenMode.ForWrite);
+                var d = XDataCad.LerBarra(pl);
+                var c1 = Ent<DBText>(tr, db, d.Segmentos[1].HandleCota);
+                c1.UpgradeOpen();
+                c1.AlignmentPoint = c1.AlignmentPoint + new Vector3d(10, -6, 0); // o usuário arrasta a cota
+                c1.AdjustAlignment(db);
+                ServicoBarra.RegistrarMovimentoCota(tr, c1, cfg);
+                var antes = c1.AlignmentPoint;
+                double meioAntes = (pl.GetPoint2dAt(1).X + pl.GetPoint2dAt(2).X) / 2;
+                pl.SetPointAt(2, new Point2d(20062, -8000)); // trecho horizontal esticado para 62
+                ServicoBarra.Atualizar(tr, pl, cfg);
+                double meioDepois = (pl.GetPoint2dAt(1).X + pl.GetPoint2dAt(2).X) / 2;
+                var depois = c1.AlignmentPoint;
+                Checar(c1.TextString == "62" && Math.Abs(depois.X - antes.X - (meioDepois - meioAntes)) < 1e-6 && Math.Abs(depois.Y - antes.Y) < 1e-6,
+                    $"cota movida acompanha o trecho esticado ({antes} → {depois})");
+                ServicoBarra.RestaurarPosicoes(tr, pl, cfg);
+                d = XDataCad.LerBarra(pl);
+                Checar(!d.Segmentos[0].CotaMovida && !d.Segmentos[1].CotaMovida && Math.Abs(c1.AlignmentPoint.X - meioDepois) < 1e-6,
+                    $"ARMTEXTOPADRAO: cotas de volta ao meio do trecho ({c1.AlignmentPoint})");
+                tr.Commit();
+            }
+        }
+        catch (Exception ex)
+        {
+            Checar(false, "reconhecimento: exceção " + ex);
+        }
+    }
+
     private static void TestarDetalheECorteDobra(Document doc, Database db, Core.Configuracao.ConfiguracaoArmadura cfg)
     {
         try
@@ -1051,6 +1179,21 @@ public sealed class AutoTeste
         Plugin.Config.TrelicaCorrente = _restaurar.trelica;
         Plugin.Config.TelaCorrente = _restaurar.tela;
         Plugin.SalvarConfig();
+        if (H.TryGetValue("recReta", out var hReta))
+        {
+            using var trc = db.TransactionManager.StartTransaction();
+            var pr = (Polyline)trc.GetObject(Id(db, hReta), OpenMode.ForRead);
+            var dr = XDataCad.LerBarra(pr);
+            var cr = Ent<DBText>(trc, db, dr.Segmentos[0].HandleCota);
+            double meio = (pr.GetPoint2dAt(0).X + pr.GetPoint2dAt(1).X) / 2;
+            Rel.AppendLine($"        cota movida pelo MOVE: SM={dr.Segmentos[0].CotaMovida} dx={dr.Segmentos[0].CotaDx:0.###} dy={dr.Segmentos[0].CotaDy:0.###}, texto {cr?.TextString} em {cr?.AlignmentPoint}");
+            Checar(dr.Segmentos[0].CotaMovida && Math.Abs(Math.Abs(dr.Segmentos[0].CotaDy) - 8) < 1e-6,
+                "MOVE da cota: deslocamento guardado pelo Sincronizador");
+            Checar(cr != null && cr.TextString == "300" && Math.Abs(cr.AlignmentPoint.X - meio) < 1e-6
+                   && Math.Abs(cr.AlignmentPoint.Y - ((double)Antes["recRetaCotaY"] + 8)) < 1e-6,
+                "MOVE da cota: continua no meio do trecho, 8 acima do padrão");
+            trc.Commit();
+        }
         using (var tr = db.TransactionManager.StartTransaction())
         {
             var barras = Desenho.Entidades<Polyline>(db, tr).Select(i => (Polyline)tr.GetObject(i, OpenMode.ForRead))

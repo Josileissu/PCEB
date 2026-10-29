@@ -173,7 +173,7 @@ public sealed class Comandos
     });
 
     /// <summary>"Polilinha fechada vira estribo com ganchos?" (null = cancelado).</summary>
-    private static bool? PerguntarEstribo(Editor ed)
+    internal static bool? PerguntarEstribo(Editor ed)
     {
         var pk = new PromptKeywordOptions("\nPolilinha fechada vira estribo com ganchos (no vértice superior esquerdo)?")
             { AllowNone = true, AppendKeywordsToMessage = true };
@@ -707,7 +707,7 @@ public sealed class Comandos
         try { ed.UpdateScreen(); } catch (Rt.Exception) { }
     }
 
-    private static DadosArmadura NovaBarra(ConfiguracaoArmadura cfg) => new DadosArmadura
+    internal static DadosArmadura NovaBarra(ConfiguracaoArmadura cfg) => new DadosArmadura
     {
         Bitola = cfg.BitolaCorrente,
         Aco = cfg.AcoCorrente,
