@@ -85,5 +85,18 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   direita. Avisos da NBR 6118 (18.4.2.1, 18.4.2.2, 18.4.3, 18.2.4). Descrição das barras: `BarraTemplate.PosicaoDescricao`
   e `RotacaoDescricao` (na vertical, ao lado da barra, como no P61).
   Correção no plugin: a INDICAÇÃO não passa mais o espaçamento dela (15) para a barra (`ServicoFaixa.Criar`).
-- Próximas: 3 consolos (entram no volume e
+- **Ajustes de 2026-10-29**: quadro de produção com `Table.SetMargin` por célula (a margem global não funciona no
+  GstarCAD) e `SetTextHeight` (sem ele o texto ficava com a altura do estilo); colunas 24/11 alturas de texto. Seções:
+  cada longitudinal com a chamada na altura da própria barra (afastada só o necessário: passadas de cima para baixo e
+  de volta, depois recentradas); U com UMA chamada por conjunto (direção x ao lado, direção y em cima).
+- **Etapa 3 (2026-10-29, feita)** — `ConsolosPilar.cs`: 2 consolos parametrizados (faces "1,3" = duplo com tirante
+  passante; face sozinha = tirante com gancho de 90° no pilar), cota do topo, b, a, h e h1 (trapezoidal), deslocamento;
+  vistas: de frente (retângulo + aresta da ponta + pinos + almofada) e de lado (trapézio + pino + almofada + cotas na
+  VISTA 2); cortes de forma B-B/C-C hachurados (ANSI31; `HachuraTemplate`) com almofada, pinos e cotas, e marcas na
+  VISTA 2; detalhe "ARMADURAS CONSOLO b x h x a - DUPLO" abaixo das vistas (corte com as barras e indicações + formas:
+  tirante, barra transversal soldada ou laço horizontal, costura (estribo horizontal em volta), estribos verticais,
+  inferior em L, pinos em L; almofada "NEOPRENE a x b x e mm"); a2 da NBR 9062 7.3.3.4 posiciona a almofada e os pinos
+  (no centro dela); volume com os consolos (P61 = 3,523 m³ / 8,808 t, igual à prancha) e `AlturaCG` (para as alças).
+  Avisos 7.3.2.2, 7.3.3.1, 7.3.3.4, 7.3.3.6/7, 7.3.3.12, 7.3.6.
+- Próximas: 4 alças pelo CG (entram no volume e
   no CG); 4 alças pelo CG, furo/alça de topo, inserto, detalhes padrão; 5 entrada por tabela/Excel/janela.

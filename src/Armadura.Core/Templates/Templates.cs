@@ -182,8 +182,19 @@ public sealed class TabelaTemplate
     public static double AlturaLinha(int linhasDeTexto) => linhasDeTexto <= 1 ? 2.0 : 1.4 * linhasDeTexto + 0.4;
 }
 
+/// <summary>Hachura de um contorno fechado (ex.: consolo cortado).</summary>
+public sealed class HachuraTemplate
+{
+    public List<(double X, double Y)> Vertices { get; set; } = new List<(double, double)>();
+    public string Padrao { get; set; } = "ANSI31";
+    /// <summary>Escala do padrão (unidades do desenho).</summary>
+    public double EscalaPadrao { get; set; } = 1;
+    public string Layer { get; set; } = "ARM-HACHURA";
+}
+
 public sealed class ResultadoTemplate
 {
+    public List<HachuraTemplate> Hachuras { get; } = new List<HachuraTemplate>();
     public List<BarraTemplate> Barras { get; } = new List<BarraTemplate>();
     public List<ContornoTemplate> Contornos { get; } = new List<ContornoTemplate>();
     public List<FaixaTemplate> Faixas { get; } = new List<FaixaTemplate>();

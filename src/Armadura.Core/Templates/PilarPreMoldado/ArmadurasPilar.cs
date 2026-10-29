@@ -430,26 +430,29 @@ public sealed partial class TemplatePilarPreMoldado
             c.Linha(ex0, sy0 + h / 2, ex1, sy0 + h / 2, "ARM-ESTRIBO-SECAO");
             if (dirsGr > 1) c.Linha(sx0 + b / 2, ey0, sx0 + b / 2, ey1, "ARM-ESTRIBO-SECAO");
         }
-        // barras em ponto; cada uma ganha a sua indicação (como no P61), apontando a peça que passa na altura do corte
+        // barras em ponto; cada longitudinal ganha a sua indicação (como no P61), apontando a peça que passa no corte
         double xm = sx0 + b / 2;
-        var rotulos = new List<(double X, double Y, string barra)>();
+        // rótulos laterais: (y desejado, pontos, barra, lado esquerdo?)
+        var laterais = new List<(double Y, List<(double X, double Y)> pts, string barra, bool esq)>();
         foreach (var grupo in barras.GroupBy(x => x.Grupo))
         {
             int i = 0;
             foreach (var bs in grupo)
             {
-                r.Circulos.Add(new CirculoTemplate { X = sx0 + bs.X, Y = sy0 + bs.Y, Raio = bs.Bitola / 20, Layer = "ARM-BARRA-SECAO" });
+                double px = sx0 + bs.X, py = sy0 + bs.Y;
+                r.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = bs.Bitola / 20, Layer = "ARM-BARRA-SECAO" });
                 // na alternância, metade das barras do grupo é a "B"
                 var candidatas = longs.Where(l => l.Grupo.Chave == grupo.Key && l.Peca.Ini <= yCorte + 1e-6 && l.Peca.Fim >= yCorte - 1e-6).ToList();
                 var peca = candidatas.FirstOrDefault(l => l.B == (i % 2 == 1)) ?? candidatas.FirstOrDefault();
-                if (peca != null) rotulos.Add((sx0 + bs.X, sy0 + bs.Y, peca.Nome));
+                if (peca != null) laterais.Add((py, new List<(double, double)> { (px, py) }, peca.Nome, px < xm));
                 i++;
             }
         }
-        // grampos U que aparecem nesta seção: pernas em ponto e o trecho reto em vista; uma indicação por U
+        // grampos U: pernas em ponto e o trecho reto em vista; UMA indicação por conjunto (com uma linha para cada U)
         foreach (var u in us.Where(u => (zona == "topo" && u.topo) || (zona == "base" && !u.topo)))
         {
             double ru = u.phi / 20;
+            var pernas = new List<(double X, double Y)>();
             for (int k = 1; k <= u.qtd; k++)
             {
                 double desl = (k - (u.qtd + 1) / 2.0) * 8 * ru;
@@ -459,27 +462,31 @@ public sealed partial class TemplatePilarPreMoldado
                 c.Linha(pa.X, pa.Y, pb.X, pb.Y, "ARM-ESTRIBO-SECAO");
                 r.Circulos.Add(new CirculoTemplate { X = pa.X, Y = pa.Y, Raio = ru, Layer = "ARM-BARRA-SECAO" });
                 r.Circulos.Add(new CirculoTemplate { X = pb.X, Y = pb.Y, Raio = ru, Layer = "ARM-BARRA-SECAO" });
-                rotulos.Add((pa.X, pa.Y, u.nome));
+                pernas.Add(pa);
             }
-        }
-        // textos à esquerda e à direita da seção, na mesma ordem (de cima para baixo) das barras: as linhas não se cruzam
-        foreach (var lado in rotulos.GroupBy(rt => rt.X < xm - 1e-6))
-        {
-            var lista = lado.OrderByDescending(rt => rt.Y).ThenBy(rt => lado.Key ? rt.X : -rt.X).ToList();
-            double passo = 1.8 * hc;
-            double altura = Math.Max(h + 4 * hc, (lista.Count - 1) * passo);
-            double yTopo = sy0 + h / 2 + altura / 2;
-            double dy = lista.Count > 1 ? altura / (lista.Count - 1) : 0;
-            double tx = lado.Key ? sx0 - 7 * hc : sx0 + b + 7 * hc;
-            for (int k = 0; k < lista.Count; k++)
-            {
-                double ty = lista.Count > 1 ? yTopo - k * dy : lista[k].Y;
+            if (u.dir == 0) laterais.Add((pernas.Average(p => p.Y), pernas, u.nome, true));
+            else
                 r.Faixas.Add(new FaixaTemplate
                 {
-                    Barra = lista[k].barra, Tipo = TipoFaixa.Indicacao, Referencias = { (lista[k].X, lista[k].Y) },
-                    Posicao = (tx, ty), Escala = c.escC,
+                    Barra = u.nome, Tipo = TipoFaixa.Indicacao, Referencias = pernas, Posicao = (xm, sy0 + h + 3 * hc), Escala = c.escC,
                 });
-            }
+        }
+        // laterais: cada texto na altura da sua barra, afastado só o necessário para não encostar no vizinho
+        double gap = 1.5 * hc;
+        foreach (var lado in laterais.GroupBy(l => l.esq))
+        {
+            var lista = lado.OrderByDescending(l => l.Y).ToList();
+            var ys = lista.Select(l => l.Y).ToArray();
+            for (int k = 1; k < ys.Length; k++) ys[k] = Math.Min(ys[k], ys[k - 1] - gap);      // de cima para baixo
+            for (int k = ys.Length - 2; k >= 0; k--) ys[k] = Math.Max(ys[k], ys[k + 1] + gap); // e de volta
+            // recentra o conjunto na seção (o deslocamento médio vai a zero)
+            double ajuste = lista.Select((l, k) => l.Y - ys[k]).Average();
+            double tx = lado.Key ? sx0 - 4 * hc : sx0 + b + 4 * hc;
+            for (int k = 0; k < lista.Count; k++)
+                r.Faixas.Add(new FaixaTemplate
+                {
+                    Barra = lista[k].barra, Tipo = TipoFaixa.Indicacao, Referencias = lista[k].pts, Posicao = (tx, ys[k] + ajuste), Escala = c.escC,
+                });
         }
     }
 
