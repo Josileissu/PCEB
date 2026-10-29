@@ -28,8 +28,9 @@ public class PilarPreMoldadoTests
         var r = Gerar();
         var prod = Assert.Single(r.Tabelas);
         Assert.Equal("INFORMAÇÕES PARA PRODUÇÃO" + TabelaTemplate.Quebra + "(MANUFACTURING INFORMATION)", prod.Titulo);
-        Assert.Contains(prod.Linhas, l => l[0] == "VOLUME DE CONCRETO:" + TabelaTemplate.Quebra + "(CONCRETE VOLUME)" && l[1] == "3,476 m³");
-        Assert.Contains(prod.Linhas, l => l[0].StartsWith("PESO:") && l[1] == "8,691 ton.");
+        // com os 2 consolos 40x25x23,5 do P61: 3,523 m³ e 8,808 t — os valores da prancha do escritório
+        Assert.Contains(prod.Linhas, l => l[0] == "VOLUME DE CONCRETO:" + TabelaTemplate.Quebra + "(CONCRETE VOLUME)" && l[1] == "3,523 m³");
+        Assert.Contains(prod.Linhas, l => l[0].StartsWith("PESO:") && l[1] == "8,808 ton.");
         Assert.Contains(prod.Linhas, l => l[1] == "fcj = 30 MPa");
         Assert.Contains(prod.Linhas, l => l[1] == "1 un.");
         // só EN: ponto decimal; sem fcj de montagem: a linha some

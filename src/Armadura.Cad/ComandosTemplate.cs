@@ -104,6 +104,23 @@ public sealed class ComandosTemplate
             dim.Dimscale = 1; dim.Dimtxt = h; dim.Dimasz = h; dim.Dimtsz = 0.5 * h; dim.Dimexe = 0.5 * h; dim.Dimexo = 0.5 * h; dim.Dimgap = 0.3 * h;
         }
         foreach (var t in r.Tabelas) Tabela(tr, db, esp, t, P3(t.X, t.Y), cfg, cpu, r.Escala, todos);
+        foreach (var hc in r.Hachuras)
+        {
+            try
+            {
+                var hat = Add(new Hatch(), Layer(hc.Layer, 8));
+                hat.SetHatchPattern(HatchPatternType.PreDefined, string.IsNullOrEmpty(hc.Padrao) ? "ANSI31" : hc.Padrao);
+                hat.PatternScale = hc.EscalaPadrao > 0 ? hc.EscalaPadrao / cpu : 1;
+                hat.Associative = false;
+                var pts = new Point2dCollection();
+                var bul = new DoubleCollection();
+                foreach (var (x, y) in hc.Vertices) { pts.Add(P(x, y)); bul.Add(0); }
+                pts.Add(P(hc.Vertices[0].X, hc.Vertices[0].Y)); bul.Add(0);
+                hat.AppendLoop(HatchLoopTypes.Default, pts, bul);
+                hat.EvaluateHatch(true);
+            }
+            catch (Rt.Exception ex) { Log.Erro("Template.Hachura", ex); }
+        }
 
         // ---- armaduras ----
         var ids = new List<ObjectId>();
@@ -243,11 +260,17 @@ public sealed class ComandosTemplate
         {
             var cel = tab.Cells[l, c];
             cel.TextHeight = h;
-            // o GstarCAD ignora a margem das células: um espaço afasta o texto da borda
-            string txt = s ?? "";
-            if (txt.Length > 0 && al == CellAlignment.MiddleLeft) txt = " " + txt.Replace(TabelaTemplate.Quebra, TabelaTemplate.Quebra + " ");
-            else if (txt.Length > 0 && al == CellAlignment.MiddleRight) txt = txt.Replace(TabelaTemplate.Quebra, " " + TabelaTemplate.Quebra) + " ";
-            cel.TextString = txt.Replace(TabelaTemplate.Quebra, "\\P");
+            cel.TextString = (s ?? "").Replace(TabelaTemplate.Quebra, "\\P");
+            try { tab.SetTextHeight(l, c, h); } catch (Rt.Exception) { }
+            // margens da célula (a propriedade global da tabela não tem efeito no GstarCAD 2021)
+            try
+            {
+                tab.SetMargin(l, c, CellMargins.Left, 0.6 * h);
+                tab.SetMargin(l, c, CellMargins.Right, 0.6 * h);
+                tab.SetMargin(l, c, CellMargins.Top, 0.3 * h);
+                tab.SetMargin(l, c, CellMargins.Bottom, 0.3 * h);
+            }
+            catch (Rt.Exception ex) { Log.Erro("Tabela.SetMargin", ex); }
             cel.Alignment = al;
         }
         Cel(0, 0, t.Titulo, Alinhamento(0) == CellAlignment.MiddleLeft ? CellAlignment.MiddleLeft : CellAlignment.MiddleCenter);

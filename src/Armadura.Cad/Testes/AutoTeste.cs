@@ -1402,6 +1402,16 @@ public sealed class AutoTeste
             if (sec1 != null)
                 _zoomBases.Add(("pilar_p61_secoes", FormattableString.Invariant(
                     $"{origem.X + sec1.X - 20:0},{origem.Y + sec1.Y - 520:0} {origem.X + sec1.X + 260:0},{origem.Y + sec1.Y + 30:0}")));
+            var detCons = r.Textos.FirstOrDefault(x => x.Texto.StartsWith("ARMADURAS CONSOLO"));
+            if (detCons != null)
+                _zoomBases.Add(("pilar_p61_consolo", FormattableString.Invariant(
+                    $"{origem.X + detCons.X - 20:0},{origem.Y + detCons.Y - 420:0} {origem.X + detCons.X + 760:0},{origem.Y + detCons.Y + 30:0}")));
+            var corteB = r.Textos.FirstOrDefault(x => x.Texto == "CORTE B-B");
+            if (corteB != null)
+                _zoomBases.Add(("pilar_p61_corteB", FormattableString.Invariant(
+                    $"{origem.X + corteB.X - 30:0},{origem.Y + corteB.Y - 230:0} {origem.X + corteB.X + 260:0},{origem.Y + corteB.Y + 20:0}")));
+            _zoomBases.Add(("pilar_p61_vistas_consolo", FormattableString.Invariant(
+                $"{origem.X + 150:0},{origem.Y + 470:0} {origem.X + 1250:0},{origem.Y + 720:0}")));
             _zoomBases.Add(("pilar_p61_arm_topo", FormattableString.Invariant(
                 $"{origem.X + longX - 60:0},{origem.Y + 1390.5 - 260:0} {origem.X + longX + 360:0},{origem.Y + 1390.5 + 40:0}")));
             _zoomBases.Add(("pilar_p61_arm_emenda", FormattableString.Invariant(
@@ -1420,14 +1430,16 @@ public sealed class AutoTeste
                 Rel.AppendLine("        pilar: armaduras no bloco: " + string.Join(", ", arm.OrderBy(d => d.Numero).Select(d => FormattableString.Invariant($"N{d.Numero} {d.Quantidade}ø{d.Bitola}"))));
                 Checar(arm.Count == r.Barras.Count && arm.All(d => d.Numero > 0), "pilar: armaduras numeradas no detalhamento");
                 var est = arm.Where(d => d.Estribo && !d.Segmentos.Any(sg => sg.Formato == FormatoSegmento.Gancho45)).ToList();
-                Checar(est.Count == 2 && est.All(d => d.Quantidade > 0 && d.Faixas.Count > 0), $"pilar: estribos com a quantidade das faixas ({string.Join("/", est.Select(d => d.Quantidade))})");
+                // os do pilar somam as faixas das zonas (ø8: topo 20 + base 26 = 46; ø6,3 corrente); os do consolo têm a quantidade do template
+                Checar(est.All(d => d.Quantidade > 0) && est.Any(d => d.Bitola == 8 && d.Quantidade == 46) && est.Any(d => d.Bitola == 6.3 && d.Quantidade > 60),
+                    $"pilar: estribos com a quantidade das faixas ({string.Join("/", est.Select(d => d.Quantidade))})");
                 var tpP = TabelaParcial(tr, db, cfg, r.Detalhamento);
                 var linhasRA = tpP == null ? new List<string[]>() : LinhasRelacao(tpP);
                 Rel.AppendLine("        pilar: RA: " + string.Join(" | ", linhasRA.Select(l => string.Join(" ", l))));
                 Checar(tpP != null && linhasRA.Count >= 8, "pilar: relação do aço do detalhamento");
                 var prod = ents.OfType<Table>().FirstOrDefault(x => x.Cells[0, 0].TextString.TrimStart().StartsWith("INFORMAÇÕES PARA PRODUÇÃO"));
                 Rel.AppendLine("        quadro de produção: " + (prod == null ? "(não achado)" : string.Join(" | ", Enumerable.Range(0, prod.Rows.Count).Select(l => prod.Cells[l, 0].TextString + " = " + (prod.Columns.Count > 1 ? prod.Cells[l, 1].TextString : "")))));
-                Checar(prod != null && prod.Rows.Count == 7 && prod.Cells[4, 1].TextString.Trim() == "3,476 m³", "pilar: quadro de produção em tabela com o volume calculado");
+                Checar(prod != null && prod.Rows.Count == 7 && prod.Cells[4, 1].TextString.Trim() == "3,523 m³", "pilar: quadro de produção em tabela com o volume calculado");
                 var refQ = btr.GetBlockReferenceIds(true, false).Cast<ObjectId>().FirstOrDefault();
                 if (prod != null && !refQ.IsNull)
                 {

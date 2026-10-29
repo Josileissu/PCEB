@@ -46,7 +46,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     private const string G1 = "1. Identificação", G2 = "2. Geometria", G3 = "3. Níveis", G4 = "4. Embutimento (base)",
         G5 = "5. Cobrimentos", G6 = "6. Concreto e produção";
 
-    public IReadOnlyList<ParametroTemplate> Parametros { get; } = ParametrosForma.Concat(ParametrosArmadura).ToArray();
+    public IReadOnlyList<ParametroTemplate> Parametros { get; } = ParametrosForma.Concat(ParametrosArmadura).Concat(ParametrosConsolos).ToArray();
 
     private static readonly ParametroTemplate[] ParametrosForma =
     {
@@ -198,6 +198,22 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             c.Texto($"Esc. 1:{escV:0}", xm, y, 0.7 * hv, 1);
         }
 
+        // ---------------- consolos nas vistas e as marcas dos cortes de forma na VISTA 2 ----------------
+        var cob0 = new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
+        var consolos = LerConsolos(v, cotaBase, L, r.Avisos);
+        DesenharConsolosNasVistas(c, consolos, xs, larguras, cotaBase, cob0);
+        foreach (var co in consolos)
+        {
+            double yc = (co.CotaTopo - cotaBase) * 100 - co.H / 2;
+            double extE = co.Faces.Contains(FaceEsquerda(2)) ? co.A : 0, extD = co.Faces.Contains(FaceDireita(2)) ? co.A : 0;
+            // além das cotas do consolo (altura a 2 alturas de texto da ponta)
+            foreach (var (xa, xb) in new[] { (xs[1] - extE - 7 * hv, xs[1] - extE - 5 * hv), (xs[1] + larguras[1] + extD + 5 * hv, xs[1] + larguras[1] + extD + 7 * hv) })
+            {
+                c.Linha(xa, yc, xb, yc, "ARM-CORTE");
+                c.Texto(co.Letra, (xa + xb) / 2, yc + 0.5 * hv, hv, 1, 0, "ARM-CORTE");
+            }
+        }
+
         // ---------------- embutimento (base) ----------------
         double lemb = Math.Max(0, Math.Min(v.Numero("Lemb"), L));
         string interf = v["Interface"];
@@ -303,6 +319,12 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         c.Cota(sx0, sy0, sx1, sy0, smx, sy0 - 3 * hc, 0, escC);
         c.Cota(sx1, sy0, sx1, sy1, sx1 + 3 * hc, smy, Math.PI / 2, escC);
         yCur = sy0 - 14 * hc;
+        // cortes de forma nos níveis dos consolos (B-B, C-C…)
+        yCur = CortesConsolo(c, consolos, b, h, xD, yCur, cob0);
+
+        // detalhes das armaduras dos consolos, abaixo das vistas
+        double yDet = -30 * hv;
+        foreach (var co in consolos) yDet = DetalheConsolo(c, cfg, co, b, h, cob0, 0, yDet, v["LongAco"], v["EstAco"]);
 
         // notas
         double hn = 0.9 * hv;
@@ -334,7 +356,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         if (c.Idioma != IdiomaDesenho.PT) yCur = c.Bloco(notasEn, xD, yCur, hn) - hn;
 
         // informações para produção (volume e peso calculados)
-        double vol = Volume(b, h, L, ch);
+        double vol = VolumeTotal(b, h, L, ch, consolos);
         double peso = vol * v.Numero("PesoEspecifico") / 1000; // t
         int qtd = Math.Max(1, v.Inteiro("Quantidade"));
         r.Tabelas.Add(TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"), vol, peso, qtd, xD, yCur, escV));
@@ -366,7 +388,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             Titulo = R("INFORMAÇÕES PARA PRODUÇÃO", "MANUFACTURING INFORMATION"),
             X = x, Y = y, Escala = escala,
         };
-        t.Larguras.AddRange(new[] { 18.0, 10.0 });
+        t.Larguras.AddRange(new[] { 24.0, 11.0 });
         t.Alinhamentos.AddRange(new[] { 0, 2 });
         t.Linhas.Add(new[] { R("RESISTÊNCIA AO SAQUE:", "STRENGTH DEMOLDING:"), $"fcj = {N(fcjSaque, "0.#")} MPa" });
         if (fcjMontagem > 0)

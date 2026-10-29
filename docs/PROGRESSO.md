@@ -267,3 +267,11 @@ consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálcu
         147/147 (7 novos), autoteste 201/201 com `autoteste_pilar_p61_{secoes,arm_topo,arm_emenda}.png`.
 - [x] Plugin: indicação deixa de copiar o espaçamento (15) para a barra (aparecia "c/15" em barras indicadas).
 - [ ] Usuário: conferir no ARMTEMPLATE. Próxima: etapa 3 (consolos: forma, armadura, cortes B-B…, volume e CG).
+# Template do pilar pré-moldado — etapa 3: consolos (2026-10-29)
+- [x] Ajustes pedidos: quadro de produção (margens por célula, altura real do texto, colunas mais largas) e chamadas
+        das seções (na altura de cada barra; um rótulo por conjunto de U).
+- [x] Consolos (até 2 níveis, faces livres, duplo/sozinho, trapezoidal), vistas, cortes B-B/C-C hachurados, detalhe
+        de armaduras com as formas (tirante soldado ou laço, costura, verticais, inferior, pinos), almofada, volume e CG.
+        P61: volume 3,523 m³ e peso 8,808 t (iguais à prancha); tirante C=93, pinos 47+18+20. Unidade 154/154,
+        autoteste 201/201 (`autoteste_pilar_p61_{consolo,corteB,vistas_consolo}.png`).
+- [ ] Usuário: conferir. Próxima: etapa 4 (alças pelo CG, furo/alça de topo, inserto, detalhes padrão).
