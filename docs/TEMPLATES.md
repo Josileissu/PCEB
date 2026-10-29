@@ -72,5 +72,18 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   (insertos/gabarito) e um corte por nível de consolo (B-B, C-C…, hachurado); seções de armadura onde o arranjo das
   longitudinais muda (topo com grampos U, trecho corrente, cada redução/emenda, base) e no consolo; marcas nas vistas
   e na elevação das armaduras; seções iguais não se repetem.
-- Próximas: 2 armaduras (longitudinais, emendas/rolo, estribos por zona, seções, RA); 3 consolos (entram no volume e
+- **Etapa 2 (2026-10-29, feita)** — `ArmadurasPilar.cs` (partial): longitudinais por parâmetros (canto com 1 barra ou 3
+  em "L" a 5 cm, intermediárias por face b/h; centro do canto = cobrimento da face + φt + φ/2, o P61 dá 5,55), emendas
+  ALTERNADAS (metade das barras de cada grupo começa com peça menor: emendas afastadas ≥ 1,3 l0) ou NA MESMA SEÇÃO, ou
+  sem emendas (rolo; aviso se a bitola só existe em barras); traspasse = NBR 6118 com o fck do pilar (50 % ou 100 %
+  emendadas) e nunca < 45φ, arredondado a 5 cm, com cota e NOTA PT/EN ao lado ("AJUSTAR SE NECESSÁRIO"); estribos
+  fechados (ganchos de 90° no canto superior esquerdo, medidas externas = seção − cobrimentos) por zona (base, corrente,
+  topo; um N por bitola), faixas na elevação sem o diâmetro ("71 N1 c/15"); grampos suplementares (uma ou duas
+  direções; quadrado = um N com "2x"); grampos U no topo e na base (duas direções; a 2ª recuada pelo canto em "L");
+  seções 1-1/2-2/3-3 com as barras em ponto (diâmetro real), estribo, grampos, pernas dos U e UMA INDICAÇÃO POR BARRA
+  (textos em ordem dos dois lados, sem cruzar); formas dos estribos/grampos abaixo das seções; RA do detalhamento à
+  direita. Avisos da NBR 6118 (18.4.2.1, 18.4.2.2, 18.4.3, 18.2.4). Descrição das barras: `BarraTemplate.PosicaoDescricao`
+  e `RotacaoDescricao` (na vertical, ao lado da barra, como no P61).
+  Correção no plugin: a INDICAÇÃO não passa mais o espaçamento dela (15) para a barra (`ServicoFaixa.Criar`).
+- Próximas: 3 consolos (entram no volume e
   no CG); 4 alças pelo CG, furo/alça de topo, inserto, detalhes padrão; 5 entrada por tabela/Excel/janela.

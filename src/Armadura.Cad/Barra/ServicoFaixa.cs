@@ -65,7 +65,8 @@ internal static class ServicoFaixa
 
         if (!barra.IsWriteEnabled) barra.UpgradeOpen();
         d.Faixas.Add(XDataCad.Hex(principal.ObjectId));
-        if (d.Espacamento <= 0 && f.Espacamento > 0) d.Espacamento = f.Espacamento;
+        // a indicação só aponta a barra (não distribui): não passa espaçamento para ela
+        if (d.Espacamento <= 0 && f.Espacamento > 0 && f.Tipo != TipoFaixa.Indicacao) d.Espacamento = f.Espacamento;
         XDataCad.Gravar(barra, CodecDados.Codificar(d));
         ServicoBarra.Atualizar(tr, barra, cfg);
         return principal.ObjectId;

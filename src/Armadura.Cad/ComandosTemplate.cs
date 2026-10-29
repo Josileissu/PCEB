@@ -138,6 +138,20 @@ public sealed class ComandosTemplate
                 });
             }
             ServicoBarra.Criar(tr, pl, d, cfg);
+            if (b.PosicaoDescricao.HasValue)
+            {
+                // descrição onde o template pediu (ex.: na vertical, ao lado da barra); o plugin guarda a posição
+                var dd = XDataCad.LerBarra(pl);
+                var desc = ServicoBarra.Parte<MText>(tr, db, dd.HandleDescricao, Core.Persistencia.TipoParte.Descricao, XDataCad.Hex(pl.ObjectId));
+                if (desc != null)
+                {
+                    desc.UpgradeOpen();
+                    desc.Attachment = AttachmentPoint.MiddleCenter;
+                    desc.Location = P3(b.PosicaoDescricao.Value.X, b.PosicaoDescricao.Value.Y);
+                    desc.Rotation = b.RotacaoDescricao;
+                    ServicoBarra.Atualizar(tr, pl, cfg);
+                }
+            }
             ids.Add(pl.ObjectId);
             if (!string.IsNullOrEmpty(b.Nome)) porNome[b.Nome] = pl.ObjectId;
         }
@@ -153,6 +167,7 @@ public sealed class ComandosTemplate
                 Tipo = f.Tipo, Espacamento = f.Espacamento > 0 ? f.Espacamento : 15, Escala = f.Escala > 0 ? f.Escala : r.Escala,
                 P1X = a.X, P1Y = a.Y, P2X = b.X, P2Y = b.Y,
                 Referencias = f.Referencias.Select(x => { var q = P(x.X, x.Y); return (q.X, q.Y); }).ToList(),
+                Repeticoes = Math.Max(1, f.Repeticoes), MostrarDiametro = f.MostrarDiametro,
             };
             ServicoFaixa.Criar(tr, (Polyline)tr.GetObject(bid, OpenMode.ForWrite), dados, P3(f.Posicao.X, f.Posicao.Y), cfg);
         }
