@@ -288,21 +288,45 @@ A pasta está fora do Git (as normas não vão para o repositório).
   **nota ao lado** para o projetista ajustar se necessário.
 - Normas: índice local de `S:\Meu Drive\Normas` (`tools/normas/`, ver CLAUDE.md).
 
-## 15. Perguntas ainda abertas
-1. Entrada: o template recebe a armadura pronta (posições, bitolas, quantidades) por parâmetros/tabela, ou
-   também importa de outro programa (TQS/Eberick)?
-2. As 4 vistas sempre (mesmo sem nada em uma face) ou só as faces com elementos?
-3. Cobrimento padrão (P61 aparenta 3,5 cm ao estribo) e se aplica a redução da NBR 9062.
-4. ~~Traspasse padrão~~ (respondida: norma, mín. 45φ, com nota)
-5. Comprimento máximo das barras (12 m) e posição das emendas: a 6118 (9.5.2.1) permite emendar todas as barras
-   permanentemente comprimidas na mesma seção — o escritório emenda todas juntas ou alterna?
-6. Posição das alças (regra do escritório: distância às extremidades) e quando usar furo ø100 × alça de topo.
-7. Consolo: a ancoragem do tirante é sempre barra transversal soldada? Quando usar laço?
-8. ~~Numeração~~ (respondida: automática)
-9. ~~Detalhes padrão~~ (respondida: desenhados pelo template)
-10. ~~Folha~~ (respondida: só o detalhamento)
-11. Bilíngue sempre (PT/EN) ou opcional por obra?
-12. "Informações p/ produção": volume e peso calculados pelo template (da forma) — confirmar o peso específico (2,5 t/m³).
+### 14.1 Respostas de 2026-10-29 (2ª rodada)
+- **Entrada da armadura**: por **parâmetros**, e também por **tabela** (colar do Excel / importar .xlsx/.csv) ou por
+  uma **janela** de edição das posições.
+- **4 vistas sempre**.
+- **Idioma dos textos**: opção **PT**, **EN** ou **PT/EN** (bilíngue não é sempre).
+- **Cobrimentos no template**: um valor por face (faces 1 a 4), **topo** e **base** — uma face pode ter cobrimento
+  maior (ex.: face em contato com contenção).
+- **Emendas**: opcional. **Com emendas** = barras divididas no comprimento comercial (12 m), com o campo
+  **"alternadas" ou "na mesma seção"**; o traspasse segue a regra do escritório (norma, ≥ 45φ, nota ao lado).
+  **Sem emendas** = barras **em rolo** (sem limite de 12 m; avisar se a bitola não existir em rolo na tabela).
+- **Alças (desforma/manuseio)**: o par de alças fica **simétrico em relação ao CG** do pilar (com os consolos, o CG
+  sai do meio) e a **≈ 20 % do comprimento** a partir de cada extremidade; com consolo, a posição é ajustada
+  para manter o CG centralizado entre as alças. Valores editáveis.
+- **Montagem**: **alça de topo** ou **furo** (opção marcada). O furo fica a **25 % a 35 % do comprimento** a partir
+  da extremidade (padrão 30 %; aviso fora da faixa). [Assumido: medido a partir do TOPO — confirmar no uso.]
+- **Tirante do consolo**: padrão **barra transversal soldada**; opção **laço** (alça horizontal; e vertical só
+  φ ≤ 16), com o a2 mínimo da NBR 9062 7.3.3.4 de cada caso.
+- **Peso**: concreto **2500 kgf/m³** → peso = volume (forma + consolos − furos) × 2,5 t/m³.
+
+## 15. Entrada do template PP-1 (especificação)
+| Grupo | Campos |
+|---|---|
+| Identificação | nome (P61), quantidade de peças, idioma (PT/EN/PT-EN), escalas (vistas 1:50, seções 1:25, detalhes) |
+| Geometria | b (faces 1/3) × h (faces 2/4), comprimento total, chanfros; níveis (nome PT/EN, cota) e nível da base; embutimento (comprimento, interface: lisa/rugosa/chaves e padrão das chaves) |
+| Cobrimentos | face 1, face 2, face 3, face 4, topo, base |
+| Concreto | fck, fcj saque, fcj montagem, peso específico (2500 kgf/m³) |
+| Longitudinais | lista de posições: bitola, aço, quantidade por face/canto (ou arranjo: cantos agrupados, faces), comprimento ou nível inicial/final (para a redução com a altura); grampos U do topo e da base |
+| Emendas | sim/não; se sim: comprimento comercial (12 m), alternadas ou mesma seção; traspasse = máx(norma, 45φ) + nota |
+| Estribos | perimetral (bitola, aço); zonas (início, fim, espaçamento) — topo, consolo, corrente, emenda, base; grampos suplementares (quantos por camada, direção) |
+| Consolos | lista: face, nível do topo, b, a (balanço), h raiz, h ponta, posição lateral; tirante (bitola, nº, ancoragem soldada/laço), costura, estribos verticais, armadura inferior, pinos (bitola, nº, comprimentos), almofada (a × b × espessura) |
+| Topo | inserto (bloco) e gabarito, chumbadores, almofada |
+| Içamento | alças (cordoalha ø, nº de pernas, distância às extremidades — padrão por CG a ~20 %); montagem: alça de topo **ou** furo (ø, % do comprimento, reforço padrão) |
+| Outros | aterramento SPDA (sim/não, face), notas (insertos da fornecedora, neoprene, SPDA) |
+
+Saída (um detalhamento = bloco): 4 vistas de forma com níveis e cotas; elevação das armaduras com faixas de
+estribos e emendas cotadas (com nota); seções 1-1/2-2/3-3 com barras em ponto e indicações N; cortes de forma
+A-A/B-B; formas das barras; detalhes padrão (consolo, chaves, canto, furo, alça, raio/emendas/comprimento das
+barras); RA + resumo; informações p/ produção (fck, fcj, volume, peso, quantidade); notas de cobrimento por face e
+de tolerâncias (NBR 9062 5.6.1.2).
 
 ## 16. O que o plugin já tem e o que falta
 Já existe: barras com ganchos/pinos da norma, estribos fechados e de qualquer poligonal, faixas (distribuição
