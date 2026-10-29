@@ -18,7 +18,7 @@
     <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\GstarCAD2021\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.1.16</Version>
+    <Version>0.1.17</Version>
     <!-- sem o hash do commit na versão (o nome do Setup usa a ProductVersion) -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>

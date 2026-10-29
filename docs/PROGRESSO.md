@@ -241,6 +241,7 @@ possibilidade de poder mover os textos/comprimento que aparecem junto às barras
 - [x] Cotas móveis: `Segmento.CotaMovida/CotaDx/CotaDy` (XData SM/SMX/SMY, só quando movida), deslocamento nos eixos do
         trecho; o Sincronizador grava ao mover (MOVE/grip) e a cota acompanha a barra. A descrição já era móvel.
         ARMTEXTOPADRAO desfaz. Botões "Reconhecer" e "Textos padrão" no grupo Barras.
-- [x] Autoteste 194/194 (com Escala 10/EscalaFaixa 0), unidade 129/129. Instalador não gerado.
+- [x] Autoteste 194/194 (com Escala 10/EscalaFaixa 0), unidade 129/129.
+- [x] Instalador 0.1.17 gerado a pedido do usuário (ARMRECONHECER + cotas móveis).
 - Sem DWG real de outro programa ainda: o formato dos textos foi tirado da especificação e dos padrões usuais; pedir
         um exemplo ao usuário para calibrar.
