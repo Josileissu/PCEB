@@ -26,6 +26,7 @@ public sealed class Plugin : Rt.IExtensionApplication
             RecarregarConfig();
             // templates de elementos (docs/TEMPLATES.md)
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.BaseReservatorio.TemplateBaseReservatorio());
+            Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado());
             DesenhoArmadura.Registrar();
             var dm = CadApp.DocumentManager;
             foreach (Document d in dm) Sincronizador.Anexar(d);
