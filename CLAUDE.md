@@ -176,6 +176,9 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   com o .scr). Depois `ezdxf` (instalado com pip --user) lê o DXF.
 - Pilar pré-moldado: requisitos e regras conferidas na norma em `docs/PILAR_PREMOLDADO_REQUISITOS.md`; template e
   etapas em `docs/TEMPLATES.md`.
+- **Nunca** editar fonte com `Get-Content`/`Set-Content` do Windows PowerShell 5.1: sem `-Encoding` ele lê UTF-8 como ANSI
+  e grava os acentos estragados (aconteceu no AutoTeste.cs em 2026-10-29; restaurado do Git). Use Python (io, utf-8) ou
+  o Edit. Heredoc do Git Bash troca `\n` por quebra real dentro de strings C# — prefira scripts .py no scratchpad.
 - Autoteste × config do usuário: além de Escala/EscalaFaixa, valores "último usado" (ex.: `UltimoEstribo.Gancho`)
   mudam padrões — o teste tem de fixar o valor que verifica e devolvê-lo.
 

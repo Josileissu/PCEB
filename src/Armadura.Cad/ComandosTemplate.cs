@@ -48,6 +48,18 @@ public sealed class ComandosTemplate
         foreach (var a in resultado.Avisos) ed.WriteMessage("\nAviso: " + a);
     });
 
+    /// <summary>ARMCONSOLOS: catálogo de consolos padrão do escritório (usado pelo template do pilar pré-moldado).</summary>
+    [Rt.CommandMethod("ARMCONSOLOS")]
+    public void ArmConsolos() => Comandos.Executar("ARMCONSOLOS", (doc, ed, db, cfg) =>
+    {
+        using var f = new Paleta.FormConsolos(Plugin.Config.Consolos);
+        if (CadApp.ShowModalDialog(f) != DialogResult.OK) return;
+        Plugin.Config.Consolos = f.Resultado;
+        Plugin.SalvarConfig();
+        Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
+        ed.WriteMessage($"\n{f.Resultado.Count} consolo(s) padrão salvos: " + string.Join(", ", f.Resultado.Select(t => t.Nome)) + ".");
+    }, suspender: false);
+
     /// <summary>
     /// Desenha o resultado de um template no espaço corrente: forma, armaduras (com grupos VAR e telas),
     /// faixas e indicações, textos, cotas e tabelas; com <see cref="ResultadoTemplate.Detalhamento"/>, tudo

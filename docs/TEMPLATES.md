@@ -98,5 +98,23 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   inferior em L, pinos em L; almofada "NEOPRENE a x b x e mm"); a2 da NBR 9062 7.3.3.4 posiciona a almofada e os pinos
   (no centro dela); volume com os consolos (P61 = 3,523 m³ / 8,808 t, igual à prancha) e `AlturaCG` (para as alças).
   Avisos 7.3.2.2, 7.3.3.1, 7.3.3.4, 7.3.3.6/7, 7.3.3.12, 7.3.6.
-- Próximas: 4 alças pelo CG (entram no volume e
+- **Catálogo de consolos padrão (2026-10-29, pedido do usuário)**: `TipoConsolo` (nome, descrição, duplo, b, a, h, h1,
+  armaduras padronizadas) na configuração do usuário (`ConfiguracaoArmadura.Consolos`, DataMember 68; padrão = P61 duplo,
+  PP127 simples e trapezoidal); comando **ARMCONSOLOS** (`Paleta/FormConsolos.cs`: lista + PropertyGrid, novo/duplicar/
+  excluir, nomes únicos); `TemplatePilarPreMoldado.Catalogo` (estático, o Plugin põe o da configuração ao carregar e
+  depois do ARMCONSOLOS) dá as opções. No pilar: **5 posições** (C1…C5) com tipo, faces, **distância da base ao topo do
+  consolo** (cm) e deslocamento. Tipo duplo exige faces opostas; tipo simples em "1,3" = dois consolos ancorados.
+  Um detalhe de armaduras por tipo (e largura do pilar na direção do balanço), com as quantidades somadas.
+  `Parametros` virou propriedade calculada (as opções mudam com o catálogo). Testes do pilar na coleção "Pilar" (sem
+  paralelismo: o catálogo é estático).
+- **Etapa 4 (2026-10-29, feita)** — `ItensPilar.cs`: alças de cordoalha CP-190 (NBR 9062 5.3.3.5) simétricas ao CG
+  (`PosicaoAlcas`: CG ± (50 − pct) % de L; pct 20; valores digitados mandam; aviso perto de consolo na mesma face), na
+  face escolhida (2): de lado o laço fora da face, de frente o traço com cotas 25|25 e "ALÇA", cotas base→alça→alça→topo;
+  detalhe "ALÇA DE IÇAMENTO" 1:20 com a barra (pé + pernas + laço; "2x2"). Montagem: furo ø100 a pct do topo (30 %,
+  aviso fora de 25–35 %) nas faces 1-3 ou 2-4 (círculo de frente, linhas ocultas de lado, cota ao topo) com o detalhe
+  "REFORÇO NOS FUROS" (grampos U, r = ø/2 + 3 → C=125 do P61, 8 por furo), ou alça de topo (+1 alça). Inserto: nome
+  acima da VISTA 1, chumbadores nas vistas, gabarito com cotas em cadeia no corte A-A. Detalhes padrão: chaves (1:10),
+  espaçamento no canto (1:5, com os valores reais), tabela de raio de curvatura (NBR 6118), emendas por traspasse e por
+  solda, comprimento das barras (A1/B1), ATENÇÃO SPDA (PT/EN). O x do próximo detalhe respeita a largura do título.
+- Próximas: 5 entrada por tabela/Excel/janela (entram no volume e
   no CG); 4 alças pelo CG, furo/alça de topo, inserto, detalhes padrão; 5 entrada por tabela/Excel/janela.

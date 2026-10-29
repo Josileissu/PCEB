@@ -1406,6 +1406,12 @@ public sealed class AutoTeste
             if (detCons != null)
                 _zoomBases.Add(("pilar_p61_consolo", FormattableString.Invariant(
                     $"{origem.X + detCons.X - 20:0},{origem.Y + detCons.Y - 420:0} {origem.X + detCons.X + 760:0},{origem.Y + detCons.Y + 30:0}")));
+            var detPad = r.Textos.FirstOrDefault(x => x.Texto == "ALÇA DE IÇAMENTO");
+            if (detPad != null)
+                _zoomBases.Add(("pilar_p61_detalhes", FormattableString.Invariant(
+                    $"{origem.X + detPad.X - 20:0},{origem.Y + detPad.Y - 260:0} {origem.X + detPad.X + 2000:0},{origem.Y + detPad.Y + 30:0}")));
+            _zoomBases.Add(("pilar_p61_vistas_alcas", FormattableString.Invariant(
+                $"{origem.X + 0:0},{origem.Y + 150:0} {origem.X + 1250:0},{origem.Y + 420:0}")));
             var corteB = r.Textos.FirstOrDefault(x => x.Texto == "CORTE B-B");
             if (corteB != null)
                 _zoomBases.Add(("pilar_p61_corteB", FormattableString.Invariant(

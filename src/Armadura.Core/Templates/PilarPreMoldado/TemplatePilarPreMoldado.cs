@@ -46,7 +46,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     private const string G1 = "1. Identificação", G2 = "2. Geometria", G3 = "3. Níveis", G4 = "4. Embutimento (base)",
         G5 = "5. Cobrimentos", G6 = "6. Concreto e produção";
 
-    public IReadOnlyList<ParametroTemplate> Parametros { get; } = ParametrosForma.Concat(ParametrosArmadura).Concat(ParametrosConsolos).ToArray();
+    /// <summary>Calculado a cada leitura: as opções dos consolos vêm do catálogo atual.</summary>
+    public IReadOnlyList<ParametroTemplate> Parametros => ParametrosForma.Concat(ParametrosArmadura).Concat(ParametrosConsolos()).Concat(ParametrosItens).ToArray();
 
     private static readonly ParametroTemplate[] ParametrosForma =
     {
@@ -200,11 +201,13 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 
         // ---------------- consolos nas vistas e as marcas dos cortes de forma na VISTA 2 ----------------
         var cob0 = new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
-        var consolos = LerConsolos(v, cotaBase, L, r.Avisos);
-        DesenharConsolosNasVistas(c, consolos, xs, larguras, cotaBase, cob0);
+        var consolos = LerConsolos(v, Catalogo, L, r.Avisos);
+        DesenharConsolosNasVistas(c, consolos, xs, larguras, cob0);
+        // alças (pelo CG), montagem (furo ou alça de topo) e inserto do topo
+        var itens = DesenharItensNasVistas(c, v, consolos, xs, larguras, b, h, L, ch);
         foreach (var co in consolos)
         {
-            double yc = (co.CotaTopo - cotaBase) * 100 - co.H / 2;
+            double yc = co.ZTopo - co.H / 2;
             double extE = co.Faces.Contains(FaceEsquerda(2)) ? co.A : 0, extD = co.Faces.Contains(FaceDireita(2)) ? co.A : 0;
             // além das cotas do consolo (altura a 2 alturas de texto da ponta)
             foreach (var (xa, xb) in new[] { (xs[1] - extE - 7 * hv, xs[1] - extE - 5 * hv), (xs[1] + larguras[1] + extD + 5 * hv, xs[1] + larguras[1] + extD + 7 * hv) })
@@ -311,8 +314,9 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         else
             secao.Vertices.AddRange(new[] { (sx0, sy0), (sx1, sy0), (sx1, sy1), (sx0, sy1) });
         r.Contornos.Add(secao);
+        InsertoNoCorte(c, v, sx0, sy0, b, h);
         double smx = (sx0 + sx1) / 2, smy = (sy0 + sy1) / 2;
-        RotuloVista(c, 4, smx, sy1 + 1.5 * hc, 0);                         // em cima
+        RotuloVista(c, 4, smx, sy1 + (v.SimNao("Inserto") ? 5 : 1.5) * hc, 0); // em cima (acima das cotas do gabarito)
         RotuloVista(c, 2, smx, sy0 - 7 * hc, 0);                           // embaixo (abaixo da cota)
         RotuloVista(c, 3, sx0 - 1.5 * hc, smy, Math.PI / 2);               // esquerda
         RotuloVista(c, 1, sx1 + 7 * hc, smy, Math.PI / 2);                 // direita (depois da cota)
@@ -324,7 +328,17 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 
         // detalhes das armaduras dos consolos, abaixo das vistas
         double yDet = -30 * hv;
-        foreach (var co in consolos) yDet = DetalheConsolo(c, cfg, co, b, h, cob0, 0, yDet, v["LongAco"], v["EstAco"]);
+        // um detalhe por tipo (e largura do pilar na direção do balanço), somando as posições que usam o tipo
+        int nDet = 0;
+        foreach (var grupo in consolos.GroupBy(co => (co.Tipo, co.Duplo, colW: co.Faces[0] == 1 || co.Faces[0] == 3 ? b : h)))
+        {
+            var rep = grupo.First();
+            int pares = grupo.Sum(co => co.Pares.Count), soz = grupo.Sum(co => co.Sozinhas.Count);
+            yDet = DetalheConsolo(c, cfg, rep, pares, soz, $"cons{++nDet}", b, h, cob0, 0, yDet, v["LongAco"], v["EstAco"]);
+        }
+        // detalhes padrão (alça, reforço do furo, chaves, canto, raio de curvatura, emendas, SPDA)
+        double phiTd = new[] { "EstBitola", "TopoBitola", "BaseBitola" }.Max(k => v.Numero(k));
+        DetalhesPadrao(c, v, cfg, itens, cob0, phiTd, 0, yDet);
 
         // notas
         double hn = 0.9 * hv;
