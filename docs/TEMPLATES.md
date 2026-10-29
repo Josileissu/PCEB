@@ -10,7 +10,7 @@ de cada um começa quando ele enviar os PDFs/DWGs (pastas em `info_auxiliar/temp
 | Base retangular de reservatório | fundação |
 | Bloco de 1 estaca | com/sem colarinho ou cálice; embutimento para pilar pré-moldado |
 | Bloco de 2 estacas | idem |
-| Pilar pré-moldado | consolos, içamento, zonas de estribos (ver também o plugin Revit StructuralDetailer) |
+| Pilar pré-moldado | levantamento em `docs/PILAR_PREMOLDADO_REQUISITOS.md` (2026-10-29): categorias PP-1…PP-5, normas, padrão P61/PP127 |
 | Viga pré-moldada | protendida ou não |
 | Pilar moldado in loco | |
 | Viga moldada in loco | |
