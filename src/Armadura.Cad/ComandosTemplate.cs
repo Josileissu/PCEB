@@ -212,20 +212,35 @@ public sealed class ComandosTemplate
         esp.AppendEntity(tab);
         tr.AddNewlyCreatedDBObject(tab, true);
         tab.SetSize(t.Linhas.Count + 1, cols);
-        for (int c = 0; c < cols; c++) tab.SetColumnWidth(c, 6 * h);
+        // margem do texto dentro das células (sem ela o texto encosta nas bordas)
+        try { tab.HorizontalCellMargin = 0.5 * h; tab.VerticalCellMargin = 0.3 * h; }
+        catch (Rt.Exception ex) { Log.Erro("Tabela.Margens", ex); }
+        for (int c = 0; c < cols; c++) tab.SetColumnWidth(c, (c < t.Larguras.Count && t.Larguras[c] > 0 ? t.Larguras[c] : 6) * h);
         // mescla ANTES de escrever (no GstarCAD, mesclar depois zera a altura do texto)
         if (cols > 1) tab.MergeCells(CellRange.Create(tab, 0, 0, 0, cols - 1));
-        void Cel(int l, int c, string s)
+        CellAlignment Alinhamento(int c) => (c < t.Alinhamentos.Count ? t.Alinhamentos[c] : 1) switch
+        {
+            0 => CellAlignment.MiddleLeft,
+            2 => CellAlignment.MiddleRight,
+            _ => CellAlignment.MiddleCenter,
+        };
+        void Cel(int l, int c, string s, CellAlignment al)
         {
             var cel = tab.Cells[l, c];
             cel.TextHeight = h;
-            cel.TextString = s ?? "";
-            cel.Alignment = CellAlignment.MiddleCenter;
+            // o GstarCAD ignora a margem das células: um espaço afasta o texto da borda
+            string txt = s ?? "";
+            if (txt.Length > 0 && al == CellAlignment.MiddleLeft) txt = " " + txt.Replace(TabelaTemplate.Quebra, TabelaTemplate.Quebra + " ");
+            else if (txt.Length > 0 && al == CellAlignment.MiddleRight) txt = txt.Replace(TabelaTemplate.Quebra, " " + TabelaTemplate.Quebra) + " ";
+            cel.TextString = txt.Replace(TabelaTemplate.Quebra, "\\P");
+            cel.Alignment = al;
         }
-        Cel(0, 0, t.Titulo);
+        Cel(0, 0, t.Titulo, Alinhamento(0) == CellAlignment.MiddleLeft ? CellAlignment.MiddleLeft : CellAlignment.MiddleCenter);
         for (int l = 0; l < t.Linhas.Count; l++)
-            for (int c = 0; c < cols; c++) Cel(l + 1, c, c < t.Linhas[l].Length ? t.Linhas[l][c] : "");
-        for (int l = 0; l <= t.Linhas.Count; l++) tab.SetRowHeight(l, 2 * h);
+            for (int c = 0; c < cols; c++) Cel(l + 1, c, c < t.Linhas[l].Length ? t.Linhas[l][c] : "", Alinhamento(c));
+        int NLinhas(string s) => (s ?? "").Split('\n').Length;
+        tab.SetRowHeight(0, TabelaTemplate.AlturaLinha(NLinhas(t.Titulo)) * h);
+        for (int l = 0; l < t.Linhas.Count; l++) tab.SetRowHeight(l + 1, TabelaTemplate.AlturaLinha(t.Linhas[l].Max(NLinhas)) * h);
         todos.Add(tab.ObjectId);
     }
 }
