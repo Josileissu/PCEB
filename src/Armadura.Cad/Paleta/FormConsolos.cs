@@ -57,33 +57,76 @@ internal sealed class PropriedadesConsolo
     [Category(G7), DisplayName("Espessura")] public double AlmE { get => T.AlmE; set => T.AlmE = Math.Max(0, value); }
 }
 
-/// <summary>
-/// ARMCONSOLOS: catálogo de consolos padrão (pedido do usuário, 2026-10-29). Edita cópias; o OK grava na
-/// configuração do usuário e atualiza a lista do template do pilar.
-/// </summary>
-internal sealed class FormConsolos : Form
+/// <summary>Tipo de inserto no PropertyGrid.</summary>
+internal sealed class PropriedadesInserto
 {
-    private readonly List<TipoConsolo> _tipos;
+    private const string G1 = "1. Tipo", G2 = "2. Topo: chumbadores", G3 = "3. Face: chapa e grapas";
+
+    public TipoInserto T { get; }
+    public PropriedadesInserto(TipoInserto t) { T = t; }
+
+    [Category(G1), DisplayName("Nome")] public string Nome { get => T.Nome; set => T.Nome = value?.Trim() ?? ""; }
+    [Category(G1), DisplayName("Descrição")] public string Descricao { get => T.Descricao; set => T.Descricao = value ?? ""; }
+    [Category(G1), DisplayName("Modo"), TypeConverter(typeof(ModoInsertoConverter))] public string Modo { get => T.Modo; set => T.Modo = value; }
+    [Category(G1), DisplayName("Resumo"), ReadOnly(true)] public string Resumo => T.Resumo;
+
+    [Category(G2), DisplayName("Gabarito")] public string Gabarito { get => T.Gabarito; set => T.Gabarito = value?.Trim() ?? ""; }
+    [Category(G2), DisplayName("Distância entre chumbadores em x (cm)")] public double Ax { get => T.Ax; set => T.Ax = Math.Max(0, value); }
+    [Category(G2), DisplayName("Distância entre chumbadores em y (cm)")] public double Ay { get => T.Ay; set => T.Ay = Math.Max(0, value); }
+    [Category(G2), DisplayName("Chumbadores")] public int ChumbN { get => T.ChumbN; set => T.ChumbN = Math.Max(1, Math.Min(4, value)); }
+    [Category(G2), DisplayName("Bitola (mm)")] public double ChumbPhi { get => T.ChumbPhi; set => T.ChumbPhi = value; }
+    [Category(G2), DisplayName("Comprimento dentro do pilar (cm)")] public double ChumbComp { get => T.ChumbComp; set => T.ChumbComp = Math.Max(1, value); }
+    [Category(G2), DisplayName("Saliência acima do topo (cm)")] public double ChumbAcima { get => T.ChumbAcima; set => T.ChumbAcima = Math.Max(0, value); }
+
+    [Category(G3), DisplayName("Chapa: largura (cm)")] public double ChapaL { get => T.ChapaL; set => T.ChapaL = Math.Max(1, value); }
+    [Category(G3), DisplayName("Chapa: altura (cm)")] public double ChapaH { get => T.ChapaH; set => T.ChapaH = Math.Max(1, value); }
+    [Category(G3), DisplayName("Chapa: espessura (cm)")] public double ChapaE { get => T.ChapaE; set => T.ChapaE = Math.Max(0.1, value); }
+    [Category(G3), DisplayName("Grapas")] public int GrapaN { get => T.GrapaN; set => T.GrapaN = Math.Max(0, value); }
+    [Category(G3), DisplayName("Grapas: bitola (mm)")] public double GrapaPhi { get => T.GrapaPhi; set => T.GrapaPhi = value; }
+    [Category(G3), DisplayName("Grapas: comprimento (cm)")] public double GrapaComp { get => T.GrapaComp; set => T.GrapaComp = Math.Max(1, value); }
+}
+
+internal sealed class ModoInsertoConverter : StringConverter
+{
+    public override bool GetStandardValuesSupported(ITypeDescriptorContext c) => true;
+    public override bool GetStandardValuesExclusive(ITypeDescriptorContext c) => true;
+    public override StandardValuesCollection GetStandardValues(ITypeDescriptorContext c) =>
+        new StandardValuesCollection(new[] { TipoInserto.ModoTopo, TipoInserto.ModoFace });
+}
+
+/// <summary>
+/// Catálogo editável (ARMCONSOLOS, ARMINSERTOS): lista à esquerda, propriedades à direita, novo/duplicar/excluir.
+/// Edita cópias; o OK confere nomes vazios ou repetidos.
+/// </summary>
+internal sealed class FormCatalogo<T> : Form
+{
+    private readonly List<T> _itens;
+    private readonly Func<T, string> _nome;
+    private readonly Action<T, string> _renomear;
+    private readonly Func<T, string> _resumo;
+    private readonly Func<T, T> _clonar;
     private readonly ListBox _lista = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false };
     private readonly PropertyGrid _grid = new PropertyGrid { Dock = DockStyle.Fill, ToolbarVisible = false, PropertySort = PropertySort.Categorized };
 
-    public List<TipoConsolo> Resultado => _tipos;
+    public List<T> Resultado => _itens;
 
-    public FormConsolos(IEnumerable<TipoConsolo> tipos)
+    public FormCatalogo(string titulo, IEnumerable<T> itens, Func<T, T> clonar, Func<T> novo, Func<T, string> nome, Action<T, string> renomear,
+        Func<T, string> resumo, Func<T, object> propriedades)
     {
-        _tipos = tipos.Select(t => t.Clonar()).ToList();
-        Text = "Armadura — consolos padrão";
+        _clonar = clonar; _nome = nome; _renomear = renomear; _resumo = resumo;
+        _itens = itens.Select(clonar).ToList();
+        Text = titulo;
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(760, 560);
+        Size = new Size(780, 560);
         ShowInTaskbar = false;
         MinimizeBox = false;
 
-        var esquerda = new Panel { Dock = DockStyle.Left, Width = 250 };
+        var esquerda = new Panel { Dock = DockStyle.Left, Width = 270 };
         var botoesLista = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 36, Padding = new Padding(2) };
-        var novo = new Button { Text = "Novo", Width = 75, Height = 26 };
-        var duplicar = new Button { Text = "Duplicar", Width = 75, Height = 26 };
-        var excluir = new Button { Text = "Excluir", Width = 75, Height = 26 };
-        botoesLista.Controls.AddRange(new Control[] { novo, duplicar, excluir });
+        var bNovo = new Button { Text = "Novo", Width = 80, Height = 26 };
+        var bDuplicar = new Button { Text = "Duplicar", Width = 80, Height = 26 };
+        var bExcluir = new Button { Text = "Excluir", Width = 80, Height = 26 };
+        botoesLista.Controls.AddRange(new Control[] { bNovo, bDuplicar, bExcluir });
         esquerda.Controls.Add(_lista);
         esquerda.Controls.Add(botoesLista);
 
@@ -94,32 +137,31 @@ internal sealed class FormConsolos : Form
         botoes.Controls.Add(ok);
         CancelButton = cancelar;
 
-        _lista.SelectedIndexChanged += (s, e) =>
-            _grid.SelectedObject = _lista.SelectedIndex >= 0 ? new PropriedadesConsolo(_tipos[_lista.SelectedIndex]) : null;
+        _lista.SelectedIndexChanged += (s, e) => _grid.SelectedObject = _lista.SelectedIndex >= 0 ? propriedades(_itens[_lista.SelectedIndex]) : null;
         _grid.PropertyValueChanged += (s, e) => Atualizar(_lista.SelectedIndex);
-        novo.Click += (s, e) => { _tipos.Add(new TipoConsolo { Nome = NomeLivre("Novo consolo") }); Atualizar(_tipos.Count - 1); };
-        duplicar.Click += (s, e) =>
+        bNovo.Click += (s, e) => { var t = novo(); _renomear(t, NomeLivre("Novo")); _itens.Add(t); Atualizar(_itens.Count - 1); };
+        bDuplicar.Click += (s, e) =>
         {
             if (_lista.SelectedIndex < 0) return;
-            var c = _tipos[_lista.SelectedIndex].Clonar();
-            c.Nome = NomeLivre(c.Nome + " (cópia)");
-            _tipos.Add(c);
-            Atualizar(_tipos.Count - 1);
+            var t = _clonar(_itens[_lista.SelectedIndex]);
+            _renomear(t, NomeLivre(_nome(t) + " (cópia)"));
+            _itens.Add(t);
+            Atualizar(_itens.Count - 1);
         };
-        excluir.Click += (s, e) =>
+        bExcluir.Click += (s, e) =>
         {
             int i = _lista.SelectedIndex;
-            if (i < 0 || _tipos.Count <= 1) return; // o catálogo nunca fica vazio
-            _tipos.RemoveAt(i);
-            Atualizar(Math.Min(i, _tipos.Count - 1));
+            if (i < 0 || _itens.Count <= 1) return; // o catálogo nunca fica vazio
+            _itens.RemoveAt(i);
+            Atualizar(Math.Min(i, _itens.Count - 1));
         };
         ok.Click += (s, e) =>
         {
-            var vazios = _tipos.Where(t => string.IsNullOrWhiteSpace(t.Nome)).ToList();
-            var repetidos = _tipos.GroupBy(t => t.Nome.Trim(), StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
-            if (vazios.Count > 0 || repetidos.Count > 0)
+            bool vazio = _itens.Any(t => string.IsNullOrWhiteSpace(_nome(t)));
+            var repetidos = _itens.GroupBy(t => _nome(t).Trim(), StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            if (vazio || repetidos.Count > 0)
             {
-                MessageBox.Show(vazios.Count > 0 ? "Há consolo sem nome." : "Nomes repetidos: " + string.Join(", ", repetidos), "Armadura",
+                MessageBox.Show(vazio ? "Há item sem nome." : "Nomes repetidos: " + string.Join(", ", repetidos), "Armadura",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -138,7 +180,7 @@ internal sealed class FormConsolos : Form
     private string NomeLivre(string baseNome)
     {
         string n = baseNome;
-        for (int k = 2; _tipos.Any(t => string.Equals(t.Nome, n, StringComparison.OrdinalIgnoreCase)); k++) n = $"{baseNome} {k}";
+        for (int k = 2; _itens.Any(t => string.Equals(_nome(t), n, StringComparison.OrdinalIgnoreCase)); k++) n = $"{baseNome} {k}";
         return n;
     }
 
@@ -146,8 +188,19 @@ internal sealed class FormConsolos : Form
     {
         _lista.BeginUpdate();
         _lista.Items.Clear();
-        foreach (var t in _tipos) _lista.Items.Add($"{t.Nome}  —  {t.Resumo}");
+        foreach (var t in _itens) _lista.Items.Add($"{_nome(t)}  —  {_resumo(t)}");
         _lista.EndUpdate();
-        if (selecionar >= 0 && selecionar < _tipos.Count) _lista.SelectedIndex = selecionar;
+        if (selecionar >= 0 && selecionar < _itens.Count) _lista.SelectedIndex = selecionar;
     }
+}
+
+internal static class Catalogos
+{
+    public static FormCatalogo<TipoConsolo> Consolos(IEnumerable<TipoConsolo> tipos) => new FormCatalogo<TipoConsolo>(
+        "Armadura — consolos padrão", tipos, t => t.Clonar(), () => new TipoConsolo(), t => t.Nome, (t, n) => t.Nome = n, t => t.Resumo,
+        t => new PropriedadesConsolo(t));
+
+    public static FormCatalogo<TipoInserto> Insertos(IEnumerable<TipoInserto> tipos) => new FormCatalogo<TipoInserto>(
+        "Armadura — insertos metálicos padrão", tipos, t => t.Clonar(), () => new TipoInserto(), t => t.Nome, (t, n) => t.Nome = n, t => t.Resumo,
+        t => new PropriedadesInserto(t));
 }

@@ -91,6 +91,11 @@ internal static class ServicoFaixa
         double h = cfg.AlturaTexto(cpu, escala);
         string hFaixa = XDataCad.Hex(ent.ObjectId);
 
+        // o conjunto foi movido inteiro (EXPLODE do detalhamento, edição do bloco no lugar, MOVE de tudo)?
+        // Então os pontos guardados andam junto. Texto movido sozinho (as linhas ficaram) não desloca nada.
+        if (!(ent is Dimension) && DeslocamentoDoConjunto(tr, db, ent, f, hFaixa) is Vector2d mov)
+            f.Deslocar(mov.X, mov.Y);
+
         // geometria da linha base (unidades do desenho)
         Point2d a, b;
         double comprimentoCm;
@@ -235,8 +240,35 @@ internal static class ServicoFaixa
             e.Erase();
         }
         f.Partes = novas.Select(e => XDataCad.Hex(e.ObjectId)).ToList();
+        if (ent is MText mtA) { f.TemAncora = true; f.AncoraX = mtA.Location.X; f.AncoraY = mtA.Location.Y; }
+        if (centros.Count > 0) { f.TemCirculo0 = true; f.Circulo0X = centros[0].X; f.Circulo0Y = centros[0].Y; }
+        else f.TemCirculo0 = false;
         XDataCad.GravarSeMudou(ent, CodecDados.Codificar(f));
         return (true, f.QuantidadeTotal);
+    }
+
+    /// <summary>
+    /// Deslocamento do conjunto desde a última atualização, ou null. Conjunto movido = o texto saiu da âncora E as
+    /// linhas de chamada continuam presas a ele (ou o 1º círculo do corte andou o mesmo tanto).
+    /// </summary>
+    private static Vector2d? DeslocamentoDoConjunto(Transaction tr, Database db, Entity ent, DadosFaixa f, string hFaixa)
+    {
+        if (!f.TemAncora || !(ent is MText mt)) return null;
+        var loc = new Point2d(mt.Location.X, mt.Location.Y);
+        var d = loc - new Point2d(f.AncoraX, f.AncoraY);
+        double tol = Math.Max(1e-6, 1e-3 * mt.TextHeight);
+        if (d.Length <= tol) return null;
+        foreach (var p in f.Partes.Select(h => Parte(tr, db, h, hFaixa)).Where(e => e != null))
+        {
+            if (p is Line ln && new Point2d(ln.EndPoint.X, ln.EndPoint.Y).GetDistanceTo(loc) <= tol) return d;
+            if (f.TemCirculo0)
+            {
+                Point2d? c = p is Circle ci ? new Point2d(ci.Center.X, ci.Center.Y)
+                    : p is Polyline pl && pl.NumberOfVertices == 2 ? pl.GetPoint2dAt(0) + (pl.GetPoint2dAt(1) - pl.GetPoint2dAt(0)) * 0.5 : (Point2d?)null;
+                if (c.HasValue && (c.Value - new Point2d(f.Circulo0X, f.Circulo0Y) - d).Length <= tol) return d;
+            }
+        }
+        return null;
     }
 
     /// <summary>Linha base de uma cota: do 1º ponto, no sentido medido, com o comprimento medido.</summary>
@@ -329,6 +361,8 @@ internal static class ServicoFaixa
         var p2 = T(f.P2X, f.P2Y); f.P2X = p2.X; f.P2Y = p2.Y;
         if (f.Raio > 0) { var c = T(f.CX, f.CY); f.CX = c.X; f.CY = c.Y; }
         f.Referencias = f.Referencias.Select(r => { var q = T(r.X, r.Y); return (q.X, q.Y); }).ToList();
+        if (f.TemAncora) { var q = T(f.AncoraX, f.AncoraY); f.AncoraX = q.X; f.AncoraY = q.Y; }
+        if (f.TemCirculo0) { var q = T(f.Circulo0X, f.Circulo0Y); f.Circulo0X = q.X; f.Circulo0Y = q.Y; }
         XDataCad.Gravar(faixa, CodecDados.Codificar(f));
     }
 

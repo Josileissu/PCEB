@@ -41,7 +41,7 @@ public sealed partial class TemplatePilarPreMoldado
     public const string Alternadas = "Alternadas", MesmaSecao = "Na mesma seção";
     public const string GramposNenhum = "Nenhum", GramposTopoBase = "Topo e base", GramposTodas = "Todas as zonas";
 
-    private const string G7 = "7. Armadura longitudinal", G8 = "8. Emendas", G9 = "9. Estribos", G10 = "10. Grampos suplementares",
+    private const string G7 = "07. Armadura longitudinal", G8 = "08. Emendas", G9 = "09. Estribos", G10 = "10. Grampos suplementares",
         G11 = "11. Grampos U (topo e base)";
 
     private static readonly ParametroTemplate[] ParametrosArmadura =

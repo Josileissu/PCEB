@@ -85,6 +85,7 @@ public sealed class Plugin : Rt.IExtensionApplication
         ConfigDesenho.EsquecerTodos(); // relê as configurações dos desenhos com os correntes novos
         // catálogo de consolos padrão do template do pilar pré-moldado (ARMCONSOLOS)
         Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Config.Consolos;
+        Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.CatalogoInsertos = Config.Insertos;
     }
 
     public static void SalvarConfig()

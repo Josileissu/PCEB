@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 namespace Armadura.Core.Modelo;
 
@@ -82,6 +83,28 @@ public sealed class DadosFaixa
     /// multiplicada, e o texto vira "2x11 N1 …" como a descrição da barra (pedido do usuário, 2026-10-27).
     /// </summary>
     public int Repeticoes { get; set; } = 1;
+
+    /// <summary>
+    /// Âncoras da última atualização (faixas de texto): posição do texto e centro do 1º círculo do corte. Se o conjunto
+    /// inteiro aparece deslocado (EXPLODE de detalhamento, edição do bloco no lugar, MOVE de tudo), os pontos guardados
+    /// (linha base, arco, referências) andam junto — antes as chamadas iam para as coordenadas do bloco.
+    /// </summary>
+    public bool TemAncora { get; set; }
+    public double AncoraX { get; set; }
+    public double AncoraY { get; set; }
+    public bool TemCirculo0 { get; set; }
+    public double Circulo0X { get; set; }
+    public double Circulo0Y { get; set; }
+
+    /// <summary>Desloca todos os pontos guardados (linha base, centro do arco, referências e âncoras).</summary>
+    public void Deslocar(double dx, double dy)
+    {
+        P1X += dx; P1Y += dy; P2X += dx; P2Y += dy;
+        if (Raio > 0) { CX += dx; CY += dy; }
+        Referencias = Referencias.Select(r => (r.X + dx, r.Y + dy)).ToList();
+        if (TemAncora) { AncoraX += dx; AncoraY += dy; }
+        if (TemCirculo0) { Circulo0X += dx; Circulo0Y += dy; }
+    }
 
     /// <summary>Quantidade que a faixa soma na barra (com as repetições).</summary>
     public int QuantidadeTotal => SomaQuantidade ? Math.Max(0, Quantidade) * Math.Max(1, Repeticoes) : 0;

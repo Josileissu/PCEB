@@ -68,7 +68,6 @@ public sealed partial class TemplatePilarPreMoldado
     private static readonly string[] LetrasCorte = { "B", "C", "D", "E", "F", "G" };
 
     public const string SemConsolo = "(nenhum)";
-    private const int PosicoesConsolo = 5;
 
     /// <summary>
     /// Catálogo de consolos padrão usado pelo template (o plugin põe aqui o da configuração do usuário ao carregar e
@@ -76,18 +75,25 @@ public sealed partial class TemplatePilarPreMoldado
     /// </summary>
     public static List<TipoConsolo> Catalogo { get; set; } = TipoConsolo.Padrao();
 
-    private static IEnumerable<ParametroTemplate> ParametrosConsolos() => Enumerable.Range(1, PosicoesConsolo).SelectMany(ParametrosConsolo);
-
-    private static IEnumerable<ParametroTemplate> ParametrosConsolo(int k)
+    /// <summary>Uma lista (janela) com os consolos do pilar: tipo do catálogo, faces, distância da base ao topo, deslocamento.</summary>
+    private static IEnumerable<ParametroTemplate> ParametrosConsolos()
     {
-        string g = $"{11 + k}. Consolo {k}", p = $"C{k}";
-        var nomes = new[] { SemConsolo }.Concat(Catalogo.Select(t => t.Nome)).ToArray();
-        yield return P(g, p + "Tipo", "Tipo (catálogo de consolos)", k == 1 && Catalogo.Count > 0 ? Catalogo[0].Nome : SemConsolo,
-            tipo: TipoParametro.Opcao, opcoes: nomes, descricao: "Consolos padrão do escritório: ARMCONSOLOS cria e edita os tipos.");
-        yield return P(g, p + "Faces", "Faces (ex.: 1,3)", k == 1 ? "1,3" : "1", tipo: TipoParametro.Texto,
-            descricao: "Faces do pilar (1 = +x, 2 = −y, 3 = −x, 4 = +y). Tipo duplo: um par de faces opostas (1,3 ou 2,4).");
-        yield return P(g, p + "Dist", "Distância da base ao topo do consolo", k == 1 ? "592.5" : "800", "cm", min: 0);
-        yield return P(g, p + "Desl", "Deslocamento lateral (do centro da face)", "0", "cm");
+        string padrao = Catalogo.Count > 0 ? $"{Catalogo[0].Nome}|1,3|592.5|0" : "";
+        yield return new ParametroTemplate
+        {
+            Grupo = "12. Consolos", Nome = "Consolos", Rotulo = "Consolos do pilar", Tipo = TipoParametro.Tabela, NomeItem = "consolo",
+            Padrao = padrao,
+            Descricao = "Clique em … para incluir os consolos: tipo (catálogo do ARMCONSOLOS), faces (1 = +x, 2 = −y, 3 = −x, 4 = +y; " +
+                        "duplo = 1,3 ou 2,4), distância da base ao topo do consolo e deslocamento lateral.",
+            Colunas =
+            {
+                new ColunaTabela { Nome = "Tipo", Rotulo = "Tipo", Tipo = TipoParametro.Opcao, Opcoes = Catalogo.Select(t => t.Nome).ToList(),
+                    Padrao = Catalogo.Count > 0 ? Catalogo[0].Nome : "", Largura = 170 },
+                new ColunaTabela { Nome = "Faces", Rotulo = "Faces", Padrao = "1", Largura = 70 },
+                new ColunaTabela { Nome = "Dist", Rotulo = "Base → topo (cm)", Tipo = TipoParametro.Numero, Padrao = "300", Largura = 110 },
+                new ColunaTabela { Nome = "Desl", Rotulo = "Deslocamento (cm)", Tipo = TipoParametro.Numero, Padrao = "0", Largura = 110 },
+            },
+        };
     }
 
     // ======================== leitura e cálculos (testáveis) ========================
@@ -95,13 +101,15 @@ public sealed partial class TemplatePilarPreMoldado
     public static List<ConsoloPilar> LerConsolos(ValoresTemplate v, IReadOnlyList<TipoConsolo> catalogo, double L, List<string> avisos)
     {
         var r = new List<ConsoloPilar>();
-        for (int k = 1; k <= PosicoesConsolo; k++)
+        var linhas = v.Tabela("Consolos");
+        for (int k = 1; k <= linhas.Count; k++)
         {
-            string p = $"C{k}", nomeTipo = v[p + "Tipo"];
+            var l = linhas[k - 1];
+            string nomeTipo = ValoresTemplate.Celula(l, 0);
             if (string.IsNullOrWhiteSpace(nomeTipo) || nomeTipo == SemConsolo) continue;
             var t = TipoConsolo.Obter(catalogo, nomeTipo);
             if (t == null) { avisos.Add($"Consolo {k}: tipo \"{nomeTipo}\" não existe no catálogo (ARMCONSOLOS)."); continue; }
-            var faces = (v[p + "Faces"] ?? "").Split(new[] { ',', ';', ' ', '/' }, StringSplitOptions.RemoveEmptyEntries)
+            var faces = ValoresTemplate.Celula(l, 1).Split(new[] { ',', ';', ' ', '/' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var f) ? f : 0)
                 .Where(f => f >= 1 && f <= 4).Distinct().OrderBy(f => f).ToList();
             if (faces.Count == 0) { avisos.Add($"Consolo {k}: nenhuma face válida (use 1 a 4)."); continue; }
@@ -113,7 +121,7 @@ public sealed partial class TemplatePilarPreMoldado
             var c = new ConsoloPilar
             {
                 Slot = k, Tipo = t.Nome, TipoDuplo = t.Duplo, Letra = LetrasCorte[r.Count % LetrasCorte.Length], Faces = faces,
-                ZTopo = v.Numero(p + "Dist"), Desl = v.Numero(p + "Desl"),
+                ZTopo = ValoresTemplate.NumeroCelula(l, 2), Desl = ValoresTemplate.NumeroCelula(l, 3),
                 B = t.B, A = t.A, H = t.H, H1 = Math.Min(t.H1, t.H),
                 TirN = Math.Max(1, t.TirN), TirPhi = t.TirPhi, Laco = t.Laco,
                 CostN = t.CostN, CostPhi = t.CostPhi, VertN = t.VertN, VertPhi = t.VertPhi,

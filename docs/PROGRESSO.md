@@ -282,3 +282,10 @@ consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálcu
         canto, alça, reforço, raio de curvatura, emendas, comprimento, SPDA). Unidade 160/160, autoteste 201/201
         (`autoteste_pilar_p61_{detalhes,vistas_alcas}.png`).
 - [ ] Usuário: conferir. Próxima: etapa 5 (entrada por tabela/Excel/janela: armadura e consolos).
+# Pilar pré-moldado — 3ª rodada de ajustes (2026-10-29)
+- [x] EXPLODE/edição do bloco: chamadas não vão mais para as coordenadas do bloco (transformação do bloco explodido +
+        âncoras nas faixas). Autoteste com EXPLODE real: 54 linhas no lugar, 0 fora.
+- [x] Chaves de cisalhamento iguais ao detalhe 01 do P61; detalhe típico (raio/emendas/comprimento) como a prancha.
+- [x] Listas em janela (consolos sem limite, níveis, insertos) com Ctrl+V do Excel; grupos 01…16 em ordem.
+- [x] Catálogo de insertos (ARMINSERTOS): topo com chumbadores/gabarito ou chapa na face.
+- Unidade 164/164 (8 novos), autoteste 203/203 (`autoteste_pilar_p61_chaves.png`, `autoteste_janela_consolos.png`).

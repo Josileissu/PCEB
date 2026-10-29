@@ -115,8 +115,13 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   perfil e trava os diálogos do GstarCAD do usuário), e o .scr não pode terminar com Enter sobrando (repete
   o comando fora do script e abre o diálogo de arquivo na tela do usuário).
 - Faixas guardam pontos ABSOLUTOS no XData (P1/P2, arco, referências das chamadas): ao deslocar/copiar para
-  um bloco, use `ServicoFaixa.Transformar` (o `ServicoDetalhamento.Criar` já usa). O MOVE comum ainda não
-  atualiza as referências das chamadas [pendente].
+  um bloco, use `ServicoFaixa.Transformar` (o `ServicoDetalhamento.Criar` já usa; ele leva também as âncoras).
+  **EXPLODE** (2026-10-29, relato do usuário: chamadas iam para longe): o Sincronizador guarda o `BlockTransform` dos
+  blocos apagados durante EXPLODE/XPLODE/BURST e, antes do resto, transforma as faixas de texto novas cuja âncora
+  (XData ANX/ANY = posição do texto na última atualização) cai no texto. E em qualquer atualização, se o texto saiu da
+  âncora e as linhas de chamada continuam presas a ele (ou o 1º círculo do corte, C0X/C0Y, andou igual), a faixa
+  desloca os pontos (MOVE de tudo, edição no lugar); texto movido sozinho não mexe nas referências.
+  Teste por script: o EXPLODE do GstarCAD pega UM objeto e termina — mande um Enter só.
 - Tela soldada: opções por tela no XData ("TDIS" distribuição dos fios, "TCOT" cotas das 2 dimensões, "TDIAG"
   texto na diagonal; padrão: cotas e diagonal ligadas). Fios: `DistribuicaoTela` (Core; longitudinais ao longo do
   lado maior, famílias centradas). Na paleta, `[SoQuando("Tela")]`/`IPropriedadesCondicionais` escondem o que não se aplica.

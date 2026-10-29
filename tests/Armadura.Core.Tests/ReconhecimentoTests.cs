@@ -75,6 +75,22 @@ public class ReconhecimentoTests
     }
 
     [Fact]
+    public void FaixaGuardaAncorasEDeslocaTudo()
+    {
+        var f = new DadosFaixa { Tipo = TipoFaixa.Indicacao, P1X = 1, P1Y = 2, Referencias = { (10, 20) }, TemAncora = true, AncoraX = 5, AncoraY = 6 };
+        var x = CodecDados.DecodificarFaixa(CodecDados.Codificar(f));
+        Assert.True(x.TemAncora);
+        Assert.Equal(5, x.AncoraX);
+        Assert.False(x.TemCirculo0);
+        x.Deslocar(100, -50);
+        Assert.Equal((110.0, -30.0), x.Referencias[0]);
+        Assert.Equal(105, x.AncoraX);
+        Assert.Equal(-48, x.P1Y);
+        // faixa antiga (sem âncora) continua lendo
+        Assert.False(CodecDados.DecodificarFaixa(CodecDados.Codificar(new DadosFaixa())).TemAncora);
+    }
+
+    [Fact]
     public void CotaMovidaVaiParaOXData()
     {
         var d = new DadosArmadura();

@@ -17,7 +17,29 @@ public sealed partial class TemplatePilarPreMoldado
 {
     public const string MontagemFuro = "Furo", MontagemAlcaTopo = "Alça de topo", MontagemNenhuma = "Nenhuma";
 
-    private const string G17 = "17. Içamento (alças)", G18 = "18. Montagem", G19 = "19. Inserto no topo", G20 = "20. Detalhes padrão";
+    private const string G17 = "13. Içamento (alças)", G18 = "14. Montagem", G19 = "15. Insertos metálicos", G20 = "16. Detalhes padrão";
+
+    /// <summary>Catálogo de insertos (o plugin põe aqui o da configuração do usuário; ARMINSERTOS edita).</summary>
+    public static List<TipoInserto> CatalogoInsertos { get; set; } = TipoInserto.Padrao();
+    public const string LocalTopo = "Topo";
+
+    /// <summary>Lista dos insertos do pilar (janela): tipo do catálogo, local (topo ou face), distância da base, deslocamento.</summary>
+    private static ParametroTemplate ParametroInsertos() => new ParametroTemplate
+    {
+        Grupo = G19, Nome = "Insertos", Rotulo = "Insertos do pilar", Tipo = TipoParametro.Tabela, NomeItem = "inserto",
+        Padrao = CatalogoInsertos.Any(t => t.NoTopo) ? $"{CatalogoInsertos.First(t => t.NoTopo).Nome}|{LocalTopo}|0|0" : "",
+        Descricao = "Clique em … para incluir os insertos: tipo (catálogo do ARMINSERTOS), local (Topo ou Face 1…4), distância da base " +
+                    "ao centro do inserto (faces) e deslocamento lateral.",
+        Colunas =
+        {
+            new ColunaTabela { Nome = "Tipo", Rotulo = "Tipo", Tipo = TipoParametro.Opcao, Opcoes = CatalogoInsertos.Select(t => t.Nome).ToList(),
+                Padrao = CatalogoInsertos.Count > 0 ? CatalogoInsertos[0].Nome : "", Largura = 160 },
+            new ColunaTabela { Nome = "Local", Rotulo = "Local", Tipo = TipoParametro.Opcao,
+                Opcoes = new List<string> { LocalTopo, "Face 1", "Face 2", "Face 3", "Face 4" }, Padrao = LocalTopo, Largura = 80 },
+            new ColunaTabela { Nome = "Dist", Rotulo = "Base → centro (cm)", Tipo = TipoParametro.Numero, Padrao = "0", Largura = 110 },
+            new ColunaTabela { Nome = "Desl", Rotulo = "Deslocamento (cm)", Tipo = TipoParametro.Numero, Padrao = "0", Largura = 110 },
+        },
+    };
 
     private static readonly ParametroTemplate[] ParametrosItens =
     {
@@ -42,12 +64,6 @@ public sealed partial class TemplatePilarPreMoldado
         P(G18, "FuroGrampoBitola", "Furo: bitola dos grampos", "6.3", "mm", TipoParametro.Bitola, 5, 12.5),
         P(G18, "FuroGrampoPerna", "Furo: perna dos grampos", "50", "cm", min: 10),
 
-        P(G19, "Inserto", "Inserto no topo", "Sim", tipo: TipoParametro.SimNao),
-        P(G19, "InsertoNome", "Inserto", "25CB660", tipo: TipoParametro.Texto),
-        P(G19, "Gabarito", "Gabarito", "GC1A", tipo: TipoParametro.Texto),
-        P(G19, "GabaritoLado", "Gabarito: distância entre chumbadores", "13", "cm", min: 2),
-        P(G19, "ChumbBitola", "Chumbadores: bitola", "25", "mm", min: 6),
-        P(G19, "ChumbComp", "Chumbadores: comprimento dentro do pilar", "60", "cm", min: 5),
 
         P(G20, "DetalhesPadrao", "Desenhar os detalhes padrão", "Sim", tipo: TipoParametro.SimNao),
         P(G20, "AvisoSPDA", "Aviso do SPDA", "Sim", tipo: TipoParametro.SimNao),
@@ -181,36 +197,115 @@ public sealed partial class TemplatePilarPreMoldado
             }
         }
 
-        // inserto do topo: chumbadores nas vistas (dois por vista, a ± lado/2) e o nome acima da VISTA 1
-        if (v.SimNao("Inserto"))
-        {
-            double g = v.Numero("GabaritoLado"), comp = v.Numero("ChumbComp");
-            for (int vista = 1; vista <= 4; vista++)
-            {
-                double xm = xs[vista - 1] + larguras[vista - 1] / 2;
-                foreach (double u in new[] { -g / 2, g / 2 }) c.Linha(xm + u, L, xm + u, L - comp, "ARM-INSERTO");
-            }
-            double yt = L + 6 * hv;
-            foreach (var t in new[] { "INSERTO", v["InsertoNome"] }) { c.Texto(t, xs[0] + larguras[0] / 2, yt, 0.8 * hv, 1, 0, "ARM-INSERTO"); yt -= 1.2 * hv; }
-        }
         return it;
     }
 
-    /// <summary>Gabarito do inserto no corte A-A: quadrado com os chumbadores nos cantos e as cotas (P61: 18,5 | 13 | 18,5).</summary>
-    private static void InsertoNoCorte(Ctx c, ValoresTemplate v, double sx0, double sy0, double b, double h)
+    /// <summary>Inserto colocado no pilar.</summary>
+    public sealed class InsertoPilar
     {
-        if (!v.SimNao("Inserto")) return;
-        double g = v.Numero("GabaritoLado"), rc = v.Numero("ChumbBitola") / 20, hc = c.hC;
-        double gx0 = sx0 + (b - g) / 2, gy0 = sy0 + (h - g) / 2;
-        c.Retangulo(gx0, gy0, gx0 + g, gy0 + g, "ARM-INSERTO");
-        foreach (var (x, y) in new[] { (gx0, gy0), (gx0 + g, gy0), (gx0 + g, gy0 + g), (gx0, gy0 + g) })
-            c.R.Circulos.Add(new CirculoTemplate { X = x, Y = y, Raio = rc, Layer = "ARM-INSERTO" });
-        // cotas em cadeia acima e à esquerda (as totais ficam embaixo e à direita)
+        public TipoInserto Tipo { get; set; }
+        public bool Topo { get; set; }
+        public int Face { get; set; }
+        /// <summary>Distância da base ao centro (insertos de face), cm.</summary>
+        public double Z { get; set; }
+        public double Desl { get; set; }
+    }
+
+    public static List<InsertoPilar> LerInsertos(ValoresTemplate v, IReadOnlyList<TipoInserto> catalogo, double L, List<string> avisos)
+    {
+        var r = new List<InsertoPilar>();
+        int k = 0;
+        foreach (var l in v.Tabela("Insertos"))
+        {
+            k++;
+            string nome = ValoresTemplate.Celula(l, 0);
+            if (nome.Length == 0) continue;
+            var t = TipoInserto.Obter(catalogo, nome);
+            if (t == null) { avisos.Add($"Inserto {k}: tipo \"{nome}\" não existe no catálogo (ARMINSERTOS)."); continue; }
+            string local = ValoresTemplate.Celula(l, 1);
+            bool topo = local.Length == 0 || local.StartsWith(LocalTopo, StringComparison.OrdinalIgnoreCase);
+            int face = topo ? 0 : local.Where(char.IsDigit).Select(ch => ch - '0').FirstOrDefault();
+            if (!topo && (face < 1 || face > 4)) { avisos.Add($"Inserto {k}: local \"{local}\" inválido (Topo ou Face 1…4)."); continue; }
+            if (topo != t.NoTopo)
+                avisos.Add($"Inserto {k}: o tipo \"{t.Nome}\" é {(t.NoTopo ? "de topo" : "de face")} e foi posto {(topo ? "no topo" : "numa face")}.");
+            var ins = new InsertoPilar { Tipo = t, Topo = topo, Face = face, Z = ValoresTemplate.NumeroCelula(l, 2), Desl = ValoresTemplate.NumeroCelula(l, 3) };
+            if (!topo && (ins.Z < 0 || ins.Z > L)) { avisos.Add($"Inserto {k}: fora do pilar ({Num(ins.Z, "0.#")} cm da base)."); continue; }
+            r.Add(ins);
+        }
+        return r;
+    }
+
+    /// <summary>Insertos nas vistas: chumbadores do topo (e o nome acima da VISTA 1) ou a chapa na face com as grapas.</summary>
+    private void DesenharInsertosNasVistas(Ctx c, List<InsertoPilar> insertos, double[] xs, double[] larguras, double L)
+    {
+        double hv = c.hV;
+        double yNome = L + 6 * hv;
+        foreach (var ins in insertos)
+        {
+            var t = ins.Tipo;
+            if (ins.Topo)
+            {
+                for (int vista = 1; vista <= 4; vista++)
+                {
+                    double xm = xs[vista - 1] + larguras[vista - 1] / 2 + (vista == 2 || vista == 4 ? ins.Desl : 0);
+                    double a = vista == 1 || vista == 3 ? t.Ay : t.Ax;
+                    foreach (double u in t.ChumbN <= 1 ? new[] { 0.0 } : new[] { -a / 2, a / 2 })
+                        c.Linha(xm + u, L + t.ChumbAcima, xm + u, L - t.ChumbComp, "ARM-INSERTO");
+                }
+                foreach (var tx in new[] { "INSERTO", t.Nome }) { c.Texto(tx, xs[0] + larguras[0] / 2, yNome, 0.8 * hv, 1, 0, "ARM-INSERTO"); yNome -= 1.2 * hv; }
+                yNome += 3.6 * hv; // o próximo inserto do topo vai acima
+                continue;
+            }
+            // chapa na face: de frente o retângulo; de lado a espessura e as grapas entrando no pilar
+            for (int vista = 1; vista <= 4; vista++)
+            {
+                double x0 = xs[vista - 1], x1 = x0 + larguras[vista - 1];
+                if (vista == ins.Face)
+                {
+                    double um = (x0 + x1) / 2 + ins.Desl;
+                    c.Retangulo(um - t.ChapaL / 2, ins.Z - t.ChapaH / 2, um + t.ChapaL / 2, ins.Z + t.ChapaH / 2, "ARM-INSERTO");
+                    double yt = ins.Z + t.ChapaH / 2 + 2.5 * hv;
+                    foreach (var tx in c.Linhas($"INSERTO {t.Nome}", $"INSERT {t.Nome}")) { c.Texto(tx, um, yt, 0.7 * hv, 1, 0, "ARM-INSERTO"); yt -= 1.1 * hv; }
+                }
+                else if (FaceEsquerda(vista) == ins.Face || FaceDireita(vista) == ins.Face)
+                {
+                    bool esq = FaceEsquerda(vista) == ins.Face;
+                    double xf = esq ? x0 : x1, s = esq ? 1 : -1; // para dentro do pilar
+                    c.Retangulo(Math.Min(xf, xf + s * t.ChapaE), ins.Z - t.ChapaH / 2, Math.Max(xf, xf + s * t.ChapaE), ins.Z + t.ChapaH / 2, "ARM-INSERTO");
+                    int nLin = Math.Max(1, t.GrapaN / 2);
+                    for (int i = 0; i < nLin; i++)
+                    {
+                        double z = nLin == 1 ? ins.Z : ins.Z - t.ChapaH / 2 + t.ChapaH * (i + 0.5) / nLin;
+                        c.Linha(xf + s * t.ChapaE, z, xf + s * (t.ChapaE + t.GrapaComp), z, "ARM-INSERTO");
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>Gabarito do inserto de topo no corte A-A (chumbadores nos cantos e cotas em cadeia, como o P61: 18,5 | 13 | 18,5).</summary>
+    private static bool InsertoNoCorte(Ctx c, List<InsertoPilar> insertos, double sx0, double sy0, double b, double h)
+    {
+        var ins = insertos.FirstOrDefault(i => i.Topo);
+        if (ins == null) return false;
+        var t = ins.Tipo;
+        double rc = t.ChumbPhi / 20, hc = c.hC;
+        double gx0 = sx0 + (b - t.Ax) / 2 + ins.Desl, gy0 = sy0 + (h - t.Ay) / 2;
+        c.Retangulo(gx0, gy0, gx0 + t.Ax, gy0 + t.Ay, "ARM-INSERTO");
+        var pts = t.ChumbN <= 1 ? new[] { (gx0 + t.Ax / 2, gy0 + t.Ay / 2) }
+            : t.ChumbN == 2 ? new[] { (gx0, gy0 + t.Ay / 2), (gx0 + t.Ax, gy0 + t.Ay / 2) }
+            : new[] { (gx0, gy0), (gx0 + t.Ax, gy0), (gx0 + t.Ax, gy0 + t.Ay), (gx0, gy0 + t.Ay) };
+        foreach (var (x, y) in pts) c.R.Circulos.Add(new CirculoTemplate { X = x, Y = y, Raio = rc, Layer = "ARM-INSERTO" });
         double yc = sy0 + h + 1.5 * hc;
         c.Cota(sx0, yc, gx0, yc, (sx0 + gx0) / 2, yc + 1.2 * hc, 0, c.escC);
-        c.Cota(gx0, yc, gx0 + g, yc, gx0 + g / 2, yc + 1.2 * hc, 0, c.escC);
-        c.Cota(gx0 + g, yc, sx0 + b, yc, (gx0 + g + sx0 + b) / 2, yc + 1.2 * hc, 0, c.escC);
-        c.Texto("GABARITO " + v["Gabarito"], gx0 + g + 2 * hc, gy0 - 2.5 * hc, 0.8 * hc, 0, 0, "ARM-INSERTO");
+        c.Cota(gx0, yc, gx0 + t.Ax, yc, gx0 + t.Ax / 2, yc + 1.2 * hc, 0, c.escC);
+        c.Cota(gx0 + t.Ax, yc, sx0 + b, yc, (gx0 + t.Ax + sx0 + b) / 2, yc + 1.2 * hc, 0, c.escC);
+        double xl = sx0 - 1.5 * hc;
+        c.Cota(xl, sy0, xl, gy0, xl - 1.2 * hc, (sy0 + gy0) / 2, Math.PI / 2, c.escC);
+        c.Cota(xl, gy0, xl, gy0 + t.Ay, xl - 1.2 * hc, gy0 + t.Ay / 2, Math.PI / 2, c.escC);
+        c.Cota(xl, gy0 + t.Ay, xl, sy0 + h, xl - 1.2 * hc, (gy0 + t.Ay + sy0 + h) / 2, Math.PI / 2, c.escC);
+        if (t.Gabarito.Length > 0) c.Texto("GABARITO " + t.Gabarito, gx0 + t.Ax + 2 * hc, gy0 - 2.5 * hc, 0.8 * hc, 0, 0, "ARM-INSERTO");
+        return true;
     }
 
     // ======================== detalhes padrão ========================
@@ -281,36 +376,49 @@ public sealed partial class TemplatePilarPreMoldado
 
         if (!v.SimNao("DetalhesPadrao")) return yBaixo - 10 * hv;
 
-        // ---- chaves de cisalhamento, 1:10 ----
+        // ---- chaves de cisalhamento, 1:10 (como o detalhe 01 do P61) ----
         if (v["Interface"] == Chaves)
         {
             double esc = 10, ht = Ht(c, esc);
             double passo = v.Numero("ChavePasso"), dente = v.Numero("ChaveDente"), prof = v.Numero("ChaveProf");
             fimTitulo = Titulo("DETALHE 01 - CHAVES DE CISALHAMENTO", "DETAIL 01 - SHEAR KEYS", x, yTopo, esc, "ESC 1:10");
-            double xf = x + 6 * ht, yb = yTopo - 10 * ht - 5 * passo;
-            var perfil = new ContornoTemplate { Layer = "ARM-FORMA" };
-            perfil.Vertices.Add((xf - 3 * passo, yb));
+            var (perfil, arestas) = PerfilChaves(passo, dente, prof, 6);
+            double raio = 3.4 * passo;
+            double cx = x + raio + 2 * ht, cy = yTopo - 9 * ht - raio;
+            // o perfil fica à direita do centro do círculo; o pilar à esquerda
+            double fx = cx + 0.6 * raio, fy = cy - 3 * passo;
+            r.Contornos.Add(new ContornoTemplate { Vertices = perfil.Select(p => (fx + p.X, fy + p.Y)).ToList(), Layer = "ARM-FORMA" });
+            // arestas das chaves atravessando o pilar até o círculo
+            foreach (var (xa, ya) in arestas)
+            {
+                double yy = fy + ya, dy = yy - cy;
+                if (Math.Abs(dy) >= raio) continue;
+                double xEsq = cx - Math.Sqrt(raio * raio - dy * dy);
+                c.Linha(xEsq, yy, fx + xa, yy, "ARM-CHAVE");
+            }
+            // fecho de cima e de baixo do trecho mostrado
+            r.Circulos.Add(new CirculoTemplate { X = cx, Y = cy, Raio = raio, Layer = "ARM-DETALHE" });
+            // cotas: 4 / 1 alternadas e o passo 5
+            double xc1 = fx + 1.5 * passo, xc2 = fx + 3 * passo;
             for (int k = 0; k < 5; k++)
             {
-                double y = yb + k * passo;
-                perfil.Vertices.Add((xf, y));
-                perfil.Vertices.Add((xf, y + dente));
-                perfil.Vertices.Add((xf - prof, y + dente + (passo - dente) / 2));
+                double y0 = fy + k * passo, t = passo - dente;
+                c.Cota(xc1, y0, xc1, y0 + t, xc1 + 1.1 * ht, y0 + t / 2, Math.PI / 2, esc);
+                c.Cota(xc1, y0 + t, xc1, y0 + passo, xc1 + 1.1 * ht, y0 + t + dente / 2, Math.PI / 2, esc);
+                c.Cota(xc2, y0, xc2, y0 + passo, xc2 + 1.1 * ht, y0 + passo / 2, Math.PI / 2, esc);
             }
-            perfil.Vertices.Add((xf, yb + 5 * passo));
-            perfil.Vertices.Add((xf - 3 * passo, yb + 5 * passo));
-            r.Contornos.Add(perfil);
-            for (int k = 0; k < 5; k++)
-            {
-                double y = yb + k * passo;
-                c.Cota(xf + 1, y, xf + 1, y + dente, xf + 1 + 1.2 * ht, y + dente / 2, Math.PI / 2, esc);
-                c.Cota(xf + 3, y, xf + 3, y + passo, xf + 3 + 1.2 * ht, y + passo / 2, Math.PI / 2, esc);
-            }
-            c.Cota(xf - prof, yb - 1, xf, yb - 1, xf - prof / 2, yb - 1 - 1.2 * ht, 0, esc);
-            c.Texto(c.Idioma == IdiomaDesenho.EN ? "COLUMN" : "PILAR", xf - 2 * passo, yb + 2.5 * passo, ht, 1);
-            x = xf + 3 + 8 * ht;
+            c.Cota(fx - prof, fy - 0.8 * passo, fx, fy - 0.8 * passo, fx - prof / 2, fy - 0.8 * passo - 1.1 * ht, 0, esc);
+            // chamadas: "CHAVES DE CISALHAMENTO" (duas linhas para dois rebaixos) e "PILAR"
+            double txC = cx - raio - 1 * ht, tyC = cy + 0.45 * raio;
+            foreach (var t in c.Linhas("CHAVES DE CISALHAMENTO", "SHEAR KEY")) { c.Texto(t, txC, tyC, 0.9 * ht, 2); tyC -= 1.4 * ht; }
+            foreach (int k in new[] { 3, 4 })
+                c.Linha(txC + 0.5 * ht, cy + 0.45 * raio - 0.3 * ht, fx - prof, fy + k * passo + (passo - dente) + dente / 2, "ARM-DETALHE");
+            double tyP = cy - raio - 1.5 * ht;
+            foreach (var t in c.Linhas("PILAR", "COLUMN")) { c.Texto(t, cx - 0.5 * raio, tyP, 0.9 * ht, 1); tyP -= 1.4 * ht; }
+            c.Linha(cx - 0.5 * raio, cy - raio - 0.6 * ht, cx - 0.3 * raio, cy - 0.85 * raio, "ARM-DETALHE");
+            x = Math.Max(cx + raio + 6 * ht, xc2 + 4 * ht);
             x = Math.Max(x, fimTitulo + 4 * hv);
-            yBaixo = Math.Min(yBaixo, yb - 6 * ht);
+            yBaixo = Math.Min(yBaixo, tyP - 3 * ht);
         }
 
         // ---- espaçamento das barras no canto, 1:5 ----
@@ -340,59 +448,8 @@ public sealed partial class TemplatePilarPreMoldado
             yBaixo = Math.Min(yBaixo, fy - tam - 6 * ht);
         }
 
-        // ---- raio de curvatura (NBR 6118), tabela ----
-        var tab = new TabelaTemplate
-        {
-            Titulo = c.Idioma switch
-            {
-                IdiomaDesenho.EN => "BEND RADIUS (r) FOR HOOKS",
-                IdiomaDesenho.PT => "RAIO (r) DE CURVATURA PARA GANCHOS",
-                _ => "RAIO (r) DE CURVATURA PARA GANCHOS" + TabelaTemplate.Quebra + "(BEND RADIUS (r) FOR HOOKS)",
-            },
-            X = x, Y = yTopo, Escala = c.escV,
-        };
-        tab.Larguras.AddRange(new[] { 15.0, 7.0, 7.0 });
-        tab.Linhas.Add(new[] { c.Idioma == IdiomaDesenho.EN ? "DIAMETER (Ø)" : "BITOLA (Ø)", "CA50", "CA60" });
-        tab.Linhas.Add(new[] { "< 20 mm", "2,5xØ", "3xØ" });
-        tab.Linhas.Add(new[] { "≥ 20 mm", "4xØ", "—" });
-        tab.Linhas.Add(new[] { c.Idioma == IdiomaDesenho.EN ? "STIRRUPS ≤ 10 mm" : "ESTRIBO ≤ 10 mm", "1,5xØ", "1,5xØ" });
-        r.Tabelas.Add(tab);
-        c.Texto("NBR 6118", x, yTopo - (tab.AlturaEmTextos() + 4) * hv, 0.8 * hv);
-        x += 29 * hv + 8 * hv;
-
-        // ---- emendas por traspasse e por solda (esquemas) ----
-        {
-            double ht = hv, y = yTopo;
-            foreach (var t in c.Linhas("EMENDAS POR TRASPASSE", "LAP SPLICES")) { c.Texto(t, x, y, 1.1 * ht); y -= 1.7 * ht; }
-            y -= 2 * ht;
-            double comp = 30 * ht, sobre = 12 * ht;
-            c.Retangulo(x, y, x + comp, y + 0.6 * ht, "ARM-BARRA-DETALHE");
-            c.Retangulo(x + comp - sobre, y - 1.2 * ht, x + 2 * comp - sobre, y - 0.6 * ht, "ARM-BARRA-DETALHE");
-            c.Cota(x + comp - sobre, y - 2 * ht, x + comp, y - 2 * ht, x + comp - sobre / 2, y - 3.2 * ht, 0, c.escV, "≥ 45ø");
-            y -= 7 * ht;
-            foreach (var t in c.Linhas("EMENDAS POR SOLDA POR TRASPASSE", "LAP WELD SPLICES")) { c.Texto(t, x, y, 1.1 * ht); y -= 1.7 * ht; }
-            y -= 2 * ht;
-            c.Retangulo(x, y, x + comp, y + 0.6 * ht, "ARM-BARRA-DETALHE");
-            c.Retangulo(x + comp - sobre, y - 0.6 * ht, x + 2 * comp - sobre, y, "ARM-BARRA-DETALHE");
-            c.Cota(x + comp - sobre, y - 1.6 * ht, x + comp, y - 1.6 * ht, x + comp - sobre / 2, y - 2.8 * ht, 0, c.escV, "≥ 5ø");
-            y -= 5 * ht;
-            var notasPt = new[] { "NOTAS:", "1) EMENDA POR TRASPASSE NÃO PERMITIDA PARA BARRA > ø32 mm;",
-                "2) INDICAÇÕES VÁLIDAS QUANDO NÃO HOUVER RECOMENDAÇÕES ADVERSAS NO PROJETO;",
-                "3) A1 E B1 SÃO OS VALORES INDICADOS NO DETALHAMENTO DAS ARMADURAS." };
-            var notasEn = new[] { "NOTES:", "1) LAP SPLICES ARE NOT ALLOWED FOR BARS > ø32 mm;",
-                "2) VALID WHEN THERE ARE NO ADVERSE RECOMMENDATIONS IN THE DESIGN;",
-                "3) A1 AND B1 DENOTE THE VALUES SPECIFIED IN THE REINFORCEMENT DETAILING." };
-            if (c.Idioma != IdiomaDesenho.EN) y = c.Bloco(notasPt, x, y, 0.8 * ht) - ht;
-            if (c.Idioma != IdiomaDesenho.PT) y = c.Bloco(notasEn, x, y, 0.8 * ht) - ht;
-            // comprimento das barras: U com A1 e B1 (medidas externas)
-            foreach (var t in c.Linhas("COMPRIMENTO DAS BARRAS", "REBAR LENGTH")) { c.Texto(t, x, y, 1.1 * ht); y -= 1.7 * ht; }
-            double ux = x + 2 * ht, uy = y - 8 * ht, uw = 26 * ht, uh = 6 * ht;
-            r.Contornos.Add(new ContornoTemplate { Vertices = { (ux, uy + uh), (ux, uy), (ux + uw, uy), (ux + uw, uy + uh) }, Layer = "ARM-BARRA-DETALHE" });
-            c.Cota(ux - ht, uy, ux - ht, uy + uh, ux - 2.2 * ht, uy + uh / 2, Math.PI / 2, c.escV, "A1");
-            c.Cota(ux, uy - ht, ux + uw, uy - ht, ux + uw / 2, uy - 2.2 * ht, 0, c.escV, "B1");
-            yBaixo = Math.Min(yBaixo, uy - 4 * ht);
-            x += 2 * comp + 10 * ht;
-        }
+        // ---- detalhe típico: raio de curvatura, emendas e comprimento das barras (como a prancha do escritório) ----
+        x = DetalheTipico(c, x, yTopo, ref yBaixo);
 
         // ---- SPDA ----
         if (v.SimNao("AvisoSPDA"))
@@ -404,5 +461,162 @@ public sealed partial class TemplatePilarPreMoldado
             c.Retangulo(x, yy, x + 42 * hv, yTopo + hv, "ARM-TEXTO-FORMA");
         }
         return yBaixo - 10 * hv;
+    }
+
+    /// <summary>
+    /// Perfil das chaves de cisalhamento (x = 0 na face do pilar, x &lt; 0 para dentro; y para cima), como o detalhe 01 do
+    /// P61: rebaixo de "dente" (4) recuado "prof" e o trecho de "passo − dente" (1) que avança até a face com chanfros.
+    /// Devolve também as arestas (pontos onde o perfil muda), que viram as linhas horizontais do pilar.
+    /// </summary>
+    public static (List<(double X, double Y)> Perfil, List<(double X, double Y)> Arestas) PerfilChaves(double passo, double dente, double prof, int n)
+    {
+        double t = Math.Max(0, passo - dente);
+        double ch = Math.Min(prof, t / 2); // altura de cada chanfro (45° quando cabe)
+        var p = new List<(double X, double Y)>();
+        var a = new List<(double X, double Y)>();
+        for (int k = 0; k < n; k++)
+        {
+            double y0 = k * passo;
+            p.Add((-prof, y0));
+            p.Add((0, y0 + ch));
+            if (t - 2 * ch > 1e-9) p.Add((0, y0 + t - ch));
+            p.Add((-prof, y0 + t));
+            a.Add((-prof, y0));
+            a.Add((-prof, y0 + t));
+        }
+        p.Add((-prof, n * passo));
+        a.Add((-prof, n * passo));
+        return (p, a);
+    }
+
+    /// <summary>Barra do esquema (retângulo hachurado de espessura e), de x0 a x1 em y (base).</summary>
+    private static void BarraEsquema(Ctx c, double x0, double x1, double y, double e)
+    {
+        var ret = new List<(double, double)> { (x0, y), (x1, y), (x1, y + e), (x0, y + e) };
+        c.R.Contornos.Add(new ContornoTemplate { Vertices = ret, Fechado = true, Layer = "ARM-DETALHE" });
+        c.R.Hachuras.Add(new HachuraTemplate { Vertices = ret, EscalaPadrao = 0.15 * e, Layer = "ARM-HACHURA-DETALHE" });
+    }
+
+    /// <summary>
+    /// Detalhe típico sem escala (padrão da prancha do escritório): raio de curvatura (ganchos desenhados + tabela),
+    /// emendas por traspasse, emendas por solda (com o corte a-a), comprimento das barras e notas PT/EN em colunas.
+    /// </summary>
+    private double DetalheTipico(Ctx c, double x0, double yTopo, ref double yBaixo)
+    {
+        var r = c.R;
+        double h = c.hV, x = x0;
+        bool en = c.Idioma == IdiomaDesenho.EN;
+        string semEscala = c.Idioma switch { IdiomaDesenho.EN => "NOT TO SCALE", IdiomaDesenho.PT => "SEM ESCALA", _ => "SEM ESCALA (NOT TO SCALE)" };
+        double TituloT(string pt, string ing, double xt, double yt, double largura, string norma = "")
+        {
+            foreach (var t in c.Linhas(pt, ing)) { c.Texto(t, xt + largura / 2, yt, 1.1 * h, 1); yt -= 1.7 * h; }
+            c.Linha(xt, yt + 0.6 * h, xt + largura, yt + 0.6 * h, "ARM-DETALHE");
+            c.Texto(semEscala, xt, yt - 0.3 * h, 0.6 * h);
+            if (norma.Length > 0) c.Texto(norma, xt + largura, yt - 0.3 * h, 0.6 * h, 2);
+            return yt - 2.5 * h;
+        }
+
+        // ---------- raio de curvatura ----------
+        double larg1 = 40 * h;
+        double y = TituloT("RAIO (r) DE CURVATURA PARA GANCHOS", "BEND RADIUS (r) FOR HOOKS", x, yTopo, larg1);
+        // gancho de 180° (2xØ) e de 90° (8xØ), esquemáticos
+        double e = 0.6 * h, gx = x + 1.5 * h, gy = y - 2 * h;
+        double rr = 1.2 * h;
+        r.Contornos.Add(new ContornoTemplate
+        {
+            Vertices = { (gx + 1.6 * h, gy), (gx + rr, gy), (gx + rr, gy - 2 * rr), (gx + 8 * h, gy - 2 * rr) }, Bulges = { 0, 1, 0, 0 }, Layer = "ARM-DETALHE",
+        });
+        c.Texto("2xØ", gx + 1.6 * h, gy + 0.5 * h, 0.7 * h);
+        c.Texto("r", gx + 1.6 * h, gy - rr - 0.3 * h, 0.7 * h);
+        c.Texto("Ø", gx + 8.5 * h, gy - 2 * rr, 0.7 * h);
+        double gy2 = gy - 6 * h;
+        r.Contornos.Add(new ContornoTemplate
+        {
+            Vertices = { (gx, gy2 + 4 * h), (gx, gy2 + rr), (gx + rr, gy2), (gx + 8 * h, gy2) }, Bulges = { 0, 0.4142, 0, 0 }, Layer = "ARM-DETALHE",
+        });
+        c.Cota(gx - 0.8 * h, gy2 + rr, gx - 0.8 * h, gy2 + 4 * h, gx - 1.8 * h, gy2 + 2.5 * h, Math.PI / 2, c.escV, "8XØ");
+        c.Texto("r", gx + 1.2 * h, gy2 + 1.2 * h, 0.7 * h);
+        c.Texto("Ø", gx + 8.5 * h, gy2, 0.7 * h);
+        var tab = new TabelaTemplate { Titulo = "", X = x + 11 * h, Y = y, Escala = c.escV };
+        tab.Larguras.AddRange(new[] { 11.0, 7.0, 7.0 });
+        tab.Alinhamentos.AddRange(new[] { 1, 1, 1 });
+        tab.Titulo = c.Idioma == IdiomaDesenho.PTEN ? "BITOLA (Ø)" + TabelaTemplate.Quebra + "(DIAMETER)" : (en ? "DIAMETER (Ø)" : "BITOLA (Ø)");
+        tab.Linhas.Add(new[] { "", "CA50", "CA60" });
+        tab.Linhas.Add(new[] { "< 20 mm", "2,5xØ", "3xØ" });
+        tab.Linhas.Add(new[] { "≥ 20 mm", "4xØ", "—" });
+        tab.Linhas.Add(new[] { (en ? "STIRRUPS" : c.Idioma == IdiomaDesenho.PTEN ? "ESTRIBO" + TabelaTemplate.Quebra + "(STIRRUPS)" : "ESTRIBO") + TabelaTemplate.Quebra + "≤ 10 mm", "1,5xØ", "1,5xØ" });
+        r.Tabelas.Add(tab);
+        double yTab = y - (tab.AlturaEmTextos() + 2) * h;
+        c.Texto("NBR-6118", x + 11 * h, yTab, 0.7 * h);
+        // comprimento das barras (U com as dobras arredondadas)
+        double yc = Math.Min(yTab, gy2) - 4 * h;
+        yc = TituloT("COMPRIMENTO DAS BARRAS", "REBAR LENGTH", x, yc, larg1);
+        double ux = x + 4 * h, uy = yc - 9 * h, uw = 28 * h, uh = 6 * h, ur = 1.2 * h;
+        r.Contornos.Add(new ContornoTemplate
+        {
+            Vertices = { (ux, uy + uh), (ux, uy + ur), (ux + ur, uy), (ux + uw - ur, uy), (ux + uw, uy + ur), (ux + uw, uy + uh) },
+            Bulges = { 0, 0.4142, 0, 0.4142, 0, 0 }, Layer = "ARM-DETALHE",
+        });
+        c.Cota(ux - h, uy, ux - h, uy + uh, ux - 2.2 * h, uy + uh / 2, Math.PI / 2, c.escV, "A1");
+        c.Cota(ux, uy - h, ux + uw, uy - h, ux + uw / 2, uy - 2.2 * h, 0, c.escV, "B1");
+        c.Texto("r", ux + 1.6 * h, uy + 1.4 * h, 0.7 * h);
+        c.Texto("r", ux + uw - 2.2 * h, uy + 1.4 * h, 0.7 * h);
+        c.Texto("Ø", ux + uw / 2, uy + 0.8 * h, 0.7 * h, 1);
+        yBaixo = Math.Min(yBaixo, uy - 4 * h);
+        x += larg1 + 8 * h;
+
+        // ---------- emendas por traspasse ----------
+        double larg2 = 46 * h;
+        y = TituloT("EMENDAS POR TRASPASSE", "LAP SPLICES", x, yTopo, larg2, "NBR-6118");
+        double comp = 26 * h, sob = 10 * h;
+        double b1 = y - 2 * h;
+        BarraEsquema(c, x, x + comp, b1, e);
+        BarraEsquema(c, x + comp - sob, x + 2 * comp - sob, b1 - 1.4 * h, e);
+        c.Cota(x + comp - sob, b1 - 2.4 * h, x + comp, b1 - 2.4 * h, x + comp - sob / 2, b1 - 3.6 * h, 0, c.escV, "≥ 45ø");
+        c.Texto("Ø", x + comp - sob - 2 * h, b1 + 1.2 * h, 0.7 * h);
+        double b2 = b1 - 7 * h, gap = 6 * h;
+        BarraEsquema(c, x, x + comp + gap, b2, e);
+        BarraEsquema(c, x + comp - sob + gap * 2, x + 2 * comp, b2 - 2.2 * h, e);
+        c.Cota(x + comp - sob + gap, b2 - 3.4 * h, x + comp - sob + 2 * gap, b2 - 3.4 * h, x + comp - sob + 1.5 * gap, b2 - 4.6 * h, 0, c.escV, "≥ 9ø");
+        c.Cota(x + comp - sob + 2 * gap, b2 - 3.4 * h, x + comp + gap, b2 - 3.4 * h, x + comp + gap - (sob - gap) / 2, b2 - 4.6 * h, 0, c.escV, "≥ 45ø");
+        double yNotas = b2 - 8 * h;
+        var notasPt = new[] { "NOTAS:", "1) ESSE TIPO DE EMENDA NÃO É PERMITIDO PARA:", "    - BARRA MAIOR QUE ø32 mm;",
+            "2) INDICAÇÕES VÁLIDAS QUANDO NÃO HOUVER", "    RECOMENDAÇÕES ADVERSAS ANOTADAS EM PROJETO;",
+            "3) A1 E B1 REPRESENTAM OS VALORES INDICADOS", "    NOS DETALHAMENTOS DAS ARMADURAS." };
+        var notasEn = new[] { "NOTES:", "1) THIS TYPE OF SPLICE IS NOT ALLOWED FOR:", "    - BARS LARGER THAN ø32 mm;",
+            "2) VALID INDICATIONS WHEN THERE ARE NO", "    ADVERSE RECOMMENDATIONS NOTED IN THE DESIGN;",
+            "3) A1 AND B1 DENOTE THE VALUES SPECIFIED", "    IN THE REINFORCEMENT DETAILING." };
+        double yfim1 = yNotas, yfim2 = yNotas;
+        if (!en) yfim1 = c.Bloco(notasPt, x, yNotas, 0.75 * h);
+        x += larg2 + 8 * h;
+
+        // ---------- emendas por solda por traspasse ----------
+        double larg3 = 46 * h;
+        y = TituloT("EMENDAS POR SOLDA POR TRASPASSE", "LAP WELD SPLICES", x, yTopo, larg3, "NBR-6118");
+        b1 = y - 3 * h;
+        double cs = 5 * h; // cada trecho de 5ø
+        BarraEsquema(c, x, x + 3 * cs + 8 * h, b1, e);
+        BarraEsquema(c, x + 8 * h, x + 3 * cs + 20 * h, b1 - e, e);
+        foreach (double xs in new[] { x + 8 * h, x + 8 * h + 2 * cs })
+        {
+            var cord = new List<(double, double)> { (xs, b1 - 0.2 * e), (xs + cs, b1 - 0.2 * e), (xs + cs, b1 + 1.2 * e), (xs, b1 + 1.2 * e) };
+            r.Contornos.Add(new ContornoTemplate { Vertices = cord, Fechado = true, Layer = "ARM-DETALHE" });
+            r.Hachuras.Add(new HachuraTemplate { Vertices = cord, Padrao = "ANSI37", EscalaPadrao = 0.2 * e, Layer = "ARM-HACHURA-DETALHE" });
+        }
+        for (int k = 0; k < 3; k++)
+            c.Cota(x + 8 * h + k * cs, b1 - 2.2 * h, x + 8 * h + (k + 1) * cs, b1 - 2.2 * h, x + 8 * h + (k + 0.5) * cs, b1 - 3.4 * h, 0, c.escV, "≥ 5ø");
+        // corte a-a: as duas barras e o cordão (≥ 0,3ø)
+        double ax = x + 3 * cs + 26 * h, ay = b1 + 1.5 * h, ra = 1.5 * h;
+        c.Texto("a-a", ax, ay + ra + 1.5 * h, 0.7 * h, 1);
+        r.Circulos.Add(new CirculoTemplate { X = ax, Y = ay, Raio = ra, Layer = "ARM-DETALHE" });
+        r.Circulos.Add(new CirculoTemplate { X = ax, Y = ay - 2 * ra, Raio = ra, Layer = "ARM-DETALHE" });
+        var cordA = new List<(double, double)> { (ax - ra, ay - ra), (ax - 0.4 * ra, ay - 0.8 * ra), (ax - 0.4 * ra, ay - 1.2 * ra) };
+        r.Hachuras.Add(new HachuraTemplate { Vertices = cordA, Padrao = "SOLID", EscalaPadrao = 1, Layer = "ARM-HACHURA-DETALHE" });
+        c.Texto("≥ 0,3ø", ax + 0.5 * ra, ay - 3.6 * ra, 0.7 * h);
+        if (!en && c.Idioma == IdiomaDesenho.PTEN) yfim2 = c.Bloco(notasEn, x, yNotas, 0.75 * h);
+        else if (en) yfim2 = c.Bloco(notasEn, x, yNotas, 0.75 * h);
+        x += larg3 + 8 * h;
+        yBaixo = Math.Min(yBaixo, Math.Min(yfim1, yfim2) - 2 * h);
+        return x;
     }
 }

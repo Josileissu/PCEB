@@ -21,6 +21,13 @@ internal sealed class Sincronizador
     private readonly HashSet<ObjectId> _modificados = new HashSet<ObjectId>();
     private readonly HashSet<ObjectId> _apagados = new HashSet<ObjectId>();
     private readonly HashSet<ObjectId> _anexados = new HashSet<ObjectId>();
+    /// <summary>
+    /// Transformações dos blocos explodidos no comando atual: as faixas guardam pontos absolutos (no bloco, em coordenadas
+    /// do bloco); ao explodir, as entidades voltam ao desenho e os pontos têm de ir junto (antes as chamadas iam para longe).
+    /// </summary>
+    private readonly List<Matrix3d> _explodidos = new List<Matrix3d>();
+    private string _comando = "";
+    private static readonly HashSet<string> ComandosDeExplodir = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "EXPLODE", "XPLODE", "BURST" };
     private int _suspenso;
 
     /// <summary>Log de cada fim de comando (variável de ambiente ARM_LOG_DETALHADO=1).</summary>
@@ -105,6 +112,7 @@ internal sealed class Sincronizador
         if (_suspenso > 0) return;
         try
         {
+            if (e.Erased && e.DBObject is BlockReference br && ComandosDeExplodir.Contains(_comando)) _explodidos.Add(br.BlockTransform);
             if (!Interessa(e.DBObject)) return;
             if (e.Erased) _apagados.Add(e.DBObject.ObjectId);
             else _apagados.Remove(e.DBObject.ObjectId);
@@ -130,6 +138,7 @@ internal sealed class Sincronizador
     /// <summary>Antes de plotar, exportar ou salvar: renumera e atualiza as tabelas (seção 2.8).</summary>
     private void AoIniciarComando(object sender, CommandEventArgs e)
     {
+        _comando = e.GlobalCommandName ?? "";
         try
         {
             // roda no início de TODO comando: decide pela configuração já em memória, sem abrir o DWG
@@ -166,6 +175,7 @@ internal sealed class Sincronizador
         _modificados.Clear();
         _apagados.Clear();
         _anexados.Clear();
+        _explodidos.Clear();
     }
 
     // ---------- processamento ----------
@@ -176,6 +186,7 @@ internal sealed class Sincronizador
         var anexados = _anexados.ToList();
         var apagados = _apagados.ToList();
         var modificados = _modificados.ToList();
+        var explodidos = _explodidos.ToList();
         Limpar();
 
         var cfg = ConfigDesenho.Obter(_doc.Database);
@@ -189,6 +200,9 @@ internal sealed class Sincronizador
                 var barras = new HashSet<ObjectId>();
                 var rebatidas = new HashSet<ObjectId>();
                 bool atualizarRA = false;
+
+                // 0. EXPLODE: as faixas que saíram de um bloco levam os pontos guardados pela transformação do bloco
+                if (explodidos.Count > 0) AjustarExplodidas(tr, anexados, explodidos);
 
                 // 1. objetos novos: cópias de barra ganham GUID novo; textos copiados sem a barra são órfãos
                 if (anexados.Count > 0)
@@ -406,6 +420,38 @@ internal sealed class Sincronizador
             try { _doc.Editor.WriteMessage("\nArmadura: erro ao atualizar as barras (veja o log). " + ex.Message); } catch { }
         }
         finally { _suspenso--; }
+    }
+
+    /// <summary>
+    /// Faixas de texto vindas de um bloco explodido: escolhe a transformação do bloco que leva a âncora guardada ao texto
+    /// (vários blocos explodidos de uma vez) e transforma os pontos. Sem âncora (desenhos antigos), só com um bloco.
+    /// </summary>
+    private static void AjustarExplodidas(Transaction tr, List<ObjectId> anexados, List<Matrix3d> transformacoes)
+    {
+        int vistas = 0, ajustadas = 0;
+        foreach (var id in anexados)
+        {
+            if (id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is MText mt) || XDataCad.Tipo(mt) != TipoParte.Faixa) continue;
+            var f = ServicoFaixa.Ler(mt);
+            if (f == null) continue;
+            vistas++;
+            Matrix3d? escolhida = null;
+            if (f.TemAncora)
+            {
+                double tol = Math.Max(1e-6, 1e-3 * mt.TextHeight);
+                foreach (var m in transformacoes)
+                {
+                    var p = new Point3d(f.AncoraX, f.AncoraY, 0).TransformBy(m);
+                    if (Math.Abs(p.X - mt.Location.X) <= tol && Math.Abs(p.Y - mt.Location.Y) <= tol) { escolhida = m; break; }
+                }
+            }
+            else if (transformacoes.Count == 1) escolhida = transformacoes[0];
+            if (escolhida == null) continue;
+            mt.UpgradeOpen();
+            ServicoFaixa.Transformar(mt, escolhida.Value);
+            ajustadas++;
+        }
+        Log.Info($"EXPLODE: {transformacoes.Count} bloco(s); {ajustadas} de {vistas} faixa(s) de texto com os pontos transformados.");
     }
 
     /// <summary>

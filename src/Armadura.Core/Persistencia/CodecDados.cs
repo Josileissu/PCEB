@@ -252,6 +252,8 @@ public static class CodecDados
         foreach (var i in f.LinhasApagadas) I("LAP", i);
         foreach (var q in f.Quebras) I("QBR", q);
         if (f.Repeticoes > 1) I("REP", f.Repeticoes);
+        if (f.TemAncora) { R("ANX", f.AncoraX); R("ANY", f.AncoraY); }
+        if (f.TemCirculo0) { R("C0X", f.Circulo0X); R("C0Y", f.Circulo0Y); }
         // campos do texto: só grava os desligados (faixas antigas mostram tudo)
         if (!f.MostrarQuantidade) I("MQTD", 0);
         if (!f.MostrarPosicao) I("MPOS", 0);
@@ -293,6 +295,10 @@ public static class CodecDados
                 case "QBR": if (!f.Quebras.Contains(Int(v))) f.Quebras.Add(Int(v)); break;
                 case "LAP": if (!f.LinhasApagadas.Contains(Int(v))) f.LinhasApagadas.Add(Int(v)); break;
                 case "REP": f.Repeticoes = Math.Max(1, Int(v)); break;
+                case "ANX": f.TemAncora = true; f.AncoraX = Real(v); break;
+                case "ANY": f.AncoraY = Real(v); break;
+                case "C0X": f.TemCirculo0 = true; f.Circulo0X = Real(v); break;
+                case "C0Y": f.Circulo0Y = Real(v); break;
                 case "MQTD": f.MostrarQuantidade = Int(v) != 0; break;
                 case "MPOS": f.MostrarPosicao = Int(v) != 0; break;
                 case "MDIA": f.MostrarDiametro = Int(v) != 0; break;

@@ -52,12 +52,24 @@ public sealed class ComandosTemplate
     [Rt.CommandMethod("ARMCONSOLOS")]
     public void ArmConsolos() => Comandos.Executar("ARMCONSOLOS", (doc, ed, db, cfg) =>
     {
-        using var f = new Paleta.FormConsolos(Plugin.Config.Consolos);
+        using var f = Paleta.Catalogos.Consolos(Plugin.Config.Consolos);
         if (CadApp.ShowModalDialog(f) != DialogResult.OK) return;
         Plugin.Config.Consolos = f.Resultado;
         Plugin.SalvarConfig();
         Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
         ed.WriteMessage($"\n{f.Resultado.Count} consolo(s) padrão salvos: " + string.Join(", ", f.Resultado.Select(t => t.Nome)) + ".");
+    }, suspender: false);
+
+    /// <summary>ARMINSERTOS: catálogo de insertos metálicos padrão (usado pelo template do pilar pré-moldado).</summary>
+    [Rt.CommandMethod("ARMINSERTOS")]
+    public void ArmInsertos() => Comandos.Executar("ARMINSERTOS", (doc, ed, db, cfg) =>
+    {
+        using var f = Paleta.Catalogos.Insertos(Plugin.Config.Insertos);
+        if (CadApp.ShowModalDialog(f) != DialogResult.OK) return;
+        Plugin.Config.Insertos = f.Resultado;
+        Plugin.SalvarConfig();
+        Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.CatalogoInsertos = Plugin.Config.Insertos;
+        ed.WriteMessage($"\n{f.Resultado.Count} inserto(s) padrão salvos: " + string.Join(", ", f.Resultado.Select(t => t.Nome)) + ".");
     }, suspender: false);
 
     /// <summary>
@@ -368,16 +380,26 @@ internal sealed class ParametrosEditaveis : CustomTypeDescriptor
 
     public override object GetPropertyOwner(PropertyDescriptor pd) => this;
 
-    private sealed class Descritor : PropertyDescriptor
+    private sealed class Descritor : PropertyDescriptor, Paleta.IParametroDescritor
     {
         private readonly ParametroTemplate _p;
         private readonly ValoresTemplate _v;
 
-        public Descritor(ParametroTemplate p, ValoresTemplate v) : base(p.Nome, new Attribute[]
+        public ParametroTemplate Parametro => _p;
+
+        public Descritor(ParametroTemplate p, ValoresTemplate v) : base(p.Nome, Atributos(p)) { _p = p; _v = v; }
+
+        private static Attribute[] Atributos(ParametroTemplate p)
         {
-            new CategoryAttribute(p.Grupo), new DescriptionAttribute(p.Descricao),
-            new DisplayNameAttribute(p.Unidade.Length > 0 ? $"{p.Rotulo} ({p.Unidade})" : p.Rotulo),
-        }) { _p = p; _v = v; }
+            var a = new List<Attribute>
+            {
+                new CategoryAttribute(p.Grupo), new DescriptionAttribute(p.Descricao),
+                new DisplayNameAttribute(p.Unidade.Length > 0 ? $"{p.Rotulo} ({p.Unidade})" : p.Rotulo),
+            };
+            // lista (consolos, níveis, insertos): botão "…" que abre a janela
+            if (p.Tipo == TipoParametro.Tabela) a.Add(new EditorAttribute(typeof(Paleta.EditorTabela), typeof(System.Drawing.Design.UITypeEditor)));
+            return a.ToArray();
+        }
 
         public override Type ComponentType => typeof(ParametrosEditaveis);
         public override bool IsReadOnly => false;
@@ -395,11 +417,12 @@ internal sealed class ParametrosEditaveis : CustomTypeDescriptor
                 if (!double.TryParse(s.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out _))
                     throw new ArgumentException("Informe um número.");
             }
-            _v[_p.Nome] = s;
+            _v[_p.Nome] = _p.Tipo == TipoParametro.Tabela ? (valor as string ?? "") : s;
         }
 
         public override TypeConverter Converter => _p.Tipo switch
         {
+            TipoParametro.Tabela => new Paleta.ResumoTabelaConverter(),
             TipoParametro.Opcao => new Lista(_p.Opcoes),
             TipoParametro.SimNao => new Lista(new List<string> { "Sim", "Não" }),
             _ => base.Converter,

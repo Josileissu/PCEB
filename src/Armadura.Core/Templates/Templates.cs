@@ -25,7 +25,19 @@ public enum CategoriaElemento
     Laje,
 }
 
-public enum TipoParametro { Numero, Inteiro, Texto, Opcao, Bitola, SimNao }
+public enum TipoParametro { Numero, Inteiro, Texto, Opcao, Bitola, SimNao, Tabela }
+
+/// <summary>Coluna de um parâmetro do tipo tabela (lista editada numa janela: consolos, níveis, insertos).</summary>
+public sealed class ColunaTabela
+{
+    public string Nome { get; set; } = "";
+    public string Rotulo { get; set; } = "";
+    /// <summary>Numero, Texto ou Opcao (lista fechada).</summary>
+    public TipoParametro Tipo { get; set; } = TipoParametro.Texto;
+    public List<string> Opcoes { get; set; } = new List<string>();
+    public string Padrao { get; set; } = "";
+    public int Largura { get; set; } = 120;
+}
 
 /// <summary>Dado de entrada de um template (dimensão, cobrimento, bitola, opção…).</summary>
 public sealed class ParametroTemplate
@@ -44,6 +56,10 @@ public sealed class ParametroTemplate
     public double Maximo { get; set; } = double.PositiveInfinity;
     /// <summary>Valores possíveis (Tipo = Opcao).</summary>
     public List<string> Opcoes { get; set; } = new List<string>();
+    /// <summary>Colunas (Tipo = Tabela). O valor é o texto das linhas: células separadas por "|", linhas por ";".</summary>
+    public List<ColunaTabela> Colunas { get; set; } = new List<ColunaTabela>();
+    /// <summary>Nome de uma linha no resumo ("consolo" → "3 consolos").</summary>
+    public string NomeItem { get; set; } = "item";
 }
 
 /// <summary>Valores escolhidos pelo usuário, por nome de parâmetro.</summary>
@@ -62,6 +78,22 @@ public sealed class ValoresTemplate
     public int Inteiro(string nome) => (int)Math.Round(Numero(nome));
     public bool SimNao(string nome) => this[nome].Equals("Sim", StringComparison.OrdinalIgnoreCase) || this[nome] == "1";
     public IReadOnlyDictionary<string, string> Todos => _v;
+
+    /// <summary>Linhas de um parâmetro tabela (células separadas por "|", linhas por ";").</summary>
+    public List<string[]> Tabela(string nome) => LerTabela(this[nome]);
+
+    public static List<string[]> LerTabela(string texto) =>
+        (texto ?? "").Split(';').Where(l => l.Trim().Length > 0).Select(l => l.Split('|').Select(c => c.Trim()).ToArray()).ToList();
+
+    /// <summary>Texto de uma tabela; "|" e ";" das células viram "/" e ",".</summary>
+    public static string JuntarTabela(IEnumerable<IEnumerable<string>> linhas) =>
+        string.Join(";", linhas.Select(l => string.Join("|", l.Select(c => (c ?? "").Replace('|', '/').Replace(';', ',').Trim()))));
+
+    /// <summary>Número de uma célula (vírgula ou ponto), ou o padrão.</summary>
+    public static double NumeroCelula(string[] linha, int i, double padrao = 0) =>
+        i < linha.Length && double.TryParse(linha[i].Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d : padrao;
+
+    public static string Celula(string[] linha, int i) => i < linha.Length ? linha[i] : "";
 }
 
 /// <summary>Uma armadura gerada (coordenadas em cm, relativas ao ponto de inserção, y para cima).</summary>
