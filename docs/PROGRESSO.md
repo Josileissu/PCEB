@@ -245,3 +245,11 @@ possibilidade de poder mover os textos/comprimento que aparecem junto às barras
 - [x] Instalador 0.1.17 gerado a pedido do usuário (ARMRECONHECER + cotas móveis).
 - Sem DWG real de outro programa ainda: o formato dos textos foi tirado da especificação e dos padrões usuais; pedir
         um exemplo ao usuário para calibrar.
+# Template de pilar pré-moldado — levantamento (2026-10-29)
+Pedido: levantar requisitos (NBR 9062, 6118 e demais), todas as configurações (armaduras, seções, estribos, emendas,
+consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálculo. Referência: `auxiliar_cad/pilar_padrão/`
+(P61) e a prancha PP127.
+- [x] `docs/PILAR_PREMOLDADO_REQUISITOS.md`: padrão da prancha, regras por norma ([CONFERIR] onde depende do texto),
+        configurações, categorias PP-1…PP-5, referências pedidas, 12 perguntas abertas, lacunas do plugin.
+- [ ] Usuário: deixar normas/bibliografia em `info_auxiliar/referencias_pilar_premoldado/` e responder as perguntas.
+- [ ] Depois: implementar PP-1 (retangular, armadura contínua, 0–1 nível de consolo).
