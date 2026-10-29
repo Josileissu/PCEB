@@ -53,3 +53,15 @@ Padrão dos projetos Assaí SPA/SRP/ASC (2024–2025). Circular ou retangular, n
   com indicações, tabelas "L", notas, e tudo num detalhamento (bloco) com a RA parcial ("nome no título").
 - Fora do escopo (pedido do usuário): nichos de concretagem, chumbadores, tabela de cargas das estacas.
 [VALIDAR com o usuário no uso: posição das faixas, tamanhos de texto, valores padrão das dobras.]
+
+### Pilar pré-moldado PP-1 (`Templates/PilarPreMoldado/TemplatePilarPreMoldado.cs`) — em construção
+Requisitos e regras de norma: `docs/PILAR_PREMOLDADO_REQUISITOS.md`. Verdadeira grandeza (cm); a escala de cada
+região só dá a altura dos textos/cotas (a folha é montada com viewports, como no DWG do P61). Seção b (x) × h (y);
+face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram h, 2 e 4 mostram b).
+- **Etapa 1 (2026-10-29, feita)**: 4 vistas lado a lado (passo = maior lado + 20 alturas de texto), níveis (topo e base
+  sempre + lista "NOME/NAME=cota"), cadeia de cotas entre níveis e "COMPRIMENTO TOTAL DO PILAR: <>", embutimento com
+  chaves (linhas a cada passo/dente nas 4 vistas, cota na VISTA 2, avisos da tab. 15 e do mínimo de 40 cm), chanfros,
+  marcas do corte A-A, corte A-A com as vistas em volta, notas (cobrimento por face, tolerâncias da tab. 2, insertos) e
+  informações p/ produção (volume da forma, peso a 2500 kgf/m³). Idioma PT, EN ou PT/EN.
+- Próximas: 2 armaduras (longitudinais, emendas/rolo, estribos por zona, seções, RA); 3 consolos (entram no volume e
+  no CG); 4 alças pelo CG, furo/alça de topo, inserto, detalhes padrão; 5 entrada por tabela/Excel/janela.

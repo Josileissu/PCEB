@@ -253,3 +253,11 @@ consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálcu
         configurações, categorias PP-1…PP-5, referências pedidas, 12 perguntas abertas, lacunas do plugin.
 - [ ] Usuário: deixar normas/bibliografia em `info_auxiliar/referencias_pilar_premoldado/` e responder as perguntas.
 - [ ] Depois: implementar PP-1 (retangular, armadura contínua, 0–1 nível de consolo).
+# Template do pilar pré-moldado — etapa 1: forma (2026-10-29)
+- [x] `TemplatePilarPreMoldado` (registrado no Plugin; ARMTEMPLATE → "Pilar pré-moldado (PP-1)"): 4 vistas, níveis,
+        cotas, embutimento com chaves, corte A-A, notas (cobrimentos por face, tolerâncias NBR 9062), informações p/
+        produção (volume/peso), idioma PT/EN/PT-EN. Unidade 140/140 (7 novos com as medidas do P61); autoteste 197/197
+        com `autoteste_pilar_p61*.png`.
+- [x] Autoteste: o teste do estribo dependia do último gancho escolhido no ARMESTRIBO (config do usuário,
+        `UltimoEstribo.Gancho` = 45°): agora fixa 90° durante a verificação e devolve.
+- [ ] Usuário: conferir o desenho da etapa 1 no ARMTEMPLATE (reabrir o GstarCAD). Depois etapa 2 (armaduras).

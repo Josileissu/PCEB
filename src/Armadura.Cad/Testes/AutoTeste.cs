@@ -793,7 +793,11 @@ public sealed class AutoTeste
                 // poligonal fechada → estribo com ganchos no canto superior esquerdo
                 const double Y0 = -5000; // longe das barras dos outros testes (procuradas por posição)
                 var ret = Poli(true, (12000, Y0), (12060, Y0), (12060, Y0 + 80), (12000, Y0 + 80));
-                Checar(Comandos.CriarBarra(tr, ret, cfg, estribo: true), "polilinha fechada convertida em estribo");
+                // o gancho padrão da conversão é o último escolhido no ARMESTRIBO (config do usuário): fixa 90° aqui
+                var ganchoUsuario = cfg.UltimoEstribo.Gancho;
+                cfg.UltimoEstribo.Gancho = FormatoSegmento.Gancho90;
+                try { Checar(Comandos.CriarBarra(tr, ret, cfg, estribo: true), "polilinha fechada convertida em estribo"); }
+                finally { cfg.UltimoEstribo.Gancho = ganchoUsuario; }
                 var de = XDataCad.LerBarra(ret);
                 Rel.AppendLine("        estribo da poligonal: " + string.Join(" ", Enumerable.Range(0, ret.NumberOfVertices).Select(i => ret.GetPoint2dAt(i)).Select(p => FormattableString.Invariant($"({p.X - 12000:0.##}; {p.Y - Y0:0.##})"))));
                 Checar(!ret.Closed && ret.NumberOfVertices == 9 && ret.GetPoint2dAt(2).GetDistanceTo(new Point2d(12000, Y0 + 80)) < 1e-6
@@ -1316,6 +1320,7 @@ public sealed class AutoTeste
         }
         Checar(Plugin.Config.PrefixoPosicao == "N", "configuração do usuário intacta (prefixo N)");
         TestarTemplateBase(doc, db, ConfigDesenho.Obter(db));
+        TestarTemplatePilar(doc, db, ConfigDesenho.Obter(db));
 
         var saida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
         if (!string.IsNullOrEmpty(saida))
@@ -1373,6 +1378,48 @@ public sealed class AutoTeste
     private static readonly List<(string nome, string janela)> _zoomBases = new List<(string, string)>();
 
     /// <summary>Template da base de reservatório (circular com VAR e retangular), desenhado como detalhamento.</summary>
+    /// <summary>Template do pilar pré-moldado, etapa 1 (forma): P61 desenhado como detalhamento; PNG para conferir.</summary>
+    private static void TestarTemplatePilar(Document doc, Database db, Core.Configuracao.ConfiguracaoArmadura cfg)
+    {
+        try
+        {
+            var t = new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado();
+            var v = new Core.Templates.ValoresTemplate(t.Parametros);
+            v["Nome"] = "P61 TESTE";
+            var r = t.Gerar(v, cfg);
+            var origem = new Point3d(30000, -70000, 0);
+            using (Sincronizador.Suspender(doc))
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                ComandosTemplate.Desenhar(tr, db, cfg, r, origem);
+                tr.Commit();
+            }
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                Checar(bt.Has(r.Detalhamento), $"pilar: detalhamento \"{r.Detalhamento}\" criado");
+                var btr = (BlockTableRecord)tr.GetObject(bt[r.Detalhamento], OpenMode.ForRead);
+                var ents = btr.Cast<ObjectId>().Select(i => tr.GetObject(i, OpenMode.ForRead)).ToList();
+                int dims = ents.OfType<RotatedDimension>().Count(), textos = ents.OfType<DBText>().Count();
+                var total = ents.OfType<RotatedDimension>().FirstOrDefault(d => d.DimensionText.StartsWith("COMPRIMENTO TOTAL"));
+                Rel.AppendLine($"        pilar P61: {ents.Count} entidades no bloco, {dims} cotas, {textos} textos; total = {total?.Measurement:0.0}");
+                Checar(total != null && Math.Abs(total.Measurement - 1390.5) < 1e-6, "pilar: cota do comprimento total = 1390,5");
+                Checar(ents.OfType<DBText>().Any(x => x.TextString == "VOLUME DE CONCRETO: 3,476 m³"), "pilar: volume calculado no quadro de produção");
+                var refId = btr.GetBlockReferenceIds(true, false).Cast<ObjectId>().FirstOrDefault();
+                if (!refId.IsNull)
+                {
+                    var ext = ((Entity)tr.GetObject(refId, OpenMode.ForRead)).GeometricExtents;
+                    _zoomBases.Add(("pilar_p61", FormattableString.Invariant($"{ext.MinPoint.X - 50:0},{ext.MinPoint.Y - 50:0} {ext.MaxPoint.X + 50:0},{ext.MaxPoint.Y + 50:0}")));
+                    // topo das vistas e corte A-A ampliados
+                    _zoomBases.Add(("pilar_p61_topo", FormattableString.Invariant($"{ext.MinPoint.X - 20:0},{ext.MaxPoint.Y - 700:0} {ext.MaxPoint.X + 20:0},{ext.MaxPoint.Y + 20:0}")));
+                    _zoomBases.Add(("pilar_p61_base", FormattableString.Invariant($"{ext.MinPoint.X - 20:0},{origem.Y - 60:0} {origem.X + 1300:0},{origem.Y + 420:0}")));
+                }
+                tr.Commit();
+            }
+        }
+        catch (Exception ex) { Checar(false, "template do pilar: exceção " + ex); }
+    }
+
     private static void TestarTemplateBase(Document doc, Database db, Core.Configuracao.ConfiguracaoArmadura cfg)
     {
         try

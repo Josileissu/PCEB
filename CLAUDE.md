@@ -174,7 +174,10 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   `ARM_DXF_ENTRADA` → `ARM_DXF_SAIDA` num banco lateral (script NETLOAD + ARMTESTEDXF numa instância nova; copie o
   DWG para o scratchpad antes). A instância NÃO fecha sozinha: encerre só ela (confira o pai e a linha de comando
   com o .scr). Depois `ezdxf` (instalado com pip --user) lê o DXF.
-- Pilar pré-moldado: requisitos e regras conferidas na norma em `docs/PILAR_PREMOLDADO_REQUISITOS.md`.
+- Pilar pré-moldado: requisitos e regras conferidas na norma em `docs/PILAR_PREMOLDADO_REQUISITOS.md`; template e
+  etapas em `docs/TEMPLATES.md`.
+- Autoteste × config do usuário: além de Escala/EscalaFaixa, valores "último usado" (ex.: `UltimoEstribo.Gancho`)
+  mudam padrões — o teste tem de fixar o valor que verifica e devolvê-lo.
 
 ## Pendências [VALIDAR com o engenheiro]
 Espelhadas = mesmo N; catálogos (cordoalhas, treliças, telas) e traspasse;
