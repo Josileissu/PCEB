@@ -261,3 +261,9 @@ consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálcu
 - [x] Autoteste: o teste do estribo dependia do último gancho escolhido no ARMESTRIBO (config do usuário,
         `UltimoEstribo.Gancho` = 45°): agora fixa 90° durante a verificação e devolve.
 - [ ] Usuário: conferir o desenho da etapa 1 no ARMTEMPLATE (reabrir o GstarCAD). Depois etapa 2 (armaduras).
+# Template do pilar pré-moldado — etapa 2: armaduras (2026-10-29)
+- [x] Longitudinais (canto 1 ou 3 em "L", faces), emendas alternadas/mesma seção ou rolo, traspasse norma ≥ 45φ com
+        nota, estribos por zona, grampos, U no topo e na base, seções com indicações por barra, formas, RA. Unidade
+        147/147 (7 novos), autoteste 201/201 com `autoteste_pilar_p61_{secoes,arm_topo,arm_emenda}.png`.
+- [x] Plugin: indicação deixa de copiar o espaçamento (15) para a barra (aparecia "c/15" em barras indicadas).
+- [ ] Usuário: conferir no ARMTEMPLATE. Próxima: etapa 3 (consolos: forma, armadura, cortes B-B…, volume e CG).

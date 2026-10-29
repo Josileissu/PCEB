@@ -92,6 +92,10 @@ public sealed class BarraTemplate
     public int Quantidade { get; set; } = 1;
     public double Espacamento { get; set; }
     public bool Estribo { get; set; }
+    /// <summary>Centro da descrição (null = posição padrão do plugin).</summary>
+    public (double X, double Y)? PosicaoDescricao { get; set; }
+    /// <summary>Rotação da descrição (rad; π/2 = ao longo de uma barra vertical).</summary>
+    public double RotacaoDescricao { get; set; }
 }
 
 /// <summary>Linha de forma (contorno do concreto, eixo…) desenhada como polilinha comum.</summary>
@@ -116,6 +120,10 @@ public sealed class FaixaTemplate
     /// <summary>Indicação: pontos na barra.</summary>
     public List<(double X, double Y)> Referencias { get; set; } = new List<(double, double)>();
     public double Escala { get; set; }
+    /// <summary>Repetições da distribuição ("2x10 N2 c/10": dois grampos por camada).</summary>
+    public int Repeticoes { get; set; } = 1;
+    /// <summary>Mostrar o diâmetro no texto da faixa (o P61 escreve "71 N1 c/15").</summary>
+    public bool MostrarDiametro { get; set; } = true;
 }
 
 public sealed class TextoTemplate

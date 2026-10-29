@@ -1391,9 +1391,21 @@ public sealed class AutoTeste
             using (Sincronizador.Suspender(doc))
             using (var tr = db.TransactionManager.StartTransaction())
             {
-                ComandosTemplate.Desenhar(tr, db, cfg, r, origem);
+                var idsArm = ComandosTemplate.Desenhar(tr, db, cfg, r, origem);
                 tr.Commit();
+                Checar(idsArm.Count == r.Barras.Count, $"pilar: {idsArm.Count} armaduras desenhadas ({r.Barras.Count} no template)");
             }
+            foreach (var a in r.Avisos) Rel.AppendLine("        aviso do pilar: " + a);
+            // regiões para conferir no PNG: elevação das armaduras (topo e base) e as seções
+            var sec1 = r.Textos.FirstOrDefault(x => x.Texto == "SEÇÃO 1-1 - ARMADURA");
+            var longX = r.Barras.Where(b => b.Nome.StartsWith("long")).Select(b => b.Vertices[0].X).DefaultIfEmpty(0).Min();
+            if (sec1 != null)
+                _zoomBases.Add(("pilar_p61_secoes", FormattableString.Invariant(
+                    $"{origem.X + sec1.X - 20:0},{origem.Y + sec1.Y - 520:0} {origem.X + sec1.X + 260:0},{origem.Y + sec1.Y + 30:0}")));
+            _zoomBases.Add(("pilar_p61_arm_topo", FormattableString.Invariant(
+                $"{origem.X + longX - 60:0},{origem.Y + 1390.5 - 260:0} {origem.X + longX + 360:0},{origem.Y + 1390.5 + 40:0}")));
+            _zoomBases.Add(("pilar_p61_arm_emenda", FormattableString.Invariant(
+                $"{origem.X + longX - 60:0},{origem.Y + 950:0} {origem.X + longX + 360:0},{origem.Y + 1250:0}")));
             using (var tr = db.TransactionManager.StartTransaction())
             {
                 var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
@@ -1404,6 +1416,15 @@ public sealed class AutoTeste
                 var total = ents.OfType<RotatedDimension>().FirstOrDefault(d => d.DimensionText.StartsWith("COMPRIMENTO TOTAL"));
                 Rel.AppendLine($"        pilar P61: {ents.Count} entidades no bloco, {dims} cotas, {textos} textos; total = {total?.Measurement:0.0}");
                 Checar(total != null && Math.Abs(total.Measurement - 1390.5) < 1e-6, "pilar: cota do comprimento total = 1390,5");
+                var arm = ents.OfType<Polyline>().Select(p => XDataCad.LerBarra(p)).Where(d => d != null).ToList();
+                Rel.AppendLine("        pilar: armaduras no bloco: " + string.Join(", ", arm.OrderBy(d => d.Numero).Select(d => FormattableString.Invariant($"N{d.Numero} {d.Quantidade}ø{d.Bitola}"))));
+                Checar(arm.Count == r.Barras.Count && arm.All(d => d.Numero > 0), "pilar: armaduras numeradas no detalhamento");
+                var est = arm.Where(d => d.Estribo && !d.Segmentos.Any(sg => sg.Formato == FormatoSegmento.Gancho45)).ToList();
+                Checar(est.Count == 2 && est.All(d => d.Quantidade > 0 && d.Faixas.Count > 0), $"pilar: estribos com a quantidade das faixas ({string.Join("/", est.Select(d => d.Quantidade))})");
+                var tpP = TabelaParcial(tr, db, cfg, r.Detalhamento);
+                var linhasRA = tpP == null ? new List<string[]>() : LinhasRelacao(tpP);
+                Rel.AppendLine("        pilar: RA: " + string.Join(" | ", linhasRA.Select(l => string.Join(" ", l))));
+                Checar(tpP != null && linhasRA.Count >= 8, "pilar: relação do aço do detalhamento");
                 var prod = ents.OfType<Table>().FirstOrDefault(x => x.Cells[0, 0].TextString.TrimStart().StartsWith("INFORMAÇÕES PARA PRODUÇÃO"));
                 Rel.AppendLine("        quadro de produção: " + (prod == null ? "(não achado)" : string.Join(" | ", Enumerable.Range(0, prod.Rows.Count).Select(l => prod.Cells[l, 0].TextString + " = " + (prod.Columns.Count > 1 ? prod.Cells[l, 1].TextString : "")))));
                 Checar(prod != null && prod.Rows.Count == 7 && prod.Cells[4, 1].TextString.Trim() == "3,476 m³", "pilar: quadro de produção em tabela com o volume calculado");

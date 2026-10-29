@@ -25,7 +25,7 @@ public sealed class NivelPilar
 /// DWG do P61 (a folha é montada com viewports). Origem: nome dos níveis à esquerda, na cota da base do pilar.
 /// Faces: seção b (x) × h (y); face 1 = +x, 2 = −y, 3 = −x, 4 = +y — a VISTA n olha a face n.
 /// </summary>
-public sealed class TemplatePilarPreMoldado : ITemplateArmadura
+public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 {
     public string Id => "pilar-premoldado";
     public string Nome => "Pilar pré-moldado (PP-1)";
@@ -46,7 +46,9 @@ public sealed class TemplatePilarPreMoldado : ITemplateArmadura
     private const string G1 = "1. Identificação", G2 = "2. Geometria", G3 = "3. Níveis", G4 = "4. Embutimento (base)",
         G5 = "5. Cobrimentos", G6 = "6. Concreto e produção";
 
-    public IReadOnlyList<ParametroTemplate> Parametros { get; } = new[]
+    public IReadOnlyList<ParametroTemplate> Parametros { get; } = ParametrosForma.Concat(ParametrosArmadura).ToArray();
+
+    private static readonly ParametroTemplate[] ParametrosForma =
     {
         P(G1, "Nome", "Nome do pilar", "P61", tipo: TipoParametro.Texto),
         P(G1, "Quantidade", "Quantidade de peças", "1", tipo: TipoParametro.Inteiro, min: 1),
@@ -278,7 +280,8 @@ public sealed class TemplatePilarPreMoldado : ITemplateArmadura
 
         // ---------------- coluna da direita: corte A-A, notas, produção ----------------
         double hc = c.hC;
-        double xD = xFimVistas + 30 * hv;   // margem esquerda da coluna
+        // armaduras (elevação, faixas, seções, formas das barras) entre as vistas e a coluna da direita
+        double xD = GerarArmaduras(c, v, cfg, xFimVistas + 30 * hv, b, h, L, ch) + 30 * hv;   // margem esquerda da coluna
         double yCur = L + 16 * hv;
         // título do corte
         foreach (var t in c.Linhas("CORTE A-A", "SECTION A-A")) { c.Texto(t, xD, yCur, 1.4 * hc); yCur -= 2.2 * hc; }
@@ -338,6 +341,8 @@ public sealed class TemplatePilarPreMoldado : ITemplateArmadura
 
         // verificações de detalhamento (avisos, não bloqueiam)
         if (cob.Take(4).Any(x => x < 2)) r.Avisos.Add("Cobrimento lateral < 2,0 cm: abaixo do mínimo da NBR 9062 (9.2.1.1.2) para pilares.");
+        // relação do aço do detalhamento, à direita de tudo
+        r.PosicaoRA = (xD + 75 * hv, L + 16 * hv);
         return r;
     }
 
