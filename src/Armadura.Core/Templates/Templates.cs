@@ -37,6 +37,10 @@ public sealed class ColunaTabela
     public List<string> Opcoes { get; set; } = new List<string>();
     public string Padrao { get; set; } = "";
     public int Largura { get; set; } = 120;
+    /// <summary>Opções que dependem das outras células da linha (ex.: faces conforme o tipo do consolo); null = <see cref="Opcoes"/>.</summary>
+    public Func<IReadOnlyList<string>, List<string>> OpcoesDaLinha { get; set; }
+    /// <summary>Converte o valor para a linha (ex.: face "1" num consolo duplo vira "1 e 3"); null = sem conversão.</summary>
+    public Func<IReadOnlyList<string>, string, string> Ajustar { get; set; }
 }
 
 /// <summary>Dado de entrada de um template (dimensão, cobrimento, bitola, opção…).</summary>

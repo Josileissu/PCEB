@@ -122,6 +122,8 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
     do Excel**). Usado em **Consolos** (tipo, faces, base→topo, deslocamento — sem limite de quantidade), **Níveis**
     (PT, EN, cota; `LerNiveis` aceita também o formato antigo) e **Insertos** (tipo, local Topo/Face n, base→centro,
     deslocamento).
+    Faces do consolo em lista conforme o tipo (`OpcoesDaLinha`/`Ajustar` da coluna): duplo = "1 e 3"/"2 e 4" (escolher a
+    face 1 já leva a 3), simples = 1 a 4; trocar o tipo converte a face.
   - Grupos com dois dígitos ("01." … "16."): o PropertyGrid ordena categorias como texto.
   - **Catálogo de insertos** (`TipoInserto`, config DataMember 69; ARMINSERTOS): modo topo (chumbadores + gabarito, corte
     A-A com cotas em cadeia nas duas direções) ou chapa na face (chapa de frente; espessura e grapas de lado). Não entram na RA.
