@@ -1369,6 +1369,13 @@ public sealed class AutoTeste
                 doc.SendStringToExecute($"_.ZOOM _W {janela}\n", true, false, true);
                 doc.SendStringToExecute($"_.PNGOUT {Path.Combine(Path.GetDirectoryName(saida), "autoteste_" + nome + ".png")}\n\n", true, false, true);
             }
+            // EXPLODE de uma 2ª inserção do detalhamento do pilar: as chamadas têm de ficar no lugar (âncoras das faixas)
+            if (_pilarExplodir != null)
+            {
+                // o EXPLODE do GstarCAD pega UM objeto e termina: um Enter só (o 2º repetia o comando e travava o roteiro)
+                doc.SendStringToExecute($"_.EXPLODE (handent \"{_pilarExplodir}\")\n", true, false, true);
+                doc.SendStringToExecute("ARMTESTEEXPLODIDO\n", true, false, true);
+            }
             // restaura pela linha de comando (a restauração via API em ARMTESTEFIM nem sempre chega ao registro)
             doc.SendStringToExecute($"FILEDIA {Convert.ToInt32(_filedia ?? 1)}\n", true, false, true);
             doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
@@ -1376,6 +1383,56 @@ public sealed class AutoTeste
     }, suspender: false);
 
     private static readonly List<(string nome, string janela)> _zoomBases = new List<(string, string)>();
+    private static string _pilarExplodir;
+    private static Point3d _pilarExplodirEm;
+
+    /// <summary>Depois do EXPLODE da 2ª inserção do pilar: toda linha de chamada sai de perto do seu texto (região da inserção).</summary>
+    [Rt.CommandMethod("ARMTESTEEXPLODIDO")]
+    public void Explodido() => Comandos.Executar("ARMTESTEEXPLODIDO", (doc, ed, db, cfg) =>
+    {
+        using var tr = db.TransactionManager.StartTransaction();
+        var ms = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
+        var p = _pilarExplodirEm;
+        bool Dentro(Point3d q) => q.X > p.X - 600 && q.X < p.X + 9000 && q.Y > p.Y - 3500 && q.Y < p.Y + 4000;
+        int ok = 0, fora = 0;
+        foreach (ObjectId id in ms)
+        {
+            if (!(tr.GetObject(id, OpenMode.ForRead) is Line ln) || XDataCad.Tipo(ln) != TipoParte.Chamada) continue;
+            if (!Dentro(ln.EndPoint)) continue; // só as do pilar explodido
+            if (Dentro(ln.StartPoint) && ln.Length < 500) ok++; else fora++;
+        }
+        Rel.AppendLine($"        EXPLODE do pilar: {ok} linhas de chamada no lugar, {fora} fora");
+        // diagnóstico: as faixas de texto explodidas apontam barras do modelo ou da definição do bloco?
+        int noModelo = 0, noBloco = 0, comAncora = 0, faixasTexto = 0;
+        string exemplo = "";
+        foreach (ObjectId id in ms)
+        {
+            if (!(tr.GetObject(id, OpenMode.ForRead) is MText mt) || XDataCad.Tipo(mt) != TipoParte.Faixa || !Dentro(mt.Location)) continue;
+            var f = Armadura.Cad.Barra.ServicoFaixa.Ler(mt);
+            faixasTexto++;
+            if (f.TemAncora) comAncora++;
+            var bid = XDataCad.IdDoHandle(db, f.HandleBarra);
+            if (!bid.IsNull && tr.GetObject(bid, OpenMode.ForRead) is Entity be) { if (be.OwnerId == ms.ObjectId) noModelo++; else noBloco++; }
+            if (exemplo.Length == 0 && f.Referencias.Count > 0)
+                exemplo = FormattableString.Invariant($"texto ({mt.Location.X:0},{mt.Location.Y:0}) âncora ({f.AncoraX:0},{f.AncoraY:0}) ref ({f.Referencias[0].X:0},{f.Referencias[0].Y:0})");
+        }
+        Rel.AppendLine($"        faixas de texto explodidas: {faixasTexto} (com âncora {comAncora}); barra no modelo {noModelo}, na definição do bloco {noBloco}; {exemplo}");
+        var todas = ms.Cast<ObjectId>().Select(i => tr.GetObject(i, OpenMode.ForRead)).OfType<MText>().Where(m => XDataCad.Tipo(m) == TipoParte.Faixa).ToList();
+        var foraReg = todas.Where(m => !Dentro(m.Location) && m.Location.Y < -60000).Take(5)
+            .Select(m => FormattableString.Invariant($"({m.Location.X - p.X:0},{m.Location.Y - p.Y:0})"));
+        Rel.AppendLine($"        faixas de texto no modelo: {todas.Count}; perto do pilar mas fora da região: " + string.Join(" ", foraReg));
+        var btP = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+        if (btP.Has("P61 TESTE"))
+        {
+            var def = (BlockTableRecord)tr.GetObject(btP["P61 TESTE"], OpenMode.ForRead);
+            var tipos = def.Cast<ObjectId>().Select(i => tr.GetObject(i, OpenMode.ForRead)).OfType<Entity>()
+                .GroupBy(en => XDataCad.Tipo(en) + ":" + en.GetType().Name).Select(g => $"{g.Key}={g.Count()}");
+            Rel.AppendLine("        na definição do bloco: " + string.Join(", ", tipos));
+        }
+        Checar(ok > 10 && fora == 0, "EXPLODE do detalhamento do pilar: chamadas continuam apontando as barras");
+        tr.Commit();
+        Gravar(); // roda depois do relatório principal: grava de novo
+    });
 
     /// <summary>Template da base de reservatório (circular com VAR e retangular), desenhado como detalhamento.</summary>
     /// <summary>Template do pilar pré-moldado, etapa 1 (forma): P61 desenhado como detalhamento; PNG para conferir.</summary>
@@ -1412,6 +1469,10 @@ public sealed class AutoTeste
                     $"{origem.X + detPad.X - 20:0},{origem.Y + detPad.Y - 260:0} {origem.X + detPad.X + 2000:0},{origem.Y + detPad.Y + 30:0}")));
             _zoomBases.Add(("pilar_p61_vistas_alcas", FormattableString.Invariant(
                 $"{origem.X + 0:0},{origem.Y + 150:0} {origem.X + 1250:0},{origem.Y + 420:0}")));
+            var chaves = r.Textos.FirstOrDefault(x => x.Texto == "DETALHE 01 - CHAVES DE CISALHAMENTO");
+            if (chaves != null)
+                _zoomBases.Add(("pilar_p61_chaves", FormattableString.Invariant(
+                    $"{origem.X + chaves.X - 10:0},{origem.Y + chaves.Y - 60:0} {origem.X + chaves.X + 60:0},{origem.Y + chaves.Y + 5:0}")));
             var corteB = r.Textos.FirstOrDefault(x => x.Texto == "CORTE B-B");
             if (corteB != null)
                 _zoomBases.Add(("pilar_p61_corteB", FormattableString.Invariant(
@@ -1468,6 +1529,42 @@ public sealed class AutoTeste
             }
         }
         catch (Exception ex) { Checar(false, "template do pilar: exceção " + ex); }
+        // janela da lista de consolos (a mesma do botão "…" do ARMTEMPLATE), salva em PNG para conferir
+        try
+        {
+            var saidaF = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+            var par = new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado().Parametros.First(x => x.Nome == "Consolos");
+            using var f = new Paleta.FormTabela(par, "CD 40x23,5x25|1,3|592.5|0;CS 20x28,5x25|2|900|5");
+            f.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+            f.Location = new System.Drawing.Point(-3000, -3000); // fora da tela
+            f.Show();
+            if (!string.IsNullOrEmpty(saidaF))
+                using (var bmp = new System.Drawing.Bitmap(f.Width, f.Height))
+                {
+                    f.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, f.Width, f.Height));
+                    bmp.Save(Path.Combine(Path.GetDirectoryName(saidaF), "autoteste_janela_consolos.png"));
+                }
+            f.Close();
+            Checar(true, "janela da lista de consolos abre");
+        }
+        catch (Exception ex) { Checar(false, "janela da lista de consolos: " + ex.Message); }
+        // 2ª inserção do mesmo detalhamento, para o EXPLODE no fim do roteiro
+        try
+        {
+            using var tr = db.TransactionManager.StartTransaction();
+            var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+            if (bt.Has("P61 TESTE"))
+            {
+                var ms = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+                _pilarExplodirEm = new Point3d(30000, -76000, 0);
+                var br = new BlockReference(_pilarExplodirEm, bt["P61 TESTE"]);
+                ms.AppendEntity(br);
+                tr.AddNewlyCreatedDBObject(br, true);
+                _pilarExplodir = br.Handle.ToString();
+            }
+            tr.Commit();
+        }
+        catch (Exception ex) { Checar(false, "pilar: 2ª inserção para o EXPLODE: " + ex.Message); }
     }
 
     private static void TestarTemplateBase(Document doc, Database db, Core.Configuracao.ConfiguracaoArmadura cfg)

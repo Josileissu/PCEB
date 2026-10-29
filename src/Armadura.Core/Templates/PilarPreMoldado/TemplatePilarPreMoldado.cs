@@ -43,11 +43,12 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         Descricao = descricao, Opcoes = opcoes.ToList(),
     };
 
-    private const string G1 = "1. Identificação", G2 = "2. Geometria", G3 = "3. Níveis", G4 = "4. Embutimento (base)",
-        G5 = "5. Cobrimentos", G6 = "6. Concreto e produção";
+    // dois dígitos: o PropertyGrid ordena os grupos como texto (com "1." o "10." vinha logo depois do "1.")
+    private const string G1 = "01. Identificação", G2 = "02. Geometria", G3 = "03. Níveis", G4 = "04. Embutimento (base)",
+        G5 = "05. Cobrimentos", G6 = "06. Concreto e produção";
 
     /// <summary>Calculado a cada leitura: as opções dos consolos vêm do catálogo atual.</summary>
-    public IReadOnlyList<ParametroTemplate> Parametros => ParametrosForma.Concat(ParametrosArmadura).Concat(ParametrosConsolos()).Concat(ParametrosItens).ToArray();
+    public IReadOnlyList<ParametroTemplate> Parametros => ParametrosForma.Concat(ParametrosArmadura).Concat(ParametrosConsolos()).Concat(ParametrosItens).Concat(new[] { ParametroInsertos() }).ToArray();
 
     private static readonly ParametroTemplate[] ParametrosForma =
     {
@@ -63,8 +64,18 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         P(G2, "Chanfro", "Chanfro dos cantos (cateto)", "0", "cm", min: 0, max: 10, descricao: "0 = cantos vivos."),
 
         P(G3, "CotaBase", "Cota da base do pilar", "-2.90", "m", descricao: "O topo fica em cota da base + comprimento."),
-        P(G3, "Niveis", "Níveis intermediários", "TÉRREO/GROUND FLOOR=0.00; WAREHOUSE=3.025", tipo: TipoParametro.Texto,
-          descricao: "Lista \"NOME/NAME=cota em m\" separada por ';'. O topo e a base são marcados sempre."),
+        new ParametroTemplate
+        {
+            Grupo = G3, Nome = "Niveis", Rotulo = "Níveis intermediários", Tipo = TipoParametro.Tabela, NomeItem = "nível",
+            Padrao = "TÉRREO|GROUND FLOOR|0.00;WAREHOUSE||3.025",
+            Descricao = "Clique em … para editar a lista (nome em português, em inglês e a cota em m). O topo e a base são marcados sempre.",
+            Colunas =
+            {
+                new ColunaTabela { Nome = "PT", Rotulo = "Nome (PT)", Largura = 160 },
+                new ColunaTabela { Nome = "EN", Rotulo = "Nome (EN)", Largura = 160 },
+                new ColunaTabela { Nome = "Cota", Rotulo = "Cota (m)", Tipo = TipoParametro.Numero, Padrao = "0.00", Largura = 90 },
+            },
+        },
 
         P(G4, "Lemb", "Comprimento embutido no cálice", "100", "cm", min: 0, descricao: "0 = sem embutimento desenhado."),
         P(G4, "Interface", "Interface com o cálice", Chaves, tipo: TipoParametro.Opcao, opcoes: new[] { Chaves, Rugosa, Lisa }),
@@ -102,10 +113,20 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     /// <summary>Número com vírgula decimal (textos em PT).</summary>
     public static string Num(double v, string formato) => v.ToString(formato, CultureInfo.InvariantCulture).Replace('.', ',');
 
-    /// <summary>Lê "NOME/NAME=cota; …" (cota em m, vírgula ou ponto).</summary>
+    /// <summary>Lê a lista de níveis: "PT|EN|cota; …" (janela) ou o formato antigo "PT/EN=cota; …" (cota em m).</summary>
     public static List<NivelPilar> LerNiveis(string texto)
     {
         var r = new List<NivelPilar>();
+        if ((texto ?? "").Contains("|"))
+        {
+            foreach (var l in ValoresTemplate.LerTabela(texto))
+            {
+                string pt = ValoresTemplate.Celula(l, 0);
+                if (pt.Length == 0) continue;
+                r.Add(new NivelPilar { NomePT = pt, NomeEN = ValoresTemplate.Celula(l, 1), Cota = ValoresTemplate.NumeroCelula(l, 2) });
+            }
+            return r;
+        }
         foreach (var item in (texto ?? "").Split(';'))
         {
             var partes = item.Split('=');
@@ -205,6 +226,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         DesenharConsolosNasVistas(c, consolos, xs, larguras, cob0);
         // alças (pelo CG), montagem (furo ou alça de topo) e inserto do topo
         var itens = DesenharItensNasVistas(c, v, consolos, xs, larguras, b, h, L, ch);
+        var insertos = LerInsertos(v, CatalogoInsertos, L, r.Avisos);
+        DesenharInsertosNasVistas(c, insertos, xs, larguras, L);
         foreach (var co in consolos)
         {
             double yc = co.ZTopo - co.H / 2;
@@ -229,7 +252,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
                 for (int i = 0; i < 4; i++)
                     for (double y = 0; y + passo <= lemb + 1e-6; y += passo)
                     {
-                        c.Linha(xs[i], y + dente, xs[i] + larguras[i], y + dente);
+                        // arestas do rebaixo (perfil do detalhe 01: trecho de passo − dente que vai à face, rebaixo de "dente")
+                        c.Linha(xs[i], y + passo - dente, xs[i] + larguras[i], y + passo - dente);
                         c.Linha(xs[i], y + passo, xs[i] + larguras[i], y + passo);
                     }
             }
@@ -314,9 +338,9 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         else
             secao.Vertices.AddRange(new[] { (sx0, sy0), (sx1, sy0), (sx1, sy1), (sx0, sy1) });
         r.Contornos.Add(secao);
-        InsertoNoCorte(c, v, sx0, sy0, b, h);
+        bool insertoTopo = InsertoNoCorte(c, insertos, sx0, sy0, b, h);
         double smx = (sx0 + sx1) / 2, smy = (sy0 + sy1) / 2;
-        RotuloVista(c, 4, smx, sy1 + (v.SimNao("Inserto") ? 5 : 1.5) * hc, 0); // em cima (acima das cotas do gabarito)
+        RotuloVista(c, 4, smx, sy1 + (insertoTopo ? 5 : 1.5) * hc, 0); // em cima (acima das cotas do gabarito)
         RotuloVista(c, 2, smx, sy0 - 7 * hc, 0);                           // embaixo (abaixo da cota)
         RotuloVista(c, 3, sx0 - 1.5 * hc, smy, Math.PI / 2);               // esquerda
         RotuloVista(c, 1, sx1 + 7 * hc, smy, Math.PI / 2);                 // direita (depois da cota)

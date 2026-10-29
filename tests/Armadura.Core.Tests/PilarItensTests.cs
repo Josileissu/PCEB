@@ -58,7 +58,8 @@ public class PilarItensTests
         Assert.Contains(r.Textos, t => t.Texto == "ESPAÇAMENTO BARRAS");
         Assert.Contains(r.Textos, t => t.Texto == "REFORÇO NOS FUROS DOS PILARES");
         Assert.Contains(r.Textos, t => t.Texto == "ATENÇÃO!");
-        Assert.Contains(r.Tabelas, t => t.Titulo.StartsWith("RAIO (r) DE CURVATURA"));
+        Assert.Contains(r.Textos, t => t.Texto == "RAIO (r) DE CURVATURA PARA GANCHOS");
+        Assert.Contains(r.Tabelas, t => t.Titulo.StartsWith("BITOLA (Ø)"));
         // alças pelo CG: cotas base → alça → alça → topo somam o comprimento
         var cadeia = r.Cotas.Where(c => Math.Abs(c.Angulo - Math.PI / 2) < 1e-9 && c.Texto == "").ToList();
         Assert.Contains(cadeia, c => Math.Abs(c.P1.Y) < 1e-9 && c.P2.Y > 200 && c.P2.Y < 300);
@@ -67,11 +68,42 @@ public class PilarItensTests
     [Fact]
     public void AlcaDeTopoSemFuroESemDetalhes()
     {
-        var r = Gerar(("Montagem", TemplatePilarPreMoldado.MontagemAlcaTopo), ("DetalhesPadrao", "Não"), ("Inserto", "Não"));
+        var r = Gerar(("Montagem", TemplatePilarPreMoldado.MontagemAlcaTopo), ("DetalhesPadrao", "Não"), ("Insertos", ""));
         Assert.Equal(3, r.Barras.Single(b => b.Nome == "alca").Repeticoes);
         Assert.DoesNotContain(r.Barras, b => b.Nome == "reforcofuro");
         Assert.DoesNotContain(r.Textos, t => t.Texto.StartsWith("DETALHE 01"));
         Assert.DoesNotContain(r.Textos, t => t.Texto == "25CB660");
+    }
+
+    [Fact]
+    public void InsertosDoCatalogoNoTopoENaFace()
+    {
+        var r = Gerar(("Insertos", "25CB660|Topo|0|0;CHAPA 20x20|Face 4|800|0"));
+        Assert.Contains(r.Textos, t => t.Texto == "25CB660");
+        Assert.Contains(r.Textos, t => t.Texto == "INSERTO CHAPA 20x20");
+        // chumbadores: 2 por vista × 4 vistas; chapa: retângulo de frente e espessura nas duas vistas de lado
+        Assert.True(r.Contornos.Count(c => c.Layer == "ARM-INSERTO" && !c.Fechado) >= 8);
+        Assert.Equal(1 + 3, r.Contornos.Count(c => c.Layer == "ARM-INSERTO" && c.Fechado)); // gabarito + chapa de frente + 2 de lado
+        var avisos = new System.Collections.Generic.List<string>();
+        var v = new ValoresTemplate(T.Parametros) { ["Insertos"] = "CHAPA 20x20|Topo|0|0;XX|Topo|0|0;25CB660|Face 9|10|0" };
+        var lidos = TemplatePilarPreMoldado.LerInsertos(v, TemplatePilarPreMoldado.CatalogoInsertos, 1000, avisos);
+        Assert.Single(lidos);
+        Assert.Contains(avisos, a => a.Contains("de face") && a.Contains("no topo"));
+        Assert.Contains(avisos, a => a.Contains("não existe"));
+        Assert.Contains(avisos, a => a.Contains("inválido"));
+    }
+
+    [Fact]
+    public void PerfilDasChavesComoODetalhe01()
+    {
+        // passo 5, rebaixo de 4 recuado 1, trecho de 1 até a face (chanfros de 0,5)
+        var (perfil, arestas) = TemplatePilarPreMoldado.PerfilChaves(5, 4, 1, 2);
+        Assert.Equal((-1.0, 0.0), perfil[0]);
+        Assert.Equal((0.0, 0.5), perfil[1]);   // vai à face no meio do trecho de 1
+        Assert.Equal((-1.0, 1.0), perfil[2]);  // volta ao rebaixo
+        Assert.Equal((-1.0, 5.0), perfil[3]);  // rebaixo de 4 até o próximo passo
+        Assert.Contains((-1.0, 1.0), arestas);
+        Assert.Equal(5, arestas.Count);
     }
 
     [Fact]

@@ -116,5 +116,21 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   acima da VISTA 1, chumbadores nas vistas, gabarito com cotas em cadeia no corte A-A. Detalhes padrão: chaves (1:10),
   espaçamento no canto (1:5, com os valores reais), tabela de raio de curvatura (NBR 6118), emendas por traspasse e por
   solda, comprimento das barras (A1/B1), ATENÇÃO SPDA (PT/EN). O x do próximo detalhe respeita a largura do título.
-- Próximas: 5 entrada por tabela/Excel/janela (entram no volume e
+- **Ajustes de 2026-10-29 (3ª rodada)**:
+  - **Parâmetro tabela** (`TipoParametro.Tabela`, `ColunaTabela`; valor = células "|", linhas ";"): no ARMTEMPLATE vira
+    "N consolos" com botão "…" (`Paleta/FormTabela.cs`: grade, opções em lista, adicionar/remover/subir/descer, **Ctrl+V
+    do Excel**). Usado em **Consolos** (tipo, faces, base→topo, deslocamento — sem limite de quantidade), **Níveis**
+    (PT, EN, cota; `LerNiveis` aceita também o formato antigo) e **Insertos** (tipo, local Topo/Face n, base→centro,
+    deslocamento).
+  - Grupos com dois dígitos ("01." … "16."): o PropertyGrid ordena categorias como texto.
+  - **Catálogo de insertos** (`TipoInserto`, config DataMember 69; ARMINSERTOS): modo topo (chumbadores + gabarito, corte
+    A-A com cotas em cadeia nas duas direções) ou chapa na face (chapa de frente; espessura e grapas de lado). Não entram na RA.
+  - Janela de catálogo genérica `FormCatalogo<T>` (`Paleta/FormConsolos.cs`) para consolos e insertos.
+  - **Chaves de cisalhamento** refeitas como o detalhe 01 do P61 (`PerfilChaves`): rebaixo de "dente" recuado "prof",
+    trecho de passo − dente até a face com chanfros, arestas atravessando o pilar dentro de um círculo, cadeias 4/1 e 5,
+    chamadas CHAVES/PILAR. Nas vistas, linhas nas arestas do rebaixo.
+  - **Detalhe típico** como a prancha do escritório (`DetalheTipico`): títulos sublinhados com SEM ESCALA e NBR-6118,
+    ganchos desenhados + tabela, emendas por traspasse (barras hachuradas, ≥ 45ø e o par com ≥ 9ø), por solda (cordões
+    ≥ 5ø e corte a-a ≥ 0,3ø), comprimento das barras (U com r, A1/B1) e notas PT/EN em colunas.
+- Próximas: entrada da armadura longitudinal por tabela/Excel (posições, bitolas, redução com a altura — PP-2) (entram no volume e
   no CG); 4 alças pelo CG, furo/alça de topo, inserto, detalhes padrão; 5 entrada por tabela/Excel/janela.

@@ -80,6 +80,20 @@ public class PilarPreMoldadoTests
     }
 
     [Fact]
+    public void NiveisPelaJanelaEPeloFormatoAntigo()
+    {
+        var novo = TemplatePilarPreMoldado.LerNiveis("TÉRREO|GROUND FLOOR|0,00;WAREHOUSE||3.025");
+        Assert.Equal(2, novo.Count);
+        Assert.Equal("GROUND FLOOR", novo[0].NomeEN);
+        Assert.Equal(3.025, novo[1].Cota, 6);
+        var antigo = TemplatePilarPreMoldado.LerNiveis("TÉRREO/GROUND FLOOR=0.00; WAREHOUSE=3.025");
+        Assert.Equal(novo.Select(n => (n.NomePT, n.NomeEN, n.Cota)), antigo.Select(n => (n.NomePT, n.NomeEN, n.Cota)));
+        // a tabela: "|" e ";" dentro de uma célula não quebram a lista
+        Assert.Equal("A/B|1,2", ValoresTemplate.JuntarTabela(new[] { new[] { "A|B", "1;2" } }));
+        Assert.Equal(2, ValoresTemplate.LerTabela("a|b; ;c|d").Count);
+    }
+
+    [Fact]
     public void IdiomaSoPTouSoEN()
     {
         var pt = Gerar(("Idioma", "PT")).Textos.Select(t => t.Texto).ToList();

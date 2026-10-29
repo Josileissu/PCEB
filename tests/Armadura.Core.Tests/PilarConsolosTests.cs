@@ -43,9 +43,12 @@ public class PilarConsolosTests
         Assert.True(tipos[0].Duplo);
         Assert.True(tipos[2].Trapezoidal);
         Assert.Equal("40x23,5x25 duplo", tipos[0].Resumo);
-        var p = T.Parametros.Single(x => x.Nome == "C1Tipo");
-        Assert.Equal(new[] { TemplatePilarPreMoldado.SemConsolo }.Concat(tipos.Select(t => t.Nome)), p.Opcoes);
-        Assert.Equal(5, T.Parametros.Count(x => x.Nome.EndsWith("Tipo") && x.Nome.StartsWith("C")));
+        var p = T.Parametros.Single(x => x.Nome == "Consolos");
+        Assert.Equal(TipoParametro.Tabela, p.Tipo);
+        Assert.Equal(tipos.Select(t => t.Nome), p.Colunas[0].Opcoes);
+        Assert.Equal("CD 40x23,5x25|1,3|592.5|0", p.Padrao);
+        // grupos com dois dígitos: o PropertyGrid ordena como texto
+        Assert.All(T.Parametros, x => Assert.Matches(@"^\d\d\. ", x.Grupo));
         // serialização com a configuração (catálogo salvo no config.json do usuário)
         var cfg = new ConfiguracaoArmadura();
         Assert.Equal(3, cfg.Consolos.Count);
@@ -67,14 +70,14 @@ public class PilarConsolosTests
         double cg = TemplatePilarPreMoldado.AlturaCG(50, 50, 1390.5, 0, cs);
         Assert.True(cg < 1390.5 / 2 && cg > 1390.5 / 2 - 5);
         // face inválida; tipo duplo numa face só; tipo inexistente
-        v["C1Faces"] = "7";
+        v["Consolos"] = "CD 40x23,5x25|7|592.5|0";
         Assert.Empty(TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1390.5, avisos));
         Assert.Contains(avisos, a => a.Contains("nenhuma face"));
-        v["C1Faces"] = "1";
+        v["Consolos"] = "CD 40x23,5x25|1|592.5|0";
         Assert.Empty(TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1390.5, avisos));
         Assert.Contains(avisos, a => a.Contains("duas faces opostas"));
         // tipo simples em faces opostas: dois consolos ancorados (sem tirante passante)
-        v["C1Tipo"] = "CS 20x28,5x25"; v["C1Faces"] = "1,3";
+        v["Consolos"] = "CS 20x28,5x25|1,3|592.5|0";
         var dois = Assert.Single(TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1390.5, avisos));
         Assert.False(dois.Duplo);
         Assert.Equal(2, dois.Sozinhas.Count);
@@ -107,7 +110,7 @@ public class PilarConsolosTests
         var pino = r.Barras.Single(b => b.Nome == "cons1pino");
         Assert.Equal(4, pino.Quantidade);          // 2x2 N16
         Assert.Equal(85, Comp(pino), 6);           // 47 + 18 + 20 (externo)
-        Assert.Equal(2, r.Hachuras.Count);
+        Assert.Equal(2, r.Hachuras.Count(hc => hc.Layer == "ARM-HACHURA")); // corte B-B (o detalhe típico tem as suas)
         Assert.Contains(r.Textos, t => t.Texto == "CORTE B-B");
         Assert.Equal(2, r.Textos.Count(t => t.Texto == "B" && t.Layer == "ARM-CORTE"));
         Assert.Contains(r.Textos, t => t.Texto == "ARMADURAS CONSOLO CD 40x23,5x25 (40x23,5x25) - DUPLO");
@@ -119,7 +122,7 @@ public class PilarConsolosTests
     [Fact]
     public void MesmoTipoEmDoisNiveisUmDetalheSo()
     {
-        var r = Gerar(("C2Tipo", "CD 40x23,5x25"), ("C2Faces", "2,4"), ("C2Dist", "1000"));
+        var r = Gerar(("Consolos", "CD 40x23,5x25|1,3|592.5|0;CD 40x23,5x25|2,4|1000|0"));
         Assert.Single(r.Textos, t => t.Texto.StartsWith("ARMADURAS CONSOLO CD"));
         Assert.Equal(10, r.Barras.Single(b => b.Nome == "cons1tir").Quantidade); // 5 por par × 2 pares
         Assert.Contains(r.Textos, t => t.Texto == "CORTE C-C");
@@ -131,7 +134,7 @@ public class PilarConsolosTests
         var laco = new TipoConsolo { Nome = "TESTE laço", Laco = true, H1 = 15 };
         ComCatalogo(new[] { laco }, () =>
         {
-            var r = Gerar(("C1Tipo", "TESTE laço"), ("C1Faces", "2"), ("C2Tipo", "CS 20x28,5x25"), ("C2Faces", "4"), ("C2Dist", "900"));
+            var r = Gerar(("Consolos", "TESTE laço|2|592.5|0;CS 20x28,5x25|4|900|0"));
             Assert.Contains(r.Barras, b => b.Nome == "cons1laco" && b.Bulges.Contains(1.0));
             Assert.DoesNotContain(r.Barras, b => b.Nome == "cons1tr");
             Assert.Contains(r.Textos, t => t.Texto == "CORTE C-C");
@@ -147,7 +150,7 @@ public class PilarConsolosTests
         var ruim = new TipoConsolo { Nome = "TESTE ruim", A = 60, H = 12, H1 = 5, CostN = 0, TirPhi = 25, TirN = 2, Duplo = true };
         ComCatalogo(new[] { ruim }, () =>
         {
-            var r = Gerar(("C1Tipo", "TESTE ruim"));
+            var r = Gerar(("Consolos", "TESTE ruim|1,3|592.5|0"));
             Assert.Contains(r.Avisos, a => a.Contains("a/d"));
             Assert.Contains(r.Avisos, a => a.Contains("h/2"));
             Assert.Contains(r.Avisos, a => a.Contains("sem armadura de costura"));
