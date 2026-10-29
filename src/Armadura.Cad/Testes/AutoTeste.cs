@@ -1404,7 +1404,18 @@ public sealed class AutoTeste
                 var total = ents.OfType<RotatedDimension>().FirstOrDefault(d => d.DimensionText.StartsWith("COMPRIMENTO TOTAL"));
                 Rel.AppendLine($"        pilar P61: {ents.Count} entidades no bloco, {dims} cotas, {textos} textos; total = {total?.Measurement:0.0}");
                 Checar(total != null && Math.Abs(total.Measurement - 1390.5) < 1e-6, "pilar: cota do comprimento total = 1390,5");
-                Checar(ents.OfType<DBText>().Any(x => x.TextString == "VOLUME DE CONCRETO: 3,476 m³"), "pilar: volume calculado no quadro de produção");
+                var prod = ents.OfType<Table>().FirstOrDefault(x => x.Cells[0, 0].TextString.TrimStart().StartsWith("INFORMAÇÕES PARA PRODUÇÃO"));
+                Rel.AppendLine("        quadro de produção: " + (prod == null ? "(não achado)" : string.Join(" | ", Enumerable.Range(0, prod.Rows.Count).Select(l => prod.Cells[l, 0].TextString + " = " + (prod.Columns.Count > 1 ? prod.Cells[l, 1].TextString : "")))));
+                Checar(prod != null && prod.Rows.Count == 7 && prod.Cells[4, 1].TextString.Trim() == "3,476 m³", "pilar: quadro de produção em tabela com o volume calculado");
+                var refQ = btr.GetBlockReferenceIds(true, false).Cast<ObjectId>().FirstOrDefault();
+                if (prod != null && !refQ.IsNull)
+                {
+                    // a tabela está dentro do bloco: desloca pela inserção
+                    var ins = ((BlockReference)tr.GetObject(refQ, OpenMode.ForRead)).Position - btr.Origin;
+                    var e = prod.GeometricExtents;
+                    _zoomBases.Add(("pilar_p61_producao", FormattableString.Invariant(
+                        $"{e.MinPoint.X + ins.X - 20:0},{e.MinPoint.Y + ins.Y - 20:0} {e.MaxPoint.X + ins.X + 20:0},{e.MaxPoint.Y + ins.Y + 20:0}")));
+                }
                 var refId = btr.GetBlockReferenceIds(true, false).Cast<ObjectId>().FirstOrDefault();
                 if (!refId.IsNull)
                 {

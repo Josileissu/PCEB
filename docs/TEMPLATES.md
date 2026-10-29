@@ -63,5 +63,14 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   chaves (linhas a cada passo/dente nas 4 vistas, cota na VISTA 2, avisos da tab. 15 e do mínimo de 40 cm), chanfros,
   marcas do corte A-A, corte A-A com as vistas em volta, notas (cobrimento por face, tolerâncias da tab. 2, insertos) e
   informações p/ produção (volume da forma, peso a 2500 kgf/m³). Idioma PT, EN ou PT/EN.
+  Quadro de produção EM TABELA (modelo do usuário, 2026-10-29): título "PT\P(EN)", rótulo à esquerda e valor com
+  unidade à direita ("fcj = 28 MPa", "1,209 m³", "3,023 ton.", "1 un."); linha da montagem só com fcj > 0.
+  `TabelaTemplate` ganhou larguras/alinhamentos por coluna e quebra de linha na célula (`TabelaTemplate.Quebra`).
+  GstarCAD 2021: `HorizontalCellMargin`/`VerticalCellMargin` não têm efeito e a altura mínima da linha vem do estilo;
+  o espaço inicial afasta o texto da borda esquerda, o final é descartado [pendente: estilo de tabela próprio].
+- **Seções e cortes (plano, 2026-10-29)**: incrementais — gerados onde há o que mostrar: corte de forma no topo
+  (insertos/gabarito) e um corte por nível de consolo (B-B, C-C…, hachurado); seções de armadura onde o arranjo das
+  longitudinais muda (topo com grampos U, trecho corrente, cada redução/emenda, base) e no consolo; marcas nas vistas
+  e na elevação das armaduras; seções iguais não se repetem.
 - Próximas: 2 armaduras (longitudinais, emendas/rolo, estribos por zona, seções, RA); 3 consolos (entram no volume e
   no CG); 4 alças pelo CG, furo/alça de topo, inserto, detalhes padrão; 5 entrada por tabela/Excel/janela.

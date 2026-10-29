@@ -334,34 +334,43 @@ public sealed class TemplatePilarPreMoldado : ITemplateArmadura
         double vol = Volume(b, h, L, ch);
         double peso = vol * v.Numero("PesoEspecifico") / 1000; // t
         int qtd = Math.Max(1, v.Inteiro("Quantidade"));
-        string Mpa(string k) => Num(v.Numero(k), "0.#");
-        var prodPt = new[]
-        {
-            "INFORMAÇÕES P/ PRODUÇÃO",
-            $"RESISTÊNCIA AO SAQUE: fcj = {Mpa("FcjSaque")} MPa",
-            $"RESISTÊNCIA MONTAGEM: fcj = {Mpa("FcjMontagem")} MPa",
-            $"RESISTÊNCIA 28 DIAS: fck = {Mpa("Fck")} MPa",
-            $"VOLUME DE CONCRETO: {Num(vol, "0.000")} m³",
-            $"PESO: {Num(peso, "0.000")} t",
-            $"QUANTIDADE: {qtd} unidade" + (qtd > 1 ? "s" : ""),
-        };
-        var prodEn = new[]
-        {
-            "MANUFACTURING INFORMATION",
-            FormattableString.Invariant($"STRENGTH DEMOLDING: fcj = {v.Numero("FcjSaque"):0.#} MPa"),
-            FormattableString.Invariant($"STRENGTH ERECTION: fcj = {v.Numero("FcjMontagem"):0.#} MPa"),
-            FormattableString.Invariant($"STRENGTH AT 28 DAYS: fck = {v.Numero("Fck"):0.#} MPa"),
-            FormattableString.Invariant($"CONCRETE VOLUME: {vol:0.000} m³"),
-            FormattableString.Invariant($"WEIGHT: {peso:0.000} t"),
-            $"QUANTITY: {qtd} unit" + (qtd > 1 ? "s" : ""),
-        };
-        double hp = hv;
-        if (c.Idioma != IdiomaDesenho.EN) yCur = c.Bloco(prodPt, xD, yCur, hp) - hp;
-        if (c.Idioma != IdiomaDesenho.PT) c.Bloco(prodEn, xD, yCur, hp);
+        r.Tabelas.Add(TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"), vol, peso, qtd, xD, yCur, escV));
 
         // verificações de detalhamento (avisos, não bloqueiam)
         if (cob.Take(4).Any(x => x < 2)) r.Avisos.Add("Cobrimento lateral < 2,0 cm: abaixo do mínimo da NBR 9062 (9.2.1.1.2) para pilares.");
         return r;
+    }
+
+    /// <summary>
+    /// Quadro "Informações para produção" (modelo do usuário, 2026-10-29): tabela de 2 colunas — rótulo (PT e "(EN)")
+    /// à esquerda e valor com unidade à direita. A linha da montagem só entra com fcj de montagem &gt; 0.
+    /// </summary>
+    public static TabelaTemplate TabelaProducao(IdiomaDesenho idioma, double fcjSaque, double fcjMontagem, double fck,
+        double volume, double peso, int quantidade, double x, double y, double escala)
+    {
+        bool en = idioma == IdiomaDesenho.EN;
+        string N(double v, string f) => en ? v.ToString(f, CultureInfo.InvariantCulture) : Num(v, f);
+        string R(string pt, string ing) => idioma switch
+        {
+            IdiomaDesenho.PT => pt,
+            IdiomaDesenho.EN => ing,
+            _ => pt + TabelaTemplate.Quebra + "(" + ing.TrimEnd(':') + ")",
+        };
+        var t = new TabelaTemplate
+        {
+            Titulo = R("INFORMAÇÕES PARA PRODUÇÃO", "MANUFACTURING INFORMATION"),
+            X = x, Y = y, Escala = escala,
+        };
+        t.Larguras.AddRange(new[] { 18.0, 10.0 });
+        t.Alinhamentos.AddRange(new[] { 0, 2 });
+        t.Linhas.Add(new[] { R("RESISTÊNCIA AO SAQUE:", "STRENGTH DEMOLDING:"), $"fcj = {N(fcjSaque, "0.#")} MPa" });
+        if (fcjMontagem > 0)
+            t.Linhas.Add(new[] { R("RESISTÊNCIA NA MONTAGEM:", "STRENGTH ERECTION:"), $"fcj = {N(fcjMontagem, "0.#")} MPa" });
+        t.Linhas.Add(new[] { R("RESISTÊNCIA 28 DIAS:", "STRENGTH AT 28 DAYS:"), $"fck = {N(fck, "0.#")} MPa" });
+        t.Linhas.Add(new[] { R("VOLUME DE CONCRETO:", "CONCRETE VOLUME:"), $"{N(volume, "0.000")} m³" });
+        t.Linhas.Add(new[] { R("PESO:", "WEIGHT:"), $"{N(peso, "0.000")} ton." });
+        t.Linhas.Add(new[] { R("QUANTIDADE:", "QUANTITY:"), $"{quantidade} un." });
+        return t;
     }
 
     private static void R_Triangulo(Ctx c, double x, double y, double lado) =>

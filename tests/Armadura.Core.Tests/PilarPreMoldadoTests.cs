@@ -26,10 +26,18 @@ public class PilarPreMoldadoTests
         // 50 x 50 x 1390,5 = 3,476 m³ (o P61 tem 3,523 com os 2 consolos 40x25x23,5 = 0,047 — etapa 3)
         Assert.Equal(3.476, TemplatePilarPreMoldado.Volume(50, 50, 1390.5, 0), 3);
         var r = Gerar();
-        var textos = r.Textos.Select(t => t.Texto).ToList();
-        Assert.Contains("VOLUME DE CONCRETO: 3,476 m³", textos);
-        Assert.Contains("PESO: 8,691 t", textos);
-        Assert.Contains("CONCRETE VOLUME: 3.476 m³", textos);
+        var prod = Assert.Single(r.Tabelas);
+        Assert.Equal("INFORMAÇÕES PARA PRODUÇÃO" + TabelaTemplate.Quebra + "(MANUFACTURING INFORMATION)", prod.Titulo);
+        Assert.Contains(prod.Linhas, l => l[0] == "VOLUME DE CONCRETO:" + TabelaTemplate.Quebra + "(CONCRETE VOLUME)" && l[1] == "3,476 m³");
+        Assert.Contains(prod.Linhas, l => l[0].StartsWith("PESO:") && l[1] == "8,691 ton.");
+        Assert.Contains(prod.Linhas, l => l[1] == "fcj = 30 MPa");
+        Assert.Contains(prod.Linhas, l => l[1] == "1 un.");
+        // só EN: ponto decimal; sem fcj de montagem: a linha some
+        var en = TemplatePilarPreMoldado.TabelaProducao(IdiomaDesenho.EN, 28, 0, 40, 1.209, 3.023, 1, 0, 0, 50);
+        Assert.Equal("MANUFACTURING INFORMATION", en.Titulo);
+        Assert.Equal(5, en.Linhas.Count);
+        Assert.Contains(en.Linhas, l => l[0] == "CONCRETE VOLUME:" && l[1] == "1.209 m³");
+        Assert.Equal(2.0 * 1 + 5 * 2.0, en.AlturaEmTextos(), 6);
         // chanfro de 2 cm tira 4 triângulos de 2x2/2
         Assert.Equal((2500 - 8) * 1390.5 / 1e6, TemplatePilarPreMoldado.Volume(50, 50, 1390.5, 2), 9);
     }

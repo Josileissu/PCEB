@@ -159,6 +159,19 @@ public sealed class TabelaTemplate
     public double X { get; set; }
     public double Y { get; set; }
     public double Escala { get; set; }
+    /// <summary>Largura de cada coluna em alturas de texto (vazio = 6 para todas).</summary>
+    public List<double> Larguras { get; } = new List<double>();
+    /// <summary>Alinhamento de cada coluna: 0 esquerda, 1 centro, 2 direita (vazio = centro). O título fica à esquerda se a 1ª coluna for.</summary>
+    public List<int> Alinhamentos { get; } = new List<int>();
+    /// <summary>Quebra de linha dentro da célula (o desenho troca por \P). Use em textos "PT" + Quebra + "(EN)".</summary>
+    public const string Quebra = "\n";
+
+    /// <summary>Altura da tabela em alturas de texto (para posicionar o que vem embaixo).</summary>
+    public double AlturaEmTextos() =>
+        new[] { new[] { Titulo } }.Concat(Linhas).Sum(l => AlturaLinha(l.Max(c => (c ?? "").Split('\n').Length)));
+
+    /// <summary>Altura de uma linha com n linhas de texto, em alturas de texto.</summary>
+    public static double AlturaLinha(int linhasDeTexto) => linhasDeTexto <= 1 ? 2.0 : 1.4 * linhasDeTexto + 0.4;
 }
 
 public sealed class ResultadoTemplate
