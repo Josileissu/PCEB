@@ -177,6 +177,12 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   linha;Descrição — ELE organiza; criado com o padrão de fábrica `PadroesLayers.Padrao()` se faltar, relido quando muda).
   `Desenho.GarantirLayer` aplica ao CRIAR (fora do arquivo: a cor dada, nunca amarela, e 0,00 mm — nunca a espessura
   "padrão"); ARMLAYERS aplica aos layers existentes do desenho [Abrir] abre o arquivo. Nunca sobrescreva o arquivo dele.
+- **Modelos dos templates** (pedido do usuário, 2026-10-30): `%AppData%/ArmaduraBR/Templates/<id>.csv` (CSV ";", uma linha por
+  modelo, coluna por campo; linha PADRÃO = valores com que a janela abre; números com vírgula para o Excel pt-BR; listas
+  entre aspas). Core `ArquivoModelos`; Cad `Infra/ModelosTemplates` (carregado ao abrir o CAD, relido quando muda). Todo
+  elemento desenhado pelo ARMTEMPLATE é salvo pelo Nome. Janela: Modelo, Salvar como padrão, Excluir, Importar, Exportar,
+  Abrir arquivo; comandos ARMTEMPLATEIMPORTAR/ARMTEMPLATEEXPORTAR. O autoteste importa nesse arquivo: o roteiro tem de
+  guardar e devolver a pasta Templates (como o config.json).
 - Progresso por etapas: `docs/PROGRESSO.md` (retomar por ele numa sessão nova).
 - **Normas** (2026-10-29): os PDFs ficam em `S:\Meu Drive\Normas` (Google Drive, lento). Índice local de texto por
   página em `info_auxiliar/indice_normas/normas.sqlite` (FTS5, sem acentos; fora do Git) + `CATALOGO.md`.

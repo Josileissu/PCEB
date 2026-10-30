@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using Armadura.Cad.Barra;
@@ -46,7 +47,102 @@ public sealed class ComandosTemplate
                             (resultado.Detalhamento.Length > 0 ? $" no detalhamento \"{resultado.Detalhamento}\"." : "."));
         }
         foreach (var a in resultado.Avisos) ed.WriteMessage("\nAviso: " + a);
+        // todo elemento desenhado fica salvo como modelo no arquivo do template (pelo nome; o mesmo nome é atualizado)
+        try
+        {
+            var arq = ModelosTemplates.Obter(f.Escolhido);
+            string nome = string.IsNullOrWhiteSpace(f.Valores["Nome"]) ? "SEM NOME" : f.Valores["Nome"].Trim();
+            arq.Salvar(nome, f.Valores, f.Escolhido.Parametros);
+            ModelosTemplates.Gravar(f.Escolhido, arq);
+            ed.WriteMessage($"\nModelo \"{nome}\" salvo em {ModelosTemplates.Caminho(f.Escolhido)}.");
+        }
+        catch (Exception ex)
+        {
+            Log.Erro("ARMTEMPLATE salvar modelo", ex);
+            ed.WriteMessage("\nNão foi possível salvar o modelo (o arquivo está aberto no Excel?): " + ex.Message);
+        }
     });
+
+    /// <summary>Importa um arquivo de modelos para o arquivo do template; devolve a mensagem para o usuário (null = cancelado).</summary>
+    internal static string Importar(ITemplateArmadura t, string caminho, bool perguntar)
+    {
+        var avisos = new List<string>();
+        var outro = ModelosTemplates.LerArquivo(caminho, t, avisos);
+        if (outro.TemplateId.Length > 0 && !outro.TemplateId.Equals(t.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            string m = $"O arquivo é do template \"{outro.TemplateId}\", não de \"{t.Id}\".";
+            if (!perguntar || MessageBox.Show(m + " Importar assim mesmo?", "Armadura", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                return perguntar ? null : m;
+        }
+        var arq = ModelosTemplates.Obter(t);
+        int n = arq.Importar(outro);
+        ModelosTemplates.Gravar(t, arq);
+        return $"{n} modelo(s) importado(s) de {Path.GetFileName(caminho)} para {t.Nome}; o PADRÃO do arquivo também passou a valer." +
+               (avisos.Count > 0 ? "\n" + string.Join("\n", avisos) : "");
+    }
+
+    /// <summary>Exporta o arquivo de modelos do template (cópia).</summary>
+    internal static string Exportar(ITemplateArmadura t, string caminho)
+    {
+        var arq = ModelosTemplates.Obter(t);
+        File.WriteAllText(caminho, arq.Escrever(t), new System.Text.UTF8Encoding(true));
+        return $"{arq.Modelos.Count} modelo(s) de {t.Nome} exportados para {caminho}.";
+    }
+
+    /// <summary>Caminho de arquivo: diálogo, ou digitado quando há script ativo (o autoteste não mexe no FILEDIA).</summary>
+    private static string PedirArquivo(Editor ed, bool salvar, string titulo, string sugestao)
+    {
+        bool script = false;
+        try { script = (Convert.ToInt32(CadApp.GetSystemVariable("CMDACTIVE")) & 4) != 0; } catch { }
+        if (!script)
+        {
+            using FileDialog d = salvar ? new SaveFileDialog { FileName = sugestao } : new OpenFileDialog();
+            d.Title = titulo;
+            d.Filter = "Modelos (*.csv)|*.csv|Todos os arquivos|*.*";
+            return d.ShowDialog() == DialogResult.OK ? d.FileName : null;
+        }
+        var r = ed.GetString(new PromptStringOptions("\nArquivo .csv:") { AllowSpaces = true });
+        return r.Status == PromptStatus.OK && r.StringResult.Trim().Length > 0 ? r.StringResult.Trim().Trim('"') : null;
+    }
+
+    /// <summary>Escolhe o template pela 1ª palavra do nome (Pilar, Base…).</summary>
+    private static ITemplateArmadura PedirTemplate(Editor ed)
+    {
+        var ts = CatalogoTemplates.Todos;
+        if (ts.Count == 1) return ts[0];
+        string Chave(ITemplateArmadura t) => new string(t.Nome.Split(' ')[0].Normalize(System.Text.NormalizationForm.FormD)
+            .Where(ch => char.IsLetterOrDigit(ch)).ToArray());
+        var po = new PromptKeywordOptions("\nTemplate") { AppendKeywordsToMessage = true };
+        foreach (var t in ts) po.Keywords.Add(Chave(t));
+        po.Keywords.Default = Chave(ts.FirstOrDefault(t => t.Id == "pilar-premoldado") ?? ts[0]);
+        po.AllowNone = true;
+        var r = ed.GetKeywords(po);
+        if (r.Status != PromptStatus.OK && r.Status != PromptStatus.None) return null;
+        string k = r.Status == PromptStatus.None ? po.Keywords.Default : r.StringResult;
+        return ts.FirstOrDefault(t => Chave(t) == k);
+    }
+
+    /// <summary>ARMTEMPLATEIMPORTAR: traz os modelos de um arquivo (de outro computador, de um colega…) para o arquivo do template.</summary>
+    [Rt.CommandMethod("ARMTEMPLATEIMPORTAR")]
+    public void ArmTemplateImportar() => Comandos.Executar("ARMTEMPLATEIMPORTAR", (doc, ed, db, cfg) =>
+    {
+        var caminho = PedirArquivo(ed, false, "Importar modelos de template", "");
+        if (caminho == null) return;
+        var t = ModelosTemplates.TemplateDoArquivo(caminho) ?? PedirTemplate(ed);
+        if (t == null) return;
+        ed.WriteMessage("\n" + Importar(t, caminho, perguntar: false) + "\n");
+    }, suspender: false);
+
+    /// <summary>ARMTEMPLATEEXPORTAR: salva uma cópia do arquivo de modelos de um template.</summary>
+    [Rt.CommandMethod("ARMTEMPLATEEXPORTAR")]
+    public void ArmTemplateExportar() => Comandos.Executar("ARMTEMPLATEEXPORTAR", (doc, ed, db, cfg) =>
+    {
+        var t = PedirTemplate(ed);
+        if (t == null) return;
+        var caminho = PedirArquivo(ed, true, "Exportar modelos — " + t.Nome, t.Id + ".csv");
+        if (caminho == null) return;
+        ed.WriteMessage("\n" + Exportar(t, caminho) + "\n");
+    }, suspender: false);
 
     /// <summary>ARMCONSOLOS: catálogo de consolos padrão do escritório (usado pelo template do pilar pré-moldado).</summary>
     [Rt.CommandMethod("ARMCONSOLOS")]
@@ -312,16 +408,31 @@ internal sealed class FormTemplate : Form
 {
     public ITemplateArmadura Escolhido { get; private set; }
     public ValoresTemplate Valores { get; private set; }
+    /// <summary>Modelos do arquivo do template (PADRÃO + elementos salvos).</summary>
+    public ComboBox Modelos { get; }
+    private readonly TreeView _lista;
+
+    /// <summary>Autoteste: escolhe o template pela id (como um clique na lista).</summary>
+    internal void Selecionar(string id) =>
+        _lista.SelectedNode = _lista.Nodes.Cast<TreeNode>().SelectMany(n => n.Nodes.Cast<TreeNode>())
+            .FirstOrDefault(n => (n.Tag as ITemplateArmadura)?.Id == id);
+
+    private void Tentar(Action a)
+    {
+        try { a(); }
+        catch (Exception ex) { Log.Erro("ARMTEMPLATE modelos", ex); MessageBox.Show(ex.Message, "Armadura", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
 
     public FormTemplate()
     {
         Text = "Armadura — templates de elementos";
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(720, 520);
+        Size = new Size(840, 600);
         ShowInTaskbar = false;
         MinimizeBox = false;
 
         var lista = new TreeView { Dock = DockStyle.Left, Width = 240, HideSelection = false };
+        _lista = lista;
         foreach (var (cat, nome, _) in CatalogoTemplates.Categorias)
         {
             var no = lista.Nodes.Add(nome);
@@ -339,14 +450,90 @@ internal sealed class FormTemplate : Form
         botoes.Controls.Add(ok);
         CancelButton = cancelar;
 
+        // modelos salvos (arquivo do template): escolher, salvar como padrão, excluir, importar, exportar, abrir
+        var barra = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 66, Padding = new Padding(4), Enabled = false };
+        barra.Controls.Add(new Label { Text = "Modelo:", AutoSize = true, Margin = new Padding(3, 8, 3, 3) });
+        Modelos = new ComboBox { Width = 230, DropDownStyle = ComboBoxStyle.DropDownList };
+        barra.Controls.Add(Modelos);
+        Button B(string t, string dica) { var b = new Button { Text = t, AutoSize = true, Height = 26 }; new ToolTip().SetToolTip(b, dica); barra.Controls.Add(b); return b; }
+        var salvarPadrao = B("Salvar como padrão", "Os valores atuais passam a ser a linha PADRÃO (com que a janela abre).");
+        var excluir = B("Excluir modelo", "Tira o modelo escolhido do arquivo.");
+        var importar = B("Importar…", "Traz os modelos (e o PADRÃO) de outro arquivo; modelos de mesmo nome são substituídos.");
+        var exportar = B("Exportar…", "Salva uma cópia do arquivo de modelos deste template.");
+        var abrir = B("Abrir arquivo", "Abre o arquivo de modelos no Excel/Bloco de Notas.");
+
+        void Mostrar(string modelo)
+        {
+            Valores = ModelosTemplates.Obter(Escolhido).Valores(Escolhido, modelo);
+            grid.SelectedObject = new ParametrosEditaveis(Escolhido, Valores);
+        }
+        void Recarregar(string selecionar = null)
+        {
+            var arq = ModelosTemplates.Obter(Escolhido);
+            Modelos.Items.Clear();
+            Modelos.Items.Add(ArquivoModelos.NomePadrao);
+            foreach (var m in arq.Modelos.OrderBy(m => m.Nome, StringComparer.CurrentCultureIgnoreCase)) Modelos.Items.Add(m.Nome);
+            int i = selecionar == null ? 0 : Modelos.Items.IndexOf(Modelos.Items.Cast<string>().FirstOrDefault(x => x.Equals(selecionar, StringComparison.OrdinalIgnoreCase)) ?? "");
+            Modelos.SelectedIndex = Math.Max(0, i); // dispara Mostrar
+        }
+        Modelos.SelectedIndexChanged += (s, e) =>
+        {
+            if (Escolhido == null) return;
+            var nome = Modelos.SelectedItem as string;
+            Mostrar(nome == ArquivoModelos.NomePadrao ? null : nome);
+            excluir.Enabled = nome != ArquivoModelos.NomePadrao;
+        };
+        salvarPadrao.Click += (s, e) => Tentar(() =>
+        {
+            var arq = ModelosTemplates.Obter(Escolhido);
+            arq.Salvar(ArquivoModelos.NomePadrao, Valores, Escolhido.Parametros);
+            ModelosTemplates.Gravar(Escolhido, arq);
+            MessageBox.Show("Valores salvos como PADRÃO deste template.", "Armadura");
+        });
+        excluir.Click += (s, e) => Tentar(() =>
+        {
+            var nome = Modelos.SelectedItem as string;
+            if (nome == null || nome == ArquivoModelos.NomePadrao) return;
+            if (MessageBox.Show($"Excluir o modelo \"{nome}\" do arquivo?", "Armadura", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            var arq = ModelosTemplates.Obter(Escolhido);
+            arq.Excluir(nome);
+            ModelosTemplates.Gravar(Escolhido, arq);
+            Recarregar();
+        });
+        importar.Click += (s, e) => Tentar(() =>
+        {
+            using var d = new OpenFileDialog { Title = "Importar modelos — " + Escolhido.Nome, Filter = "Modelos (*.csv)|*.csv|Todos os arquivos|*.*" };
+            if (d.ShowDialog(this) != DialogResult.OK) return;
+            var msg = ComandosTemplate.Importar(Escolhido, d.FileName, perguntar: true);
+            if (msg != null) { MessageBox.Show(msg, "Armadura"); Recarregar(); }
+        });
+        exportar.Click += (s, e) => Tentar(() =>
+        {
+            using var d = new SaveFileDialog { Title = "Exportar modelos — " + Escolhido.Nome, Filter = "Modelos (*.csv)|*.csv", FileName = Escolhido.Id + ".csv" };
+            if (d.ShowDialog(this) != DialogResult.OK) return;
+            MessageBox.Show(ComandosTemplate.Exportar(Escolhido, d.FileName), "Armadura");
+        });
+        abrir.Click += (s, e) => Tentar(() =>
+        {
+            ModelosTemplates.Obter(Escolhido);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ModelosTemplates.Caminho(Escolhido)) { UseShellExecute = true });
+        });
+
         lista.AfterSelect += (s, e) =>
         {
             Escolhido = e.Node.Tag as ITemplateArmadura;
-            ok.Enabled = Escolhido != null;
-            if (Escolhido == null) { grid.SelectedObject = null; desc.Text = "Escolha um template à esquerda."; return; }
-            Valores = new ValoresTemplate(Escolhido.Parametros);
-            grid.SelectedObject = new ParametrosEditaveis(Escolhido, Valores);
+            ok.Enabled = barra.Enabled = Escolhido != null;
+            if (Escolhido == null) { grid.SelectedObject = null; Modelos.Items.Clear(); desc.Text = "Escolha um template à esquerda."; return; }
             desc.Text = Escolhido.Descricao;
+            try { Recarregar(); }
+            catch (Exception ex)
+            {
+                // arquivo de modelos com problema: abre com o padrão do plugin
+                Log.Erro("Modelos do template", ex);
+                Valores = new ValoresTemplate(Escolhido.Parametros);
+                grid.SelectedObject = new ParametrosEditaveis(Escolhido, Valores);
+                MessageBox.Show("Não foi possível ler o arquivo de modelos: " + ex.Message, "Armadura", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         };
         ok.Click += (s, e) =>
         {
@@ -358,6 +545,7 @@ internal sealed class FormTemplate : Form
 
         var direita = new Panel { Dock = DockStyle.Fill };
         direita.Controls.Add(grid);
+        direita.Controls.Add(barra);
         direita.Controls.Add(desc);
         Controls.Add(direita);
         Controls.Add(lista);

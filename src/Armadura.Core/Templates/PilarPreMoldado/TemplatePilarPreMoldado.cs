@@ -31,7 +31,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     public string Nome => "Pilar pré-moldado (PP-1)";
     public CategoriaElemento Categoria => CategoriaElemento.PilarPreMoldado;
     public string Descricao => "Pilar retangular pré-moldado no padrão do escritório: 4 vistas com níveis e cotas, embutimento " +
-                               "com chaves, corte A-A, notas e informações para produção. (Armaduras, consolos e içamento: próximas etapas.)";
+                               "com chaves, corte A-A, armaduras (listas), consolos e insertos do catálogo, içamento, detalhes padrão, notas e produção.";
 
     public const string Chaves = "Chaves de cisalhamento", Rugosa = "Rugosa", Lisa = "Lisa";
 
