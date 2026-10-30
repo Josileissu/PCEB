@@ -301,7 +301,7 @@ public sealed partial class TemplatePilarPreMoldado
                 r.Barras.Add(new BarraTemplate
                 {
                     Nome = nome, Vertices = { (x, y0 + s * perna), (x, y0), (x + w, y0), (x + w, y0 + s * perna) },
-                    Bitola = phiU, Aco = aco, Quantidade = qtd, Escala = c.escV,
+                    Bitola = phiU, Aco = aco, Quantidade = qtd, Escala = c.escV, Layer = "ARM-BARRA-2", // azul, como no P56
                     PosicaoDescricao = (x - 2.5 * hv, y0 + s * perna / 2), RotacaoDescricao = Math.PI / 2,
                 });
                 us.Add(new GrampoU { Nome = nome, Topo = topo, Dir = dir, W = w, Phi = phiU, Qtd = qtd,
@@ -369,11 +369,8 @@ public sealed partial class TemplatePilarPreMoldado
         {
             // marcas na elevação das armaduras (todos os trechos com esta composição)
             foreach (double yc in corte.Marcas)
-                foreach (double xm in new[] { x0 - 3 * hv, xFx + 9 * hv })
-                {
-                    c.Linha(xm, yc, xm + 2 * hv, yc, "ARM-CORTE");
-                    c.Texto(corte.Id, xm + hv, yc + 0.5 * hv, hv, 1, 0, "ARM-CORTE");
-                }
+                foreach (double xm in new[] { x0 - 2 * hv, xFx + 10 * hv })
+                    c.MarcaCorte(corte.Id, xm, yc, hv);
             string id = corte.Id;
             // título
             double yt = yS;
@@ -554,9 +551,10 @@ public sealed partial class TemplatePilarPreMoldado
                 (double X, double Y) pa, pb;
                 if (u.Dir == 0) { double y = sy0 + h / 2 + desl; pa = (xm - u.W / 2, y); pb = (xm + u.W / 2, y); }
                 else { double xx = xm + desl; pa = (xx, sy0 + h / 2 + u.W / 2); pb = (xx, sy0 + h / 2 - u.W / 2); }
-                c.Linha(pa.X, pa.Y, pb.X, pb.Y, "ARM-ESTRIBO-SECAO");
-                r.Circulos.Add(new CirculoTemplate { X = pa.X, Y = pa.Y, Raio = ru, Layer = "ARM-BARRA-SECAO" });
-                r.Circulos.Add(new CirculoTemplate { X = pb.X, Y = pb.Y, Raio = ru, Layer = "ARM-BARRA-SECAO" });
+                // U em azul (layer das barras complementares), como no P56
+                c.Linha(pa.X, pa.Y, pb.X, pb.Y, "ARM-BARRA-2");
+                r.Circulos.Add(new CirculoTemplate { X = pa.X, Y = pa.Y, Raio = ru, Layer = "ARM-BARRA-2" });
+                r.Circulos.Add(new CirculoTemplate { X = pb.X, Y = pb.Y, Raio = ru, Layer = "ARM-BARRA-2" });
                 pernas.Add(pa);
             }
             if (u.Dir == 0) laterais.Add((pernas.Average(p => p.Y), pernas, u.Nome, true));

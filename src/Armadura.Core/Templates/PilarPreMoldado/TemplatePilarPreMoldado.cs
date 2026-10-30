@@ -200,6 +200,17 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 
         public void Cota(double x1, double y1, double x2, double y2, double px, double py, double angulo, double escala, string texto = "") =>
             R.Cotas.Add(new CotaTemplate { P1 = (x1, y1), P2 = (x2, y2), Posicao = (px, py), Angulo = angulo, Escala = escala, Texto = texto });
+
+        /// <summary>
+        /// Marca de corte do escritório (P56): triângulo vazado apontando para baixo, com a ponta pouco acima da altura do corte,
+        /// e a letra/número em cima. <paramref name="h"/> = altura de texto da escala.
+        /// </summary>
+        public void MarcaCorte(string id, double x, double y, double h)
+        {
+            double w = 1.05 * h, topo = y + 1.0 * h, ponta = y + 0.47 * h;
+            R.Contornos.Add(new ContornoTemplate { Vertices = { (x - w, topo), (x + w, topo), (x, ponta) }, Fechado = true, Layer = "ARM-CORTE" });
+            Texto(id, x, topo + 0.35 * h, h, 1, 0, "ARM-CORTE");
+        }
     }
 
     public ResultadoTemplate Gerar(ValoresTemplate v, ConfiguracaoArmadura cfg)
@@ -228,6 +239,17 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 
         // título do pilar
         c.Texto(nome, 0, L + 22 * hv, 3 * hv);
+        // nota dos insertos no alto, sublinhada, entre os títulos das vistas e o topo (como no P56)
+        {
+            double yNota = L + 7.5 * hv, hNota = 0.95 * hv;
+            foreach (var t in c.Linhas("OS INSERTOS METÁLICOS SÃO DE RESPONSABILIDADE DA FORNECEDORA. TODOS OS CRITÉRIOS NORMATIVOS DEVEM SER ASSEGURADOS PELA FORNECEDORA.",
+                                       "STEEL INSERTS ARE THE SUPPLIER'S RESPONSIBILITY. ALL CODE REQUIREMENTS SHALL BE ENSURED BY THE SUPPLIER."))
+            {
+                c.Texto(t, 0, yNota, hNota);
+                c.Linha(0, yNota - 0.3 * hNota, 0.68 * hNota * t.Length, yNota - 0.3 * hNota, "ARM-TEXTO-FORMA");
+                yNota -= 1.8 * hNota;
+            }
+        }
 
         for (int i = 0; i < 4; i++)
         {
@@ -237,7 +259,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             if (ch > 0) { c.Linha(x0 + ch, 0, x0 + ch, L); c.Linha(x1 - ch, 0, x1 - ch, L); }
             // título: VISTA n / (VIEW n) / Esc. 1:50
             double y = L + 16 * hv;
-            foreach (var t in c.Linhas($"VISTA {i + 1}", $"VIEW {i + 1}")) { c.Texto(t, xm, y, 1.2 * hv, 1); y -= 1.7 * hv; }
+            foreach (var t in c.Linhas($"VISTA {i + 1}", $"VIEW {i + 1}")) { c.Texto(t, xm, y, 1.5 * hv, 1); y -= 1.9 * hv; }
             c.Texto($"Esc. 1:{escV:0}", xm, y, 0.7 * hv, 1);
         }
 
@@ -249,17 +271,6 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         var itens = DesenharItensNasVistas(c, v, consolos, xs, larguras, b, h, L, ch);
         var insertos = LerInsertos(v, CatalogoInsertos, L, r.Avisos);
         DesenharInsertosNasVistas(c, insertos, xs, larguras, L);
-        foreach (var co in consolos)
-        {
-            double yc = co.ZTopo - co.H / 2;
-            double extE = co.Faces.Contains(FaceEsquerda(2)) ? co.A : 0, extD = co.Faces.Contains(FaceDireita(2)) ? co.A : 0;
-            // além das cotas do consolo (altura a 2 alturas de texto da ponta)
-            foreach (var (xa, xb) in new[] { (xs[1] - extE - 7 * hv, xs[1] - extE - 5 * hv), (xs[1] + larguras[1] + extD + 5 * hv, xs[1] + larguras[1] + extD + 7 * hv) })
-            {
-                c.Linha(xa, yc, xb, yc, "ARM-CORTE");
-                c.Texto(co.Letra, (xa + xb) / 2, yc + 0.5 * hv, hv, 1, 0, "ARM-CORTE");
-            }
-        }
 
         // ---------------- embutimento (base) ----------------
         double lemb = Math.Max(0, Math.Min(v.Numero("Lemb"), L));
@@ -273,8 +284,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
                 for (int i = 0; i < 4; i++)
                     for (double y = 0; y + passo <= lemb + 1e-6; y += passo)
                     {
-                        // arestas do rebaixo (perfil do detalhe 01: trecho de passo − dente que vai à face, rebaixo de "dente")
-                        c.Linha(xs[i], y + passo - dente, xs[i] + larguras[i], y + passo - dente);
+                        // arestas dos chanfros (perfil do detalhe 01: retos de "dente" e chanfros de passo − dente)
+                        c.Linha(xs[i], y + dente, xs[i] + larguras[i], y + dente);
                         c.Linha(xs[i], y + passo, xs[i] + larguras[i], y + passo);
                     }
             }
@@ -335,12 +346,21 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         };
         c.Cota(xVista0, 0, xVista0, L, xTotal, L / 2, Math.PI / 2, escV, total);
 
-        // marcas do corte A-A na VISTA 2, perto do topo
+        // cotas dos consolos (base → topo do consolo; altura e distância ao nível acima), como no P56
+        var xCotas = CotasConsolosNasVistas(c, consolos, xs, larguras, ysNiveis, L);
+
+        // marcas dos cortes de forma na VISTA 2: A-A perto do topo e uma por nível de consolo (triângulos, como no P56)
         double yA = L - Math.Min(20, L / 10);
-        foreach (var (xa, xb) in new[] { (xs[1] - 3 * hv, xs[1] - 1 * hv), (xs[1] + larguras[1] + 1 * hv, xs[1] + larguras[1] + 3 * hv) })
+        double xMarcaE = xs[1] - 2.5 * hv, xMarcaD = Math.Max(xs[1] + larguras[1], xCotas[1]) + 2.5 * hv;
+        foreach (var co in consolos)
         {
-            c.Linha(xa, yA, xb, yA, "ARM-CORTE");
-            c.Texto("A", (xa + xb) / 2, yA + 0.5 * hv, hv, 1, 0, "ARM-CORTE");
+            xMarcaE = Math.Min(xMarcaE, xs[1] - (co.Faces.Contains(FaceEsquerda(2)) ? co.A : 0) - 2.5 * hv);
+            xMarcaD = Math.Max(xMarcaD, xs[1] + larguras[1] + (co.Faces.Contains(FaceDireita(2)) ? co.A : 0) + 2.5 * hv);
+        }
+        foreach (var xm in new[] { xMarcaE, xMarcaD })
+        {
+            c.MarcaCorte("A", xm, yA, hv);
+            foreach (var co in consolos) c.MarcaCorte(co.Letra, xm, co.ZTopo - co.H / 2, hv);
         }
 
         // ---------------- coluna da direita: corte A-A, notas, produção ----------------
@@ -356,7 +376,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         yCur -= 6 * hc;
         // seção (verdadeira grandeza), com os nomes das vistas em volta
         double sx0 = xD + 6 * hc, sy1 = yCur, sx1 = sx0 + b, sy0 = sy1 - h;
-        var secao = new ContornoTemplate { Fechado = true, Layer = "ARM-FORMA" };
+        var secao = new ContornoTemplate { Fechado = true, Layer = "ARM-PILAR-SECAO" }; // pilar cortado (magenta no P56)
         if (ch > 0)
             secao.Vertices.AddRange(new[] { (sx0 + ch, sy0), (sx1 - ch, sy0), (sx1, sy0 + ch), (sx1, sy1 - ch), (sx1 - ch, sy1), (sx0 + ch, sy1), (sx0, sy1 - ch), (sx0, sy0 + ch) });
         else
@@ -364,10 +384,11 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         r.Contornos.Add(secao);
         bool insertoTopo = InsertoNoCorte(c, insertos, sx0, sy0, b, h);
         double smx = (sx0 + sx1) / 2, smy = (sy0 + sy1) / 2;
-        RotuloVista(c, 4, smx, sy1 + (insertoTopo ? 5 : 1.5) * hc, 0); // em cima (acima das cotas do gabarito)
-        RotuloVista(c, 2, smx, sy0 - 7 * hc, 0);                           // embaixo (abaixo da cota)
-        RotuloVista(c, 3, sx0 - 1.5 * hc, smy, Math.PI / 2);               // esquerda
-        RotuloVista(c, 1, sx1 + 7 * hc, smy, Math.PI / 2);                 // direita (depois da cota)
+        // nomes das vistas com o triângulo apontando para o corte (a posição é a ponta do triângulo), além das cotas
+        RotuloVista(c, 4, smx, sy1 + (insertoTopo ? 4 : 1) * hc);
+        RotuloVista(c, 2, smx, sy0 - 5 * hc);
+        RotuloVista(c, 3, sx0 - (insertoTopo ? 4 : 1) * hc, smy);
+        RotuloVista(c, 1, sx1 + 5 * hc, smy);
         c.Cota(sx0, sy0, sx1, sy0, smx, sy0 - 3 * hc, 0, escC);
         c.Cota(sx1, sy0, sx1, sy1, sx1 + 3 * hc, smy, Math.PI / 2, escC);
         yCur = sy0 - 14 * hc;
@@ -404,8 +425,6 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             "2) " + cobPt,
             $"3) TOLERÂNCIAS DE FABRICAÇÃO (NBR 9062, TAB. 2): COMPRIMENTO ±{tol} mm; SEÇÃO -5/+10 mm;",
             "    DISTORÇÃO ±5 mm; LINEARIDADE ±L/1000; POSIÇÃO DOS INSERTOS ±15 mm;",
-            "4) OS INSERTOS METÁLICOS SÃO DE RESPONSABILIDADE DA FORNECEDORA. TODOS OS CRITÉRIOS",
-            "    NORMATIVOS DEVEM SER ASSEGURADOS PELA FORNECEDORA.",
         };
         var notasEn = new[]
         {
@@ -414,8 +433,6 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             "2) " + FormattableString.Invariant($"CONCRETE COVER: FACE 1 = {cob[0]:0.0#}; FACE 2 = {cob[1]:0.0#}; FACE 3 = {cob[2]:0.0#}; FACE 4 = {cob[3]:0.0#}; TOP = {cob[4]:0.0#}; BASE = {cob[5]:0.0#} cm;"),
             $"3) MANUFACTURING TOLERANCES (NBR 9062, TABLE 2): LENGTH ±{tol} mm; SECTION -5/+10 mm;",
             "    DISTORTION ±5 mm; STRAIGHTNESS ±L/1000; POSITION OF INSERTS ±15 mm;",
-            "4) STEEL INSERTS ARE THE SUPPLIER'S RESPONSIBILITY. ALL CODE REQUIREMENTS",
-            "    SHALL BE ENSURED BY THE SUPPLIER.",
         };
         if (c.Idioma != IdiomaDesenho.EN) yCur = c.Bloco(notasPt, xD, yCur, hn) - hn;
         if (c.Idioma != IdiomaDesenho.PT) yCur = c.Bloco(notasEn, xD, yCur, hn) - hn;
@@ -465,23 +482,41 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         return t;
     }
 
-    private static void R_Triangulo(Ctx c, double x, double y, double lado) =>
-        c.R.Contornos.Add(new ContornoTemplate
-        {
-            Vertices = { (x, y), (x - lado / 2, y + lado * 0.87), (x + lado / 2, y + lado * 0.87) }, Fechado = true, Layer = "ARM-NIVEL",
-        });
+    private static void R_Triangulo(Ctx c, double x, double y, double lado)
+    {
+        var tri = new List<(double X, double Y)> { (x, y), (x - lado / 2, y + lado * 0.87), (x + lado / 2, y + lado * 0.87) };
+        // contorno e preenchimento no layer das cotas (o do nível é traço-ponto)
+        c.R.Contornos.Add(new ContornoTemplate { Vertices = tri, Fechado = true, Layer = "ARM-COTA-FORMA" });
+        c.R.Hachuras.Add(new HachuraTemplate { Vertices = tri, Padrao = "SOLID", Layer = "ARM-COTA-FORMA" });
+    }
 
-    /// <summary>"VISTA n" (e "(VIEW n)") em volta do corte; angulo π/2 = texto na vertical.</summary>
-    private static void RotuloVista(Ctx c, int n, double x, double y, double angulo)
+    /// <summary>
+    /// "VISTA n" (e "(VIEW n)") em volta do corte, com o triângulo vazado apontando para o corte, como no P56: 4 em cima,
+    /// 2 embaixo, 3 à esquerda e 1 à direita (vertical). (x, y) é a ponta do triângulo; o texto fica além dele.
+    /// </summary>
+    private static void RotuloVista(Ctx c, int n, double x, double y)
     {
         var linhas = c.Linhas($"VISTA {n}", $"VIEW {n}");
-        double h = 0.9 * c.hC;
-        for (int i = 0; i < linhas.Length; i++)
+        double h = 0.9 * c.hC, tri = 0.6 * h, larg = 0.6 * h, d = 1.3 * h;
+        (double, double) P(double a, double b) => (a, b);
+        switch (n)
         {
-            // na vertical as linhas se afastam em x; na horizontal, em y
-            double d = i * 1.3 * h;
-            if (angulo == 0) c.Texto(linhas[i], x, y - d, h, 1);
-            else c.Texto(linhas[i], x + d, y, h, 1, angulo);
+            case 4: // em cima: triângulo para baixo; a última linha logo acima dele
+                c.R.Contornos.Add(new ContornoTemplate { Vertices = { P(x - larg, y + tri), P(x + larg, y + tri), P(x, y) }, Fechado = true, Layer = "ARM-COTA-FORMA" });
+                for (int i = 0; i < linhas.Length; i++) c.Texto(linhas[i], x, y + tri + 0.4 * h + (linhas.Length - 1 - i) * d, h, 1);
+                break;
+            case 2: // embaixo: triângulo para cima
+                c.R.Contornos.Add(new ContornoTemplate { Vertices = { P(x - larg, y - tri), P(x + larg, y - tri), P(x, y) }, Fechado = true, Layer = "ARM-COTA-FORMA" });
+                for (int i = 0; i < linhas.Length; i++) c.Texto(linhas[i], x, y - tri - 0.4 * h - h - i * d, h, 1);
+                break;
+            case 3: // à esquerda: triângulo para a direita; texto vertical (o corpo das letras fica à esquerda da linha base)
+                c.R.Contornos.Add(new ContornoTemplate { Vertices = { P(x - tri, y - larg), P(x - tri, y + larg), P(x, y) }, Fechado = true, Layer = "ARM-COTA-FORMA" });
+                for (int i = 0; i < linhas.Length; i++) c.Texto(linhas[i], x - tri - 0.4 * h - (linhas.Length - 1 - i) * d, y, h, 1, Math.PI / 2);
+                break;
+            default: // à direita: triângulo para a esquerda
+                c.R.Contornos.Add(new ContornoTemplate { Vertices = { P(x + tri, y - larg), P(x + tri, y + larg), P(x, y) }, Fechado = true, Layer = "ARM-COTA-FORMA" });
+                for (int i = 0; i < linhas.Length; i++) c.Texto(linhas[i], x + tri + 0.4 * h + h + i * d, y, h, 1, Math.PI / 2);
+                break;
         }
     }
 }

@@ -1460,7 +1460,7 @@ public sealed class AutoTeste
             if (sec1 != null)
                 _zoomBases.Add(("pilar_p61_secoes", FormattableString.Invariant(
                     $"{origem.X + sec1.X - 20:0},{origem.Y + sec1.Y - 520:0} {origem.X + sec1.X + 260:0},{origem.Y + sec1.Y + 30:0}")));
-            var detCons = r.Textos.FirstOrDefault(x => x.Texto.StartsWith("ARMADURAS CONSOLO"));
+            var detCons = r.Textos.FirstOrDefault(x => x.Texto.StartsWith("ARMADURAS console"));
             if (detCons != null)
                 _zoomBases.Add(("pilar_p61_consolo", FormattableString.Invariant(
                     $"{origem.X + detCons.X - 20:0},{origem.Y + detCons.Y - 420:0} {origem.X + detCons.X + 760:0},{origem.Y + detCons.Y + 30:0}")));
@@ -1599,8 +1599,12 @@ public sealed class AutoTeste
             v["Nome"] = "P62 REDUCAO";
             v["Longitudinais"] = "Cantos||25|1||;Ao lado dos cantos||20|1||;Faces 2 e 4|2|20|1||700;Faces 2 e 4|1|16|2|600|";
             v["ZonasEstribos"] = "Topo|Topo|0|100|8|5|Sim;Consolo|Base|540|620|10|5|Sim;Base|Base|0|260|8|10|Sim";
+            v["Insertos"] = "25CB660|Topo|0|0;CHAPA 20x20|Face 4|300|0;CHAPA 20x20|Face 4|800|0;CHAPA 20x20|Face 4|1100|0";
             var r = t.Gerar(v, cfg);
             var origem = new Point3d(80000, -70000, 0);
+            // VISTA 4 com as chapas na face (cotas da base em escada) e o topo com o nome do inserto
+            _zoomBases.Add(("pilar_reducao_vista4", FormattableString.Invariant(
+                $"{origem.X - 60:0},{origem.Y + 200:0} {origem.X + 1250:0},{origem.Y + 1560:0}")));
             using (Sincronizador.Suspender(doc))
             using (var tr = db.TransactionManager.StartTransaction())
             {

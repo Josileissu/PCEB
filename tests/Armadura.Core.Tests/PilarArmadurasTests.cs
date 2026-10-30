@@ -101,7 +101,8 @@ public class PilarArmadurasTests
         Assert.Contains(r.Faixas, f => f.Tipo == TipoFaixa.Indicacao && f.Barra.StartsWith("Utopo"));
         Assert.True(r.Faixas.Count(f => f.Tipo == TipoFaixa.Indicacao && f.Barra.StartsWith("long")) >= 6);
         // 12 barras × 3 seções + pernas dos U (topo e base) + as 3 do detalhe "espaçamento das barras" no canto
-        Assert.Equal(12 * 3 + 2 * 3 * 2 * 2 + 3, r.Circulos.Count(cc => cc.Layer == "ARM-BARRA-SECAO"));
+        Assert.Equal(12 * 3 + 3, r.Circulos.Count(cc => cc.Layer == "ARM-BARRA-SECAO"));
+        Assert.Equal(2 * 3 * 2 * 2, r.Circulos.Count(cc => cc.Layer == "ARM-BARRA-2")); // pernas dos U, em azul como no P56
         Assert.NotNull(r.PosicaoRA);
         // estribo com ganchos de 90° (passagem pelo canto)
         var est = r.Barras.First(b => b.Nome.StartsWith("estribo"));

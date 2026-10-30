@@ -27,8 +27,9 @@ def linha(pts, cor, lw=0.5):
         ax.plot([p[0] for p in pts], [p[1] for p in pts], color=cor, lw=lw)
 
 
-for c in dados["contornos"]:
-    linha(c, "#bbbbbb")
+cores = {"ARM-PILAR-SECAO": "#ff40ff", "ARM-CHAVE": "#ff4040", "ARM-BARRA-DETALHE": "#ff4040", "ARM-BARRA-2": "#4080ff", "ARM-PINO": "#ff4040"}
+for c, l in zip(dados["contornos"], dados.get("layers", [""] * len(dados["contornos"]))):
+    linha(c, cores.get(l, "#bbbbbb"))
 for b in dados["barras"]:
     linha(b, "#ff4040", 0.8)
 for x, y, r in dados["circulos"]:
@@ -58,6 +59,10 @@ if dados.get("ra"):
     ax.add_patch(Polygon([(x, y), (x + 250, y), (x + 250, y - 600), (x, y - 600)], closed=True, fill=False, color="magenta", lw=0.6, ls="--"))
 ax.set_aspect("equal")
 ax.autoscale()
+if len(sys.argv) >= 7:  # recorte opcional: x0 y0 x1 y1
+    x0, y0, x1, y1 = map(float, sys.argv[3:7])
+    ax.set_xlim(x0, x1)
+    ax.set_ylim(y0, y1)
 ax.tick_params(colors="gray")
 plt.savefig(sys.argv[2], bbox_inches="tight", facecolor="black")
 xs = [p[0] for c in dados["contornos"] for p in c] + [t["x"] for t in dados["textos"]]

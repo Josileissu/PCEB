@@ -136,7 +136,7 @@ public class PilarConsolosTests
         Assert.Equal(2, r.Hachuras.Count(hc => hc.Layer == "ARM-HACHURA")); // corte B-B (o detalhe típico tem as suas)
         Assert.Contains(r.Textos, t => t.Texto == "CORTE B-B");
         Assert.Equal(2, r.Textos.Count(t => t.Texto == "B" && t.Layer == "ARM-CORTE"));
-        Assert.Contains(r.Textos, t => t.Texto == "ARMADURAS CONSOLO CD 40x23,5x25 (40x23,5x25) - DUPLO");
+        Assert.Contains(r.Textos, t => t.Texto == "ARMADURAS console 40x23.5x25 - 2un.");
         Assert.Contains(r.Textos, t => t.Texto.StartsWith("NEOPRENE 15x30x15 mm"));
         Assert.Contains(r.Faixas, f => f.Tipo == TipoFaixa.Indicacao && f.Barra == "cons1tir");
         Assert.DoesNotContain(r.Avisos, a => a.StartsWith("Consolo"));
@@ -146,7 +146,7 @@ public class PilarConsolosTests
     public void MesmoTipoEmDoisNiveisUmDetalheSo()
     {
         var r = Gerar(("Consolos", "CD 40x23,5x25|1,3|592.5|0;CD 40x23,5x25|2,4|1000|0"));
-        Assert.Single(r.Textos, t => t.Texto.StartsWith("ARMADURAS CONSOLO CD"));
+        Assert.Single(r.Textos, t => t.Texto.StartsWith("ARMADURAS console 40x23.5x25"));
         Assert.Equal(10, r.Barras.Single(b => b.Nome == "cons1tir").Quantidade); // 5 por par × 2 pares
         Assert.Contains(r.Textos, t => t.Texto == "CORTE C-C");
     }
@@ -161,7 +161,7 @@ public class PilarConsolosTests
             Assert.Contains(r.Barras, b => b.Nome == "cons1laco" && b.Bulges.Contains(1.0));
             Assert.DoesNotContain(r.Barras, b => b.Nome == "cons1tr");
             Assert.Contains(r.Textos, t => t.Texto == "CORTE C-C");
-            Assert.Contains(r.Textos, t => t.Texto.StartsWith("ARMADURAS CONSOLO TESTE laço (40x23,5/15x25)"));
+            Assert.Contains(r.Textos, t => t.Texto.StartsWith("ARMADURAS console 40x23.5/15x25"));
             var tirs = r.Barras.Single(b => b.Nome == "cons2tirs");
             Assert.Contains(FormatoSegmento.Gancho90, tirs.Formatos);
         });

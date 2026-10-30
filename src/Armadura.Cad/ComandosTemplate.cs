@@ -275,6 +275,7 @@ public sealed class ComandosTemplate
                 });
             }
             ServicoBarra.Criar(tr, pl, d, cfg);
+            if (!string.IsNullOrEmpty(b.Layer)) pl.LayerId = Layer(b.Layer, 5);
             if (b.PosicaoDescricao.HasValue)
             {
                 // descrição onde o template pediu (ex.: na vertical, ao lado da barra); o plugin guarda a posição

@@ -105,6 +105,8 @@ public sealed class BarraTemplate
 {
     /// <summary>Chave da barra no resultado (faixas e indicações apontam para ela).</summary>
     public string Nome { get; set; } = "";
+    /// <summary>Layer próprio (ex.: "ARM-BARRA-2" para U e pinos, azuis no P56); vazio = o layer de barras da configuração.</summary>
+    public string Layer { get; set; } = "";
     /// <summary>Grupo VAR: comprimento externo de cada barra (a polilinha é a representativa).</summary>
     public List<double> ComprimentosVar { get; set; } = new List<double>();
     /// <summary>Segmentos marcados como VAR (o trecho que muda de barra para barra).</summary>

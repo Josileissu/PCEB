@@ -239,7 +239,9 @@ public sealed partial class TemplatePilarPreMoldado
     private void DesenharInsertosNasVistas(Ctx c, List<InsertoPilar> insertos, double[] xs, double[] larguras, double L)
     {
         double hv = c.hV;
-        double yNome = L + 6 * hv;
+        double yNome = L + 3.5 * hv;
+        // chapas de frente por vista (cotadas da base em escada e com UM nome por tipo, como no P56)
+        var deFrente = new Dictionary<int, List<(InsertoPilar ins, double um)>>();
         foreach (var ins in insertos)
         {
             var t = ins.Tipo;
@@ -252,8 +254,13 @@ public sealed partial class TemplatePilarPreMoldado
                     foreach (double u in t.ChumbN <= 1 ? new[] { 0.0 } : new[] { -a / 2, a / 2 })
                         c.Linha(xm + u, L + t.ChumbAcima, xm + u, L - t.ChumbComp, "ARM-INSERTO");
                 }
-                foreach (var tx in new[] { "INSERTO", t.Nome }) { c.Texto(tx, xs[0] + larguras[0] / 2, yNome, 0.8 * hv, 1, 0, "ARM-INSERTO"); yNome -= 1.2 * hv; }
-                yNome += 3.6 * hv; // o próximo inserto do topo vai acima
+                // nome à esquerda da VISTA 1, sublinhado, com a linha de chamada até os chumbadores (como no P56)
+                double xn = xs[0] - 4 * hv, xAlvo = xs[0] + larguras[0] / 2 - (t.ChumbN <= 1 ? 0 : t.Ay / 2);
+                c.Texto("INSERTO", xn, yNome + 1.3 * hv, 0.9 * hv, 1, 0, "ARM-COTA-FORMA");
+                c.Texto(t.Nome, xn, yNome, 0.9 * hv, 1, 0, "ARM-COTA-FORMA");
+                c.Linha(xn - 3 * hv, yNome + 1.0 * hv, xn + 3 * hv, yNome + 1.0 * hv, "ARM-COTA-FORMA");
+                c.Linha(xn + 3 * hv, yNome + 1.0 * hv, xAlvo, L + t.ChumbAcima, "ARM-COTA-FORMA");
+                yNome += 3.2 * hv; // o próximo inserto do topo vai acima
                 continue;
             }
             // chapa na face: de frente o retângulo; de lado a espessura e as grapas entrando no pilar
@@ -264,8 +271,8 @@ public sealed partial class TemplatePilarPreMoldado
                 {
                     double um = (x0 + x1) / 2 + ins.Desl;
                     c.Retangulo(um - t.ChapaL / 2, ins.Z - t.ChapaH / 2, um + t.ChapaL / 2, ins.Z + t.ChapaH / 2, "ARM-INSERTO");
-                    double yt = ins.Z + t.ChapaH / 2 + 2.5 * hv;
-                    foreach (var tx in c.Linhas($"INSERTO {t.Nome}", $"INSERT {t.Nome}")) { c.Texto(tx, um, yt, 0.7 * hv, 1, 0, "ARM-INSERTO"); yt -= 1.1 * hv; }
+                    if (!deFrente.TryGetValue(vista, out var l)) deFrente[vista] = l = new List<(InsertoPilar, double)>();
+                    l.Add((ins, um));
                 }
                 else if (FaceEsquerda(vista) == ins.Face || FaceDireita(vista) == ins.Face)
                 {
@@ -279,6 +286,24 @@ public sealed partial class TemplatePilarPreMoldado
                         c.Linha(xf + s * t.ChapaE, z, xf + s * (t.ChapaE + t.GrapaComp), z, "ARM-INSERTO");
                     }
                 }
+            }
+        }
+        foreach (var kv in deFrente)
+        {
+            double x1 = xs[kv.Key - 1] + larguras[kv.Key - 1];
+            int k = 0;
+            // da base ao centro de cada chapa, uma coluna para cada (a linha de chamada sai da chapa até a sua coluna)
+            foreach (var (ins, um) in kv.Value.OrderBy(q => q.ins.Z))
+            {
+                double xc = x1 + (2.5 + 2.1 * k++) * hv;
+                c.Cota(x1, 0, um + ins.Tipo.ChapaL / 2, ins.Z, xc, ins.Z / 2, Math.PI / 2, c.escV);
+            }
+            foreach (var grupo in kv.Value.GroupBy(q => q.ins.Tipo.Nome))
+            {
+                var (ins, um) = grupo.OrderByDescending(q => q.ins.Z).First();
+                double yt = ins.Z + ins.Tipo.ChapaH / 2 + 3 * hv, xt = um + 4 * hv;
+                foreach (var tx in c.Linhas($"INSERTO {grupo.Key}", $"{grupo.Key} INSERT")) { c.Texto(tx, xt, yt, 0.8 * hv, 0, 0, "ARM-COTA-FORMA"); yt -= 1.2 * hv; }
+                c.Linha(xt, ins.Z + ins.Tipo.ChapaH / 2 + 2.6 * hv, um + ins.Tipo.ChapaL / 2, ins.Z + ins.Tipo.ChapaH / 2, "ARM-COTA-FORMA");
             }
         }
     }
@@ -382,40 +407,61 @@ public sealed partial class TemplatePilarPreMoldado
             double esc = 10, ht = Ht(c, esc);
             double passo = v.Numero("ChavePasso"), dente = v.Numero("ChaveDente"), prof = v.Numero("ChaveProf");
             fimTitulo = Titulo("DETALHE 01 - CHAVES DE CISALHAMENTO", "DETAIL 01 - SHEAR KEYS", x, yTopo, esc, "ESC 1:10");
-            var (perfil, arestas) = PerfilChaves(passo, dente, prof, 6);
-            double raio = 3.4 * passo;
-            double cx = x + raio + 2 * ht, cy = yTopo - 9 * ht - raio;
-            // o perfil fica à direita do centro do círculo; o pilar à esquerda
-            double fx = cx + 0.6 * raio, fy = cy - 3 * passo;
-            r.Contornos.Add(new ContornoTemplate { Vertices = perfil.Select(p => (fx + p.X, fy + p.Y)).ToList(), Layer = "ARM-FORMA" });
-            // arestas das chaves atravessando o pilar até o círculo
-            foreach (var (xa, ya) in arestas)
+            // círculo de ~5 passos de raio; a face do pilar um pouco à esquerda do centro; o pilar termina embaixo
+            double raio = 5 * passo;
+            double cx = x + raio + 14 * ht, cy = yTopo - 9 * ht - raio;
+            double fx = cx - 0.16 * raio, yFim = cy - 0.55 * raio;
+            int n = (int)Math.Ceiling((cy + raio - yFim) / passo) + 1;
+            var (perfil, arestas) = PerfilChaves(passo, dente, prof, n);
+            // perfil (x = 0 na face) recortado pelo círculo
+            for (int k = 0; k + 1 < perfil.Count; k++)
             {
-                double yy = fy + ya, dy = yy - cy;
-                if (Math.Abs(dy) >= raio) continue;
-                double xEsq = cx - Math.Sqrt(raio * raio - dy * dy);
-                c.Linha(xEsq, yy, fx + xa, yy, "ARM-CHAVE");
+                var seg = DentroDoCirculo((fx + perfil[k].X, yFim + perfil[k].Y), (fx + perfil[k + 1].X, yFim + perfil[k + 1].Y), cx, cy, raio);
+                if (seg is { } sg) c.Linha(sg.a.X, sg.a.Y, sg.b.X, sg.b.Y, "ARM-CHAVE");
             }
-            // fecho de cima e de baixo do trecho mostrado
+            // arestas (as duas bordas de cada chanfro) e o fim do pilar, do círculo até o perfil
+            double XCirculo(double yy) => cx - Math.Sqrt(Math.Max(0, raio * raio - (yy - cy) * (yy - cy)));
+            foreach (var (xa, ya) in arestas.Prepend((perfil[0].X, 0.0)))
+            {
+                double yy = yFim + ya;
+                if (Math.Abs(yy - cy) >= raio - 1e-6) continue;
+                c.Linha(XCirculo(yy), yy, fx + xa, yy, "ARM-CHAVE");
+            }
             r.Circulos.Add(new CirculoTemplate { X = cx, Y = cy, Raio = raio, Layer = "ARM-DETALHE" });
-            // cotas: 4 / 1 alternadas e o passo 5
-            double xc1 = fx + 1.5 * passo, xc2 = fx + 3 * passo;
-            for (int k = 0; k < 5; k++)
+            // cotas: dente / transição alternados (4 | 1) e o passo (5), nos trechos inteiros dentro do círculo
+            double xc1 = fx + 0.32 * raio, xc2 = fx + 0.62 * raio, yMax = cy + 0.62 * raio;
+            for (int k = 0; k < n; k++)
             {
-                double y0 = fy + k * passo, t = passo - dente;
-                c.Cota(xc1, y0, xc1, y0 + t, xc1 + 1.1 * ht, y0 + t / 2, Math.PI / 2, esc);
-                c.Cota(xc1, y0 + t, xc1, y0 + passo, xc1 + 1.1 * ht, y0 + t + dente / 2, Math.PI / 2, esc);
-                c.Cota(xc2, y0, xc2, y0 + passo, xc2 + 1.1 * ht, y0 + passo / 2, Math.PI / 2, esc);
+                double y0 = yFim + k * passo;
+                if (y0 + passo > yMax) break;
+                if (k > 0 || y0 + dente < yMax) c.Cota(fx, y0, fx, y0 + dente, xc1, y0 + dente / 2, Math.PI / 2, esc);
+                c.Cota(fx, y0 + dente, fx, y0 + passo, xc1, y0 + dente + (passo - dente) / 2, Math.PI / 2, esc);
+                if (y0 + dente + passo <= yMax) c.Cota(fx, y0 + dente, fx, y0 + dente + passo, xc2, y0 + dente + passo / 2, Math.PI / 2, esc);
             }
-            c.Cota(fx - prof, fy - 0.8 * passo, fx, fy - 0.8 * passo, fx - prof / 2, fy - 0.8 * passo - 1.1 * ht, 0, esc);
-            // chamadas: "CHAVES DE CISALHAMENTO" (duas linhas para dois rebaixos) e "PILAR"
-            double txC = cx - raio - 1 * ht, tyC = cy + 0.45 * raio;
-            foreach (var t in c.Linhas("CHAVES DE CISALHAMENTO", "SHEAR KEY")) { c.Texto(t, txC, tyC, 0.9 * ht, 2); tyC -= 1.4 * ht; }
-            foreach (int k in new[] { 3, 4 })
-                c.Linha(txC + 0.5 * ht, cy + 0.45 * raio - 0.3 * ht, fx - prof, fy + k * passo + (passo - dente) + dente / 2, "ARM-DETALHE");
-            double tyP = cy - raio - 1.5 * ht;
-            foreach (var t in c.Linhas("PILAR", "COLUMN")) { c.Texto(t, cx - 0.5 * raio, tyP, 0.9 * ht, 1); tyP -= 1.4 * ht; }
-            c.Linha(cx - 0.5 * raio, cy - raio - 0.6 * ht, cx - 0.3 * raio, cy - 0.85 * raio, "ARM-DETALHE");
+            // chamadas com seta: "CHAVES DE CISALHAMENTO" para um trecho recuado e um na face; "PILAR" para a borda do círculo
+            double txC = cx - raio - 1.5 * ht, tyC = cy + 0.5 * raio;
+            var linhasC = c.Linhas("CHAVES DE CISALHAMENTO", "SHEAR KEY");
+            double larg = linhasC.Max(t => t.Length) * 0.75 * 0.9 * ht;
+            double yt2 = tyC;
+            foreach (var t in linhasC) { c.Texto(t, txC, yt2, 0.9 * ht, 2); yt2 -= 1.4 * ht; }
+            double ySub = tyC - 0.35 * ht;
+            c.Linha(txC - larg, ySub, txC + 0.5 * ht, ySub, "ARM-DETALHE");
+            int kr = Math.Max(1, (int)Math.Floor((cy - yFim) / passo));       // recuado (passo par) perto do centro
+            int kf = kr % 2 == 0 ? kr + 1 : kr - 1;                             // na face
+            foreach (int k in new[] { kr, kf })
+            {
+                double xr = k % 2 == 0 ? -prof : 0;
+                Seta(c, (txC + 0.5 * ht, ySub), (fx + xr, yFim + k * passo + dente / 2), ht, "ARM-DETALHE");
+            }
+            double ang = 1.25 * Math.PI, pxP = cx + raio * Math.Cos(ang), pyP = cy + raio * Math.Sin(ang);
+            double txP = pxP - 4 * ht, tyP = pyP - 3 * ht;
+            var linhasP = c.Linhas("PILAR", "COLUMN");
+            double yp = tyP;
+            foreach (var t in linhasP) { c.Texto(t, txP, yp, 0.9 * ht, 1); yp -= 1.4 * ht; }
+            double largP = linhasP.Max(t => t.Length) * 0.75 * 0.9 * ht;
+            c.Linha(txP - largP / 2 - 0.5 * ht, tyP - 0.35 * ht, txP + largP / 2 + 0.5 * ht, tyP - 0.35 * ht, "ARM-DETALHE");
+            Seta(c, (txP + largP / 2 + 0.5 * ht, tyP - 0.35 * ht), (pxP, pyP), ht, "ARM-DETALHE");
+            tyP = yp;
             x = Math.Max(cx + raio + 6 * ht, xc2 + 4 * ht);
             x = Math.Max(x, fimTitulo + 4 * hv);
             yBaixo = Math.Min(yBaixo, tyP - 3 * ht);
@@ -465,28 +511,54 @@ public sealed partial class TemplatePilarPreMoldado
 
     /// <summary>
     /// Perfil das chaves de cisalhamento (x = 0 na face do pilar, x &lt; 0 para dentro; y para cima), como o detalhe 01 do
-    /// P61: rebaixo de "dente" (4) recuado "prof" e o trecho de "passo − dente" (1) que avança até a face com chanfros.
-    /// Devolve também as arestas (pontos onde o perfil muda), que viram as linhas horizontais do pilar.
+    /// escritório (referencia_chaves_cisalhamento.png): trechos retos de "dente" (4) alternando recuado "prof" (1) e na face,
+    /// ligados por chanfros de "passo − dente" (1). Devolve também as arestas (bordas dos chanfros) = linhas do pilar.
     /// </summary>
     public static (List<(double X, double Y)> Perfil, List<(double X, double Y)> Arestas) PerfilChaves(double passo, double dente, double prof, int n)
     {
+        // onda trapezoidal: trechos retos de "dente" alternando recuado (x = −prof) e na face (x = 0), ligados por chanfros de
+        // passo − dente; cada chanfro tem duas arestas (as linhas horizontais do pilar), como o detalhe 01 do escritório
         double t = Math.Max(0, passo - dente);
-        double ch = Math.Min(prof, t / 2); // altura de cada chanfro (45° quando cabe)
         var p = new List<(double X, double Y)>();
         var a = new List<(double X, double Y)>();
         for (int k = 0; k < n; k++)
         {
-            double y0 = k * passo;
-            p.Add((-prof, y0));
-            p.Add((0, y0 + ch));
-            if (t - 2 * ch > 1e-9) p.Add((0, y0 + t - ch));
-            p.Add((-prof, y0 + t));
-            a.Add((-prof, y0));
-            a.Add((-prof, y0 + t));
+            double y0 = k * passo, xk = k % 2 == 0 ? -prof : 0, xn = k % 2 == 0 ? 0 : -prof;
+            if (k == 0) p.Add((xk, y0));
+            p.Add((xk, y0 + dente));
+            p.Add((xn, y0 + passo));
+            a.Add((xk, y0 + dente));
+            a.Add((xn, y0 + passo));
         }
-        p.Add((-prof, n * passo));
-        a.Add((-prof, n * passo));
         return (p, a);
+    }
+
+    /// <summary>Trecho do segmento dentro do círculo (null se fica todo fora).</summary>
+    private static ((double X, double Y) a, (double X, double Y) b)? DentroDoCirculo((double X, double Y) p, (double X, double Y) q, double cx, double cy, double r)
+    {
+        double dx = q.X - p.X, dy = q.Y - p.Y, fx = p.X - cx, fy = p.Y - cy;
+        double A = dx * dx + dy * dy, B = 2 * (fx * dx + fy * dy), C = fx * fx + fy * fy - r * r;
+        if (A < 1e-12) return C <= 0 ? (p, q) : null;
+        double disc = B * B - 4 * A * C;
+        if (disc <= 0) return null;
+        double s = Math.Sqrt(disc), t0 = Math.Max(0, (-B - s) / (2 * A)), t1 = Math.Min(1, (-B + s) / (2 * A));
+        if (t1 - t0 < 1e-9) return null;
+        return ((p.X + t0 * dx, p.Y + t0 * dy), (p.X + t1 * dx, p.Y + t1 * dy));
+    }
+
+    /// <summary>Linha de chamada com seta cheia na ponta (como as do detalhe 01).</summary>
+    private static void Seta(Ctx c, (double X, double Y) de, (double X, double Y) para, double ht, string layer)
+    {
+        c.Linha(de.X, de.Y, para.X, para.Y, layer);
+        double dx = para.X - de.X, dy = para.Y - de.Y, l = Math.Sqrt(dx * dx + dy * dy);
+        if (l < 1e-9) return;
+        double ux = dx / l, uy = dy / l, comp = 0.8 * ht, larg = 0.25 * ht;
+        var tri = new List<(double, double)>
+        {
+            para, (para.X - ux * comp - uy * larg, para.Y - uy * comp + ux * larg), (para.X - ux * comp + uy * larg, para.Y - uy * comp - ux * larg),
+        };
+        c.R.Contornos.Add(new ContornoTemplate { Vertices = tri, Fechado = true, Layer = layer });
+        c.R.Hachuras.Add(new HachuraTemplate { Vertices = tri, Padrao = "SOLID", Layer = layer });
     }
 
     /// <summary>Barra do esquema (retângulo hachurado de espessura e), de x0 a x1 em y (base).</summary>
