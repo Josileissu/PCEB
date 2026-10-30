@@ -1370,6 +1370,12 @@ public sealed class AutoTeste
                 doc.SendStringToExecute($"_.ZOOM _W {janela}\n", true, false, true);
                 doc.SendStringToExecute($"_.PNGOUT {Path.Combine(Path.GetDirectoryName(saida), "autoteste_" + nome + ".png")}\n\n", true, false, true);
             }
+            // viewport num layout mostrando o detalhe do estribo (barras com as dobras arredondadas pelo Overrule):
+            // as retas das barras têm de aparecer também no layout (relato do usuário, 2026-10-30)
+            doc.SendStringToExecute("ARMTESTELAYOUT\n", true, false, true);
+            doc.SendStringToExecute("_.ZOOM _E\n", true, false, true);
+            doc.SendStringToExecute($"_.PNGOUT {Path.Combine(Path.GetDirectoryName(saida), "autoteste_layout_viewport.png")}\n\n", true, false, true);
+            doc.SendStringToExecute("ARMTESTEMODELO\n", true, false, true);
             // EXPLODE de uma 2ª inserção do detalhamento do pilar: as chamadas têm de ficar no lugar (âncoras das faixas)
             if (_pilarExplodir != null)
             {
@@ -1976,6 +1982,39 @@ public sealed class AutoTeste
         {
             Checar(false, "estribos: exceção " + ex);
         }
+    }
+
+    /// <summary>Layout1 com uma viewport do detalhe do estribo (barras com dobras arredondadas).</summary>
+    [Rt.CommandMethod("ARMTESTELAYOUT", Rt.CommandFlags.Session)]
+    public void LayoutComViewport()
+    {
+        try
+        {
+            var doc = CadApp.DocumentManager.MdiActiveDocument;
+            CadApp.SetSystemVariable("CTAB", "Layout1");
+            using (doc.LockDocument())
+            using (var tr = doc.Database.TransactionManager.StartTransaction())
+            {
+                var lm = LayoutManager.Current;
+                var lay = (Layout)tr.GetObject(lm.GetLayoutId("Layout1"), OpenMode.ForRead);
+                var ps = (BlockTableRecord)tr.GetObject(lay.BlockTableRecordId, OpenMode.ForWrite);
+                var vp = new Viewport { CenterPoint = new Point3d(150, 100, 0), Width = 280, Height = 180 };
+                ps.AppendEntity(vp);
+                tr.AddNewlyCreatedDBObject(vp, true);
+                vp.ViewCenter = new Point2d(2125, -150);
+                vp.ViewHeight = 360;
+                vp.On = true;
+                tr.Commit();
+            }
+            Log.Info("autoteste: viewport criada no Layout1");
+        }
+        catch (Exception ex) { Log.Erro("ARMTESTELAYOUT", ex); }
+    }
+
+    [Rt.CommandMethod("ARMTESTEMODELO", Rt.CommandFlags.Session)]
+    public void VoltarAoModelo()
+    {
+        try { CadApp.SetSystemVariable("TILEMODE", 1); } catch (Exception ex) { Log.Erro("ARMTESTEMODELO", ex); }
     }
 
     [Rt.CommandMethod("ARMTESTEMARCA")]

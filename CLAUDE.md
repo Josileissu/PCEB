@@ -55,6 +55,9 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
 - Números em textos de relatório: o Windows é pt-BR ("21,6"); use `FormattableString.Invariant`.
 - Objetos de teste novos no autoteste: longe dos existentes (vários testes procuram barras por posição;
   use y = −5000 e x ≥ 12000).
+- Overrule (`DesenhoArmadura.WorldDraw`): NÃO use `Geometry.WorldLine` — no GstarCAD ela não aparece nas viewports do
+  layout (só os arcos apareciam; relato do usuário, 2026-10-30). Use `Geometry.Polyline(Point3dCollection, normal, IntPtr.Zero)`.
+  O autoteste cria uma viewport no Layout1 (ARMTESTELAYOUT) e gera `autoteste_layout_viewport.png`.
 - `GraphicsInterface.Polyline` colide com `DatabaseServices.Polyline` e `Runtime.Exception` com `System.Exception`:
   use os apelidos `Gi.` e `Rt.`.
 

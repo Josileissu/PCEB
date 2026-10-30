@@ -94,7 +94,9 @@ internal sealed class DesenhoArmadura : Gi.DrawableOverrule
             var u = (p[b] - p[a]).GetNormal();
             var ini = p[a] + u * recuo[a];
             var fim = p[b] - u * recuo[b];
-            wd.Geometry.WorldLine(P(ini), P(fim));
+            // Polyline e não WorldLine: no GstarCAD o WorldLine não aparece nas viewports do layout (relato do usuário,
+            // 2026-10-30: só os arcos das dobras apareciam)
+            wd.Geometry.Polyline(new Point3dCollection { P(ini), P(fim) }, Vector3d.ZAxis, IntPtr.Zero);
         }
         for (int v = 0; v < nv; v++)
         {
