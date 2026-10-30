@@ -13,10 +13,11 @@ namespace Armadura.Cad.Infra;
 /// </summary>
 internal static class Demo
 {
+    // readonly (e não const): sem avisos de "código inacessível" nas duas compilações
 #if DEMO
-    public const bool Ativa = true;
+    public static readonly bool Ativa = true;
 #else
-    public const bool Ativa = false;
+    public static readonly bool Ativa = false;
 #endif
     public static readonly TimeSpan Duracao = TimeSpan.FromHours(1);
     private const string Chave = @"Software\ArmaduraBR\Demo";

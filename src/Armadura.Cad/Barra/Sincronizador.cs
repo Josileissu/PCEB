@@ -155,8 +155,9 @@ internal sealed class Sincronizador
                 {
                     if (Relacao.ServicoRA.TemBarras(_doc.Database, tr))
                     {
+                        var relogio = System.Diagnostics.Stopwatch.StartNew();
                         var (barras, posicoes) = Relacao.ServicoRA.Atualizar(_doc.Database, tr, cfg);
-                        Log.Info($"RA atualizada antes de {nome}: {barras} barra(s), {posicoes} posição(ões).");
+                        Log.Info($"RA atualizada antes de {nome}: {barras} barra(s), {posicoes} posição(ões) em {relogio.ElapsedMilliseconds} ms.");
                     }
                     tr.Commit();
                 }
@@ -190,6 +191,7 @@ internal sealed class Sincronizador
         Limpar();
 
         var cfg = ConfigDesenho.Obter(_doc.Database);
+        var relogio = System.Diagnostics.Stopwatch.StartNew();
         _suspenso++;
         try
         {
@@ -419,7 +421,13 @@ internal sealed class Sincronizador
             Log.Erro("Sincronizador.Processar", ex);
             try { _doc.Editor.WriteMessage("\nArmadura: erro ao atualizar as barras (veja o log). " + ex.Message); } catch { }
         }
-        finally { _suspenso--; }
+        finally
+        {
+            _suspenso--;
+            // lentidão no uso real fica registrada (checagem de desempenho, 2026-10-30)
+            if (relogio.ElapsedMilliseconds > 200 || Detalhado)
+                Log.Info($"Sincronizador: {relogio.ElapsedMilliseconds} ms (modificados {modificados.Count}, apagados {apagados.Count}, anexados {anexados.Count})");
+        }
     }
 
     /// <summary>
