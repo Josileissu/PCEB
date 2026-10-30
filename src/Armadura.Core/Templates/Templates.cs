@@ -164,6 +164,8 @@ public sealed class FaixaTemplate
     public bool MostrarDiametro { get; set; } = true;
     /// <summary>Comprimento da faixa abaixo da linha de cota (faixas lado a lado: só a primeira mostra).</summary>
     public bool MostrarComprimento { get; set; } = true;
+    /// <summary>Indicação com patamar (linhas que se encontram e um trecho horizontal até o texto, como no P56).</summary>
+    public bool Patamar { get; set; }
 }
 
 public sealed class TextoTemplate

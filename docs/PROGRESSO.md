@@ -319,5 +319,5 @@ layers, cotas e posições).
       face/pino/ponta).
 - [x] Quadro "ARMADURAS console b x h x a - n un.": PLANTA, CORTE B-B (pilar interrompido, pino azul, Solda), CORTE AA e as
       formas com Tirante / Arm. Inferior / Estribo vertical / Estribo horizontal / Barra de ancoragem / Pino.
-- [ ] Usuário: conferir. Pendente: etiquetas das seções da armadura no estilo do P56 (texto com traço horizontal) e os
-      estilos de cota do escritório (ESTRUT50/ESTRUT25).
+- [x] Etiquetas com patamar ("N12 ——"), estilos de cota ESTRUT50/25/20/10/5, CORTE AA do consolo enxuto. Versão 0.1.19.
+- [ ] Usuário: conferir no GstarCAD.

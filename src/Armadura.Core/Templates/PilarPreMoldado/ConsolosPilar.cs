@@ -581,7 +581,7 @@ public sealed partial class TemplatePilarPreMoldado
             foreach (var it in lado.OrderByDescending(i => i.Y))
             {
                 double yy = Math.Min(yl, it.Y + 1.5 * hc);
-                r.Faixas.Add(new FaixaTemplate { Barra = it.barra, Tipo = TipoFaixa.Indicacao, Referencias = { (it.X, it.Y) }, Posicao = (tx, yy), Escala = c.escC });
+                r.Faixas.Add(new FaixaTemplate { Barra = it.barra, Tipo = TipoFaixa.Indicacao, Referencias = { (it.X, it.Y) }, Posicao = (tx, yy), Escala = c.escC, Patamar = true });
                 yl = yy - 1.9 * hc;
             }
         }
@@ -673,7 +673,7 @@ public sealed partial class TemplatePilarPreMoldado
             {
                 double z = topAA - cc - co.TirPhi / 20 - k * passo;
                 c.Linha(xAA + cc, z, xAA + co.B - cc, z, "ARM-BARRA-DETALHE");
-                pts.Add((xAA + co.B - cc, z));
+                if (pts.Count == 0) pts.Add((xAA + co.B - cc, z)); // uma linha de chamada basta (as outras são iguais)
             }
             indicAA.Add((id + "cost", pts, false));
         }
@@ -695,8 +695,10 @@ public sealed partial class TemplatePilarPreMoldado
             int k = 0;
             foreach (var it in lado)
             {
-                r.Faixas.Add(new FaixaTemplate { Barra = it.barra, Tipo = TipoFaixa.Indicacao, Referencias = it.pts,
-                    Posicao = (tx, (lado.Key ? topAA - co.H - 1 * hc : topAA + 1 * hc) - k * 2 * hc), Escala = c.escC });
+                // tirante: as linhas se encontram (patamar); pontos demais viram só os das pontas
+                var pts = it.pts.Count > 3 ? new List<(double X, double Y)> { it.pts[0], it.pts[it.pts.Count / 2], it.pts[it.pts.Count - 1] } : it.pts;
+                r.Faixas.Add(new FaixaTemplate { Barra = it.barra, Tipo = TipoFaixa.Indicacao, Referencias = pts,
+                    Posicao = (tx, (lado.Key ? topAA - co.H - 1.5 * hc : topAA + 1.5 * hc) - k * 2.5 * hc), Escala = c.escC, Patamar = true });
                 k++;
             }
         }

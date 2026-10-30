@@ -1500,6 +1500,16 @@ public sealed class AutoTeste
                 Rel.AppendLine($"        faixas em cota: {faixasCota.Count}, com comprimento: {comComp}; ex.: " +
                                faixasCota.Select(d => d.DimensionText).FirstOrDefault(s => s.Contains("\\X")));
                 Checar(comComp >= 3 && comComp < faixasCota.Count, "pilar: comprimento nas faixas dos estribos (e não nas dos grampos ao lado)");
+                // cotas do template nos estilos do escritório (ESTRUT50 nas vistas, ESTRUT25 nos cortes)
+                var estilos = ents.OfType<RotatedDimension>().Where(d => XDataCad.Tipo(d) != TipoParte.Faixa)
+                    .Select(d => ((DimStyleTableRecord)tr.GetObject(d.DimensionStyle, OpenMode.ForRead)).Name).Distinct().ToList();
+                Rel.AppendLine("        estilos das cotas do pilar: " + string.Join(", ", estilos));
+                Checar(estilos.Contains("ESTRUT50") && estilos.Contains("ESTRUT25") && estilos.All(n => n.StartsWith("ESTRUT")),
+                    "pilar: cotas nos estilos ESTRUT50/ESTRUT25 do escritório");
+                // etiquetas das seções com patamar: linha horizontal (o patamar) entre as linhas de chamada
+                int patamares = ents.OfType<MText>().Where(m => XDataCad.Tipo(m) == TipoParte.Faixa)
+                    .Count(m => Armadura.Cad.Barra.ServicoFaixa.Ler(m) is { } fd && fd.Patamar);
+                Checar(patamares > 10, $"pilar: etiquetas das seções e do consolo com patamar ({patamares})");
                 var arm = ents.OfType<Polyline>().Select(p => XDataCad.LerBarra(p)).Where(d => d != null).ToList();
                 Rel.AppendLine("        pilar: armaduras no bloco: " + string.Join(", ", arm.OrderBy(d => d.Numero).Select(d => FormattableString.Invariant($"N{d.Numero} {d.Quantidade}ø{d.Bitola}"))));
                 Checar(arm.Count == r.Barras.Count && arm.All(d => d.Numero > 0), "pilar: armaduras numeradas no detalhamento");
