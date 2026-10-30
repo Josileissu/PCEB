@@ -76,7 +76,7 @@ public sealed class ConfiguracaoArmadura
     [DataMember(Order = 34)] public string LayerBarra { get; set; } = "ARM-BARRA";
     [DataMember(Order = 35)] public short CorBarra { get; set; } = 1;
     [DataMember(Order = 36)] public string LayerTexto { get; set; } = "ARM-TEXTO";
-    [DataMember(Order = 37)] public short CorTexto { get; set; } = 2;
+    [DataMember(Order = 37)] public short CorTexto { get; set; } = 7; // nunca amarelo (pedido de 2026-10-30)
     [DataMember(Order = 38)] public string LayerTabela { get; set; } = "ARM-TABELA";
     [DataMember(Order = 39)] public short CorTabela { get; set; } = 7;
     /// <summary>Desenha as dobras como arcos com o raio do pino (só na tela; a geometria não muda).</summary>

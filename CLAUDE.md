@@ -173,6 +173,10 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   no computador (início em `HKCU\Software\ArmaduraBR\Demo` e `%AppData%\ArmaduraBR\demo.dat`, vale o mais antigo); depois,
   `Comandos.Executar` e a paleta não alteram nada (log "demonstração expirada"). Testar sem deixar rastro: apague a chave e o
   demo.dat depois. O build demo usa a mesma pasta obj: o .bat recompila a versão normal no fim.
+- **Layers** (pedido do usuário, 2026-10-30): padrão em `%AppData%\ArmaduraBR\layers.csv` (Layer;Cor;Espessura (mm);Tipo de
+  linha;Descrição — ELE organiza; criado com o padrão de fábrica `PadroesLayers.Padrao()` se faltar, relido quando muda).
+  `Desenho.GarantirLayer` aplica ao CRIAR (fora do arquivo: a cor dada, nunca amarela, e 0,00 mm — nunca a espessura
+  "padrão"); ARMLAYERS aplica aos layers existentes do desenho [Abrir] abre o arquivo. Nunca sobrescreva o arquivo dele.
 - Progresso por etapas: `docs/PROGRESSO.md` (retomar por ele numa sessão nova).
 - **Normas** (2026-10-29): os PDFs ficam em `S:\Meu Drive\Normas` (Google Drive, lento). Índice local de texto por
   página em `info_auxiliar/indice_normas/normas.sqlite` (FTS5, sem acentos; fora do Git) + `CATALOGO.md`.

@@ -29,9 +29,12 @@ internal static class Desenho
         var lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
         if (lt.Has(nome)) return lt[nome];
         lt.UpgradeOpen();
-        var l = new LayerTableRecord { Name = nome, Color = Color.FromColorIndex(ColorMethod.ByAci, cor) };
+        var l = new LayerTableRecord { Name = nome };
+        // padrão do layers.csv; fora dele, a cor dada e espessura 0,00 mm (nunca a "padrão" do CAD — pedido de 2026-10-30)
+        var p = Layers.Obter(nome) ?? new Core.Configuracao.PadraoLayer { Nome = nome, Cor = cor == 2 ? (short)7 : cor };
         var id = lt.Add(l);
         tr.AddNewlyCreatedDBObject(l, true);
+        Layers.Aplicar(db, tr, l, p);
         return id;
     }
 

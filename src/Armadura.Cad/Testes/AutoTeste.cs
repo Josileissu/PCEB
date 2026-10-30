@@ -1529,6 +1529,30 @@ public sealed class AutoTeste
             }
         }
         catch (Exception ex) { Checar(false, "template do pilar: exceção " + ex); }
+        // layers criados pelo plugin seguem o layers.csv; nenhum com espessura "padrão" do CAD (pedido de 2026-10-30)
+        try
+        {
+            using var tr = db.TransactionManager.StartTransaction();
+            var lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+            var ruins = new List<string>();
+            int vistos = 0;
+            foreach (ObjectId id in lt)
+            {
+                var l = (LayerTableRecord)tr.GetObject(id, OpenMode.ForRead);
+                if (!l.Name.StartsWith("ARM-", StringComparison.OrdinalIgnoreCase)) continue;
+                vistos++;
+                var p = Layers.Obter(l.Name);
+                var tipo = ((LinetypeTableRecord)tr.GetObject(l.LinetypeObjectId, OpenMode.ForRead)).Name;
+                bool ok = l.LineWeight != LineWeight.ByLineWeightDefault && (p == null ||
+                    (l.Color.ColorIndex == p.Cor && (int)l.LineWeight == Core.Configuracao.PadroesLayers.Centesimos(p.EspessuraMm)
+                     && (string.IsNullOrEmpty(p.TipoLinha) || string.Equals(tipo, p.TipoLinha, StringComparison.OrdinalIgnoreCase))));
+                if (!ok) ruins.Add($"{l.Name} (cor {l.Color.ColorIndex}, {l.LineWeight}, {tipo})");
+            }
+            Rel.AppendLine($"        layers ARM- no desenho: {vistos}; fora do padrão: " + (ruins.Count == 0 ? "nenhum" : string.Join(", ", ruins)));
+            Checar(vistos > 10 && ruins.Count == 0, "layers do plugin com cor, espessura e tipo de linha do layers.csv");
+            tr.Commit();
+        }
+        catch (Exception ex) { Checar(false, "layers: " + ex.Message); }
         // etapa 5: longitudinais e zonas em lista — redução com a altura (emenda entre linhas), feixe e zona do consolo
         try
         {
