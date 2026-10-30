@@ -147,6 +147,9 @@ public class NovidadesTests
         // comprimento da faixa (cota): ligado por padrão; só o desligado vai para o XData
         Assert.True(antiga.MostrarComprimento);
         Assert.False(CodecDados.DecodificarFaixa(CodecDados.Codificar(new DadosFaixa { MostrarComprimento = false })).MostrarComprimento);
+        // patamar (padrão do escritório): só quando ligado vai para o XData
+        Assert.False(antiga.Patamar);
+        Assert.True(CodecDados.DecodificarFaixa(CodecDados.Codificar(new DadosFaixa { Patamar = true })).Patamar);
     }
 
     [Fact]

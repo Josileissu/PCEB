@@ -561,7 +561,7 @@ public sealed partial class TemplatePilarPreMoldado
             else
                 r.Faixas.Add(new FaixaTemplate
                 {
-                    Barra = u.Nome, Tipo = TipoFaixa.Indicacao, Referencias = pernas, Posicao = (xm, sy0 + h + 3 * hc), Escala = c.escC,
+                    Barra = u.Nome, Tipo = TipoFaixa.Indicacao, Referencias = pernas, Posicao = (xm, sy0 + h + 3 * hc), Escala = c.escC, Patamar = true,
                 });
         }
         // barras de mesmo N do mesmo lado: UMA etiqueta com uma linha para cada barra (checagem de 2026-10-30)
@@ -582,6 +582,7 @@ public sealed partial class TemplatePilarPreMoldado
                 r.Faixas.Add(new FaixaTemplate
                 {
                     Barra = lista[k].barra, Tipo = TipoFaixa.Indicacao, Referencias = lista[k].pts, Posicao = (tx, ys[k] + ajuste), Escala = c.escC,
+                    Patamar = true, // "N12 ——" como no P56
                 });
         }
     }

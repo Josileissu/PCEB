@@ -68,6 +68,11 @@ public sealed class DadosFaixa
 
     /// <summary>Chamada, indicação e corte+chamada: oculta as linhas de chamada (os pontos ficam guardados).</summary>
     public bool OcultarLinhas { get; set; }
+    /// <summary>
+    /// Chamada/indicação com patamar (padrão do escritório, P56): as linhas das barras se encontram num ponto ao lado do texto
+    /// e um trecho horizontal liga esse ponto ao texto ("N12 ——").
+    /// </summary>
+    public bool Patamar { get; set; }
 
     /// <summary>
     /// Linhas de chamada apagadas pelo usuário (índice da referência; corte+chamada = 0): não são recriadas

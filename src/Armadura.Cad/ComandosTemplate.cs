@@ -220,8 +220,8 @@ public sealed class ComandosTemplate
         {
             var dim = Add(new RotatedDimension(c.Angulo, P3(c.P1.X, c.P1.Y), P3(c.P2.X, c.P2.Y), P3(c.Posicao.X, c.Posicao.Y), c.Texto, db.Dimstyle),
                 Layer("ARM-COTA-FORMA", 8));
-            double h = cfg.AlturaTexto(cpu, c.Escala > 0 ? c.Escala : r.Escala);
-            dim.Dimscale = 1; dim.Dimtxt = h; dim.Dimasz = h; dim.Dimtsz = 0.5 * h; dim.Dimexe = 0.5 * h; dim.Dimexo = 0.5 * h; dim.Dimgap = 0.3 * h;
+            // estilo de cota do escritório (ESTRUT50, ESTRUT25…) na escala da cota
+            dim.DimensionStyle = EstilosCota.Garantir(db, tr, c.Escala > 0 ? c.Escala : r.Escala, cpu);
         }
         foreach (var t in r.Tabelas) Tabela(tr, db, esp, t, P3(t.X, t.Y), cfg, cpu, r.Escala, todos);
         foreach (var hc in r.Hachuras)
@@ -305,7 +305,7 @@ public sealed class ComandosTemplate
                 Tipo = f.Tipo, Espacamento = f.Espacamento > 0 ? f.Espacamento : 15, Escala = f.Escala > 0 ? f.Escala : r.Escala,
                 P1X = a.X, P1Y = a.Y, P2X = b.X, P2Y = b.Y,
                 Referencias = f.Referencias.Select(x => { var q = P(x.X, x.Y); return (q.X, q.Y); }).ToList(),
-                Repeticoes = Math.Max(1, f.Repeticoes), MostrarDiametro = f.MostrarDiametro, MostrarComprimento = f.MostrarComprimento,
+                Repeticoes = Math.Max(1, f.Repeticoes), MostrarDiametro = f.MostrarDiametro, MostrarComprimento = f.MostrarComprimento, Patamar = f.Patamar,
             };
             ServicoFaixa.Criar(tr, (Polyline)tr.GetObject(bid, OpenMode.ForWrite), dados, P3(f.Posicao.X, f.Posicao.Y), cfg);
         }

@@ -84,6 +84,15 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
         }
     }
 
+    [Category(G), DisplayName("Patamar na chamada"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Chamada"),
+     Description("Sim: as linhas das barras se encontram ao lado do texto e um trecho horizontal vai até ele (\"N12 ——\", " +
+                 "como nas pranchas do escritório).")]
+    public bool Patamar
+    {
+        get => F.Patamar;
+        set => Campo(f => f.Patamar = value);
+    }
+
     [Category(G), DisplayName("Repetições"), SoQuando("Quantidade"),
      Description("Multiplica a quantidade que a faixa soma na barra (ex.: a mesma distribuição em 2 camadas). " +
                  "O texto fica \"2x11 N1 …\" (sem parênteses).")]

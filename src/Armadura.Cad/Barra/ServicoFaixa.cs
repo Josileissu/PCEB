@@ -188,7 +188,14 @@ internal static class ServicoFaixa
         if (ent is MText texto2 && !f.OcultarLinhas)
         {
             var alvoTexto = new Point2d(texto2.Location.X, texto2.Location.Y);
-            if (f.Tipo == TipoFaixa.Chamada || f.Tipo == TipoFaixa.Indicacao)
+            if ((f.Tipo == TipoFaixa.Chamada || f.Tipo == TipoFaixa.Indicacao) && f.Patamar && f.Referencias.Count > 0
+                && Patamar(texto2, f.Referencias.Average(rf => rf.X)) is { } pat)
+            {
+                // as linhas se encontram no fim do patamar; o patamar liga esse ponto ao texto
+                linhas.AddRange(f.Referencias.Select((rf, i) => (new Point2d(rf.X, rf.Y), pat.fim, i)));
+                linhas.Add((pat.fim, pat.inicio, IndicePatamar));
+            }
+            else if (f.Tipo == TipoFaixa.Chamada || f.Tipo == TipoFaixa.Indicacao)
                 linhas.AddRange(f.Referencias.Select((rf, i) => (new Point2d(rf.X, rf.Y), alvoTexto, i)));
             else if (centros.Count > 0)
             {
@@ -248,6 +255,23 @@ internal static class ServicoFaixa
         else f.TemCirculo0 = false;
         XDataCad.GravarSeMudou(ent, f);
         return (true, f.QuantidadeTotal);
+    }
+
+    /// <summary>Índice da linha do patamar (não é uma referência).</summary>
+    private const int IndicePatamar = 1000;
+
+    /// <summary>Patamar ao lado do texto, virado para as referências: do canto do texto (meia altura) a ~1,2 altura dele.</summary>
+    private static (Point2d inicio, Point2d fim)? Patamar(MText texto, double xRefs)
+    {
+        try
+        {
+            var ext = texto.GeometricExtents;
+            double h = texto.TextHeight, yM = (ext.MinPoint.Y + ext.MaxPoint.Y) / 2;
+            int s = xRefs >= (ext.MinPoint.X + ext.MaxPoint.X) / 2 ? 1 : -1;
+            var a = new Point2d((s > 0 ? ext.MaxPoint.X : ext.MinPoint.X) + s * 0.3 * h, yM);
+            return (a, a + new Vector2d(s * 1.4 * h, 0));
+        }
+        catch (Exception) { return null; } // texto vazio ainda sem extensão
     }
 
     /// <summary>
