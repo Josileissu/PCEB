@@ -134,6 +134,7 @@ internal static class ServicoRA
         var num = Numerador.Numerar(itens, cfg.TipoNumeracao, cfg.NumeroInicial, estado.Bloqueada, estado.MaiorNumero);
         NumerarTelas(barras.Select(b => b.Pl).Distinct().ToList(), barras.ToDictionary(b => b.Pl.ObjectId, b => b.Geo));
 
+        var porBarra = ocorrencias.ToLookup(o => o.Pl.ObjectId); // a mesma barra vista por vários caminhos
         foreach (var b in barras)
         {
             var id = b.Pl.ObjectId;
@@ -149,7 +150,7 @@ internal static class ServicoRA
                 b.Pl.UpgradeOpen();
                 XDataCad.Gravar(b.Pl, CodecDados.Codificar(d));
             }
-            foreach (var o in ocorrencias.Where(o => o.Pl.ObjectId == id)) { o.Dados.Numero = n; o.Dados.Nova = nova; }
+            foreach (var o in porBarra[id]) { o.Dados.Numero = n; o.Dados.Nova = nova; }
             ServicoBarra.Atualizar(tr, b.Pl, cfg);
         }
         if (estado.Bloqueada && num.MaiorNumero > estado.MaiorNumero)
