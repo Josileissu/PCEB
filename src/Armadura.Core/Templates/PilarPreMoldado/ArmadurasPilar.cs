@@ -12,12 +12,18 @@ namespace Armadura.Core.Templates.PilarPreMoldado;
 /// <summary>Barra longitudinal na seção (coordenadas da seção: origem no canto inferior esquerdo, x ao longo de b).</summary>
 public readonly struct BarraNaSecao
 {
-    public BarraNaSecao(double x, double y, double bitola, string grupo) { X = x; Y = y; Bitola = bitola; Grupo = grupo; }
+    public BarraNaSecao(double x, double y, double bitola, string grupo, int feixe = 1, string arranjo = "")
+    {
+        X = x; Y = y; Bitola = bitola; Grupo = grupo; Feixe = feixe; Arranjo = arranjo;
+    }
+    /// <summary>Centro da barra (ou do feixe).</summary>
     public double X { get; }
     public double Y { get; }
     public double Bitola { get; }
-    /// <summary>"canto", "vizinha" (ao lado do canto), "faceB" (faces 2 e 4) ou "faceH" (faces 1 e 3).</summary>
+    /// <summary>Linha da lista ("L1"…); em <see cref="TemplatePilarPreMoldado.PosicoesBarras"/>: "canto", "vizinha", "faceB" ou "faceH".</summary>
     public string Grupo { get; }
+    public int Feixe { get; }
+    public string Arranjo { get; }
 }
 
 /// <summary>Trecho de uma barra emendada, ao longo do pilar (cm a partir da base).</summary>
@@ -30,30 +36,24 @@ public readonly struct PecaBarra
 }
 
 /// <summary>
-/// Etapa 2 do pilar (2026-10-29): armaduras — longitudinais (cantos com 1 ou 3 barras em "L", faces), emendas
-/// alternadas ou na mesma seção (ou barras em rolo), estribos por zona (topo, corrente, base) com grampos, grampos U
-/// no topo e na base, elevação das armaduras com as faixas, seções 1-1/2-2/3-3 com as barras em ponto e as
+/// Etapa 2 do pilar (2026-10-29): armaduras — longitudinais (lista: cantos, "L", faces, feixes, redução com a altura), emendas
+/// alternadas ou na mesma seção (ou barras em rolo), estribos por zona (lista + trecho corrente) com grampos, grampos U
+/// no topo e na base, elevação das armaduras com as faixas, seções onde a composição muda, com as barras em ponto e as
 /// indicações N (numeração automática), formas dos estribos e grampos, e a relação do aço do detalhamento.
 /// </summary>
 public sealed partial class TemplatePilarPreMoldado
 {
     public const string SemEmendas = "Sem emendas (barras em rolo)", ComEmendas = "Com emendas";
     public const string Alternadas = "Alternadas", MesmaSecao = "Na mesma seção";
-    public const string GramposNenhum = "Nenhum", GramposTopoBase = "Topo e base", GramposTodas = "Todas as zonas";
 
     private const string G7 = "07. Armadura longitudinal", G8 = "08. Emendas", G9 = "09. Estribos", G10 = "10. Grampos suplementares",
         G11 = "11. Grampos U (topo e base)";
 
-    private static readonly ParametroTemplate[] ParametrosArmadura =
+    private static IEnumerable<ParametroTemplate> ParametrosArmadura() => new[]
     {
         P(G7, "LongAco", "Aço", "CA-50", tipo: TipoParametro.Opcao, opcoes: new[] { "CA-50", "CA-25" }),
-        P(G7, "CantoBitola", "Bitola da barra do canto", "25", "mm", TipoParametro.Bitola, 10, 40),
-        P(G7, "BarrasPorCanto", "Barras por canto (1 ou 3 em \"L\")", "3", tipo: TipoParametro.Inteiro, min: 1, max: 3),
+        ParametroLongitudinais(),
         P(G7, "CantoEsp", "Canto em \"L\": distância entre eixos", "5", "cm", min: 2),
-        P(G7, "VizBitola", "Bitola das barras ao lado do canto", "20", "mm", TipoParametro.Bitola, 10, 40),
-        P(G7, "FaceBNum", "Barras intermediárias por face b (faces 2 e 4)", "0", tipo: TipoParametro.Inteiro, min: 0, max: 20),
-        P(G7, "FaceHNum", "Barras intermediárias por face h (faces 1 e 3)", "0", tipo: TipoParametro.Inteiro, min: 0, max: 20),
-        P(G7, "FaceBitola", "Bitola das barras intermediárias", "20", "mm", TipoParametro.Bitola, 10, 40),
         P(G7, "DiamAgregado", "Diâmetro máximo do agregado", "19", "mm", min: 4),
 
         P(G8, "Emendas", "Emendas das longitudinais", ComEmendas, tipo: TipoParametro.Opcao, opcoes: new[] { ComEmendas, SemEmendas },
@@ -65,14 +65,10 @@ public sealed partial class TemplatePilarPreMoldado
         P(G9, "EstAco", "Aço", "CA-50", tipo: TipoParametro.Opcao, opcoes: new[] { "CA-50", "CA-60" }),
         P(G9, "EstBitola", "Trecho corrente: bitola", "6.3", "mm", TipoParametro.Bitola, 5, 16),
         P(G9, "EstEsp", "Trecho corrente: espaçamento", "15", "cm", min: 2),
-        P(G9, "TopoComp", "Zona do topo: comprimento", "100", "cm", min: 0, descricao: "0 = sem zona própria."),
-        P(G9, "TopoBitola", "Zona do topo: bitola", "8", "mm", TipoParametro.Bitola, 5, 16),
-        P(G9, "TopoEsp", "Zona do topo: espaçamento", "5", "cm", min: 2),
-        P(G9, "BaseComp", "Zona da base: comprimento", "260", "cm", min: 0, descricao: "0 = sem zona própria."),
-        P(G9, "BaseBitola", "Zona da base: bitola", "8", "mm", TipoParametro.Bitola, 5, 16),
-        P(G9, "BaseEsp", "Zona da base: espaçamento", "10", "cm", min: 2),
+        ParametroZonas(),
 
-        P(G10, "Grampos", "Grampos", GramposTopoBase, tipo: TipoParametro.Opcao, opcoes: new[] { GramposNenhum, GramposTopoBase, GramposTodas }),
+        P(G10, "GramposCorrente", "Grampos no trecho corrente", "Não", tipo: TipoParametro.SimNao,
+          descricao: "Nas zonas da lista, os grampos são escolhidos em cada zona."),
         P(G10, "GrampoDirecoes", "Direções (1 = só x, 2 = x e y)", "2", tipo: TipoParametro.Inteiro, min: 1, max: 2),
         P(G10, "GrampoBitola", "Bitola", "6.3", "mm", TipoParametro.Bitola, 5, 16),
 
@@ -165,12 +161,13 @@ public sealed partial class TemplatePilarPreMoldado
 
     private sealed class Grupo
     {
-        public string Chave;            // "canto", "vizinha", "faceB", "faceH"
+        public string Chave;            // linha da lista ("L1", "L2"…)
         public double Bitola;
+        public LinhaLongitudinal Linha;
         public List<BarraNaSecao> Barras = new List<BarraNaSecao>();
     }
 
-    /// <summary>Uma longitudinal desenhada na elevação (uma peça de um grupo, A ou B).</summary>
+    /// <summary>Uma longitudinal desenhada na elevação (uma peça de uma linha, A ou B).</summary>
     private sealed class Longitudinal
     {
         public string Nome;
@@ -180,6 +177,18 @@ public sealed partial class TemplatePilarPreMoldado
         public int Quantidade;
     }
 
+    /// <summary>Grampo U do topo ou da base (uma direção).</summary>
+    private sealed class GrampoU
+    {
+        public string Nome;
+        public bool Topo;
+        public int Dir;
+        public double W, Phi, Y1, Y2;
+        public int Qtd;
+    }
+
+    private static void Aviso(ResultadoTemplate r, string s) { if (!r.Avisos.Contains(s)) r.Avisos.Add(s); }
+
     /// <summary>Desenha as armaduras a partir de <paramref name="x0"/>; devolve o x onde elas terminam.</summary>
     private double GerarArmaduras(Ctx c, ValoresTemplate v, ConfiguracaoArmadura cfg, double x0, double b, double h, double L, double ch)
     {
@@ -187,52 +196,52 @@ public sealed partial class TemplatePilarPreMoldado
         double hv = c.hV, hc = c.hC;
         var cob = new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
         string aco = v["LongAco"], acoEst = v["EstAco"];
-        double phiCanto = v.Numero("CantoBitola"), phiViz = v.Numero("VizBitola"), phiFace = v.Numero("FaceBitola");
-        int porCanto = v.Inteiro("BarrasPorCanto") >= 3 ? 3 : 1;
         double sCanto = v.Numero("CantoEsp");
-        double phiEst = v.Numero("EstBitola"), phiTopo = v.Numero("TopoBitola"), phiBase = v.Numero("BaseBitola");
-        double zTopo = Math.Max(0, v.Numero("TopoComp")), zBase = Math.Max(0, v.Numero("BaseComp"));
-        if (zTopo + zBase > L) { zTopo = zBase = 0; r.Avisos.Add("Zonas de estribos do topo e da base maiores que o pilar: ignoradas."); }
-        double phiT = Math.Max(phiEst, Math.Max(zTopo > 0 ? phiTopo : 0, zBase > 0 ? phiBase : 0));
-
-        var barras = PosicoesBarras(b, h, cob, phiT, phiCanto, porCanto, sCanto, phiViz, v.Inteiro("FaceBNum"), v.Inteiro("FaceHNum"), phiFace);
-        var grupos = barras.GroupBy(x => x.Grupo).Select(g => new Grupo { Chave = g.Key, Bitola = g.First().Bitola, Barras = g.ToList() }).ToList();
-        VerificarSecao(r, b, h, barras, phiT, v);
-
-        // ---------------- longitudinais: peças (emendas) ----------------
         double yIni = cob[5], yFim = L - cob[4];
+
+        var linhas = LerLongitudinais(v, yIni, yFim, r.Avisos);
+        if (linhas.Count == 0) { r.Avisos.Add("Sem armadura longitudinal: inclua as barras na lista \"Barras longitudinais\"."); return x0; }
+        var zonas = LerZonas(v, yIni, yFim, L, r.Avisos);
+        double phiT = zonas.Max(z => z.Bitola);
+        var posicoes = PosicoesLinhas(b, h, cob, phiT, linhas, sCanto);
+        var grupos = linhas.Select(l => new Grupo { Chave = l.Chave, Bitola = l.Bitola, Linha = l, Barras = posicoes[l.Linha] }).ToList();
+        bool emL = linhas.Any(l => l.Arranjo == ArrAoLado);
+        double phiCanto = linhas.Where(l => l.Arranjo == ArrCantos).Select(l => l.Bitola).DefaultIfEmpty(10).Max();
+
+        // ---------------- longitudinais: peças (emendas pelo comprimento comercial) ----------------
         bool emendas = v["Emendas"] == ComEmendas, mesma = v["EmendaArranjo"] == MesmaSecao;
         double comercialPar = v.Numero("Comercial") > 0 ? v.Numero("Comercial") : 1200;
         var longs = new List<Longitudinal>();
         foreach (var g in grupos)
         {
+            double yA = g.Linha.Ini, yB = g.Linha.Fim;
+            int nPos = g.Barras.Count, fx = g.Linha.Feixe;
             var info = cfg.Barras.Obter(g.Bitola, aco);
             double comercial = info != null && info.ComprimentoComercial > 0 ? Math.Min(info.ComprimentoComercial, comercialPar) : comercialPar;
-            if (!emendas || yFim - yIni <= comercial)
+            if (!emendas || yB - yA <= comercial)
             {
-                if (!emendas && yFim - yIni > comercial && (info == null || info.Fabricacao != Fabricacao.Rolo))
-                    r.Avisos.Add($"ø{Num(g.Bitola, "0.0")} sem emendas ({Num(yFim - yIni, "0.#")} cm): na tabela de bitolas ela é vendida em barras de " +
-                                 $"{Num(comercial, "0")} cm — confira a disponibilidade em rolo.");
-                longs.Add(new Longitudinal { Grupo = g, Peca = new PecaBarra(yIni, yFim), Quantidade = g.Barras.Count });
+                if (!emendas && yB - yA > comercial && (info == null || info.Fabricacao != Fabricacao.Rolo))
+                    Aviso(r, $"ø{Num(g.Bitola, "0.0")} sem emendas ({Num(yB - yA, "0.#")} cm): na tabela de bitolas ela é vendida em barras de " +
+                             $"{Num(comercial, "0")} cm — confira a disponibilidade em rolo.");
+                longs.Add(new Longitudinal { Grupo = g, Peca = new PecaBarra(yA, yB), Quantidade = nPos * fx });
                 continue;
             }
             double lap = TraspassePilar(g.Bitola, aco, v.Numero("Fck"), mesma, cfg.Barras);
-            int nA = mesma ? g.Barras.Count : (g.Barras.Count + 1) / 2, nB = g.Barras.Count - nA;
-            foreach (var p in Pecas(yIni, yFim, comercial, lap, comercial))
-                longs.Add(new Longitudinal { Grupo = g, Peca = p, Quantidade = nA });
+            int nA = mesma ? nPos : (nPos + 1) / 2, nB = nPos - nA;
+            foreach (var p in Pecas(yA, yB, comercial, lap, comercial))
+                longs.Add(new Longitudinal { Grupo = g, Peca = p, Quantidade = nA * fx });
             if (nB > 0)
-                foreach (var p in Pecas(yIni, yFim, comercial, lap, PrimeiraAlternada(comercial, lap)))
-                    longs.Add(new Longitudinal { Grupo = g, B = true, Peca = p, Quantidade = nB });
+                foreach (var p in Pecas(yA, yB, comercial, lap, PrimeiraAlternada(comercial, lap)))
+                    longs.Add(new Longitudinal { Grupo = g, B = true, Peca = p, Quantidade = nB * fx });
         }
 
-        // ---------------- elevação das longitudinais ----------------
+        // ---------------- elevação: uma coluna por arranjo (e lado A/B); as linhas do arranjo uma sobre a outra ----------------
         double x = x0;
         int seq = 0;
-        var colunaDoGrupo = new Dictionary<(Grupo, bool), double>();
-        foreach (var grupoLado in longs.GroupBy(l => (l.Grupo, l.B)))
+        var ordemArr = linhas.Select(l => l.Arranjo).Distinct().ToList();
+        foreach (var coluna in longs.GroupBy(l => (l.Grupo.Linha.Arranjo, l.B)).OrderBy(gc => ordemArr.IndexOf(gc.Key.Arranjo)).ThenBy(gc => gc.Key.B))
         {
-            var pecas = grupoLado.OrderBy(l => l.Peca.Ini).ToList();
-            colunaDoGrupo[grupoLado.Key] = x;
+            var pecas = coluna.OrderBy(l => l.Peca.Ini).ThenBy(l => l.Grupo.Linha.Linha).ToList();
             for (int k = 0; k < pecas.Count; k++)
             {
                 var l = pecas[k];
@@ -245,19 +254,27 @@ public sealed partial class TemplatePilarPreMoldado
                     // descrição na vertical, ao lado da barra (como no P61); a cota do comprimento fica do outro lado
                     PosicaoDescricao = (xp + 1.0 * hv, (l.Peca.Ini + l.Peca.Fim) / 2), RotacaoDescricao = Math.PI / 2,
                 });
-                if (k > 0)
+                if (k == 0) continue;
+                var ant = pecas[k - 1];
+                double a = l.Peca.Ini, bFim = ant.Peca.Fim;
+                if (bFim - a < 1e-6) continue; // interrupção sem emenda (redução com a altura)
+                // emenda entre duas linhas da lista (redução): o traspasse digitado tem de cobrir o da norma
+                if (ant.Grupo != l.Grupo)
                 {
-                    // emenda: cota do traspasse e a nota para o projetista
-                    double a = l.Peca.Ini, bFim = pecas[k - 1].Peca.Fim;
-                    c.Cota(x + 3.6 * hv, a, x + 3.6 * hv, bFim, x + 4.6 * hv, (a + bFim) / 2, Math.PI / 2, c.escV);
-                    // texto na vertical, centrado na emenda; PT e EN lado a lado
-                    double xn = x + 6.0 * hv;
-                    foreach (var t in c.Linhas($"EMENDA: TRASPASSE {Num(bFim - a, "0")} cm (NBR 6118, MÍN. 45ø) - AJUSTAR SE NECESSÁRIO",
-                                               $"SPLICE: LAP {bFim - a:0} cm (NBR 6118, MIN. 45ø) - ADJUST IF NECESSARY"))
-                    {
-                        c.Texto(t, xn, (a + bFim) / 2, 0.6 * hv, 1, Math.PI / 2);
-                        xn += 0.9 * hv;
-                    }
+                    double req = TraspassePilar(Math.Max(ant.Grupo.Bitola, l.Grupo.Bitola), aco, v.Numero("Fck"), true, cfg.Barras);
+                    if (bFim - a < req - 1e-6)
+                        Aviso(r, $"Emenda das longitudinais {ant.Grupo.Linha.Linha} e {l.Grupo.Linha.Linha} ({l.Grupo.Linha.Arranjo}): traspasse " +
+                                 $"{Num(bFim - a, "0.#")} cm < {Num(req, "0")} cm (NBR 6118 na mesma seção, mín. 45ø).");
+                }
+                // emenda: cota do traspasse e a nota para o projetista
+                c.Cota(x + 3.6 * hv, a, x + 3.6 * hv, bFim, x + 4.6 * hv, (a + bFim) / 2, Math.PI / 2, c.escV);
+                // texto na vertical, centrado na emenda; PT e EN lado a lado
+                double xn = x + 6.0 * hv;
+                foreach (var t in c.Linhas($"EMENDA: TRASPASSE {Num(bFim - a, "0")} cm (NBR 6118, MÍN. 45ø) - AJUSTAR SE NECESSÁRIO",
+                                           $"SPLICE: LAP {bFim - a:0} cm (NBR 6118, MIN. 45ø) - ADJUST IF NECESSARY"))
+                {
+                    c.Texto(t, xn, (a + bFim) / 2, 0.6 * hv, 1, Math.PI / 2);
+                    xn += 0.9 * hv;
                 }
             }
             x += 12 * hv;
@@ -265,7 +282,7 @@ public sealed partial class TemplatePilarPreMoldado
 
         // ---------------- grampos U (elevação) ----------------
         double wEst = b - cob[0] - cob[2], hEst = h - cob[1] - cob[3]; // medidas externas do estribo
-        var us = new List<(string nome, bool topo, int dir, double w, double phi, int qtd)>();
+        var us = new List<GrampoU>();
         foreach (var topo in new[] { true, false })
         {
             string k = topo ? "UTopo" : "UBase";
@@ -274,7 +291,7 @@ public sealed partial class TemplatePilarPreMoldado
             int qtd = Math.Max(1, v.Inteiro(k + "Qtd"));
             // direção x: por dentro do estribo; direção y: dentro da primeira, afastada do canto
             double w1 = Math.Floor(wEst - 2 * phiT / 10 - phiU / 10);
-            double recuo = porCanto >= 3 ? sCanto : (phiCanto + phiU) / 10;
+            double recuo = emL ? sCanto : (phiCanto + phiU) / 10;
             double w2 = Math.Floor(hEst - 2 * phiT / 10 - phiU / 10 - 2 * recuo);
             for (int dir = 0; dir < 2; dir++)
             {
@@ -287,19 +304,14 @@ public sealed partial class TemplatePilarPreMoldado
                     Bitola = phiU, Aco = aco, Quantidade = qtd, Escala = c.escV,
                     PosicaoDescricao = (x - 2.5 * hv, y0 + s * perna / 2), RotacaoDescricao = Math.PI / 2,
                 });
-                us.Add((nome, topo, dir, w, phiU, qtd));
+                us.Add(new GrampoU { Nome = nome, Topo = topo, Dir = dir, W = w, Phi = phiU, Qtd = qtd,
+                                     Y1 = topo ? yFim - perna : yIni, Y2 = topo ? yFim : yIni + perna });
                 x += w + 8 * hv;
             }
         }
         if (us.Count > 0) x -= 8 * hv;
 
         // ---------------- estribos e grampos: formas (perto das seções) e faixas na elevação ----------------
-        var zonas = new List<(double y1, double y2, double phi, double esp, bool grampos, string nome)>();
-        string modoGr = v["Grampos"];
-        if (zBase > 0) zonas.Add((yIni, zBase, phiBase, v.Numero("BaseEsp"), modoGr != GramposNenhum, "base"));
-        zonas.Add((zBase > 0 ? zBase : yIni, zTopo > 0 ? L - zTopo : yFim, phiEst, v.Numero("EstEsp"), modoGr == GramposTodas, "corrente"));
-        if (zTopo > 0) zonas.Add((L - zTopo, yFim, phiTopo, v.Numero("TopoEsp"), modoGr != GramposNenhum, "topo"));
-
         double xFx = x + 8 * hv;
         double xSec = xFx + 22 * hv;
         var estribosPorBitola = new Dictionary<double, string>();
@@ -311,13 +323,13 @@ public sealed partial class TemplatePilarPreMoldado
         var formas = new List<Action<double, double>>();
         foreach (var z in zonas)
         {
-            if (estribosPorBitola.ContainsKey(z.phi)) continue;
+            if (estribosPorBitola.ContainsKey(z.Bitola)) continue;
             string nome = $"estribo{estribosPorBitola.Count}";
-            estribosPorBitola[z.phi] = nome;
-            double phi = z.phi;
+            estribosPorBitola[z.Bitola] = nome;
+            double phi = z.Bitola;
             formas.Add((fx, fy) => r.Barras.Add(Estribo(cfg, nome, fx, fy, wEst, hEst, phi, acoEst, c.escC)));
         }
-        if (zonas.Any(z => z.grampos))
+        if (zonas.Any(z => z.Grampos))
         {
             int n = quadrado ? 1 : dirsGr;
             for (int d = 0; d < n; d++)
@@ -330,44 +342,48 @@ public sealed partial class TemplatePilarPreMoldado
         }
         foreach (var z in zonas)
         {
-            if (z.y2 - z.y1 < 1e-6) continue;
+            if (z.Y2 - z.Y1 < 1e-6) continue;
             r.Faixas.Add(new FaixaTemplate
             {
-                Barra = estribosPorBitola[z.phi], Tipo = TipoFaixa.Ortogonal, P1 = (xFx, z.y1), P2 = (xFx, z.y2),
-                Posicao = (xFx + 2 * hv, (z.y1 + z.y2) / 2), Espacamento = z.esp, Escala = c.escV, MostrarDiametro = false,
+                Barra = estribosPorBitola[z.Bitola], Tipo = TipoFaixa.Ortogonal, P1 = (xFx, z.Y1), P2 = (xFx, z.Y2),
+                Posicao = (xFx + 2 * hv, (z.Y1 + z.Y2) / 2), Espacamento = z.Esp, Escala = c.escV, MostrarDiametro = false,
             });
-            if (!z.grampos) continue;
+            if (!z.Grampos) continue;
             for (int d = 0; d < grampos.Count; d++)
                 r.Faixas.Add(new FaixaTemplate
                 {
-                    Barra = grampos[d], Tipo = TipoFaixa.Ortogonal, P1 = (xFx + (3 + 2 * d) * hv, z.y1), P2 = (xFx + (3 + 2 * d) * hv, z.y2),
-                    Posicao = (xFx + (5 + 2 * d) * hv, (z.y1 + z.y2) / 2), Espacamento = z.esp, Escala = c.escV, MostrarDiametro = false,
+                    Barra = grampos[d], Tipo = TipoFaixa.Ortogonal, P1 = (xFx + (3 + 2 * d) * hv, z.Y1), P2 = (xFx + (3 + 2 * d) * hv, z.Y2),
+                    Posicao = (xFx + (5 + 2 * d) * hv, (z.Y1 + z.Y2) / 2), Espacamento = z.Esp, Escala = c.escV, MostrarDiametro = false,
                     Repeticoes = quadrado ? dirsGr : 1,
                 });
         }
 
-        // ---------------- seções 1-1 (topo), 2-2 (corrente), 3-3 (base) ----------------
-        var cortes = new List<(string id, double y, string zona)>();
-        if (zTopo > 0 || us.Any(u => u.topo)) cortes.Add(("1", L - Math.Max(zTopo, 20) / 2, "topo"));
-        cortes.Add((cortes.Count == 0 ? "1" : "2", (zBase + (L - zTopo)) / 2, "corrente"));
-        if (zBase > 0 || us.Any(u => !u.topo)) cortes.Add(((cortes.Count + 1).ToString(), Math.Max(zBase, 20) / 2, "base"));
+        // ---------------- seções: uma por composição diferente (linhas ativas, estribo, grampos, U), de cima para baixo ----------------
+        var cortes = Cortes(linhas, zonas, us, yIni, yFim);
+        VerificarArmadura(r, b, h, linhas, zonas);
 
         double yS = L + 10 * hv;
-        foreach (var (id, yc, zona) in cortes)
+        foreach (var corte in cortes)
         {
-            // marcas na elevação das armaduras
-            foreach (double xm in new[] { x0 - 3 * hv, xFx + 9 * hv })
-            {
-                c.Linha(xm, yc, xm + 2 * hv, yc, "ARM-CORTE");
-                c.Texto(id, xm + hv, yc + 0.5 * hv, hv, 1, 0, "ARM-CORTE");
-            }
+            // marcas na elevação das armaduras (todos os trechos com esta composição)
+            foreach (double yc in corte.Marcas)
+                foreach (double xm in new[] { x0 - 3 * hv, xFx + 9 * hv })
+                {
+                    c.Linha(xm, yc, xm + 2 * hv, yc, "ARM-CORTE");
+                    c.Texto(corte.Id, xm + hv, yc + 0.5 * hv, hv, 1, 0, "ARM-CORTE");
+                }
+            string id = corte.Id;
             // título
             double yt = yS;
             foreach (var t in c.Linhas($"SEÇÃO {id}-{id} - ARMADURA", $"SECTION {id}-{id} - REBAR")) { c.Texto(t, xSec, yt, 1.2 * hc); yt -= 2 * hc; }
             c.Texto($"ESC 1:{c.escC:0}", xSec, yt, 0.8 * hc);
             double sy0 = yt - 8 * hc - h, sx0 = xSec + 8 * hc;
-            bool grSecao = grampos.Count > 0 && (zonas.FirstOrDefault(z => z.nome == zona).nome != null ? zonas.First(z => z.nome == zona).grampos : modoGr == GramposTodas);
-            DesenharSecao(c, sx0, sy0, b, h, ch, cob, phiT, barras, longs, yc, zona, us, grSecao, dirsGr);
+            var ativas = linhas.Where(l => l.Ini <= corte.Y + 1e-6 && l.Fim >= corte.Y - 1e-6).ToList();
+            var barras = ativas.SelectMany(l => posicoes[l.Linha]).ToList();
+            var zona = zonas.First(z => z.Y1 <= corte.Y + 1e-6 && z.Y2 >= corte.Y - 1e-6);
+            var usAtivos = us.Where(u => u.Y1 <= corte.Y + 1e-6 && u.Y2 >= corte.Y - 1e-6).ToList();
+            VerificarSecao(r, b, h, barras, phiT, zona.Grampos, v.Numero("DiamAgregado"));
+            DesenharSecao(c, sx0, sy0, b, h, ch, cob, phiT, barras, longs, corte.Y, usAtivos, zona.Grampos && grampos.Count > 0, dirsGr);
             yS = sy0 - 10 * hc;
         }
 
@@ -379,6 +395,82 @@ public sealed partial class TemplatePilarPreMoldado
             fxCur += Math.Max(wEst, hEst) + 12 * hc;
         }
         return Math.Max(xSec + b + 30 * hc, fxCur);
+    }
+
+    /// <summary>Seção a desenhar: número, altura do corte (o trecho mais longo) e as alturas de todos os trechos iguais.</summary>
+    public sealed class CortePilar
+    {
+        public string Id { get; set; } = "";
+        public double Y { get; set; }
+        public List<double> Marcas { get; set; } = new List<double>();
+        public string Assinatura { get; set; } = "";
+    }
+
+    /// <summary>
+    /// Seções da armadura: o pilar é dividido onde muda a composição (linhas ativas, estribo e grampos da zona, grampos U); trechos
+    /// de emenda entre linhas do mesmo arranjo e trechos com menos de 10 cm não ganham seção. Composições iguais repetem o número.
+    /// Os grampos U não dividem trechos: entram na seção que os corta (e a distinguem de outra igual sem eles).
+    /// </summary>
+    private static List<CortePilar> Cortes(List<LinhaLongitudinal> linhas, List<ZonaEstribo> zonas, List<GrampoU> us, double yIni, double yFim)
+    {
+        var ys = new List<double> { yIni, yFim };
+        ys.AddRange(linhas.SelectMany(l => new[] { l.Ini, l.Fim }));
+        ys.AddRange(zonas.SelectMany(z => new[] { z.Y1, z.Y2 }));
+        ys.AddRange(us.SelectMany(u => new[] { u.Y1, u.Y2 }));
+        ys = ys.Where(y => y >= yIni - 1e-6 && y <= yFim + 1e-6).OrderBy(y => y).ToList();
+        string Assinatura(double y)
+        {
+            var at = linhas.Where(l => l.Ini <= y && l.Fim >= y).ToList();
+            if (at.GroupBy(l => l.Arranjo).Any(g => g.Count() > 1)) return null; // emenda entre linhas
+            var z = zonas.FirstOrDefault(q => q.Y1 <= y && q.Y2 >= y);
+            return string.Join(",", at.Select(l => l.Chave)) + "|" + (z == null ? "" : $"{z.Bitola}/{z.Grampos}");
+        }
+        // trechos com a mesma composição, de baixo para cima
+        var trechos = new List<(double a, double b, string sig)>();
+        for (int i = 0; i + 1 < ys.Count; i++)
+        {
+            double a = ys[i], bb = ys[i + 1];
+            if (bb - a < 1e-6) continue;
+            string sig = Assinatura((a + bb) / 2);
+            if (trechos.Count > 0 && sig != null && trechos[trechos.Count - 1].sig == sig && Math.Abs(trechos[trechos.Count - 1].b - a) < 1e-6)
+                trechos[trechos.Count - 1] = (trechos[trechos.Count - 1].a, bb, sig);
+            else trechos.Add((a, bb, sig));
+        }
+        var validos = trechos.Where(t => t.sig != null && t.b - t.a >= 10).ToList();
+        if (validos.Count == 0) validos = trechos.Where(t => t.sig != null).OrderByDescending(t => t.b - t.a).Take(1).ToList();
+        // os U que o meio do trecho corta distinguem seções iguais (topo × base), sem criar trechos novos
+        validos = validos.Select(t => (t.a, t.b, sig: t.sig + "|" +
+            string.Join(",", us.Where(u => u.Y1 <= (t.a + t.b) / 2 && u.Y2 >= (t.a + t.b) / 2).Select(u => u.Nome)))).ToList();
+        var r = new List<CortePilar>();
+        foreach (var t in validos.OrderByDescending(t => t.b)) // de cima para baixo: 1-1 no topo
+        {
+            var corte = r.FirstOrDefault(q => q.Assinatura == t.sig);
+            if (corte == null)
+            {
+                corte = new CortePilar { Id = (r.Count + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), Assinatura = t.sig, Y = (t.a + t.b) / 2 };
+                r.Add(corte);
+            }
+            else if (t.b - t.a > 0)
+            {
+                // o corte fica no trecho mais longo da composição
+                var maior = validos.Where(q => q.sig == t.sig).OrderByDescending(q => q.b - q.a).First();
+                corte.Y = (maior.a + maior.b) / 2;
+            }
+            corte.Marcas.Add((t.a + t.b) / 2);
+        }
+        // grampos U: aparecem na seção cujo corte os atravessa; se nenhum corte pega um U, o corte do trecho que mais o cobre vai para ele
+        foreach (var u in us)
+        {
+            if (r.Any(q => q.Y >= u.Y1 - 1e-6 && q.Y <= u.Y2 + 1e-6)) continue;
+            var melhor = validos.Select(t => (t, a: Math.Max(t.a, u.Y1), b: Math.Min(t.b, u.Y2))).Where(q => q.b - q.a > 1e-6)
+                .OrderByDescending(q => q.b - q.a).FirstOrDefault();
+            if (melhor.t.sig == null) continue;
+            var corte = r.First(q => q.Assinatura == melhor.t.sig);
+            double yNovo = (melhor.a + melhor.b) / 2;
+            corte.Marcas[corte.Marcas.IndexOf(corte.Marcas.OrderBy(m => Math.Abs(m - corte.Y)).First())] = yNovo;
+            corte.Y = yNovo;
+        }
+        return r;
     }
 
     /// <summary>Estribo fechado (medidas externas w × h) com ganchos de 90° no canto superior esquerdo (padrão do escritório).</summary>
@@ -408,10 +500,9 @@ public sealed partial class TemplatePilarPreMoldado
         return bt;
     }
 
-    /// <summary>Seção de armadura: forma, estribo, grampos, barras em ponto (diâmetro real) e indicações N.</summary>
+    /// <summary>Seção de armadura: forma, estribo, grampos, barras em ponto (diâmetro real, feixes) e indicações N.</summary>
     private static void DesenharSecao(Ctx c, double sx0, double sy0, double b, double h, double ch, double[] cob, double phiT,
-        List<BarraNaSecao> barras, List<Longitudinal> longs, double yCorte, string zona,
-        List<(string nome, bool topo, int dir, double w, double phi, int qtd)> us, bool comGrampos, int dirsGr)
+        List<BarraNaSecao> barras, List<Longitudinal> longs, double yCorte, List<GrampoU> us, bool comGrampos, int dirsGr)
     {
         var r = c.R;
         double hc = c.hC;
@@ -440,8 +531,9 @@ public sealed partial class TemplatePilarPreMoldado
             foreach (var bs in grupo)
             {
                 double px = sx0 + bs.X, py = sy0 + bs.Y;
-                r.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = bs.Bitola / 20, Layer = "ARM-BARRA-SECAO" });
-                // na alternância, metade das barras do grupo é a "B"
+                foreach (var (dx, dy) in CentrosFeixe(bs.Bitola, bs.Feixe))
+                    r.Circulos.Add(new CirculoTemplate { X = px + dx, Y = py + dy, Raio = bs.Bitola / 20, Layer = "ARM-BARRA-SECAO" });
+                // na alternância, metade das barras da linha é a "B"
                 var candidatas = longs.Where(l => l.Grupo.Chave == grupo.Key && l.Peca.Ini <= yCorte + 1e-6 && l.Peca.Fim >= yCorte - 1e-6).ToList();
                 var peca = candidatas.FirstOrDefault(l => l.B == (i % 2 == 1)) ?? candidatas.FirstOrDefault();
                 if (peca != null) laterais.Add((py, new List<(double, double)> { (px, py) }, peca.Nome, px < xm));
@@ -449,26 +541,26 @@ public sealed partial class TemplatePilarPreMoldado
             }
         }
         // grampos U: pernas em ponto e o trecho reto em vista; UMA indicação por conjunto (com uma linha para cada U)
-        foreach (var u in us.Where(u => (zona == "topo" && u.topo) || (zona == "base" && !u.topo)))
+        foreach (var u in us)
         {
-            double ru = u.phi / 20;
+            double ru = u.Phi / 20;
             var pernas = new List<(double X, double Y)>();
-            for (int k = 1; k <= u.qtd; k++)
+            for (int k = 1; k <= u.Qtd; k++)
             {
-                double desl = (k - (u.qtd + 1) / 2.0) * 8 * ru;
+                double desl = (k - (u.Qtd + 1) / 2.0) * 8 * ru;
                 (double X, double Y) pa, pb;
-                if (u.dir == 0) { double y = sy0 + h / 2 + desl; pa = (xm - u.w / 2, y); pb = (xm + u.w / 2, y); }
-                else { double xx = xm + desl; pa = (xx, sy0 + h / 2 + u.w / 2); pb = (xx, sy0 + h / 2 - u.w / 2); }
+                if (u.Dir == 0) { double y = sy0 + h / 2 + desl; pa = (xm - u.W / 2, y); pb = (xm + u.W / 2, y); }
+                else { double xx = xm + desl; pa = (xx, sy0 + h / 2 + u.W / 2); pb = (xx, sy0 + h / 2 - u.W / 2); }
                 c.Linha(pa.X, pa.Y, pb.X, pb.Y, "ARM-ESTRIBO-SECAO");
                 r.Circulos.Add(new CirculoTemplate { X = pa.X, Y = pa.Y, Raio = ru, Layer = "ARM-BARRA-SECAO" });
                 r.Circulos.Add(new CirculoTemplate { X = pb.X, Y = pb.Y, Raio = ru, Layer = "ARM-BARRA-SECAO" });
                 pernas.Add(pa);
             }
-            if (u.dir == 0) laterais.Add((pernas.Average(p => p.Y), pernas, u.nome, true));
+            if (u.Dir == 0) laterais.Add((pernas.Average(p => p.Y), pernas, u.Nome, true));
             else
                 r.Faixas.Add(new FaixaTemplate
                 {
-                    Barra = u.nome, Tipo = TipoFaixa.Indicacao, Referencias = pernas, Posicao = (xm, sy0 + h + 3 * hc), Escala = c.escC,
+                    Barra = u.Nome, Tipo = TipoFaixa.Indicacao, Referencias = pernas, Posicao = (xm, sy0 + h + 3 * hc), Escala = c.escC,
                 });
         }
         // laterais: cada texto na altura da sua barra, afastado só o necessário para não encostar no vizinho
@@ -490,43 +582,54 @@ public sealed partial class TemplatePilarPreMoldado
         }
     }
 
-    /// <summary>Verificações de detalhamento da NBR 6118 (avisos, não bloqueiam).</summary>
-    private static void VerificarSecao(ResultadoTemplate r, double b, double h, List<BarraNaSecao> barras, double phiT, ValoresTemplate v)
+    /// <summary>Verificações da NBR 6118 que valem para o pilar todo (bitolas e espaçamento dos estribos; avisos, não bloqueiam).</summary>
+    private static void VerificarArmadura(ResultadoTemplate r, double b, double h, List<LinhaLongitudinal> linhas, List<ZonaEstribo> zonas)
     {
         double menor = Math.Min(b, h);
-        foreach (var phi in barras.Select(x => x.Bitola).Distinct())
+        foreach (var phi in linhas.Select(x => x.Bitola).Distinct())
         {
-            if (phi < 10) r.Avisos.Add($"Longitudinal ø{Num(phi, "0.0")} < 10 mm (NBR 6118, 18.4.2.1).");
-            if (phi > menor * 10 / 8) r.Avisos.Add($"Longitudinal ø{Num(phi, "0.0")} > 1/8 da menor dimensão (NBR 6118, 18.4.2.1).");
+            if (phi < 10) Aviso(r, $"Longitudinal ø{Num(phi, "0.0")} < 10 mm (NBR 6118, 18.4.2.1).");
+            if (phi > menor * 10 / 8) Aviso(r, $"Longitudinal ø{Num(phi, "0.0")} > 1/8 da menor dimensão (NBR 6118, 18.4.2.1).");
         }
-        double phiMax = barras.Max(x => x.Bitola);
-        foreach (var k in new[] { "EstBitola", "TopoBitola", "BaseBitola" })
-        {
-            double pt = v.Numero(k);
-            if (pt < 5 || pt < phiMax / 4) r.Avisos.Add($"Estribo ø{Num(pt, "0.0")}: menor que 5 mm ou φ/4 = {Num(phiMax / 4, "0.0#")} mm (NBR 6118, 18.4.3).");
-        }
-        double phiMin = barras.Min(x => x.Bitola);
+        double phiMax = linhas.Max(x => x.Bitola), phiMin = linhas.Min(x => x.Bitola);
+        foreach (var pt in zonas.Select(z => z.Bitola).Distinct())
+            if (pt < 5 || pt < phiMax / 4) Aviso(r, $"Estribo ø{Num(pt, "0.0")}: menor que 5 mm ou φ/4 = {Num(phiMax / 4, "0.0#")} mm (NBR 6118, 18.4.3).");
         double sMax = Math.Min(20, Math.Min(menor, 12 * phiMin / 10));
-        if (v.Numero("EstEsp") > sMax + 1e-6)
-            r.Avisos.Add($"Espaçamento dos estribos {Num(v.Numero("EstEsp"), "0.#")} cm > {Num(sMax, "0.#")} cm (mín. de 20 cm, menor dimensão e 12φ; NBR 6118, 18.4.3).");
-        // espaçamento livre entre barras vizinhas
-        double livreMin = Math.Max(2, Math.Max(phiMax / 10, 1.2 * v.Numero("DiamAgregado") / 10));
+        foreach (var z in zonas.Where(z => z.Esp > sMax + 1e-6).GroupBy(z => z.Esp))
+            Aviso(r, $"Espaçamento dos estribos {Num(z.Key, "0.#")} cm > {Num(sMax, "0.#")} cm (mín. de 20 cm, menor dimensão e 12φ; NBR 6118, 18.4.3).");
+        // pelo menos uma barra em cada vértice, no pilar todo
+        double yIni = zonas.Min(z => z.Y1), yFim = zonas.Max(z => z.Y2), y = yIni;
+        foreach (var l in linhas.Where(l => l.Arranjo == ArrCantos).OrderBy(l => l.Ini))
+            if (l.Ini <= y + 1e-6) y = Math.Max(y, l.Fim);
+        if (y < yFim - 1e-6)
+            Aviso(r, $"Sem barras de canto de {Num(y, "0.#")} a {Num(yFim, "0.#")} cm: é preciso uma barra em cada vértice (NBR 6118, 18.4.2.1).");
+    }
+
+    /// <summary>Verificações de cada seção: espaçamento entre barras e grampos para barras longe do canto (NBR 6118).</summary>
+    private static void VerificarSecao(ResultadoTemplate r, double b, double h, List<BarraNaSecao> barras, double phiT, bool grampos, double diamAg)
+    {
+        if (barras.Count < 2) return;
+        double menor = Math.Min(b, h);
+        // feixe: diâmetro equivalente φ√n (NBR 6118, 17.3.5.2.3)
+        double Eq(BarraNaSecao x) => x.Bitola * Math.Sqrt(x.Feixe);
+        double phiMax = barras.Max(Eq);
+        double livreMin = Math.Max(2, Math.Max(phiMax / 10, 1.2 * diamAg / 10));
         double pior = double.MaxValue, maiorEixo = 0;
         foreach (var a in barras)
         {
             var viz = barras.Where(x => !(x.X == a.X && x.Y == a.Y))
                 .Select(x => (d: Math.Sqrt((x.X - a.X) * (x.X - a.X) + (x.Y - a.Y) * (x.Y - a.Y)), x)).OrderBy(p => p.d).First();
-            pior = Math.Min(pior, viz.d - (a.Bitola + viz.x.Bitola) / 20);
+            pior = Math.Min(pior, viz.d - RaioFeixe(a.Bitola, a.Feixe) - RaioFeixe(viz.x.Bitola, viz.x.Feixe));
             maiorEixo = Math.Max(maiorEixo, viz.d);
         }
         if (pior < livreMin - 1e-6)
-            r.Avisos.Add($"Espaçamento livre entre barras {Num(pior, "0.0#")} cm < {Num(livreMin, "0.0#")} cm (NBR 6118, 18.4.2.2).");
+            Aviso(r, $"Espaçamento livre entre barras {Num(pior, "0.0#")} cm < {Num(livreMin, "0.0#")} cm (NBR 6118, 18.4.2.2).");
         if (maiorEixo > Math.Min(2 * menor, 40) + 1e-6)
-            r.Avisos.Add($"Espaçamento entre eixos {Num(maiorEixo, "0.#")} cm > {Num(Math.Min(2 * menor, 40), "0.#")} cm (NBR 6118, 18.4.2.2).");
+            Aviso(r, $"Espaçamento entre eixos {Num(maiorEixo, "0.#")} cm > {Num(Math.Min(2 * menor, 40), "0.#")} cm (NBR 6118, 18.4.2.2).");
         // proteção contra flambagem: barras a mais de 20 φt de um canto pedem grampo
-        var cantos = barras.Where(x => x.Grupo == "canto").ToList();
-        bool longe = barras.Where(x => x.Grupo != "canto").Any(x => cantos.Min(cn => Math.Max(Math.Abs(cn.X - x.X), Math.Abs(cn.Y - x.Y))) > 20 * phiT / 10 + 1e-6);
-        if (longe && v["Grampos"] == GramposNenhum)
-            r.Avisos.Add("Há barras a mais de 20φt do canto sem grampos suplementares (NBR 6118, 18.2.4).");
+        var cantos = barras.Where(x => x.Arranjo == ArrCantos).ToList();
+        if (cantos.Count == 0 || grampos) return;
+        bool longe = barras.Where(x => x.Arranjo != ArrCantos).Any(x => cantos.Min(cn => Math.Max(Math.Abs(cn.X - x.X), Math.Abs(cn.Y - x.Y))) > 20 * phiT / 10 + 1e-6);
+        if (longe) Aviso(r, "Há barras a mais de 20φt do canto sem grampos suplementares (NBR 6118, 18.2.4).");
     }
 }

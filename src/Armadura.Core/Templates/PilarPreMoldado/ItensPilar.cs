@@ -424,8 +424,8 @@ public sealed partial class TemplatePilarPreMoldado
         // ---- espaçamento das barras no canto, 1:5 ----
         {
             double esc = 5, ht = Ht(c, esc);
-            double phiC = v.Numero("CantoBitola"), phiV = v.Numero("VizBitola"), s = v.Numero("CantoEsp");
-            bool l3 = v.Inteiro("BarrasPorCanto") >= 3;
+            var (phiC, phiV, l3) = BitolasDoCanto(v);
+            double s = v.Numero("CantoEsp");
             fimTitulo = Titulo("ESPAÇAMENTO BARRAS", "REBAR SPACING", x, yTopo, esc, "ESC 1:5");
             double canto = cob[2] + phiT / 10 + phiC / 20; // centro da barra do canto à face
             double fx = x + 2 * ht, fy = yTopo - 10 * ht;  // canto superior esquerdo da seção
