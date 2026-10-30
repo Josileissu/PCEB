@@ -194,7 +194,7 @@ public sealed partial class TemplatePilarPreMoldado
     {
         var r = c.R;
         double hv = c.hV, hc = c.hC;
-        var cob = new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
+        var cob = Cobrimentos(v);
         string aco = v["LongAco"], acoEst = v["EstAco"];
         double sCanto = v.Numero("CantoEsp");
         double yIni = cob[5], yFim = L - cob[4];
@@ -388,13 +388,14 @@ public sealed partial class TemplatePilarPreMoldado
         }
 
         // ---------------- formas dos estribos e grampos ----------------
-        double fxCur = xSec + 8 * hc, fyCur = yS - 4 * hc;
+        double fxCur = xSec + 8 * hc, fyCur = yS - 4 * hc, fxFim = fxCur;
         foreach (var f in formas)
         {
             f(fxCur, fyCur);
+            fxFim = fxCur + Math.Max(wEst, hEst) + 4 * hc; // sem o espaço que sobra depois da última forma
             fxCur += Math.Max(wEst, hEst) + 12 * hc;
         }
-        return Math.Max(xSec + b + 30 * hc, fxCur);
+        return Math.Max(xSec + b + 20 * hc, fxFim); // seção + etiquetas da direita
     }
 
     /// <summary>Seção a desenhar: número, altura do corte (o trecho mais longo) e as alturas de todos os trechos iguais.</summary>
@@ -563,8 +564,11 @@ public sealed partial class TemplatePilarPreMoldado
                     Barra = u.Nome, Tipo = TipoFaixa.Indicacao, Referencias = pernas, Posicao = (xm, sy0 + h + 3 * hc), Escala = c.escC,
                 });
         }
+        // barras de mesmo N do mesmo lado: UMA etiqueta com uma linha para cada barra (checagem de 2026-10-30)
+        laterais = laterais.GroupBy(l => (l.barra, l.esq))
+            .Select(g => (Y: g.Average(l => l.Y), pts: g.SelectMany(l => l.pts).ToList(), barra: g.Key.barra, esq: g.Key.esq)).ToList();
         // laterais: cada texto na altura da sua barra, afastado só o necessário para não encostar no vizinho
-        double gap = 1.5 * hc;
+        double gap = 1.9 * hc; // com as etiquetas agrupadas, as do meio ficam juntas: um pouco mais de folga
         foreach (var lado in laterais.GroupBy(l => l.esq))
         {
             var lista = lado.OrderByDescending(l => l.Y).ToList();

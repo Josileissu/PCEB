@@ -76,6 +76,30 @@ internal static class XDataCad
     }
 
     /// <summary>Grava só se mudou (evita modificar o objeto e gerar undo/eventos à toa).</summary>
+    // atalhos: gravar os dados do núcleo direto (antes: Gravar(o, CodecDados.Codificar(x)) em 45 lugares)
+    public static void Gravar(DBObject o, DadosArmadura d) => Gravar(o, CodecDados.Codificar(d));
+    public static void Gravar(DBObject o, DadosFaixa f) => Gravar(o, CodecDados.Codificar(f));
+    public static void Gravar(DBObject o, Vinculo v) => Gravar(o, CodecDados.Codificar(v));
+    public static void Gravar(DBObject o, DadosDetalhamento d) => Gravar(o, CodecDados.Codificar(d));
+    public static void Gravar(DBObject o, Armadura.Core.RelacaoAco.OpcoesTabelaRA op) => Gravar(o, CodecDados.Codificar(op));
+    public static bool GravarSeMudou(DBObject o, DadosArmadura d) => GravarSeMudou(o, CodecDados.Codificar(d));
+    public static bool GravarSeMudou(DBObject o, DadosFaixa f) => GravarSeMudou(o, CodecDados.Codificar(f));
+
+    /// <summary>Barra (polilinha com dados de barra) do handle guardado numa parte; null se não existe ou não é barra.</summary>
+    public static Polyline BarraDoHandle(Transaction tr, Database db, string handle)
+    {
+        var id = IdDoHandle(db, handle);
+        if (id.IsNull || id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Polyline pl)) return null;
+        return Tipo(pl) == TipoParte.Barra ? pl : null;
+    }
+
+    /// <summary>A lista de handles (da barra/faixa) contém o handle do objeto? (vínculo recíproco)</summary>
+    public static bool Lista(IEnumerable<string> handles, ObjectId id)
+    {
+        string h = Hex(id);
+        return handles != null && handles.Any(x => string.Equals(x, h, StringComparison.OrdinalIgnoreCase));
+    }
+
     public static bool GravarSeMudou(DBObject o, List<CampoXData> novos)
     {
         var atuais = Ler(o);

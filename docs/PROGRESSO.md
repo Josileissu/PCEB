@@ -295,3 +295,13 @@ consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálcu
 - [x] Seções onde a composição muda (P61 continua com 3). Unidade 168/168; autoteste 208/208 (P62 REDUCAO:
         `autoteste_pilar_reducao_emenda.png`, `autoteste_pilar_reducao_secoes.png`, `autoteste_janela_longitudinais.png`).
 - [ ] Usuário: conferir no ARMTEMPLATE (reabrir o GstarCAD).
+# Checagem do programa (2026-10-30)
+- Desempenho medido (`ARMTESTEDESEMPENHO`, N em ARM_DESEMPENHO_N): linear; 2000 barras = RA 1,5 s, MOVE de tudo 5,2 s.
+  Sincronizador > 200 ms e a RA antes de salvar/plotar registram o tempo no log.
+- Descrição sem "c/" quando as faixas da barra têm espaçamentos diferentes (estribo do pilar c/5 + c/10).
+- Seções do pilar: uma etiqueta por N e lado, com uma linha para cada barra.
+- Reaproveitamento: `XDataCad.Gravar/GravarSeMudou(o, dados)` (49 trocas), `XDataCad.BarraDoHandle` + `Lista` (5 buscas
+  da barra dona), `Cobrimentos(v)` no pilar.
+- Detalhamento do pilar compactado (altura 27 → 21 m): faixa inferior a 12·hv da base, detalhes padrão ao lado dos
+  detalhes do consolo, coluna da direita sem a sobra das formas. Prévia sem CAD: `tools/previa_template.py`
+  (ARM_PREVIA + teste GravarPreviaDoPilar; matplotlib instalado com pip --user).

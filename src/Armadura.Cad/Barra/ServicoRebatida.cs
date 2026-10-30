@@ -27,10 +27,10 @@ internal static class ServicoRebatida
         var owner = (BlockTableRecord)tr.GetObject(barra.OwnerId, OpenMode.ForWrite);
         owner.AppendEntity(reb);
         tr.AddNewlyCreatedDBObject(reb, true);
-        XDataCad.Gravar(reb, CodecDados.Codificar(new Vinculo
+        XDataCad.Gravar(reb, new Vinculo
         {
             Tipo = TipoParte.Rebatida, HandleBarra = hBarra, Dx = deslocamento.X, Dy = deslocamento.Y,
-        }));
+        });
 
         // a barra e a descrição vão para o destino (as cotas acompanham na atualização)
         var m = Matrix3d.Displacement(new Vector3d(deslocamento.X, deslocamento.Y, 0));
@@ -40,7 +40,7 @@ internal static class ServicoRebatida
         if (desc != null) { desc.UpgradeOpen(); desc.TransformBy(m); }
 
         d.Rebatidas.Add(XDataCad.Hex(reb.ObjectId));
-        XDataCad.Gravar(barra, CodecDados.Codificar(d));
+        XDataCad.Gravar(barra, d);
         return reb.ObjectId;
     }
 
@@ -59,19 +59,14 @@ internal static class ServicoRebatida
     public static Polyline BarraApontada(Transaction tr, Entity reb)
     {
         var v = XDataCad.LerVinculo(reb);
-        if (v == null || v.Tipo != TipoParte.Rebatida) return null;
-        var id = XDataCad.IdDoHandle(reb.Database, v.HandleBarra);
-        if (id.IsNull || id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Polyline pl)) return null;
-        return XDataCad.Tipo(pl) == TipoParte.Barra ? pl : null;
+        return v == null || v.Tipo != TipoParte.Rebatida ? null : XDataCad.BarraDoHandle(tr, reb.Database, v.HandleBarra);
     }
 
     /// <summary>Barra da rebatida, se a barra listar esta rebatida.</summary>
     public static Polyline BarraDaRebatida(Transaction tr, Entity reb)
     {
         var pl = BarraApontada(tr, reb);
-        if (pl == null) return null;
-        string h = XDataCad.Hex(reb.ObjectId);
-        return XDataCad.LerBarra(pl).Rebatidas.Any(x => string.Equals(x, h, StringComparison.OrdinalIgnoreCase)) ? pl : null;
+        return pl != null && XDataCad.Lista(XDataCad.LerBarra(pl).Rebatidas, reb.ObjectId) ? pl : null;
     }
 
     /// <summary>
@@ -91,7 +86,7 @@ internal static class ServicoRebatida
                 v.Dx = novo.X;
                 v.Dy = novo.Y;
                 reb.UpgradeOpen();
-                XDataCad.Gravar(reb, CodecDados.Codificar(v));
+                XDataCad.Gravar(reb, v);
             }
             return;
         }

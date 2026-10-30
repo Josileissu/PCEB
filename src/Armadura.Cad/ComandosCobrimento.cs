@@ -161,7 +161,7 @@ public sealed class ComandosCobrimento
             if (d.Segmentos[idx].Cotar) { ed.WriteMessage($"\nO segmento {idx + 1} já tem cota."); continue; }
             d.Segmentos[idx].Cotar = true;
             pl.UpgradeOpen();
-            XDataCad.Gravar(pl, Core.Persistencia.CodecDados.Codificar(d));
+            XDataCad.Gravar(pl, d);
             ServicoBarra.Atualizar(tr, pl, cfg);
             tr.Commit();
             ed.WriteMessage($"\nCota do segmento {idx + 1} restaurada.");

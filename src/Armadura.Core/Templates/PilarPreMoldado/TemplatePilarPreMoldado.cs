@@ -111,6 +111,25 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     }
 
     /// <summary>Número com vírgula decimal (textos em PT).</summary>
+    /// <summary>Quantos elementos o resultado já tem (para medir o que foi desenhado depois).</summary>
+    private static (int b, int c, int t, int ci, int co) Marca(ResultadoTemplate r) =>
+        (r.Barras.Count, r.Contornos.Count, r.Textos.Count, r.Circulos.Count, r.Cotas.Count);
+
+    /// <summary>Maior x do que foi desenhado depois da marca (texto: largura aproximada 0,7·h por caractere).</summary>
+    private static double MaxX(ResultadoTemplate r, (int b, int c, int t, int ci, int co) m)
+    {
+        var xs = r.Barras.Skip(m.b).SelectMany(x => x.Vertices).Select(p => p.X)
+            .Concat(r.Contornos.Skip(m.c).SelectMany(x => x.Vertices).Select(p => p.X))
+            .Concat(r.Textos.Skip(m.t).Select(x => x.X + (Math.Abs(x.Angulo) < 1e-9 ? (x.Alinhamento == 0 ? 1.0 : x.Alinhamento == 1 ? 0.5 : 0) * 0.7 * x.Altura * x.Texto.Length : x.Altura)))
+            .Concat(r.Circulos.Skip(m.ci).Select(x => x.X + x.Raio))
+            .Concat(r.Cotas.Skip(m.co).SelectMany(x => new[] { x.P1.X, x.P2.X, x.Posicao.X }));
+        return xs.DefaultIfEmpty(0).Max();
+    }
+
+    /// <summary>Cobrimentos: faces 1 a 4, topo, base (cm).</summary>
+    private static double[] Cobrimentos(ValoresTemplate v) =>
+        new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
+
     public static string Num(double v, string formato) => v.ToString(formato, CultureInfo.InvariantCulture).Replace('.', ',');
 
     /// <summary>Lê a lista de níveis: "PT|EN|cota; …" (janela) ou o formato antigo "PT/EN=cota; …" (cota em m).</summary>
@@ -221,7 +240,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         }
 
         // ---------------- consolos nas vistas e as marcas dos cortes de forma na VISTA 2 ----------------
-        var cob0 = new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
+        var cob0 = Cobrimentos(v);
         var consolos = LerConsolos(v, Catalogo, L, r.Avisos);
         DesenharConsolosNasVistas(c, consolos, xs, larguras, cob0);
         // alças (pelo CG), montagem (furo ou alça de topo) e inserto do topo
@@ -324,7 +343,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         // ---------------- coluna da direita: corte A-A, notas, produção ----------------
         double hc = c.hC;
         // armaduras (elevação, faixas, seções, formas das barras) entre as vistas e a coluna da direita
-        double xD = GerarArmaduras(c, v, cfg, xFimVistas + 30 * hv, b, h, L, ch) + 30 * hv;   // margem esquerda da coluna
+        double xD = GerarArmaduras(c, v, cfg, xFimVistas + 30 * hv, b, h, L, ch) + 15 * hv;   // margem esquerda da coluna
         double yCur = L + 16 * hv;
         // título do corte
         foreach (var t in c.Linhas("CORTE A-A", "SECTION A-A")) { c.Texto(t, xD, yCur, 1.4 * hc); yCur -= 2.2 * hc; }
@@ -350,8 +369,9 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         // cortes de forma nos níveis dos consolos (B-B, C-C…)
         yCur = CortesConsolo(c, consolos, b, h, xD, yCur, cob0);
 
-        // detalhes das armaduras dos consolos, abaixo das vistas
-        double yDet = -30 * hv;
+        // detalhes das armaduras dos consolos, abaixo das vistas (faixa inferior, como na prancha do escritório)
+        double yFaixa = -12 * hv, yDet = yFaixa;
+        var marca = Marca(r);
         // um detalhe por tipo (e largura do pilar na direção do balanço), somando as posições que usam o tipo
         int nDet = 0;
         foreach (var grupo in consolos.GroupBy(co => (co.Tipo, co.Duplo, colW: co.Faces[0] == 1 || co.Faces[0] == 3 ? b : h)))
@@ -360,13 +380,15 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             int pares = grupo.Sum(co => co.Pares.Count), soz = grupo.Sum(co => co.Sozinhas.Count);
             yDet = DetalheConsolo(c, cfg, rep, pares, soz, $"cons{++nDet}", b, h, cob0, 0, yDet, v["LongAco"], v["EstAco"]);
         }
-        // detalhes padrão (alça, reforço do furo, chaves, canto, raio de curvatura, emendas, SPDA)
+        // detalhes padrão (alça, reforço do furo, chaves, canto, raio de curvatura, emendas, SPDA): ao lado dos detalhes dos
+        // consolos, na mesma faixa (antes ficavam numa fileira abaixo, com tudo à direita vazio — checagem de 2026-10-30)
         double phiTd = BitolaMaxEstribo(v);
-        DetalhesPadrao(c, v, cfg, itens, cob0, phiTd, 0, yDet);
+        double xPad = nDet > 0 ? MaxX(r, marca) + 20 * hv : 0;
+        DetalhesPadrao(c, v, cfg, itens, cob0, phiTd, xPad, yFaixa);
 
         // notas
         double hn = 0.9 * hv;
-        var cob = new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
+        var cob = Cobrimentos(v);
         int tol = ToleranciaComprimento(L);
         string cobPt = $"COBRIMENTOS: FACE 1 = {Num(cob[0], "0.0#")}; FACE 2 = {Num(cob[1], "0.0#")}; FACE 3 = {Num(cob[2], "0.0#")}; " +
                        $"FACE 4 = {Num(cob[3], "0.0#")}; TOPO = {Num(cob[4], "0.0#")}; BASE = {Num(cob[5], "0.0#")} cm;";

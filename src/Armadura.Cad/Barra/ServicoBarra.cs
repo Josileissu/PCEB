@@ -30,7 +30,7 @@ internal static class ServicoBarra
         if (d.Escala <= 0) d.Escala = cfg.Escala;
         for (int i = 0; i < d.Segmentos.Count; i++)
             if (GeometriaBarra.EhArco(pl, i)) d.Segmentos[i].Formato = FormatoSegmento.Curva;
-        XDataCad.Gravar(pl, CodecDados.Codificar(d));
+        XDataCad.Gravar(pl, d);
         Atualizar(tr, pl, cfg);
     }
 
@@ -72,6 +72,7 @@ internal static class ServicoBarra
         }
 
         // ---- faixas: recalculam e, se alguma soma, a quantidade da barra é a soma delas ----
+        var espacamentos = new HashSet<double>();
         if (d.TemFaixas)
         {
             var validas = new List<string>();
@@ -85,7 +86,9 @@ internal static class ServicoBarra
                 if (!valida) continue;
                 validas.Add(hf);
                 soma += q;
-                algumaSoma |= ServicoFaixa.Ler(fe).SomaQuantidade;
+                var fd = ServicoFaixa.Ler(fe);
+                algumaSoma |= fd.SomaQuantidade;
+                if (fd.Tipo != TipoFaixa.Indicacao && fd.Espacamento > 0) espacamentos.Add(Math.Round(fd.Espacamento, 3));
             }
             d.Faixas = validas;
             if (algumaSoma && !d.EhVarLista) d.Quantidade = soma;
@@ -101,7 +104,7 @@ internal static class ServicoBarra
         var origem = pl.NumberOfVertices > 0 ? pl.GetPoint2dAt(0) : Point2d.Origin;
 
         // ---- descrição ----
-        string texto = FormatadorDescricao.Formatar(d, comp, cfg);
+        string texto = FormatadorDescricao.Formatar(d, comp, cfg, espacamentos.Count > 1);
         if (d.EhTela && d.TelaIdentificada && geo.Count >= 2)
         {
             var (l1, l2) = FormatadorDescricao.TextoTela(d, geo[0].Comprimento, geo[1].Comprimento);
@@ -185,7 +188,7 @@ internal static class ServicoBarra
                     cota.Visible = d.Visivel;
                     cota.AdjustAlignment(db);
                     if (vinc.Indice != i)
-                        XDataCad.Gravar(cota, CodecDados.Codificar(new Vinculo { Tipo = TipoParte.Cota, HandleBarra = hBarra, Indice = i }));
+                        XDataCad.Gravar(cota, new Vinculo { Tipo = TipoParte.Cota, HandleBarra = hBarra, Indice = i });
                 }
             }
         }
@@ -193,7 +196,7 @@ internal static class ServicoBarra
         if (pl.Visible != d.Visivel) { if (!pl.IsWriteEnabled) pl.UpgradeOpen(); pl.Visible = d.Visivel; }
         if (d.Rebatidas.Count > 0) d.Rebatidas = ServicoRebatida.Atualizar(tr, pl, d, hBarra);
         if (!d.EhBarraComum || d.PartesDesenho.Count > 0) d.PartesDesenho = ServicoDesenhoGerado.Atualizar(tr, pl, d, hBarra, cfg);
-        XDataCad.GravarSeMudou(pl, CodecDados.Codificar(d));
+        XDataCad.GravarSeMudou(pl, d);
     }
 
     /// <summary>
@@ -246,7 +249,7 @@ internal static class ServicoBarra
         s.CotaDx = dx;
         s.CotaDy = dy;
         if (!pl.IsWriteEnabled) pl.UpgradeOpen();
-        XDataCad.Gravar(pl, CodecDados.Codificar(d));
+        XDataCad.Gravar(pl, d);
         return true;
     }
 
@@ -265,7 +268,7 @@ internal static class ServicoBarra
             desc.Location = new Point3d(pos.X, pos.Y, pl.Elevation);
         }
         if (!pl.IsWriteEnabled) pl.UpgradeOpen();
-        XDataCad.Gravar(pl, CodecDados.Codificar(d));
+        XDataCad.Gravar(pl, d);
         Atualizar(tr, pl, cfg);
     }
 
@@ -417,9 +420,8 @@ internal static class ServicoBarra
     {
         var v = XDataCad.LerVinculo(parte);
         if (v == null) return null;
-        var id = XDataCad.IdDoHandle(parte.Database, v.HandleBarra);
-        if (id.IsNull || id.IsErased) return null;
-        if (tr.GetObject(id, OpenMode.ForRead) is not Polyline pl) return null;
+        var pl = XDataCad.BarraDoHandle(tr, parte.Database, v.HandleBarra);
+        if (pl == null) return null;
         var d = XDataCad.LerBarra(pl);
         if (d == null) return null;
         string h = XDataCad.Hex(parte.ObjectId);
@@ -445,7 +447,7 @@ internal static class ServicoBarra
         if (!owner.IsWriteEnabled) owner.UpgradeOpen();
         owner.AppendEntity(ent);
         tr.AddNewlyCreatedDBObject(ent, true);
-        XDataCad.Gravar(ent, CodecDados.Codificar(v));
+        XDataCad.Gravar(ent, v);
     }
 
     private static void Apagar(Transaction tr, Entity e)

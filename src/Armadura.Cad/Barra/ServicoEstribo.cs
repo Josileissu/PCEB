@@ -96,7 +96,7 @@ internal static class ServicoEstribo
                 Formato = forma.Formatos[s], Sobreposto = sob, Cotar = !g && !sob && forma.Cotados.Contains(s),
             });
         }
-        XDataCad.Gravar(pl, CodecDados.Codificar(d));
+        XDataCad.Gravar(pl, d);
         return null;
     }
 
@@ -110,7 +110,7 @@ internal static class ServicoEstribo
         TrocarVertices(pl, volta, fechada: true);
         d.Segmentos.Clear();
         for (int s = 0; s < volta.Count; s++) d.Segmentos.Add(new Segmento());
-        XDataCad.Gravar(pl, CodecDados.Codificar(d));
+        XDataCad.Gravar(pl, d);
     }
 
     private static void ApagarCotas(Transaction tr, Database db, DadosArmadura d)

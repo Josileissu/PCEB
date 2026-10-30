@@ -9,13 +9,15 @@ namespace Armadura.Core.Descricao;
 /// <summary>Monta o texto da descrição da armadura nos três formatos da seção 4.1.</summary>
 public static class FormatadorDescricao
 {
-    public static string Formatar(DadosArmadura d, double comprimentoUnitarioCm, ConfiguracaoArmadura cfg)
+    /// <param name="espacamentoVariavel">a barra tem faixas com espaçamentos diferentes (estribo do pilar c/5 no topo e c/10 na
+    /// base): o "c/" sai da descrição, porque cada faixa já mostra o seu (checagem de 2026-10-30)</param>
+    public static string Formatar(DadosArmadura d, double comprimentoUnitarioCm, ConfiguracaoArmadura cfg, bool espacamentoVariavel = false)
     {
         var c = d.Campos;
         bool usaQtd = c.HasFlag(CamposDescricao.Quantidade);
         bool usaN = c.HasFlag(CamposDescricao.Numero);
         bool usaBitola = c.HasFlag(CamposDescricao.Bitola);
-        bool usaEsp = c.HasFlag(CamposDescricao.Espacamento) && d.Espacamento > 0;
+        bool usaEsp = c.HasFlag(CamposDescricao.Espacamento) && d.Espacamento > 0 && !espacamentoVariavel;
         bool usaComp = c.HasFlag(CamposDescricao.Comprimento);
 
         // em camadas: "10x(3+1)" = 10 nervuras com 3+1 barras cada

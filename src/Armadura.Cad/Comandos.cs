@@ -316,7 +316,7 @@ public sealed class Comandos
             }
             if (!mudou) continue;
             pl.UpgradeOpen();
-            XDataCad.Gravar(pl, CodecDados.Codificar(d));
+            XDataCad.Gravar(pl, d);
             ServicoBarra.Atualizar(tr, pl, cfg);
             tr.Commit();
         }
@@ -409,7 +409,7 @@ public sealed class Comandos
                 }
             }
             if (!pl.IsWriteEnabled) pl.UpgradeOpen();
-            XDataCad.Gravar(pl, CodecDados.Codificar(d));
+            XDataCad.Gravar(pl, d);
             ServicoBarra.Atualizar(tr, pl, cfg);
             tr.Commit();
         }
