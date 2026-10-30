@@ -1,7 +1,7 @@
 ﻿; Instalador do Armadura BR para GstarCAD 2021 (Inno Setup 6).
 ; Gerar: instalador\gerar.bat (compila o plugin e roda o ISCC).
 
-; Demonstração (1 hora de uso): instalador\gerar_demo.bat (ISCC /DDemo) → saida\demo.exe
+; Demonstração (1 hora de uso): instalador\gerar_demo.bat (ISCC /DDemo) → saida\demo_<versão>.exe
 #define Raiz ".."
 #ifdef Demo
   #define PastaPlugin Raiz + "\bin\demo\GstarCAD2021"
@@ -28,7 +28,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=saida
 #ifdef Demo
-OutputBaseFilename=demo
+OutputBaseFilename=demo_{#Versao}
 #else
 OutputBaseFilename=ArmaduraBR_Setup_{#Versao}
 #endif
