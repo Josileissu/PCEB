@@ -121,11 +121,11 @@ internal static class ServicoTraspasse
             var f = ServicoFaixa.Ler(fe);
             if (f == null) continue;
             f.HandleBarra = hA;
-            XDataCad.Gravar(fe, CodecDados.Codificar(f));
+            XDataCad.Gravar(fe, f);
         }
 
-        XDataCad.Gravar(a, CodecDados.Codificar(dA));
-        XDataCad.Gravar(b, CodecDados.Codificar(dB));
+        XDataCad.Gravar(a, dA);
+        XDataCad.Gravar(b, dB);
 
         // apaga a original e as partes dela (descrição, cotas, rebatidas) — as faixas já mudaram de dono
         var semFaixas = d.Clonar();

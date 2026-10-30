@@ -148,7 +148,7 @@ internal static class ServicoRA
                 d.Nova = nova;
                 d.AssinaturaBloqueio = lck;
                 b.Pl.UpgradeOpen();
-                XDataCad.Gravar(b.Pl, CodecDados.Codificar(d));
+                XDataCad.Gravar(b.Pl, d);
             }
             foreach (var o in porBarra[id]) { o.Dados.Numero = n; o.Dados.Nova = nova; }
             ServicoBarra.Atualizar(tr, b.Pl, cfg);
@@ -197,7 +197,7 @@ internal static class ServicoRA
             if (d.NumeroTela == t) continue;
             d.NumeroTela = t;
             if (!pl.IsWriteEnabled) pl.UpgradeOpen();
-            XDataCad.Gravar(pl, CodecDados.Codificar(d));
+            XDataCad.Gravar(pl, d);
         }
     }
 
@@ -260,7 +260,7 @@ internal static class ServicoRA
     public static void GravarOpcoes(Table t, OpcoesTabelaRA op)
     {
         if (!t.IsWriteEnabled) t.UpgradeOpen();
-        XDataCad.Gravar(t, CodecDados.Codificar(op));
+        XDataCad.Gravar(t, op);
     }
 
     /// <summary>Cria a tabela no ponto (canto superior esquerdo) e a preenche.</summary>
@@ -406,7 +406,7 @@ internal static class ServicoRA
                 e.LayerId = t.LayerId;
                 owner.AppendEntity(e);
                 tr.AddNewlyCreatedDBObject(e, true);
-                XDataCad.Gravar(e, CodecDados.Codificar(new Vinculo { Tipo = TipoParte.Desenho, HandleBarra = hTabela }));
+                XDataCad.Gravar(e, new Vinculo { Tipo = TipoParte.Desenho, HandleBarra = hTabela });
                 op.Partes.Add(XDataCad.Hex(e.ObjectId));
             }
             for (int r = 0; r < conteudo.Linhas.Count; r++)

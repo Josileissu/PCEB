@@ -262,7 +262,7 @@ public sealed class ComandosReconhecimento
                 if (trechos[k].pl.ObjectId == pl.ObjectId && !trechosComMedida.Contains(k) && trechos[k].seg < d.Segmentos.Count)
                     d.Segmentos[trechos[k].seg].Cotar = false;
             if (!pl.IsWriteEnabled) pl.UpgradeOpen();
-            XDataCad.Gravar(pl, CodecDados.Codificar(d));
+            XDataCad.Gravar(pl, d);
             ServicoBarra.Atualizar(tr, pl, cfg);
         }
         foreach (var (k, m) in paresMedida)

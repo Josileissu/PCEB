@@ -36,6 +36,15 @@ public class FaixaTests
     }
 
     [Fact]
+    public void DescricaoSemEspacamentoQuandoAsFaixasVariam()
+    {
+        var cfg = new ConfiguracaoArmadura { SimboloDiametro = "ø" };
+        var d = new DadosArmadura { Numero = 14, Bitola = 8, Quantidade = 46, Espacamento = 10 };
+        Assert.Contains("c/10", Armadura.Core.Descricao.FormatadorDescricao.Formatar(d, 190, cfg));
+        Assert.DoesNotContain("c/", Armadura.Core.Descricao.FormatadorDescricao.Formatar(d, 190, cfg, espacamentoVariavel: true));
+    }
+
+    [Fact]
     public void TextosDasFaixas()
     {
         var cfg = new ConfiguracaoArmadura { SimboloDiametro = "ø" };

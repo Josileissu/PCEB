@@ -128,7 +128,7 @@ internal static class ServicoDesenhoGerado
                 if (!owner.IsWriteEnabled) owner.UpgradeOpen();
                 owner.AppendEntity(e);
                 tr.AddNewlyCreatedDBObject(e, true);
-                XDataCad.Gravar(e, CodecDados.Codificar(new Vinculo { Tipo = TipoParte.Desenho, HandleBarra = hBarra }));
+                XDataCad.Gravar(e, new Vinculo { Tipo = TipoParte.Desenho, HandleBarra = hBarra });
             }
             resultado.Add(XDataCad.Hex(e.ObjectId));
         }
@@ -160,11 +160,8 @@ internal static class ServicoDesenhoGerado
     {
         var v = XDataCad.LerVinculo(parte);
         if (v == null || v.Tipo != TipoParte.Desenho) return null;
-        var id = XDataCad.IdDoHandle(parte.Database, v.HandleBarra);
-        if (id.IsNull || id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Polyline pl)) return null;
-        var d = XDataCad.LerBarra(pl);
-        string h = XDataCad.Hex(parte.ObjectId);
-        return d != null && d.PartesDesenho.Any(x => string.Equals(x, h, StringComparison.OrdinalIgnoreCase)) ? pl : null;
+        var pl = XDataCad.BarraDoHandle(tr, parte.Database, v.HandleBarra);
+        return pl != null && XDataCad.Lista(XDataCad.LerBarra(pl).PartesDesenho, parte.ObjectId) ? pl : null;
     }
 
     public static void ApagarTodas(Transaction tr, Database db, DadosArmadura d, string hBarra)

@@ -69,7 +69,7 @@ public sealed class AutoTeste
             GeometriaBarra.AlterarComprimento(a, 1, g);
             da.Segmentos[1].Formato = FormatoSegmento.Gancho90;
             da.Segmentos[1].ComprimentoRegistrado = g;
-            XDataCad.Gravar(a, CodecDados.Codificar(da));
+            XDataCad.Gravar(a, da);
             ServicoBarra.Atualizar(tr, a, cfg);
             Checar(Math.Abs(GeometriaBarra.Ler(a, 1)[1].Comprimento - 11.5) < 1e-6, "gancho 90° ø10 CA-50 = 11.5 cm");
             Checar(XDataCad.LerBarra(a).Segmentos[1].Formato == FormatoSegmento.Gancho90, "formato do gancho mantido após atualizar");
@@ -79,7 +79,7 @@ public sealed class AutoTeste
             var db_ = XDataCad.LerBarra(b);
             db_.Segmentos[0].Formato = FormatoSegmento.Gancho90;
             db_.Segmentos[0].ComprimentoRegistrado = 11.5;
-            XDataCad.Gravar(b, CodecDados.Codificar(db_));
+            XDataCad.Gravar(b, db_);
             ServicoBarra.Atualizar(tr, b, cfg);
 
             // C: reta ø12.5 c/15; D: barra com arco ø8 (CA-50); E: estribo-like ø5 fechado
@@ -353,7 +353,7 @@ public sealed class AutoTeste
                 var du = XDataCad.LerBarra(u);
                 du.Segmentos[1].Cotar = false;
                 u.UpgradeOpen();
-                XDataCad.Gravar(u, CodecDados.Codificar(du));
+                XDataCad.Gravar(u, du);
                 using (Sincronizador.Suspender(doc)) ServicoBarra.Atualizar(tr, u, cfg);
                 Checar(string.IsNullOrEmpty(XDataCad.LerBarra(u).Segmentos[1].HandleCota), "cota do fundo desligada");
                 H["U"] = XDataCad.Hex(u.ObjectId);
@@ -440,7 +440,7 @@ public sealed class AutoTeste
                 Checar(!pf.MostrarLinhas, "paleta: linha apagada aparece como \"Mostrar linha de chamada\" = Não");
                 pf.MostrarLinhas = true;
                 foreach (var a in pf.Pendentes) a(fi);
-                XDataCad.Gravar(indE, CodecDados.Codificar(fi));
+                XDataCad.Gravar(indE, fi);
                 using (Sincronizador.Suspender(doc)) ServicoBarra.Atualizar(tr, barH, cfg);
                 fi = ServicoFaixa.Ler(indE);
                 Checar(fi.Partes.Count == 1 && fi.LinhasApagadas.Count == 0, "Sim na linha de chamada recria a linha apagada");
@@ -450,7 +450,7 @@ public sealed class AutoTeste
                 var fod = fo.f;
                 fod.MostrarQuantidade = false; fod.MostrarEspacamento = false;
                 fo.ent.UpgradeOpen();
-                XDataCad.Gravar(fo.ent, CodecDados.Codificar(fod));
+                XDataCad.Gravar(fo.ent, fod);
                 using (Sincronizador.Suspender(doc)) ServicoBarra.Atualizar(tr, barH, cfg);
                 string txt = ((Dimension)tr.GetObject(fo.ent.ObjectId, OpenMode.ForRead)).DimensionText;
                 Checar(txt.StartsWith("N") && !txt.Contains("c/"), $"faixa sem quantidade e sem espaçamento: \"{txt}\"");
@@ -458,14 +458,14 @@ public sealed class AutoTeste
                 // repetições da faixa: a barra soma 2× a quantidade dela; o texto fica "2x6 N…" (sem parênteses)
                 int antesRep = XDataCad.LerBarra(barH).Quantidade;
                 fod.Repeticoes = 2;
-                XDataCad.Gravar(fo.ent, CodecDados.Codificar(fod));
+                XDataCad.Gravar(fo.ent, fod);
                 using (Sincronizador.Suspender(doc)) ServicoBarra.Atualizar(tr, barH, cfg);
                 string txtRep = ((Dimension)tr.GetObject(fo.ent.ObjectId, OpenMode.ForRead)).DimensionText;
                 int depoisRep = XDataCad.LerBarra(barH).Quantidade;
                 Checar(depoisRep == antesRep + fod.Quantidade && txtRep.Replace("\\P", " ").StartsWith("2x" + fod.Quantidade + " "),
                     $"faixa com 2 repetições: barra {antesRep} → {depoisRep}, texto \"{txtRep}\"");
                 fod.Repeticoes = 1;
-                XDataCad.Gravar(fo.ent, CodecDados.Codificar(fod));
+                XDataCad.Gravar(fo.ent, fod);
                 using (Sincronizador.Suspender(doc)) ServicoBarra.Atualizar(tr, barH, cfg);
             }
             if (H.ContainsKey("rebatida")) Checar(Id(db, H["rebatida"]).IsErased, "apagar a barra apagou a rebatida");
@@ -669,7 +669,7 @@ public sealed class AutoTeste
                 var plD = (Polyline)tr.GetObject(Id(db, H["D"]), OpenMode.ForWrite);
                 var dD = XDataCad.LerBarra(plD);
                 dD.Bitola = 12.5;
-                XDataCad.Gravar(plD, CodecDados.Codificar(dD));
+                XDataCad.Gravar(plD, dD);
                 Relacao.ServicoRA.Atualizar(db, tr, cfg);
                 var depois = antes.Keys.ToDictionary(k => k, k => XDataCad.LerBarra(tr.GetObject(k, OpenMode.ForRead)).Numero);
                 var dD2 = XDataCad.LerBarra(plD);
@@ -685,7 +685,7 @@ public sealed class AutoTeste
                 var plF = (Polyline)tr.GetObject(Id(db, H["F"]), OpenMode.ForWrite);
                 var dF = XDataCad.LerBarra(plF);
                 dF.Camadas = "3+1";
-                XDataCad.Gravar(plF, CodecDados.Codificar(dF));
+                XDataCad.Gravar(plF, dF);
                 ServicoBarra.Atualizar(tr, plF, cfg);
                 var descF = Ent<MText>(tr, db, XDataCad.LerBarra(plF).HandleDescricao);
                 Checar(XDataCad.LerBarra(plF).QuantidadeTotal() == 8 && descF.Contents.StartsWith("2x(3+1)"),
@@ -841,7 +841,7 @@ public sealed class AutoTeste
                 Checar(ServicoFaixa.Ler(chEnt).Partes.Count == 0, "chamada sem linha de chamada: só o texto");
                 var chDados = ServicoFaixa.Ler(chEnt);
                 chDados.OcultarLinhas = false;
-                XDataCad.Gravar(chEnt, CodecDados.Codificar(chDados));
+                XDataCad.Gravar(chEnt, chDados);
                 ServicoBarra.Atualizar(tr, bf, cfg);
                 Checar(ServicoFaixa.Ler(chEnt).Partes.Count == 2, "chamada: linhas de chamada voltam ao religar a opção");
 
@@ -1242,14 +1242,14 @@ public sealed class AutoTeste
                 var pt = (Polyline)tr.GetObject(tela.p.ObjectId, OpenMode.ForWrite);
                 var dt = XDataCad.LerBarra(pt);
                 dt.TelaDistribuicao = true;
-                XDataCad.Gravar(pt, CodecDados.Codificar(dt));
+                XDataCad.Gravar(pt, dt);
                 ServicoBarra.Atualizar(tr, pt, cfg);
                 int partes = XDataCad.LerBarra(pt).PartesDesenho.Count;
                 Checar(partes == 1 + 25 + 60, $"tela: distribuição com 25 + 60 fios + diagonal ({partes})");
                 dt = XDataCad.LerBarra(pt);
                 dt.TelaDistribuicao = false;
                 dt.TelaTextoDiagonal = false;
-                XDataCad.Gravar(pt, CodecDados.Codificar(dt));
+                XDataCad.Gravar(pt, dt);
                 ServicoBarra.Atualizar(tr, pt, cfg);
                 Checar(XDataCad.LerBarra(pt).PartesDesenho.Count == 1 && Math.Abs(Ent<MText>(tr, db, tela.d.HandleDescricao).Rotation) < 1e-9,
                     "tela: sem distribuição e texto de volta na horizontal");
@@ -1257,7 +1257,7 @@ public sealed class AutoTeste
                 dt = XDataCad.LerBarra(pt);
                 dt.TelaDistribuicao = true;
                 dt.TelaTextoDiagonal = true;
-                XDataCad.Gravar(pt, CodecDados.Codificar(dt));
+                XDataCad.Gravar(pt, dt);
                 ServicoBarra.Atualizar(tr, pt, cfg);
             }
 
@@ -1272,7 +1272,7 @@ public sealed class AutoTeste
                     var dd = XDataCad.LerBarra(p);
                     dd.Repeticoes = 2; // 2 camadas
                     dd.Escala = 50;    // planta da laje
-                    XDataCad.Gravar(p, CodecDados.Codificar(dd));
+                    XDataCad.Gravar(p, dd);
                     return id;
                 }
                 var t1 = Painel(15000, -8000, 15348, -7755);   // 245 x 348

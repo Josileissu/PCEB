@@ -265,7 +265,7 @@ internal static class PaletaArmadura
                     if (f == null) continue;
                     foreach (var a in p.Pendentes) a(f);
                     p.Pendentes.Clear();
-                    XDataCad.Gravar(ent, CodecDados.Codificar(f));
+                    XDataCad.Gravar(ent, f);
                     var barra = ServicoFaixa.BarraDaFaixa(tr, ent);
                     if (barra != null) barras.Add(barra.ObjectId);
                 }
@@ -450,7 +450,7 @@ internal static class PaletaArmadura
                     foreach (var acao in b.Pendentes) acao(ctx);
                     b.Pendentes.Clear();
                     erros.AddRange(ctx.Erros);
-                    XDataCad.Gravar(pl, CodecDados.Codificar(d));
+                    XDataCad.Gravar(pl, d);
                     ServicoBarra.Atualizar(tr, pl, cfg);
                     renumerarTelas |= d.EhTela && (d.TelaIdentificada || d.NumeroTela > 0);
                 }

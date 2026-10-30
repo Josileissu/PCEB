@@ -20,7 +20,7 @@ internal static class ServicoDetalhamento
     {
         XDataCad.GarantirRegApp(db, tr);
         if (!btr.IsWriteEnabled) btr.UpgradeOpen();
-        XDataCad.Gravar(btr, CodecDados.Codificar(d));
+        XDataCad.Gravar(btr, d);
     }
 
     /// <summary>Nome válido e livre para um bloco novo; null se ok, senão a mensagem.</summary>

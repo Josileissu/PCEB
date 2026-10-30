@@ -61,13 +61,13 @@ internal static class ServicoFaixa
         var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
         esp.AppendEntity(principal);
         tr.AddNewlyCreatedDBObject(principal, true);
-        XDataCad.Gravar(principal, CodecDados.Codificar(f));
+        XDataCad.Gravar(principal, f);
 
         if (!barra.IsWriteEnabled) barra.UpgradeOpen();
         d.Faixas.Add(XDataCad.Hex(principal.ObjectId));
         // a indicação só aponta a barra (não distribui): não passa espaçamento para ela
         if (d.Espacamento <= 0 && f.Espacamento > 0 && f.Tipo != TipoFaixa.Indicacao) d.Espacamento = f.Espacamento;
-        XDataCad.Gravar(barra, CodecDados.Codificar(d));
+        XDataCad.Gravar(barra, d);
         ServicoBarra.Atualizar(tr, barra, cfg);
         return principal.ObjectId;
     }
@@ -229,10 +229,10 @@ internal static class ServicoFaixa
             }
             else if (!(e is Line) || XDataCad.LerVinculo(e)?.Indice == idx) continue;
             if (!e.IsWriteEnabled) e.UpgradeOpen();
-            XDataCad.Gravar(e, CodecDados.Codificar(new Vinculo
+            XDataCad.Gravar(e, new Vinculo
             {
                 Tipo = e is Line ? TipoParte.Chamada : TipoParte.Corte, HandleBarra = hFaixa, Indice = idx,
-            }));
+            });
         }
         foreach (var e in existentes.Where(e => !usadas.Contains(e.ObjectId)))
         {
@@ -243,7 +243,7 @@ internal static class ServicoFaixa
         if (ent is MText mtA) { f.TemAncora = true; f.AncoraX = mtA.Location.X; f.AncoraY = mtA.Location.Y; }
         if (centros.Count > 0) { f.TemCirculo0 = true; f.Circulo0X = centros[0].X; f.Circulo0Y = centros[0].Y; }
         else f.TemCirculo0 = false;
-        XDataCad.GravarSeMudou(ent, CodecDados.Codificar(f));
+        XDataCad.GravarSeMudou(ent, f);
         return (true, f.QuantidadeTotal);
     }
 
@@ -363,7 +363,7 @@ internal static class ServicoFaixa
         f.Referencias = f.Referencias.Select(r => { var q = T(r.X, r.Y); return (q.X, q.Y); }).ToList();
         if (f.TemAncora) { var q = T(f.AncoraX, f.AncoraY); f.AncoraX = q.X; f.AncoraY = q.Y; }
         if (f.TemCirculo0) { var q = T(f.Circulo0X, f.Circulo0Y); f.Circulo0X = q.X; f.Circulo0Y = q.Y; }
-        XDataCad.Gravar(faixa, CodecDados.Codificar(f));
+        XDataCad.Gravar(faixa, f);
     }
 
     public static DadosFaixa Ler(Entity ent)
@@ -386,23 +386,15 @@ internal static class ServicoFaixa
     /// <summary>Barra da faixa, se a barra listar esta faixa.</summary>
     public static Polyline BarraDaFaixa(Transaction tr, Entity faixa)
     {
-        var f = Ler(faixa);
-        if (f == null) return null;
-        var id = XDataCad.IdDoHandle(faixa.Database, f.HandleBarra);
-        if (id.IsNull || id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Polyline pl)) return null;
-        var d = XDataCad.LerBarra(pl);
-        string h = XDataCad.Hex(faixa.ObjectId);
-        return d != null && d.Faixas.Any(x => string.Equals(x, h, StringComparison.OrdinalIgnoreCase)) ? pl : null;
+        var pl = BarraApontada(tr, faixa);
+        return pl != null && XDataCad.Lista(XDataCad.LerBarra(pl).Faixas, faixa.ObjectId) ? pl : null;
     }
 
     /// <summary>A barra existe e é armadura (mesmo que ainda não liste a faixa — caso das cópias).</summary>
     public static Polyline BarraApontada(Transaction tr, Entity faixa)
     {
         var f = Ler(faixa);
-        if (f == null) return null;
-        var id = XDataCad.IdDoHandle(faixa.Database, f.HandleBarra);
-        if (id.IsNull || id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Polyline pl)) return null;
-        return XDataCad.Tipo(pl) == TipoParte.Barra ? pl : null;
+        return f == null ? null : XDataCad.BarraDoHandle(tr, faixa.Database, f.HandleBarra);
     }
 
     /// <summary>Faixa dona de uma parte (círculo/linha), se ela listar a parte.</summary>

@@ -230,7 +230,7 @@ internal sealed class Sincronizador
                                     // do original é descartado/recriado pela validação recíproca
                                     d.Id = Guid.NewGuid();
                                     pl.UpgradeOpen();
-                                    XDataCad.Gravar(pl, CodecDados.Codificar(d));
+                                    XDataCad.Gravar(pl, d);
                                 }
                                 barras.Add(id);
                                 break;
@@ -246,7 +246,7 @@ internal sealed class Sincronizador
                                 {
                                     d.Faixas.Add(hf);
                                     bar.UpgradeOpen();
-                                    XDataCad.Gravar(bar, CodecDados.Codificar(d));
+                                    XDataCad.Gravar(bar, d);
                                 }
                                 barras.Add(bar.ObjectId);
                                 break;
@@ -262,7 +262,7 @@ internal sealed class Sincronizador
                                 {
                                     d.Rebatidas.Add(hr);
                                     bar.UpgradeOpen();
-                                    XDataCad.Gravar(bar, CodecDados.Codificar(d));
+                                    XDataCad.Gravar(bar, d);
                                 }
                                 rebatidas.Add(id);
                                 break;
@@ -341,7 +341,7 @@ internal sealed class Sincronizador
                             {
                                 fd.LinhasApagadas.Add(v.Indice);
                                 fe.UpgradeOpen();
-                                XDataCad.Gravar(fe, CodecDados.Codificar(fd));
+                                XDataCad.Gravar(fe, fd);
                             }
                             var bar = ServicoFaixa.BarraDaFaixa(tr, fe);
                             if (bar != null) barras.Add(bar.ObjectId);
@@ -366,7 +366,7 @@ internal sealed class Sincronizador
                             d.Segmentos[v.Indice].Cotar = false;
                             d.Segmentos[v.Indice].HandleCota = "";
                             pl.UpgradeOpen();
-                            XDataCad.Gravar(pl, CodecDados.Codificar(d));
+                            XDataCad.Gravar(pl, d);
                             barras.Add(bid);
                         }
                     }
@@ -478,7 +478,7 @@ internal sealed class Sincronizador
             if (Core.Descricao.QuebrasTexto.Iguais(q, d.QuebrasDescricao)) return;
             d.QuebrasDescricao = q;
             if (!pl.IsWriteEnabled) pl.UpgradeOpen();
-            XDataCad.Gravar(pl, CodecDados.Codificar(d));
+            XDataCad.Gravar(pl, d);
         }
         else if (tipo == TipoParte.Faixa && (ent is MText || ent is Dimension))
         {
@@ -488,7 +488,7 @@ internal sealed class Sincronizador
             if (Core.Descricao.QuebrasTexto.Iguais(q, f.Quebras)) return;
             f.Quebras = q;
             if (!ent.IsWriteEnabled) ent.UpgradeOpen();
-            XDataCad.Gravar(ent, CodecDados.Codificar(f));
+            XDataCad.Gravar(ent, f);
         }
     }
 
