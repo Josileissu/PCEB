@@ -1,13 +1,23 @@
 ﻿; Instalador do Armadura BR para GstarCAD 2021 (Inno Setup 6).
 ; Gerar: instalador\gerar.bat (compila o plugin e roda o ISCC).
 
+; Demonstração (1 hora de uso): instalador\gerar_demo.bat (ISCC /DDemo) → saida\demo.exe
 #define Raiz ".."
-#define DllPlugin Raiz + "\bin\GstarCAD2021\ArmaduraBR.GstarCAD.dll"
+#ifdef Demo
+  #define PastaPlugin Raiz + "\bin\demo\GstarCAD2021"
+#else
+  #define PastaPlugin Raiz + "\bin\GstarCAD2021"
+#endif
+#define DllPlugin PastaPlugin + "\ArmaduraBR.GstarCAD.dll"
 #define Versao GetStringFileInfo(DllPlugin, "ProductVersion")
 
 [Setup]
 AppId={{35C90DD1-3F44-449F-A265-05CBC2275B73}
+#ifdef Demo
+AppName=Armadura BR para GstarCAD 2021 (demonstração)
+#else
 AppName=Armadura BR para GstarCAD 2021
+#endif
 AppVersion={#Versao}
 AppPublisher=Marquezin
 DefaultDirName={autopf}\ArmaduraBR
@@ -17,18 +27,26 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=saida
+#ifdef Demo
+OutputBaseFilename=demo
+#else
 OutputBaseFilename=ArmaduraBR_Setup_{#Versao}
+#endif
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+#ifdef Demo
+UninstallDisplayName=Armadura BR para GstarCAD 2021 (demonstração)
+#else
 UninstallDisplayName=Armadura BR para GstarCAD 2021
+#endif
 
 [Languages]
 Name: "ptbr"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Files]
 Source: "{#Raiz}\bin\carregador\ArmaduraBR.Carregador.dll"; DestDir: "{app}\carregador"; Flags: ignoreversion
-Source: "{#Raiz}\bin\GstarCAD2021\*.dll"; DestDir: "{app}\GstarCAD2021"; Flags: ignoreversion
+Source: "{#PastaPlugin}\*.dll"; DestDir: "{app}\GstarCAD2021"; Flags: ignoreversion
 Source: "{#Raiz}\INSTALACAO.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [UninstallDelete]

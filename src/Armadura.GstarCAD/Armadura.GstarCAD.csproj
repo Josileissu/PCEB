@@ -16,6 +16,9 @@
     <DefineConstants>$(DefineConstants);GSTARCAD</DefineConstants>
     <GrxSdk>$(MSBuildThisFileDirectory)..\..\sdk\grxsdk</GrxSdk>
     <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\GstarCAD2021\</OutputPath>
+    <!-- versão de demonstração (1 hora de uso): build -p:Demo=true → bin\demo\GstarCAD2021 (instalador\gerar_demo.bat) -->
+    <DefineConstants Condition="'$(Demo)' == 'true'">$(DefineConstants);DEMO</DefineConstants>
+    <OutputPath Condition="'$(Demo)' == 'true'">$(MSBuildThisFileDirectory)..\..\bin\demo\GstarCAD2021\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <Version>0.1.17</Version>

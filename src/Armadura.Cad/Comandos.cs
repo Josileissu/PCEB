@@ -672,7 +672,8 @@ public sealed class Comandos
         ed?.WriteMessage($"\nArmadura {Plugin.Versao} — detalhamento de armaduras para concreto armado." +
                          "\nO plugin NÃO dimensiona estruturas: só desenha, numera e quantifica." +
                          "\nTodas as decisões de cálculo são do engenheiro responsável." +
-                         $"\nConfiguração: {Plugin.CaminhoConfig}\nLogs: {Log.PastaLogs}\n");
+                         $"\nConfiguração: {Plugin.CaminhoConfig}\nLogs: {Log.PastaLogs}\n" +
+                         (Demo.Ativa ? (Demo.Expirada ? Demo.Mensagem : Demo.TextoRestante) + "\n" : ""));
     }
 
     // ================= auxiliares =================
@@ -681,6 +682,7 @@ public sealed class Comandos
     {
         var doc = CadApp.DocumentManager.MdiActiveDocument;
         if (doc == null) return;
+        if (Demo.Expirada) { Log.Info($"demonstração expirada: {nome} bloqueado"); doc.Editor.WriteMessage("\n" + Demo.Mensagem + "\n"); return; }
         try
         {
             using (suspender ? Sincronizador.Suspender(doc) : null)
