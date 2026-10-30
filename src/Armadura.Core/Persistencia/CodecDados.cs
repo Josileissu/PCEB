@@ -259,6 +259,7 @@ public static class CodecDados
         if (!f.MostrarPosicao) I("MPOS", 0);
         if (!f.MostrarDiametro) I("MDIA", 0);
         if (!f.MostrarEspacamento) I("MESP", 0);
+        if (!f.MostrarComprimento) I("MCMP", 0);
         return l;
     }
 
@@ -303,6 +304,7 @@ public static class CodecDados
                 case "MPOS": f.MostrarPosicao = Int(v) != 0; break;
                 case "MDIA": f.MostrarDiametro = Int(v) != 0; break;
                 case "MESP": f.MostrarEspacamento = Int(v) != 0; break;
+                case "MCMP": f.MostrarComprimento = Int(v) != 0; break;
             }
         }
         return f;

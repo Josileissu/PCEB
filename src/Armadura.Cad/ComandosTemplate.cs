@@ -304,7 +304,7 @@ public sealed class ComandosTemplate
                 Tipo = f.Tipo, Espacamento = f.Espacamento > 0 ? f.Espacamento : 15, Escala = f.Escala > 0 ? f.Escala : r.Escala,
                 P1X = a.X, P1Y = a.Y, P2X = b.X, P2Y = b.Y,
                 Referencias = f.Referencias.Select(x => { var q = P(x.X, x.Y); return (q.X, q.Y); }).ToList(),
-                Repeticoes = Math.Max(1, f.Repeticoes), MostrarDiametro = f.MostrarDiametro,
+                Repeticoes = Math.Max(1, f.Repeticoes), MostrarDiametro = f.MostrarDiametro, MostrarComprimento = f.MostrarComprimento,
             };
             ServicoFaixa.Criar(tr, (Polyline)tr.GetObject(bid, OpenMode.ForWrite), dados, P3(f.Posicao.X, f.Posicao.Y), cfg);
         }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Armadura.Cad.Infra;
+using Armadura.Core.Calculo;
 using Armadura.Core.Configuracao;
 using Armadura.Core.Modelo;
 using Armadura.Core.Persistencia;
@@ -122,6 +123,8 @@ internal static class ServicoFaixa
         string texto = Core.Descricao.QuebrasTexto.Aplicar(TextoFaixa.Formatar(f, barra, cfg), f.Quebras); // Enter do usuário
         if (ent is Dimension d2)
         {
+            // comprimento da faixa abaixo da linha de cota (\X do texto da cota), se ligado
+            if (f.MostrarComprimento) texto += "\\X" + CalculoComprimento.TextoCota(comprimentoCm, false, cfg);
             bool mudou = d2.DimensionText != texto || Math.Abs(d2.Dimtxt - h) > 1e-9;
             if (mudou)
             {

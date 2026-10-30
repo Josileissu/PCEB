@@ -14,6 +14,7 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
         "Chamada" => F.TemLinhasDeChamada,
         "Quantidade" => F.TextoTemQuantidade,
         "DiametroEspacamento" => F.TextoTemDiametroEspacamento,
+        "Cota" => F.TemCota,
         _ => true,
     };
 
@@ -117,6 +118,14 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
     {
         get => F.MostrarDiametro;
         set => Campo(f => f.MostrarDiametro = value);
+    }
+
+    [Category(GT), DisplayName("Mostrar comprimento"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Cota"),
+     Description("Comprimento da faixa abaixo da linha de cota. Desligue quando várias faixas ficam juntas.")]
+    public bool MostrarComprimento
+    {
+        get => F.MostrarComprimento;
+        set => Campo(f => f.MostrarComprimento = value);
     }
 
     [Category(GT), DisplayName("Mostrar espaçamento"), TypeConverter(typeof(SimNaoConverter)), SoQuando("DiametroEspacamento")]

@@ -144,6 +144,9 @@ public class NovidadesTests
         var antiga = CodecDados.DecodificarFaixa(CodecDados.Codificar(new DadosFaixa()));
         Assert.True(antiga.MostrarQuantidade && antiga.MostrarPosicao && antiga.MostrarDiametro && antiga.MostrarEspacamento);
         Assert.Empty(antiga.LinhasApagadas);
+        // comprimento da faixa (cota): ligado por padrão; só o desligado vai para o XData
+        Assert.True(antiga.MostrarComprimento);
+        Assert.False(CodecDados.DecodificarFaixa(CodecDados.Codificar(new DadosFaixa { MostrarComprimento = false })).MostrarComprimento);
     }
 
     [Fact]

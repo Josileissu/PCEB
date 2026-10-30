@@ -90,6 +90,9 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   [SemLinha] no ARMCHAMADA, "Mostrar linha de chamada" na paleta); os pontos de referência ficam guardados.
   Linha apagada à mão NÃO é recriada: o Sincronizador grava o índice dela (vínculo "IDX") em `LinhasApagadas`
   (XData "LAP"); só "Mostrar linha de chamada" = Sim limpa a lista.
+- Faixa em cota (TemCota) mostra o comprimento abaixo da linha: `DimensionText` = texto + "\X" + comprimento
+  (`DadosFaixa.MostrarComprimento`, XData "MCMP" só quando desligado; paleta "Mostrar comprimento"; pedido de 2026-10-30).
+  Templates: `FaixaTemplate.MostrarComprimento` (grampos ao lado do estribo: desligado).
 - Texto da faixa com campos opcionais (quantidade, N, diâmetro, espaçamento; XData MQTD/MPOS/MDIA/MESP só
   quando desligados), em `TextoFaixa.Formatar`; nunca fica vazio (sobra o N). Repetições da faixa (XData "REP")
   multiplicam o que ela soma na barra (`QuantidadeTotal`) e o texto vira "2x11 N1 …" (repetição colada na quantidade, SEM parênteses — pedido de 2026-10-28; vale também para a descrição da barra).

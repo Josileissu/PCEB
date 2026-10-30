@@ -293,8 +293,9 @@ public sealed class AutoTeste
             var fg = Faixas(tr, db, "G");
             var dimG = fg.Count == 1 ? fg[0].ent as Dimension : null;
             Rel.AppendLine($"        faixa de G: {dimG?.DimensionText} (medida {dimG?.Measurement:0.##})");
-            Checar(dimG != null && dimG.DimensionText.StartsWith("21 N") && dimG.DimensionText.EndsWith("c/15"),
-                "ARMFAIXAORT + STRETCH: faixa recalculada (300 cm c/15 = 21)");
+            // o comprimento da faixa vem abaixo da linha (\X300), ligado por padrão
+            Checar(dimG != null && dimG.DimensionText.StartsWith("21 N") && dimG.DimensionText.EndsWith("c/15\\X300"),
+                "ARMFAIXAORT + STRETCH: faixa recalculada (300 cm c/15 = 21) com o comprimento");
             Checar(Barra(tr, db, "G").Quantidade == 21, $"quantidade do estribo = soma das faixas ({Barra(tr, db, "G").Quantidade})");
             Checar(dimG != null && Math.Abs(dimG.Dimtxt - 2) < 1e-9, $"texto da faixa na escala da barra (2 un; {dimG?.Dimtxt})");
 
@@ -1493,6 +1494,12 @@ public sealed class AutoTeste
                 var total = ents.OfType<RotatedDimension>().FirstOrDefault(d => d.DimensionText.StartsWith("COMPRIMENTO TOTAL"));
                 Rel.AppendLine($"        pilar P61: {ents.Count} entidades no bloco, {dims} cotas, {textos} textos; total = {total?.Measurement:0.0}");
                 Checar(total != null && Math.Abs(total.Measurement - 1390.5) < 1e-6, "pilar: cota do comprimento total = 1390,5");
+                // faixas em cota mostram o comprimento abaixo da linha (\X); as dos grampos, ao lado, não
+                var faixasCota = ents.OfType<Dimension>().Where(d => XDataCad.Tipo(d) == TipoParte.Faixa).ToList();
+                int comComp = faixasCota.Count(d => d.DimensionText.Contains("\\X"));
+                Rel.AppendLine($"        faixas em cota: {faixasCota.Count}, com comprimento: {comComp}; ex.: " +
+                               faixasCota.Select(d => d.DimensionText).FirstOrDefault(s => s.Contains("\\X")));
+                Checar(comComp >= 3 && comComp < faixasCota.Count, "pilar: comprimento nas faixas dos estribos (e não nas dos grampos ao lado)");
                 var arm = ents.OfType<Polyline>().Select(p => XDataCad.LerBarra(p)).Where(d => d != null).ToList();
                 Rel.AppendLine("        pilar: armaduras no bloco: " + string.Join(", ", arm.OrderBy(d => d.Numero).Select(d => FormattableString.Invariant($"N{d.Numero} {d.Quantidade}ø{d.Bitola}"))));
                 Checar(arm.Count == r.Barras.Count && arm.All(d => d.Numero > 0), "pilar: armaduras numeradas no detalhamento");

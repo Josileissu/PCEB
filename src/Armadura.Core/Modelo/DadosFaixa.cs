@@ -114,6 +114,8 @@ public sealed class DadosFaixa
     public bool MostrarPosicao { get; set; } = true;
     public bool MostrarDiametro { get; set; } = true;
     public bool MostrarEspacamento { get; set; } = true;
+    /// <summary>Faixa em cota: o comprimento da faixa abaixo da linha de cota (pedido do usuário, 2026-10-30; liga/desliga na paleta).</summary>
+    public bool MostrarComprimento { get; set; } = true;
 
     /// <summary>O texto deste tipo de faixa leva quantidade (a indicação só mostra a posição).</summary>
     public bool TextoTemQuantidade => Tipo != TipoFaixa.Indicacao;
