@@ -413,6 +413,7 @@ internal static class PaletaArmadura
     {
         var doc = CadApp.DocumentManager.MdiActiveDocument;
         if (doc == null || objetos == null) return;
+        if (Infra.Demo.Expirada) { MessageBox.Show(Infra.Demo.Mensagem, "Armadura"); return; }
         try { AplicarTabelas(doc, objetos.OfType<PropriedadesTabela>()); }
         catch (Exception ex) { Log.Erro("Paleta.AplicarTabelas", ex); MessageBox.Show("Erro ao aplicar: " + ex.Message, "Armadura"); }
         var erros = AplicarDetalhamentos(doc, objetos.OfType<PropriedadesDetalhamento>());

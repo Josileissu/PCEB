@@ -23,6 +23,7 @@ public sealed class Plugin : Rt.IExtensionApplication
     {
         try
         {
+            Demo.Iniciar();
             RecarregarConfig();
             // templates de elementos (docs/TEMPLATES.md)
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.BaseReservatorio.TemplateBaseReservatorio());
@@ -36,6 +37,8 @@ public sealed class Plugin : Rt.IExtensionApplication
             dm.MdiActiveDocument?.Editor.WriteMessage(
                 $"\nArmadura {Versao} carregado. Comandos: ARMBARRA, ARMCONVERTER, ARMPALETA, ARMPROP, ARMEDITSEG, " +
                 "ARMRAINSERIR, ARMRAATUALIZAR, ARMCONFIG, ARMSOBRE.\n");
+            if (Demo.Ativa)
+                dm.MdiActiveDocument?.Editor.WriteMessage("\n" + (Demo.Expirada ? Demo.Mensagem : Demo.TextoRestante) + "\n");
 #if GSTARCAD
             // sugestões da linha de comando (AUTOCOMPLETE) do GstarCAD: lista fixa em alias.pgc
             try
