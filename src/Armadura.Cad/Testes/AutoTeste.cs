@@ -1529,6 +1529,37 @@ public sealed class AutoTeste
             }
         }
         catch (Exception ex) { Checar(false, "template do pilar: exceção " + ex); }
+        // modelos do template (arquivo do usuário: o roteiro do autoteste guarda e devolve a pasta Templates)
+        try
+        {
+            var t = Core.Templates.CatalogoTemplates.Obter("pilar-premoldado");
+            string tmp = Path.Combine(Path.GetTempPath(), "arm_modelos_teste.csv"), tmp2 = Path.Combine(Path.GetTempPath(), "arm_modelos_export.csv");
+            File.WriteAllText(tmp, "# template: pilar-premoldado\r\nModelo;Nome;B;H;Consolos\r\nPTESTE;PTESTE;45;55,5;\"CS 20x28,5x25|2|900|5;CS 20x28,5x25|4|900|0\"\r\n", new System.Text.UTF8Encoding(true));
+            var msg = ComandosTemplate.Importar(t, tmp, perguntar: false);
+            var arq = ModelosTemplates.Obter(t);
+            var vt = arq.Valores(t, "PTESTE");
+            Rel.AppendLine("        modelos: " + msg.Replace("\n", " / "));
+            ComandosTemplate.Exportar(t, tmp2);
+            var exp = File.ReadAllText(tmp2);
+            bool exportou = exp.Contains("\nPTESTE;PTESTE;") && exp.Contains(";45;55,5;");
+            // janela com o modelo escolhido
+            using var f = new FormTemplate { StartPosition = System.Windows.Forms.FormStartPosition.Manual, Location = new System.Drawing.Point(-3000, -3000) };
+            f.Show();
+            f.Selecionar("pilar-premoldado");
+            f.Modelos.SelectedItem = f.Modelos.Items.Cast<string>().First(x => x == "PTESTE");
+            bool janela = f.Valores["B"] == "45" && f.Valores.Tabela("Consolos").Count == 2;
+            var saidaM = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+            if (!string.IsNullOrEmpty(saidaM))
+                using (var bmp = new System.Drawing.Bitmap(f.Width, f.Height))
+                {
+                    f.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, f.Width, f.Height));
+                    bmp.Save(Path.Combine(Path.GetDirectoryName(saidaM), "autoteste_janela_template.png"));
+                }
+            f.Close();
+            Checar(vt["B"] == "45" && vt["H"] == "55.5" && exportou && janela,
+                $"modelos do template: importar, exportar e abrir na janela (B={vt["B"]}, H={vt["H"]}, exportou {exportou}, janela {janela})");
+        }
+        catch (Exception ex) { Checar(false, "modelos do template: " + ex); }
         // layers criados pelo plugin seguem o layers.csv; nenhum com espessura "padrão" do CAD (pedido de 2026-10-30)
         try
         {

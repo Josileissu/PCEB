@@ -29,6 +29,8 @@ public sealed class Plugin : Rt.IExtensionApplication
             // templates de elementos (docs/TEMPLATES.md)
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.BaseReservatorio.TemplateBaseReservatorio());
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado());
+            // modelos dos templates (PADRÃO + elementos salvos): carregados a cada abertura do GstarCAD
+            try { ModelosTemplates.Carregar(); } catch (Exception ex) { Log.Erro("Modelos dos templates", ex); }
             DesenhoArmadura.Registrar();
             var dm = CadApp.DocumentManager;
             foreach (Document d in dm) Sincronizador.Anexar(d);
