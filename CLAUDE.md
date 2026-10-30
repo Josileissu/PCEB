@@ -186,6 +186,10 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   elemento desenhado pelo ARMTEMPLATE é salvo pelo Nome. Janela: Modelo, Salvar como padrão, Excluir, Importar, Exportar,
   Abrir arquivo; comandos ARMTEMPLATEIMPORTAR/ARMTEMPLATEEXPORTAR. O autoteste importa nesse arquivo: o roteiro tem de
   guardar e devolver a pasta Templates (como o config.json).
+- **Padrão do escritório para pranchas**: o DWG do P56 (`auxiliar_cad/pilar_padrão/316-CON-DD-100-6113-DET-BAS-R02.dwg`) é a
+  referência de layers, cotas e arranjo. Para medir: copie para o scratchpad, ARMTESTEDXF (ARM_DXF_ENTRADA/SAIDA) numa
+  instância nova e leia com ezdxf (`python -E -P`). Prévia rápida do template sem CAD: `tools/previa_template.py`.
+- Autoteste × config do usuário: a cópia de teste também fixa `TipoNumeracao` = 0 (Global); ele usa Individual.
 - Progresso por etapas: `docs/PROGRESSO.md` (retomar por ele numa sessão nova).
 - **Normas** (2026-10-29): os PDFs ficam em `S:\Meu Drive\Normas` (Google Drive, lento). Índice local de texto por
   página em `info_auxiliar/indice_normas/normas.sqlite` (FTS5, sem acentos; fora do Git) + `CATALOGO.md`.

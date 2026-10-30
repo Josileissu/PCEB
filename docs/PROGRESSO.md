@@ -305,3 +305,19 @@ consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálcu
 - Detalhamento do pilar compactado (altura 27 → 21 m): faixa inferior a 12·hv da base, detalhes padrão ao lado dos
   detalhes do consolo, coluna da direita sem a sobra das formas. Prévia sem CAD: `tools/previa_template.py`
   (ARM_PREVIA + teste GravarPreviaDoPilar; matplotlib instalado com pip --user).
+# Pilar — padrão de apresentação do P56 (2026-10-30)
+Referências em `auxiliar_cad/pilar_padrão/referencia_*.png` e o DWG 316-CON-DD-100-6113-DET-BAS-R02 (lido via ARMTESTEDXF + ezdxf:
+layers, cotas e posições).
+- [x] Layers com cor/espessura/tipo de linha dos layers do escritório (Armadura, DT-Forma, Cortes, DIM, TEXTOS, DT-Pontilhado,
+      DT-Barras no corte/na forma, Pilares, Insertos…); novos ARM-BARRA-2 (U e pinos, azul) e ARM-PILAR-SECAO (magenta).
+- [x] Chaves de cisalhamento: onda trapezoidal (retos de 4 alternando recuado/face, chanfros de 1), 2 arestas por chanfro,
+      cadeias 4|1 e 5, chamadas com seta.
+- [x] Vistas: marcas de corte com triângulo, nível com triângulo cheio, títulos maiores, nota dos insertos no alto
+      (sublinhada); cotas dos consolos (altura + até o nível acima; base → topo) em colunas; inserto do topo com nome e
+      linha de chamada; chapas de face cotadas da base em escada.
+- [x] Cortes de forma: pilar magenta, VISTA n com triângulo para o corte, cadeias do consolo (canto/consolo/canto, pinos,
+      face/pino/ponta).
+- [x] Quadro "ARMADURAS console b x h x a - n un.": PLANTA, CORTE B-B (pilar interrompido, pino azul, Solda), CORTE AA e as
+      formas com Tirante / Arm. Inferior / Estribo vertical / Estribo horizontal / Barra de ancoragem / Pino.
+- [ ] Usuário: conferir. Pendente: etiquetas das seções da armadura no estilo do P56 (texto com traço horizontal) e os
+      estilos de cota do escritório (ESTRUT50/ESTRUT25).

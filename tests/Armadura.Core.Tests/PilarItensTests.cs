@@ -96,14 +96,10 @@ public class PilarItensTests
     [Fact]
     public void PerfilDasChavesComoODetalhe01()
     {
-        // passo 5, rebaixo de 4 recuado 1, trecho de 1 até a face (chanfros de 0,5)
+        // passo 5: retos de 4 alternando recuado (−1) e na face (0), chanfros de 1 (referencia_chaves_cisalhamento.png)
         var (perfil, arestas) = TemplatePilarPreMoldado.PerfilChaves(5, 4, 1, 2);
-        Assert.Equal((-1.0, 0.0), perfil[0]);
-        Assert.Equal((0.0, 0.5), perfil[1]);   // vai à face no meio do trecho de 1
-        Assert.Equal((-1.0, 1.0), perfil[2]);  // volta ao rebaixo
-        Assert.Equal((-1.0, 5.0), perfil[3]);  // rebaixo de 4 até o próximo passo
-        Assert.Contains((-1.0, 1.0), arestas);
-        Assert.Equal(5, arestas.Count);
+        Assert.Equal(new (double, double)[] { (-1, 0), (-1, 4), (0, 5), (0, 9), (-1, 10) }, perfil);
+        Assert.Equal(new (double, double)[] { (-1, 4), (0, 5), (0, 9), (-1, 10) }, arestas); // duas arestas por chanfro
     }
 
     [Fact]

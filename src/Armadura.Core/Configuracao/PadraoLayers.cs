@@ -35,31 +35,35 @@ public static class PadroesLayers
         return Espessuras.OrderBy(e => Math.Abs(e - c)).First();
     }
 
-    /// <summary>Padrão de fábrica (pedido do usuário, 2026-10-30): barra 0,30; texto preto 0,05; forma 0,20; resto 0,00; sem amarelo.</summary>
+    /// <summary>Padrão de fábrica (pedidos do usuário, 2026-10-30): barra 0,30; texto preto 0,05; forma 0,20; resto 0,00; sem amarelo; cores do P56.</summary>
     public static List<PadraoLayer> Padrao() => new List<PadraoLayer>
     {
-        L("ARM-BARRA", 1, 0.30, "", "Barras (armaduras)"),
-        L("ARM-TEXTO", 7, 0.05, "", "Descrições e cotas das barras"),
-        L("ARM-FAIXA", 3, 0, "", "Faixas de distribuição e indicações"),
-        L("ARM-CORTE", 1, 0, "", "Cortes das faixas e marcas de corte"),
-        L("ARM-TABELA", 7, 0, "", "Relação do aço e tabelas"),
-        L("ARM-FORMA", 8, 0.20, "", "Forma das peças (templates)"),
-        L("ARM-TEXTO-FORMA", 7, 0, "", "Textos dos templates (títulos, notas)"),
-        L("ARM-COTA-FORMA", 8, 0, "", "Cotas dos templates"),
-        L("ARM-NIVEL", 9, 0, "", "Níveis"),
-        L("ARM-HACHURA", 8, 0, "", "Hachuras dos cortes"),
-        L("ARM-HACHURA-DETALHE", 8, 0, "", "Hachuras dos detalhes"),
-        L("ARM-BARRA-SECAO", 8, 0, "", "Barras em ponto nas seções"),
-        L("ARM-ESTRIBO-SECAO", 8, 0, "", "Estribos e grampos nas seções"),
-        L("ARM-BARRA-DETALHE", 8, 0, "", "Barras dos detalhes padrão"),
-        L("ARM-DETALHE", 8, 0, "", "Linhas dos detalhes padrão"),
-        L("ARM-ALCA", 8, 0, "", "Alças de içamento"),
-        L("ARM-ALMOFADA", 8, 0, "", "Almofadas de apoio"),
-        L("ARM-CHAVE", 8, 0, "", "Chaves de cisalhamento"),
-        L("ARM-FURO", 8, 0, "", "Furos"),
-        L("ARM-FURO-OCULTO", 8, 0, "HIDDEN", "Furos em vista (oculto)"),
-        L("ARM-INSERTO", 8, 0, "", "Insertos metálicos"),
-        L("ARM-PINO", 8, 0, "", "Pinos dos consolos"),
+        // cor, espessura e tipo de linha copiados dos layers do escritório no P56 (316-CON-DD-100-6113, 2026-10-30):
+        // Armadura, DT-Forma, Cortes, DIM/Cotas, TEXTOS, DT-Pontilhado, DT-Barras no corte/na forma, Pilares, Insertos…
+        L("ARM-BARRA", 1, 0.30, "", "Barras (Armadura)"),
+        L("ARM-BARRA-2", 5, 0.30, "", "Grampos U do topo/base e pinos dos consolos (Armadura, em azul)"),
+        L("ARM-TEXTO", 7, 0.05, "", "Descrições e cotas das barras (Descrição da armadura / Textos armaduras)"),
+        L("ARM-FAIXA", 7, 0.09, "", "Faixas de distribuição e indicações (Cotas)"),
+        L("ARM-CORTE", 7, 0.09, "", "Marcas de corte e cortes das faixas (DIM)"),
+        L("ARM-TABELA", 7, 0.05, "", "Relação do aço e tabelas (Relação do aço)"),
+        L("ARM-FORMA", 7, 0.20, "", "Forma das peças (DT-Forma)"),
+        L("ARM-PILAR-SECAO", 6, 0.40, "", "Pilar cortado: cortes de forma, planta do consolo (Cortes)"),
+        L("ARM-TEXTO-FORMA", 7, 0.30, "", "Títulos e notas dos templates (TEXTOS)"),
+        L("ARM-COTA-FORMA", 7, 0.09, "", "Cotas dos templates (DIM)"),
+        L("ARM-NIVEL", 9, 0.09, "DASHDOT", "Níveis (DT-Pontilhado)"),
+        L("ARM-HACHURA", 7, 0.20, "", "Hachuras dos cortes de forma (DT-Forma)"),
+        L("ARM-HACHURA-DETALHE", 9, 0.05, "", "Hachuras dos detalhes (Hachuras)"),
+        L("ARM-BARRA-SECAO", 1, 0.15, "", "Barras em ponto nas seções (DT-Barras no corte)"),
+        L("ARM-ESTRIBO-SECAO", 1, 0.15, "", "Estribos e grampos nas seções (DT-Barras no corte)"),
+        L("ARM-BARRA-DETALHE", 1, 0.15, "", "Barras dos detalhes (DT-Barras na forma)"),
+        L("ARM-DETALHE", 8, 0.09, "", "Linhas dos detalhes padrão (Linhas)"),
+        L("ARM-ALCA", 7, 0.20, "", "Alças de içamento"),
+        L("ARM-ALMOFADA", 7, 0.20, "", "Almofadas de apoio"),
+        L("ARM-CHAVE", 1, 0.30, "", "Chaves de cisalhamento (Pilares)"),
+        L("ARM-FURO", 7, 0.25, "", "Furos (DT-Furo)"),
+        L("ARM-FURO-OCULTO", 7, 0.25, "HIDDEN", "Furos em vista (oculto)"),
+        L("ARM-INSERTO", 1, 0.05, "", "Insertos metálicos (Insertos)"),
+        L("ARM-PINO", 1, 0.15, "", "Pinos dos consolos nas vistas e cortes (DT-Armadura)"),
         L("ARM-TANQUE", 4, 0, "", "Base de reservatório: tanque"),
         L("ARM-ESTACA", 5, 0, "", "Base de reservatório: estacas"),
     };

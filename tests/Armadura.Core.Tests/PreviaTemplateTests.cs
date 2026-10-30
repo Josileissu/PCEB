@@ -31,6 +31,7 @@ public class PreviaTemplateTests
         var sb = new StringBuilder("{");
         sb.Append("\"barras\":[" + string.Join(",", r.Barras.Select(b => Ps(b.Vertices))) + "],");
         sb.Append("\"contornos\":[" + string.Join(",", r.Contornos.Select(c => Ps(c.Fechado ? c.Vertices.Concat(c.Vertices.Take(1)) : c.Vertices))) + "],");
+        sb.Append("\"layers\":[" + string.Join(",", r.Contornos.Select(c => S(c.Layer))) + "],");
         sb.Append("\"textos\":[" + string.Join(",", r.Textos.Select(x => FormattableString.Invariant(
             $"{{\"t\":{S(x.Texto)},\"x\":{x.X:0.###},\"y\":{x.Y:0.###},\"h\":{x.Altura:0.###},\"a\":{x.Angulo:0.####},\"al\":{x.Alinhamento}}}"))) + "],");
         sb.Append("\"circulos\":[" + string.Join(",", r.Circulos.Select(c => FormattableString.Invariant($"[{c.X:0.###},{c.Y:0.###},{c.Raio:0.###}]"))) + "],");
