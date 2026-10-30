@@ -314,6 +314,7 @@ public sealed partial class TemplatePilarPreMoldado
         // ---------------- estribos e grampos: formas (perto das seções) e faixas na elevação ----------------
         double xFx = x + 8 * hv;
         double xSec = xFx + 22 * hv;
+        c.XFimFaixas = xFx + 12 * hv; // depois das faixas e das marcas dos cortes
         var estribosPorBitola = new Dictionary<double, string>();
         int dirsGr = Math.Max(1, Math.Min(2, v.Inteiro("GrampoDirecoes")));
         double phiGr = v.Numero("GrampoBitola");
@@ -354,6 +355,7 @@ public sealed partial class TemplatePilarPreMoldado
                 {
                     Barra = grampos[d], Tipo = TipoFaixa.Ortogonal, P1 = (xFx + (3 + 2 * d) * hv, z.Y1), P2 = (xFx + (3 + 2 * d) * hv, z.Y2),
                     Posicao = (xFx + (5 + 2 * d) * hv, (z.Y1 + z.Y2) / 2), Espacamento = z.Esp, Escala = c.escV, MostrarDiametro = false,
+                    MostrarComprimento = false, // o comprimento já está na faixa do estribo, ao lado
                     Repeticoes = quadrado ? dirsGr : 1,
                 });
         }

@@ -171,6 +171,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         public IdiomaDesenho Idioma;
         public double hV, hC; // altura dos textos (cm) nas escalas das vistas e dos cortes
         public double escV, escC;
+        /// <summary>x depois das faixas da elevação das armaduras (as linhas de nível vão até ali).</summary>
+        public double XFimFaixas;
 
         /// <summary>Linhas do texto conforme o idioma: PT, EN, ou PT e "(EN)" embaixo.</summary>
         public string[] Linhas(string pt, string en) => Idioma switch
@@ -306,11 +308,12 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         }
         niveis = niveis.OrderByDescending(n => n.Cota).ToList();
         double ladoTri = 0.9 * hv;
+        var ysNiveis = new List<double>();
         foreach (var n in niveis)
         {
             double y = (n.Cota - cotaBase) * 100;
-            // linha de nível atravessando as vistas
-            c.Linha(xMarca - 0.5 * hv, y, xFimVistas + 2 * hv, y, "ARM-NIVEL");
+            // linha de nível atravessando as vistas e a elevação das armaduras (desenhada depois de saber onde as faixas terminam)
+            ysNiveis.Add(y);
             // marca (triângulo com a ponta na linha) e o valor
             R_Triangulo(c, xMarca, y, ladoTri);
             c.Texto(FormatarCota(n.Cota), xMarca + 0.8 * hv, y + 0.6 * hv, 0.9 * hv);
@@ -344,6 +347,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         double hc = c.hC;
         // armaduras (elevação, faixas, seções, formas das barras) entre as vistas e a coluna da direita
         double xD = GerarArmaduras(c, v, cfg, xFimVistas + 30 * hv, b, h, L, ch) + 15 * hv;   // margem esquerda da coluna
+        // linhas de nível até depois das faixas de armadura (pedido do usuário, 2026-10-30)
+        foreach (var y in ysNiveis) c.Linha(xMarca - 0.5 * hv, y, Math.Max(xFimVistas + 2 * hv, c.XFimFaixas), y, "ARM-NIVEL");
         double yCur = L + 16 * hv;
         // título do corte
         foreach (var t in c.Linhas("CORTE A-A", "SECTION A-A")) { c.Texto(t, xD, yCur, 1.4 * hc); yCur -= 2.2 * hc; }
