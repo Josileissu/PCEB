@@ -134,5 +134,18 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   - **Detalhe típico** como a prancha do escritório (`DetalheTipico`): títulos sublinhados com SEM ESCALA e NBR-6118,
     ganchos desenhados + tabela, emendas por traspasse (barras hachuradas, ≥ 45ø e o par com ≥ 9ø), por solda (cordões
     ≥ 5ø e corte a-a ≥ 0,3ø), comprimento das barras (U com r, A1/B1) e notas PT/EN em colunas.
-- Próximas: entrada da armadura longitudinal por tabela/Excel (posições, bitolas, redução com a altura — PP-2) (entram no volume e
-  no CG); 4 alças pelo CG, furo/alça de topo, inserto, detalhes padrão; 5 entrada por tabela/Excel/janela.
+- **Etapa 5 (2026-10-30)** — `ListasArmaduraPilar.cs`: longitudinais e zonas de estribos em LISTAS (parâmetros tabela).
+  - "Barras longitudinais": arranjo (Cantos = 4, Ao lado dos cantos = 8 em "L", Faces 2 e 4 / 1 e 3, Face 1…4 = barras por
+    face), bitola, feixe (1–3), início/fim (cm da base; vazio = pilar todo). Linhas do mesmo arranjo uma sobre a outra:
+    a sobreposição é emenda (cota + nota; aviso se < traspasse da NBR 6118 na mesma seção, mín. 45φ); linha contida em outra
+    = aviso. Posições alinhadas pelo maior feixe do arranjo (`PosicoesLinhas`, `RaioFeixe`, `CentrosFeixe`); faces entre o
+    "L" (se houver) ou entre os cantos. Quantidade da RA = posições × feixe. Espaçamento livre com o raio do feixe.
+  - "Zonas de estribos": nome, medida a partir da base/topo, de/até, bitola, espaçamento, grampos; o trecho corrente
+    (EstBitola/EstEsp/GramposCorrente) preenche os vãos (`LerZonas`); zonas sobrepostas = aviso, vale a primeira.
+  - Elevação: uma coluna por arranjo (e lado A/B das alternadas). Seções (`Cortes`): divididas onde mudam as linhas
+    ativas ou o estribo/grampos da zona; trechos de emenda entre linhas e < 10 cm não ganham seção; composição igual repete
+    o número (marcas em todos os trechos); grampos U distinguem seções iguais (topo × base) sem criar trechos.
+  - Campos antigos removidos (CantoBitola, BarrasPorCanto, VizBitola, FaceB/HNum, FaceBitola, Topo/Base Comp/Bitola/Esp,
+    Grampos); os valores não são guardados nos detalhamentos, então não há migração.
+- Próximas (quando houver projeto real): seções circular/L/T/U/vazada e pilar-parede, seção variável, topo inclinado/garfo,
+  base com chapa/luvas/esperas, consolo esconso/corrido/metálico, furos e nichos, seção na altura do consolo.

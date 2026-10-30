@@ -289,3 +289,9 @@ consolos, almofadas, insertos, pinos, alças, montagem); só desenho, sem cálcu
 - [x] Listas em janela (consolos sem limite, níveis, insertos) com Ctrl+V do Excel; grupos 01…16 em ordem.
 - [x] Catálogo de insertos (ARMINSERTOS): topo com chumbadores/gabarito ou chapa na face.
 - Unidade 164/164 (8 novos), autoteste 203/203 (`autoteste_pilar_p61_chaves.png`, `autoteste_janela_consolos.png`).
+# Pilar pré-moldado — etapa 5 (2026-10-30)
+- [x] Longitudinais em lista (arranjo, bitola, feixe, início/fim): redução com a altura com emenda cotada e aviso de
+        traspasse curto, bitolas mistas, feixes de 2/3; zonas de estribos em lista (consolo etc.) + trecho corrente.
+- [x] Seções onde a composição muda (P61 continua com 3). Unidade 168/168; autoteste 208/208 (P62 REDUCAO:
+        `autoteste_pilar_reducao_emenda.png`, `autoteste_pilar_reducao_secoes.png`, `autoteste_janela_longitudinais.png`).
+- [ ] Usuário: conferir no ARMTEMPLATE (reabrir o GstarCAD).

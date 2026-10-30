@@ -1529,6 +1529,65 @@ public sealed class AutoTeste
             }
         }
         catch (Exception ex) { Checar(false, "template do pilar: exceção " + ex); }
+        // etapa 5: longitudinais e zonas em lista — redução com a altura (emenda entre linhas), feixe e zona do consolo
+        try
+        {
+            var t = new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado();
+            var v = new Core.Templates.ValoresTemplate(t.Parametros);
+            v["Nome"] = "P62 REDUCAO";
+            v["Longitudinais"] = "Cantos||25|1||;Ao lado dos cantos||20|1||;Faces 2 e 4|2|20|1||700;Faces 2 e 4|1|16|2|600|";
+            v["ZonasEstribos"] = "Topo|Topo|0|100|8|5|Sim;Consolo|Base|540|620|10|5|Sim;Base|Base|0|260|8|10|Sim";
+            var r = t.Gerar(v, cfg);
+            var origem = new Point3d(80000, -70000, 0);
+            using (Sincronizador.Suspender(doc))
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var ids = ComandosTemplate.Desenhar(tr, db, cfg, r, origem);
+                tr.Commit();
+                Checar(ids.Count == r.Barras.Count, $"pilar com redução: {ids.Count} armaduras desenhadas ({r.Barras.Count} no template)");
+            }
+            foreach (var a in r.Avisos) Rel.AppendLine("        aviso do pilar com redução: " + a);
+            var secoes = r.Textos.Where(x => x.Texto.StartsWith("SEÇÃO ") && x.Texto.EndsWith(" - ARMADURA")).Select(x => x.Texto.Substring(6, 3)).ToList();
+            Rel.AppendLine("        pilar com redução: seções " + string.Join(", ", secoes));
+            Checar(secoes.Count >= 4 && r.Textos.Any(x => x.Texto.StartsWith("EMENDA: TRASPASSE 100 cm")),
+                "pilar com redução: emenda de 100 cm entre as linhas e uma seção por composição");
+            // coluna das faces 2 e 4: ø20 até 700 e ø16 (feixe) a partir de 600
+            var x16 = r.Barras.First(b => b.Nome.StartsWith("long") && b.Bitola == 16).Vertices[0].X;
+            _zoomBases.Add(("pilar_reducao_emenda", FormattableString.Invariant(
+                $"{origem.X + x16 - 40:0},{origem.Y + 520:0} {origem.X + x16 + 160:0},{origem.Y + 780:0}")));
+            var s1 = r.Textos.First(x => x.Texto == "SEÇÃO 1-1 - ARMADURA");
+            _zoomBases.Add(("pilar_reducao_secoes", FormattableString.Invariant(
+                $"{origem.X + s1.X - 10:0},{origem.Y + s1.Y - 105:0} {origem.X + s1.X + 140:0},{origem.Y + s1.Y + 8:0}")));
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                var btr = (BlockTableRecord)tr.GetObject(bt[r.Detalhamento], OpenMode.ForRead);
+                var arm = btr.Cast<ObjectId>().Select(i => tr.GetObject(i, OpenMode.ForRead)).OfType<Polyline>().Select(p => XDataCad.LerBarra(p)).Where(d => d != null).ToList();
+                Rel.AppendLine("        pilar com redução: armaduras: " + string.Join(", ", arm.OrderBy(d => d.Numero).Select(d => FormattableString.Invariant($"N{d.Numero} {d.Quantidade}ø{d.Bitola}"))));
+                // feixe de 2 ø16 nas faces 2 e 4 (1 por face): 4 barras; estribo ø10 do consolo
+                Checar(arm.Any(d => d.Bitola == 16 && d.Quantidade == 4) && arm.Any(d => d.Estribo && d.Bitola == 10 && d.Quantidade > 0),
+                    "pilar com redução: feixe de ø16 (4 barras) e estribos da zona do consolo");
+                tr.Commit();
+            }
+            // janela da lista de longitudinais
+            var saidaL = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+            using var fl = new Paleta.FormTabela(t.Parametros.First(x => x.Nome == "Longitudinais"), v["Longitudinais"]);
+            fl.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+            fl.Location = new System.Drawing.Point(-3000, -3000);
+            fl.Show();
+            if (!string.IsNullOrEmpty(saidaL))
+                using (var bmp = new System.Drawing.Bitmap(fl.Width, fl.Height))
+                {
+                    fl.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, fl.Width, fl.Height));
+                    bmp.Save(Path.Combine(Path.GetDirectoryName(saidaL), "autoteste_janela_longitudinais.png"));
+                }
+            // trocar para "Cantos" esvazia "barras por face"
+            fl.Digitar(2, 0, "Cantos");
+            bool vazio = fl.Celula(2, 1) == "";
+            fl.Close();
+            Checar(vazio, "lista de longitudinais: nos cantos a quantidade por face fica vazia");
+        }
+        catch (Exception ex) { Checar(false, "pilar com redução: exceção " + ex); }
         // janela da lista de consolos (a mesma do botão "…" do ARMTEMPLATE), salva em PNG para conferir
         try
         {

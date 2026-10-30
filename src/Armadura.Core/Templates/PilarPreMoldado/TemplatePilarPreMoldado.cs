@@ -48,7 +48,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         G5 = "05. Cobrimentos", G6 = "06. Concreto e produção";
 
     /// <summary>Calculado a cada leitura: as opções dos consolos vêm do catálogo atual.</summary>
-    public IReadOnlyList<ParametroTemplate> Parametros => ParametrosForma.Concat(ParametrosArmadura).Concat(ParametrosConsolos()).Concat(ParametrosItens).Concat(new[] { ParametroInsertos() }).ToArray();
+    public IReadOnlyList<ParametroTemplate> Parametros => ParametrosForma.Concat(ParametrosArmadura()).Concat(ParametrosConsolos()).Concat(ParametrosItens).Concat(new[] { ParametroInsertos() }).ToArray();
 
     private static readonly ParametroTemplate[] ParametrosForma =
     {
@@ -361,7 +361,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             yDet = DetalheConsolo(c, cfg, rep, pares, soz, $"cons{++nDet}", b, h, cob0, 0, yDet, v["LongAco"], v["EstAco"]);
         }
         // detalhes padrão (alça, reforço do furo, chaves, canto, raio de curvatura, emendas, SPDA)
-        double phiTd = new[] { "EstBitola", "TopoBitola", "BaseBitola" }.Max(k => v.Numero(k));
+        double phiTd = BitolaMaxEstribo(v);
         DetalhesPadrao(c, v, cfg, itens, cob0, phiTd, 0, yDet);
 
         // notas
