@@ -676,6 +676,46 @@ public sealed class Comandos
                          (Demo.Ativa ? (Demo.Expirada ? Demo.Mensagem : Demo.TextoRestante) + "\n" : ""));
     }
 
+    // ================= ARMLAYERS =================
+
+    /// <summary>
+    /// Padrão de layers (layers.csv): aplica cor, espessura e tipo de linha aos layers do desenho que estão no arquivo
+    /// [Abrir] abre o arquivo para editar (pedido do usuário, 2026-10-30).
+    /// </summary>
+    [Rt.CommandMethod("ARMLAYERS")]
+    public void ArmLayers() => Executar("ARMLAYERS", (doc, ed, db, cfg) =>
+    {
+        Layers.GarantirArquivo();
+        ed.WriteMessage($"\nPadrão de layers: {Layers.Caminho}");
+        var po = new PromptKeywordOptions("\nAplicar o padrão aos layers deste desenho ou") { AllowNone = true };
+        AdicionarPalavras(po.Keywords, "Aplicar", "Abrir");
+        po.Keywords.Default = "Aplicar";
+        po.AppendKeywordsToMessage = true;
+        var r = ed.GetKeywords(po);
+        if (r.Status != PromptStatus.OK && r.Status != PromptStatus.None) return;
+        if (r.StringResult == "Abrir")
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Layers.Caminho) { UseShellExecute = true });
+            return;
+        }
+        int n = 0;
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var lt = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
+            foreach (ObjectId id in lt)
+            {
+                var l = (LayerTableRecord)tr.GetObject(id, OpenMode.ForRead);
+                var p = Layers.Obter(l.Name);
+                if (p == null) continue;
+                l.UpgradeOpen();
+                Layers.Aplicar(db, tr, l, p);
+                n++;
+            }
+            tr.Commit();
+        }
+        ed.WriteMessage($"\n{n} layer(s) atualizados pelo padrão.\n");
+    });
+
     // ================= auxiliares =================
 
     internal static void Executar(string nome, Action<Document, Editor, Database, ConfiguracaoArmadura> acao, bool suspender = true)

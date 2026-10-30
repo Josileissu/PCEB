@@ -24,6 +24,7 @@ public sealed class Plugin : Rt.IExtensionApplication
         try
         {
             Demo.Iniciar();
+            try { Layers.GarantirArquivo(); } catch (Exception ex) { Log.Erro("layers.csv", ex); }
             RecarregarConfig();
             // templates de elementos (docs/TEMPLATES.md)
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.BaseReservatorio.TemplateBaseReservatorio());
