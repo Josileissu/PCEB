@@ -17,6 +17,7 @@ o programa PCEB próprio (web + Windows, um núcleo só), que também poderá op
 | `docs/03_casos-teste/` | peças de referência para comparar programas |
 | `docs/04_arquitetura/` | decisões de arquitetura e plano de migração |
 | `docs/notas/` | rascunhos |
+| `src/DEB.Core/`, `tests/` | núcleo comum (normas, comprimentos, numeração, catálogos) e seus testes |
 | `src/DEB.Cad/` | DEB para GstarCAD / AutoCAD / ZWCAD (ex-Armadura BR) |
 | `src/DEB.Revit/` | DEB para Revit 2025/2026 (ex-StructuralDetailer) |
 | `programas/` | downloads de terceiros (fora do Git) |
@@ -25,7 +26,7 @@ o programa PCEB próprio (web + Windows, um núcleo só), que também poderá op
 ## Compilar
 ```powershell
 dotnet build PCEB.sln -c Release -p:DeployToRevit=false
-dotnet test src\DEB.Cad\tests\Armadura.Core.Tests -c Release
+dotnet test tests\DEB.Core.Tests -c Release
 ```
 
 ## Licença
