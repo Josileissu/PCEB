@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     internal enum ViewRole { Elevation, Plan, Side, CrossSection, ThreeD }
 

@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     internal sealed class PieceLog
     {
@@ -63,12 +63,11 @@ namespace StructuralDetailer.Core
             return sb.ToString().TrimEnd();
         }
 
-        public static string LogDir => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StructuralDetailer", "logs");
+        public static string LogDir => Path.Combine(UserFolders.Root, "logs");
 
         /// <summary>
         /// Grava o relatório completo (resumo, avisos e exceções com pilha) em
-        /// %AppData%\StructuralDetailer\logs\. Nunca lança exceção.
+        /// %AppData%\PCEB\DEB.Revit\logs\. Nunca lança exceção.
         /// </summary>
         public string WriteToFile(string documentTitle, string revitVersion)
         {

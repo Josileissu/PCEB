@@ -4,9 +4,9 @@ using System.Globalization;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.Precast
+namespace DEB.Revit.Precast
 {
     /// <summary>Cria no Revit as barras calculadas por <see cref="ColumnRebarLayout"/>.</summary>
     internal sealed class RebarFactory

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
-namespace StructuralDetailer.Presentation
+namespace DEB.Revit.Presentation
 {
     /// <summary>
     /// Tabelas de aço do assembly da peça:

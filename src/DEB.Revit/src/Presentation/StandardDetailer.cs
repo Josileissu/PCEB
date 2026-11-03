@@ -4,9 +4,9 @@ using System.Globalization;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.Presentation
+namespace DEB.Revit.Presentation
 {
     /// <summary>Dados da peça que o padrão usa (campos de texto e cotas dos cortes).</summary>
     internal sealed class PresentationContext

@@ -4,10 +4,10 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
-using StructuralDetailer.Core;
-using StructuralDetailer.UI;
+using DEB.Revit.Core;
+using DEB.Revit.UI;
 
-namespace StructuralDetailer.Commands
+namespace DEB.Revit.Commands
 {
     /// <summary>
     /// "Detalhar peça": usa a seleção atual (vigas/pilares) ou pede para selecionar.

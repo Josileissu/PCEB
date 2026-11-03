@@ -2,9 +2,9 @@ using System.Diagnostics;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.Commands
+namespace DEB.Revit.Commands
 {
     /// <summary>Abre o JSON de configuração no editor padrão do Windows.</summary>
     [Transaction(TransactionMode.ReadOnly)]

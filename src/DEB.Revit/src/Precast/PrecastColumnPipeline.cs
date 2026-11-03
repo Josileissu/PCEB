@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
-using StructuralDetailer.Core;
-using StructuralDetailer.Presentation;
+using DEB.Revit.Core;
+using DEB.Revit.Presentation;
 
-namespace StructuralDetailer.Precast
+namespace DEB.Revit.Precast
 {
     internal sealed class PipelineOptions
     {
@@ -42,7 +42,7 @@ namespace StructuralDetailer.Precast
 
         private readonly PresentationStandard _standard;
 
-        /// <summary>Padrão de apresentação em uso (pasta %AppData%\StructuralDetailer\Padroes).</summary>
+        /// <summary>Padrão de apresentação em uso (pasta %AppData%\PCEB\DEB.Revit\Padroes).</summary>
         public PresentationStandard Standard => _standard;
 
         public void Run(IEnumerable<ColumnGroup> groups, PipelineOptions opt)

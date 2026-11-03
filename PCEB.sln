@@ -23,7 +23,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{44637AB2
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DEB.Core.Tests", "src\DEB.Cad\tests\DEB.Core.Tests\DEB.Core.Tests.csproj", "{9C2B2AF4-A33E-411C-BF7C-51A5A0355C38}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StructuralDetailer", "src\DEB.Revit\StructuralDetailer.csproj", "{591CED1A-922C-4923-9844-C58BCBF24D94}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DEB.Revit", "src\DEB.Revit\DEB.Revit.csproj", "{591CED1A-922C-4923-9844-C58BCBF24D94}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

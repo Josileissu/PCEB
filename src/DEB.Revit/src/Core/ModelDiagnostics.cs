@@ -8,13 +8,13 @@ using System.Text.Json;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     /// <summary>
     /// Levantamento do modelo (somente leitura) para planejar o detalhamento de pré-moldados:
     /// pilares, vigas, subcomponentes aninhados (consolos), geometria, contatos entre peças,
     /// aptidão para Parts / armadura e a estrutura interna das famílias.
-    /// Grava um JSON em %AppData%\StructuralDetailer\logs\.
+    /// Grava um JSON em %AppData%\PCEB\DEB.Revit\logs\.
     /// </summary>
     internal static class ModelDiagnostics
     {

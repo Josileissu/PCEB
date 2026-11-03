@@ -6,12 +6,12 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace StructuralDetailer.Presentation
+namespace DEB.Revit.Presentation
 {
     /// <summary>
     /// Padrão de apresentação de uma prancha: quais vistas, tabelas, quadros e detalhes padrão entram,
     /// com que títulos, escalas e em que região da folha. Um arquivo JSON por tipo de elemento
-    /// (pilar pré-moldado, viga, laje, fundação...), em %AppData%\StructuralDetailer\Padroes\.
+    /// (pilar pré-moldado, viga, laje, fundação...), em %AppData%\PCEB\DEB.Revit\Padroes\.
     ///
     /// Textos aceitam campos entre chaves, substituídos na geração:
     ///   {Marca} {Quantidade} {Secao} {Comprimento} {Volume} {Peso} {Data} {Letra} {Numero}
@@ -53,8 +53,7 @@ namespace StructuralDetailer.Presentation
             Converters = { new JsonStringEnumConverter() }
         };
 
-        public static string Folder => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "StructuralDetailer", "Padroes");
+        public static string Folder => Path.Combine(DEB.Revit.Core.UserFolders.Root, "Padroes");
 
         /// <summary>
         /// Carrega o padrão do elemento. Procura um arquivo com o mesmo "Elemento" na pasta de padrões;

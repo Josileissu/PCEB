@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.Presentation
+namespace DEB.Revit.Presentation
 {
     /// <summary>
     /// Monta a prancha do assembly segundo as regiões do padrão: cada item (vista, tabela, quadro de texto,

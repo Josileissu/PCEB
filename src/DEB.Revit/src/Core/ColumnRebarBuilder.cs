@@ -5,7 +5,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     /// <summary>
     /// Armadura de pilar retangular segundo a NBR 6118:

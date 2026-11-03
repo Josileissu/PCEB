@@ -5,7 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 
-namespace StructuralDetailer.Precast.UI
+namespace DEB.Revit.Precast.UI
 {
     /// <summary>
     /// Desenho do pilar com a armadura calculada por <see cref="ColumnRebarLayout"/>:

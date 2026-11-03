@@ -1,9 +1,9 @@
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Selection;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.UI
+namespace DEB.Revit.UI
 {
     /// <summary>Habilita o botão apenas com um projeto aberto (não em famílias).</summary>
     public class ProjectOnlyAvailability : IExternalCommandAvailability

@@ -5,11 +5,11 @@ using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
-namespace StructuralDetailer.Precast
+namespace DEB.Revit.Precast
 {
     /// <summary>
     /// Armadura escolhida para um grupo de pilares. Todas as medidas em mm.
-    /// Serializável: os modelos salvos ficam em %AppData%\StructuralDetailer\ModelosArmaduraPilar.json.
+    /// Serializável: os modelos salvos ficam em %AppData%\PCEB\DEB.Revit\ModelosArmaduraPilar.json.
     /// </summary>
     public sealed class ColumnRebarSpec
     {
@@ -143,9 +143,7 @@ namespace StructuralDetailer.Precast
             ReadCommentHandling = JsonCommentHandling.Skip
         };
 
-        public static string PresetsPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "StructuralDetailer", "ModelosArmaduraPilar.json");
+        public static string PresetsPath => Path.Combine(DEB.Revit.Core.UserFolders.Root, "ModelosArmaduraPilar.json");
 
         public static List<ColumnRebarSpec> LoadPresets()
         {

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace StructuralDetailer.Precast
+namespace DEB.Revit.Precast
 {
     internal enum BarRole { Longitudinal, Stirrup, CrossTie, CorbelTie, CorbelSew, LiftLoop }
 

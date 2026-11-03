@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     /// <summary>Conversões de unidade (o Revit trabalha internamente em pés).</summary>
     internal static class U
