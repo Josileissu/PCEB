@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Autoloader do Armadura BR para AutoCAD 2026.
+  Instalar em: %AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle
+  Estrutura:
+    ArmaduraBR.bundle\PackageContents.xml
+    ArmaduraBR.bundle\Contents\Windows\ArmaduraBR.AutoCAD.dll
+    ArmaduraBR.bundle\Contents\Windows\Armadura.Core.dll
+  O AutoCAD carrega a DLL sozinho ao abrir (a pasta ApplicationPlugins é confiável,
+  mesmo com SECURELOAD=1).
+-->
+<ApplicationPackage
+    SchemaVersion="1.0"
+    AppVersion="0.1.21"
+    ProductCode="{E7509458-4339-448A-9FCF-F6286DD5E2D6}"
+    UpgradeCode="{80A82AE8-94C2-4B27-8F8A-D2EE32E1AC67}"
+    Name="Armadura BR"
+    Description="Armadura BR: desenho, numeração e quantificação de armaduras."
+    Author="Marquezin"
+    ProductType="Application"
+    HelpFile="./Contents/Help/INSTALACAO_AUTOCAD.txt">
+
+  <CompanyDetails Name="Marquezin" />
+
+  <RuntimeRequirements
+      OS="Win64"
+      Platform="AutoCAD*"
+      SeriesMin="R25.1"
+      SeriesMax="R25.1" />
+
+  <Components Description="AutoCAD 2026">
+    <RuntimeRequirements
+        OS="Win64"
+        Platform="AutoCAD*"
+        SeriesMin="R25.1"
+        SeriesMax="R25.1" />
+
+    <ComponentEntry
+        AppName="ArmaduraBR"
+        Version="0.1.21"
+        ModuleName="./Contents/Windows/ArmaduraBR.AutoCAD.dll"
+        AppDescription="Armadura BR"
+        LoadOnAutoCADStartup="True"
+        LoadOnCommandInvocation="False"
+        LoadOnAppearance="False">
+      <Commands GroupName="ArmaduraBR">
+        <Command Global="ARMBARRA" Local="ARMBARRA" />
+        <Command Global="ARMCONVERTER" Local="ARMCONVERTER" />
+        <Command Global="ARMRECONHECER" Local="ARMRECONHECER" />
+        <Command Global="ARMOFFSET" Local="ARMOFFSET" />
+        <Command Global="ARMPROP" Local="ARMPROP" />
+        <Command Global="ARMEDITSEG" Local="ARMEDITSEG" />
+        <Command Global="ARMRECOTA" Local="ARMRECOTA" />
+        <Command Global="ARMREBATER" Local="ARMREBATER" />
+        <Command Global="ARMDIVIDIR" Local="ARMDIVIDIR" />
+        <Command Global="ARMESTRIBO" Local="ARMESTRIBO" />
+        <Command Global="ARMESTRIBOREP" Local="ARMESTRIBOREP" />
+        <Command Global="ARMTRELICA" Local="ARMTRELICA" />
+        <Command Global="ARMTELA" Local="ARMTELA" />
+        <Command Global="ARMFAIXAORT" Local="ARMFAIXAORT" />
+        <Command Global="ARMFAIXAALI" Local="ARMFAIXAALI" />
+        <Command Global="ARMCORTECOTAORT" Local="ARMCORTECOTAORT" />
+        <Command Global="ARMCORTECOTAALI" Local="ARMCORTECOTAALI" />
+        <Command Global="ARMCORTECHAMADA" Local="ARMCORTECHAMADA" />
+        <Command Global="ARMCORTECHAMADAARCO" Local="ARMCORTECHAMADAARCO" />
+        <Command Global="ARMCHAMADA" Local="ARMCHAMADA" />
+        <Command Global="ARMINDICACAO" Local="ARMINDICACAO" />
+        <Command Global="ARMRAINSERIR" Local="ARMRAINSERIR" />
+        <Command Global="ARMRAATUALIZAR" Local="ARMRAATUALIZAR" />
+        <Command Global="ARMRAPARCIAL" Local="ARMRAPARCIAL" />
+        <Command Global="ARMRAASSOCIAR" Local="ARMRAASSOCIAR" />
+        <Command Global="ARMRABLOQUEAR" Local="ARMRABLOQUEAR" />
+        <Command Global="ARMCORTEDOBRA" Local="ARMCORTEDOBRA" />
+        <Command Global="ARMDETCRIAR" Local="ARMDETCRIAR" />
+        <Command Global="ARMDETGERENCIAR" Local="ARMDETGERENCIAR" />
+        <Command Global="ARMTEMPLATE" Local="ARMTEMPLATE" />
+        <Command Global="ARMTEMPLATEIMPORTAR" Local="ARMTEMPLATEIMPORTAR" />
+        <Command Global="ARMTEMPLATEEXPORTAR" Local="ARMTEMPLATEEXPORTAR" />
+        <Command Global="ARMCONSOLOS" Local="ARMCONSOLOS" />
+        <Command Global="ARMINSERTOS" Local="ARMINSERTOS" />
+        <Command Global="ARMIMPORTARCAD" Local="ARMIMPORTARCAD" />
+        <Command Global="ARMLAYERS" Local="ARMLAYERS" />
+        <Command Global="ARMTEXTOPADRAO" Local="ARMTEXTOPADRAO" />
+        <Command Global="ARMPALETA" Local="ARMPALETA" />
+        <Command Global="ARMPALETARAPIDA" Local="ARMPALETARAPIDA" />
+        <Command Global="ARMCOMANDOS" Local="ARMCOMANDOS" />
+        <Command Global="ARMCONFIG" Local="ARMCONFIG" />
+        <Command Global="ARMSOBRE" Local="ARMSOBRE" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

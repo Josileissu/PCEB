@@ -189,6 +189,6 @@ internal sealed class PaletaRapida : Form
         GuardarGrupos();
         Hide();
         Desligar();
-        try { GrxCAD.Internal.Utils.SetFocusToDwgView(); } catch (Exception ex) { Log.Erro("PaletaRapida.Foco", ex); }
+        try { CadUtils.SetFocusToDwgView(); } catch (Exception ex) { Log.Erro("PaletaRapida.Foco", ex); }
     }
 }
