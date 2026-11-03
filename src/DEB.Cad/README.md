@@ -114,7 +114,7 @@ No dia a dia, use `ARMPALETA` para abrir a paleta, `ARMCOMANDOS` para a paleta d
 - Núcleo: `dotnet test tests\DEB.Core.Tests` (178 testes).
 - Integração no CAD: `tools\autoteste.ps1` (GstarCAD) e `tools\autoteste_autocad.ps1` (AutoCAD)
   rodam `ARMTESTE` em uma instância nova; o relatório fica em
-  `%AppData%\ArmaduraBR\logs\autoteste.txt`.
+  `%AppData%\PCEB\DEB.Cad\logs\autoteste.txt`.
 
 ## Documentação
 
