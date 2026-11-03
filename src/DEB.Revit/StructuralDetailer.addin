@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Detalhamento Estrutural</Name>
+    <Assembly>StructuralDetailer\StructuralDetailer.dll</Assembly>
+    <FullClassName>StructuralDetailer.App</FullClassName>
+    <ClientId>6F3C2A1E-8B4D-4E7A-9C51-2D8E7B3F0A64</ClientId>
+    <VendorId>MLEITE</VendorId>
+    <VendorDescription>Maurício Leite - Engenharia Estrutural</VendorDescription>
+  </AddIn>
+</RevitAddIns>

@@ -1,0 +1,44 @@
+{
+  "BeamElevationScale": 25,
+  "ColumnElevationScale": 25,
+  "SectionScale": 10,
+  "View3DScale": 25,
+  "ScaleLadder": [ 5, 10, 20, 25, 50, 75, 100 ],
+
+  "ElevationViewTemplate": "",
+  "SectionViewTemplate": "",
+  "View3DViewTemplate": "",
+
+  "TitleBlockName": "A1",
+  "SheetNumberPrefix": "DET-",
+  "SheetNamePrefix": "DETALHAMENTO - ",
+
+  "SheetMarginLeftMm": 25,
+  "SheetMarginRightMm": 10,
+  "SheetMarginTopMm": 10,
+  "SheetMarginBottomMm": 10,
+  "TitleBlockStampWidthMm": 180,
+  "TitleBlockStampHeightMm": 60,
+  "ViewportGapMm": 15,
+  "ViewportLabelAllowanceMm": 15,
+  "DefaultSheetWidthMm": 841,
+  "DefaultSheetHeightMm": 594,
+
+  "DimensionOffsetMm": 10,
+  "BeamSupportSectionDistanceMm": 0,
+
+  "ColumnRebarEnabled": true,
+  "RebarCoverMm": 30,
+  "ColumnLongBarDiameterMm": 10,
+  "ColumnStirrupDiameterMm": 5,
+  "ColumnLongBarMaxSpacingMm": 400,
+  "ColumnStirrupMaxSpacingMm": 200,
+  "ColumnStirrupEndOffsetMm": 50,
+  "ColumnCrossTies": true,
+  "LongBarTypeNameFormat": "Ø{0} CA-50",
+  "StirrupBarTypeNameFormat": "Ø{0} CA-60",
+
+  "Include3D": true,
+  "IncludePartList": true,
+  "OpenSheetWhenDone": true
+}
