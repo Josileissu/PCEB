@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using Armadura.Core.Persistencia;
 
 namespace Armadura.Core.Templates;
 
@@ -93,23 +94,15 @@ public sealed class ArquivoModelos
         sb.AppendLine($"# template: {t.Id} — {t.Nome}. Modelos do Armadura BR: uma linha por elemento, separador ponto e vírgula.");
         sb.AppendLine("# A linha PADRÃO é a que abre na janela do ARMTEMPLATE; as outras são os elementos desenhados (salvos sozinhos) ou criados aqui.");
         sb.AppendLine("# Campo vazio = padrão. Listas (níveis, consolos…) ficam entre aspas: itens separados por \";\" e colunas por \"|\".");
-        sb.AppendLine(Linha(new[] { "Modelo" }.Concat(colunas)));
-        sb.AppendLine("#" + Linha(new[] { "(campo)" }.Concat(colunas.Select(c => ps.TryGetValue(c, out var p) ? $"{p.Grupo.Substring(Math.Min(4, p.Grupo.Length))}: {p.Rotulo}" : "(não usado)"))));
+        sb.AppendLine(Csv.Linha(new[] { "Modelo" }.Concat(colunas)));
+        sb.AppendLine("#" + Csv.Linha(new[] { "(campo)" }.Concat(colunas.Select(c => ps.TryGetValue(c, out var p) ? $"{p.Grupo.Substring(Math.Min(4, p.Grupo.Length))}: {p.Rotulo}" : "(não usado)"))));
         foreach (var m in new[] { Padrao }.Concat(Modelos))
-            sb.AppendLine(Linha(new[] { m.Nome }.Concat(colunas.Select(c =>
+            sb.AppendLine(Csv.Linha(new[] { m.Nome }.Concat(colunas.Select(c =>
             {
                 string s = m.Valores.TryGetValue(c, out var x) ? x : "";
                 return ps.TryGetValue(c, out var p) && EhNumero(p) ? s.Replace('.', ',') : s;
             }))));
         return sb.ToString();
-    }
-
-    private static string Linha(IEnumerable<string> celulas) => string.Join(";", celulas.Select(Campo));
-
-    private static string Campo(string s)
-    {
-        s ??= "";
-        return s.IndexOfAny(new[] { ';', '"', '\n', '\r' }) >= 0 ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
     }
 
     /// <summary>Lê o arquivo (o template dá os tipos para converter a vírgula decimal).</summary>
@@ -119,7 +112,7 @@ public sealed class ArquivoModelos
         var ps = (t?.Parametros ?? Array.Empty<ParametroTemplate>()).ToDictionary(p => p.Nome, StringComparer.OrdinalIgnoreCase);
         List<string> colunas = null;
         bool temPadrao = false;
-        foreach (var linha in Registros(texto ?? ""))
+        foreach (var linha in Csv.Registros(texto ?? ""))
         {
             if (linha.Count == 0 || (linha.Count == 1 && linha[0].Trim().Length == 0)) continue;
             string primeira = linha[0].TrimStart('﻿').Trim();
@@ -161,46 +154,5 @@ public sealed class ArquivoModelos
         if (colunas == null) avisos?.Add("Arquivo de modelos sem cabeçalho (linha \"Modelo;…\").");
         if (!temPadrao && t != null) foreach (var p in t.Parametros) a.Padrao.Valores[p.Nome] = p.Padrao;
         return a;
-    }
-
-    /// <summary>
-    /// Registros do CSV com ";" (ou tabulação, se o Excel salvou assim), uma linha por registro; aspas permitem ";" dentro do
-    /// campo. Comentários ("#…") voltam como um campo só, sem interpretar aspas.
-    /// </summary>
-    private static IEnumerable<List<string>> Registros(string texto)
-    {
-        var linhas = texto.Replace("\r\n", "\n").Split('\n');
-        // o separador é decidido pela linha do cabeçalho (a 1ª que não é comentário)
-        char sep = ';';
-        foreach (var l in linhas)
-        {
-            var s = l.TrimStart('﻿').Trim();
-            if (s.Length == 0 || s.StartsWith("#")) continue;
-            sep = s.Contains(';') ? ';' : s.Contains('\t') ? '\t' : ';';
-            break;
-        }
-        foreach (var l in linhas)
-        {
-            var s = l.TrimStart('﻿');
-            if (s.TrimStart().StartsWith("#")) { yield return new List<string> { s.Trim() }; continue; }
-            var r = new List<string>();
-            var campo = new StringBuilder();
-            bool aspas = false;
-            for (int i = 0; i < s.Length; i++)
-            {
-                char ch = s[i];
-                if (aspas)
-                {
-                    if (ch != '"') campo.Append(ch);
-                    else if (i + 1 < s.Length && s[i + 1] == '"') { campo.Append('"'); i++; }
-                    else aspas = false;
-                }
-                else if (ch == '"' && campo.ToString().Trim().Length == 0) { campo.Clear(); aspas = true; }
-                else if (ch == sep) { r.Add(campo.ToString()); campo.Clear(); }
-                else campo.Append(ch);
-            }
-            r.Add(campo.ToString());
-            yield return r;
-        }
     }
 }

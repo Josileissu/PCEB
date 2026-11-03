@@ -263,14 +263,20 @@ internal static class ServicoFaixa
     /// Ponta da linha de chamada junto ao texto: no meio da altura, um pouco afastada (0,4 altura) do lado de onde a linha
     /// vem — vinda da direita, à direita do texto; vinda da esquerda, à esquerda. null se o texto ainda não tem extensão.
     /// </summary>
-    private static Point2d? PontoNoTexto(MText texto, Point2d de)
+    private static Point2d? PontoNoTexto(MText texto, Point2d de) => AoLadoDoTexto(texto, de.X, 0.4)?.ponto;
+
+    /// <summary>
+    /// Ponto ao lado do texto (meia altura), afastado <paramref name="folga"/> × altura, no lado de <paramref name="xRef"/>, e o
+    /// sentido (+1 direita, −1 esquerda). null se o texto ainda não tem extensão (vazio). Usado pela ponta da linha e pelo patamar.
+    /// </summary>
+    private static (Point2d ponto, int lado)? AoLadoDoTexto(MText texto, double xRef, double folga)
     {
         try
         {
             var ext = texto.GeometricExtents;
             double h = texto.TextHeight, yM = (ext.MinPoint.Y + ext.MaxPoint.Y) / 2;
-            bool direita = de.X >= (ext.MinPoint.X + ext.MaxPoint.X) / 2;
-            return new Point2d(direita ? ext.MaxPoint.X + 0.4 * h : ext.MinPoint.X - 0.4 * h, yM);
+            int s = xRef >= (ext.MinPoint.X + ext.MaxPoint.X) / 2 ? 1 : -1;
+            return (new Point2d((s > 0 ? ext.MaxPoint.X : ext.MinPoint.X) + s * folga * h, yM), s);
         }
         catch (Exception) { return null; }
     }
@@ -281,15 +287,8 @@ internal static class ServicoFaixa
     /// <summary>Patamar ao lado do texto, virado para as referências: do canto do texto (meia altura) a ~1,2 altura dele.</summary>
     private static (Point2d inicio, Point2d fim)? Patamar(MText texto, double xRefs)
     {
-        try
-        {
-            var ext = texto.GeometricExtents;
-            double h = texto.TextHeight, yM = (ext.MinPoint.Y + ext.MaxPoint.Y) / 2;
-            int s = xRefs >= (ext.MinPoint.X + ext.MaxPoint.X) / 2 ? 1 : -1;
-            var a = new Point2d((s > 0 ? ext.MaxPoint.X : ext.MinPoint.X) + s * 0.3 * h, yM);
-            return (a, a + new Vector2d(s * 1.4 * h, 0));
-        }
-        catch (Exception) { return null; } // texto vazio ainda sem extensão
+        if (!(AoLadoDoTexto(texto, xRefs, 0.3) is { } l)) return null; // texto vazio ainda sem extensão
+        return (l.ponto, l.ponto + new Vector2d(l.lado * 1.4 * texto.TextHeight, 0));
     }
 
     /// <summary>

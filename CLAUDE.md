@@ -174,7 +174,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   `instalador\saida\ArmaduraBR_Setup_<ver>.exe` (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
   grava a chave para cada idioma em `R21\`, avisa se o gcad.exe estiver aberto). Testado: instala, carrega
   sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do Armadura.GstarCAD.csproj
-  (0.1.22 em 2026-11-03): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
+  (0.1.23 em 2026-11-03): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
 - **Demonstração** (pedido do usuário, 2026-10-30): `instalador\gerar_demo.bat` → `instalador\saida\demo_<versão>.exe` (numerada pela versão do plugin, pedido de 2026-10-30) (build com
@@ -198,6 +198,13 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
 - Autoteste × config do usuário: a cópia de teste também fixa `TipoNumeracao` = 0 (Global); ele usa Individual.
 - Linha de chamada (sem patamar) termina ao lado do texto, 0,4 altura afastada, do lado de onde vem (`ServicoFaixa.PontoNoTexto`;
   pedido de 2026-11-03); `DeslocamentoDoConjunto` reconhece essa ponta para o MOVE de tudo.
+- Paleta da faixa: um nome só ("Mostrar quantidade/diâmetro/espaçamento") para todos os tipos — `DadosFaixa.QuantidadeNoTexto`,
+  `DiametroNoTexto`, `EspacamentoNoTexto` gravam no "Indicar…" (indicação, padrão desligado) ou no "Mostrar…" (os outros).
+- Reaproveitamento (checagem de 2026-11-03): `Infra/Arquivos` (Pedir = diálogo ou caminho digitado em script; Abrir),
+  `Core/Persistencia/Csv` (leitor com aspas e separador do Excel, usado por layers.csv e modelos dos templates),
+  `ServicoFaixa.AoLadoDoTexto` (ponta da linha e patamar), `AutoTeste.SalvarJanela`.
+- O ARMTESTEFIM ENCERRA a própria instância de teste (Process.Kill) depois de salvar: com o layout/viewport o Quit nem sempre
+  fechava e cada rodada esperava o limite do roteiro (relato do usuário, 2026-11-03). Encerre sempre só instâncias com o .scr.
 - Indicação com quantidade/diâmetro/espaçamento opcionais (`IndicarQuantidade/Diametro/Espacamento`, XData IQT/IDI/IES; quantidade
   digitada, 0 = a da barra; nunca soma). Detalhamento com repetições digitadas (`DadosDetalhamento.Repeticoes`, XData "REP";
   0 = nº de inserções): `ServicoRA.Coletar` troca as inserções pelo valor.

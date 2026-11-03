@@ -46,5 +46,8 @@ public class PadraoLayersTests
         Assert.Equal(30, PadroesLayers.Centesimos(0.3));
         Assert.Equal(35, PadroesLayers.Centesimos(0.33));
         Assert.Equal(0, PadroesLayers.Centesimos(-1));
+        // descrição com ";" vai entre aspas e volta igual (leitor de CSV comum com os modelos dos templates)
+        var com = new[] { new PadraoLayer { Nome = "X", Cor = 3, EspessuraMm = 0.25, Descricao = "barras; estribos" } };
+        Assert.Equal("barras; estribos", PadroesLayers.Ler(PadroesLayers.Escrever(com)).Single().Descricao);
     }
 }

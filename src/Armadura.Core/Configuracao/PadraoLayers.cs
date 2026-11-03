@@ -83,8 +83,8 @@ public static class PadroesLayers
         sb.AppendLine("# Vale para os layers que o plugin CRIA; para aplicar nos layers que já existem num desenho use o comando ARMLAYERS.");
         sb.AppendLine(Cabecalho);
         foreach (var l in layers)
-            sb.AppendLine(string.Join(";", l.Nome, l.Cor.ToString(CultureInfo.InvariantCulture),
-                l.EspessuraMm.ToString("0.00", CultureInfo.GetCultureInfo("pt-BR")), l.TipoLinha, l.Descricao));
+            sb.AppendLine(Persistencia.Csv.Linha(new[] { l.Nome, l.Cor.ToString(CultureInfo.InvariantCulture),
+                l.EspessuraMm.ToString("0.00", CultureInfo.GetCultureInfo("pt-BR")), l.TipoLinha, l.Descricao }));
         return sb.ToString();
     }
 
@@ -94,14 +94,12 @@ public static class PadroesLayers
         var r = new List<PadraoLayer>();
         bool cabecalho = false;
         int n = 0;
-        foreach (var bruta in (texto ?? "").Replace("\r\n", "\n").Split('\n'))
+        // o Excel pode salvar com ";", tabulação ou vírgula conforme a configuração regional
+        foreach (var reg in Persistencia.Csv.Registros(texto, aceitarVirgula: true))
         {
             n++;
-            var linha = bruta.Trim().TrimStart('﻿');
-            if (linha.Length == 0 || linha.StartsWith("#")) continue;
-            // o Excel pode salvar com vírgula ou tabulação conforme a configuração regional
-            char sep = linha.Contains(';') ? ';' : linha.Contains('\t') ? '\t' : ',';
-            var c = linha.Split(sep).Select(x => x.Trim().Trim('"')).ToArray();
+            var c = reg.Select(x => x.Trim()).ToArray();
+            if (c.Length == 0 || (c.Length == 1 && c[0].Length == 0) || c[0].StartsWith("#")) continue;
             if (!cabecalho) { cabecalho = true; if (c[0].Equals("Layer", StringComparison.OrdinalIgnoreCase)) continue; }
             if (c[0].Length == 0) continue;
             var l = new PadraoLayer { Nome = c[0] };

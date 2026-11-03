@@ -130,10 +130,34 @@ public sealed class DadosFaixa
     public bool IndicarDiametro { get; set; }
     public bool IndicarEspacamento { get; set; }
 
-    /// <summary>O texto deste tipo de faixa leva quantidade (a indicação só mostra a posição).</summary>
-    public bool TextoTemQuantidade => Tipo != TipoFaixa.Indicacao;
-    /// <summary>O texto deste tipo de faixa leva diâmetro e espaçamento (chamada e indicação não).</summary>
-    public bool TextoTemDiametroEspacamento => Tipo != TipoFaixa.Indicacao && Tipo != TipoFaixa.Chamada;
+    /// <summary>O texto deste tipo de faixa pode levar a quantidade (todos; na indicação, só se ligada).</summary>
+    public bool TextoTemQuantidade => true;
+    /// <summary>O texto deste tipo de faixa pode levar diâmetro e espaçamento (a chamada não).</summary>
+    public bool TextoTemDiametroEspacamento => Tipo != TipoFaixa.Chamada;
+
+    private bool Indicacao => Tipo == TipoFaixa.Indicacao;
+
+    /// <summary>
+    /// Campos do texto, um nome só para todos os tipos (pedido do usuário, 2026-11-03): na indicação valem os "Indicar…"
+    /// (desligados por padrão, para as antigas continuarem "N3"); nas outras, os "Mostrar…" (ligados por padrão).
+    /// </summary>
+    public bool QuantidadeNoTexto
+    {
+        get => Indicacao ? IndicarQuantidade : MostrarQuantidade;
+        set { if (Indicacao) IndicarQuantidade = value; else MostrarQuantidade = value; }
+    }
+
+    public bool DiametroNoTexto
+    {
+        get => Indicacao ? IndicarDiametro : MostrarDiametro;
+        set { if (Indicacao) IndicarDiametro = value; else MostrarDiametro = value; }
+    }
+
+    public bool EspacamentoNoTexto
+    {
+        get => Indicacao ? IndicarEspacamento : MostrarEspacamento;
+        set { if (Indicacao) IndicarEspacamento = value; else MostrarEspacamento = value; }
+    }
 
     /// <summary>A linha de chamada da referência <paramref name="indice"/> deve ser desenhada.</summary>
     public bool MostraLinha(int indice) => !OcultarLinhas && !LinhasApagadas.Contains(indice);
@@ -202,18 +226,19 @@ public static class TextoFaixa
     {
         string n = cfg.PrefixoPosicao + barra.Numero.ToString(CultureInfo.InvariantCulture);
         string bit = cfg.SimboloDiametro + barra.Bitola.ToString("0.0", CultureInfo.InvariantCulture);
-        string esp = "c/" + Calculo.CalculoComprimento.NumeroCompacto(f.Espacamento);
         // repetições coladas na quantidade, sem parênteses: "2x11 N1 ø10.0 c/15" (a indicação não soma: não repete)
         string rep = f.SomaQuantidade ? Descricao.FormatadorDescricao.Repeticao(f.Repeticoes) : "";
         var campos = new List<string>();
+        // indicação: a quantidade digitada (0 = a da barra) e o espaçamento da barra (ela não distribui)
         bool indic = f.Tipo == TipoFaixa.Indicacao;
-        bool comQtd = indic ? f.IndicarQuantidade : f.TextoTemQuantidade && f.MostrarQuantidade;
+        bool comQtd = f.TextoTemQuantidade && f.QuantidadeNoTexto;
         int qtd = indic && f.Quantidade <= 0 ? barra.Quantidade : f.Quantidade;
         if (comQtd) campos.Add(rep + qtd.ToString(CultureInfo.InvariantCulture));
         if (f.MostrarPosicao) campos.Add(n);
-        if (indic ? f.IndicarDiametro : f.TextoTemDiametroEspacamento && f.MostrarDiametro) campos.Add(bit);
-        if (indic ? f.IndicarEspacamento && barra.Espacamento > 0 : f.TextoTemDiametroEspacamento && f.MostrarEspacamento)
-            campos.Add(indic ? "c/" + Calculo.CalculoComprimento.NumeroCompacto(barra.Espacamento) : esp);
+        if (f.TextoTemDiametroEspacamento && f.DiametroNoTexto) campos.Add(bit);
+        double sEsp = indic ? barra.Espacamento : f.Espacamento;
+        if (f.TextoTemDiametroEspacamento && f.EspacamentoNoTexto && (!indic || sEsp > 0))
+            campos.Add("c/" + Calculo.CalculoComprimento.NumeroCompacto(sEsp));
         // texto vazio deixaria a faixa invisível e impossível de selecionar: fica ao menos a posição
         string texto = campos.Count > 0 ? string.Join(" ", campos) : n;
         // sem a quantidade no texto, a repetição vai na frente: "2x N1 ø10.0 c/15"

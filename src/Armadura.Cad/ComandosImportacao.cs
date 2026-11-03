@@ -46,24 +46,8 @@ public sealed class ComandosImportacao
         try { ed.Command("_.ZOOM", "_E"); } catch { /* sem zoom em script */ }
     });
 
-    private static string PedirArquivo(Editor ed)
-    {
-        // em script (CMDACTIVE bit 4) o caminho vem digitado: o autoteste não mexe no FILEDIA, que é
-        // gravado no perfil e travaria os diálogos do GstarCAD do usuário
-        bool dialogo = true;
-        try { dialogo = Convert.ToInt32(CadApp.GetSystemVariable("FILEDIA")) != 0; } catch { }
-        try { if ((Convert.ToInt32(CadApp.GetSystemVariable("CMDACTIVE")) & 4) != 0) dialogo = false; } catch { }
-        if (dialogo)
-        {
-            using var f = new System.Windows.Forms.OpenFileDialog
-            {
-                Title = "Importar desenho do QiArmaduras", Filter = "Desenho do QiArmaduras (*.cad)|*.cad|Todos os arquivos|*.*",
-            };
-            return f.ShowDialog() == System.Windows.Forms.DialogResult.OK ? f.FileName : null;
-        }
-        var rs = ed.GetString(new PromptStringOptions("\nArquivo .cad:") { AllowSpaces = true });
-        return rs.Status == PromptStatus.OK ? rs.StringResult.Trim().Trim('"') : null;
-    }
+    private static string PedirArquivo(Editor ed) =>
+        Arquivos.Pedir(ed, false, "Importar desenho do QiArmaduras", "Desenho do QiArmaduras (*.cad)|*.cad|Todos os arquivos|*.*", ".cad");
 
     /// <summary>Desenha o resultado no espaço corrente. Retorna o resumo para o usuário.</summary>
     internal static string Desenhar(Document doc, Database db, ConfiguracaoArmadura cfg, ResultadoImportacao r, Vector2d deslocamento)
