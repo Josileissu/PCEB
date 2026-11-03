@@ -13,7 +13,7 @@ armadura/
   docs/                 este documento, manual do usuário
   dados/                tabelas normativas em JSON (bitolas, dobramentos) — editáveis, com fontes
   src/
-    DEB.Core/      netstandard2.0 — SEM referência a CAD. Modelo, normas, comprimentos,
+    DEB.Core/      (desde a etapa 5: PCEB/src/DEB.Core) netstandard2.0 — SEM referência a CAD. Modelo, normas, comprimentos,
                         descrição, numeração, relação do aço, codificação dos dados (XData).
     DEB.Cad/       código-fonte compartilhado da camada CAD (sem .csproj próprio).
                         Usa só nomes neutros (Polyline, Editor...); o namespace vem dos
@@ -21,7 +21,7 @@ armadura/
     DEB.GstarCAD/  net48 x64 — referências gmap.dll / gmdb.dll; GlobalUsings → GrxCAD.*
     (DEB.AutoCAD/) futuro — mesmos fontes de DEB.Cad; GlobalUsings → Autodesk.AutoCAD.*
   tests/
-    DEB.Core.Tests/  xUnit (net8) — testa o núcleo sem CAD
+    DEB.Core.Tests/  (desde a etapa 5: PCEB/tests) xUnit (net8) — testa o núcleo sem CAD
 ```
 
 A API .NET do GstarCAD espelha a do AutoCAD (guia de migração do SDK: basta trocar
