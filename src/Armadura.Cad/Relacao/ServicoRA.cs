@@ -44,6 +44,9 @@ internal static class ServicoRA
     {
         double cpu = Desenho.CmPorUnidade(db, cfg);
         var porChave = new Dictionary<(ObjectId, string, string), Ocorrencia>();
+        // inserções de cada detalhamento (bloco de nível mais alto) e as repetições digitadas na paleta
+        var insercoes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var repeticoes = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var leituras = new Dictionary<ObjectId, (Core.Modelo.DadosArmadura d, List<Core.Modelo.GeoSegmento> g, double c)>();
 
         void Visitar(ObjectId btrId, int mult, string elemento, List<string> cadeia, int profundidade)
@@ -82,6 +85,13 @@ internal static class ServicoRA
                     var filho = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
                     if (filho.IsFromExternalReference || filho.IsDependent || filho.IsLayout) continue;
                     string nome = NomeBloco(tr, br);
+                    if (elemento == null)
+                    {
+                        insercoes[nome] = (insercoes.TryGetValue(nome, out var n) ? n : 0) + 1;
+                        var def = (BlockTableRecord)tr.GetObject(br.IsDynamicBlock ? br.DynamicBlockTableRecord : br.BlockTableRecord, OpenMode.ForRead);
+                        int rep = ServicoDetalhamento.Ler(def)?.Repeticoes ?? 0;
+                        if (rep > 0) repeticoes[nome] = rep;
+                    }
                     Visitar(br.BlockTableRecord, mult, elemento ?? nome, new List<string>(cadeia) { nome }, profundidade + 1);
                 }
             }
@@ -93,6 +103,10 @@ internal static class ServicoRA
             var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
             if (btr.IsLayout) Visitar(btrId, 1, null, new List<string>(), 0);
         }
+        // repetições digitadas: valem no lugar das inserções (as inserções iguais somaram a mesma multiplicidade cada)
+        foreach (var oc in porChave.Values)
+            if (repeticoes.TryGetValue(oc.Elemento, out int rep) && insercoes.TryGetValue(oc.Elemento, out int n) && n > 0)
+                oc.Multiplicidade = oc.Multiplicidade / n * rep;
         return porChave.Values.ToList();
     }
 

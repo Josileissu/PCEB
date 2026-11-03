@@ -250,6 +250,9 @@ public static class CodecDados
         if (f.Escala > 0) R("ESC", f.Escala); // 0 = escala da barra (faixas antigas)
         if (f.OcultarLinhas) I("OCL", 1);
         if (f.Patamar) I("PAT", 1);
+        if (f.IndicarQuantidade) I("IQT", 1);
+        if (f.IndicarDiametro) I("IDI", 1);
+        if (f.IndicarEspacamento) I("IES", 1);
         foreach (var i in f.LinhasApagadas) I("LAP", i);
         foreach (var q in f.Quebras) I("QBR", q);
         if (f.Repeticoes > 1) I("REP", f.Repeticoes);
@@ -295,6 +298,9 @@ public static class CodecDados
                 case "ESC": f.Escala = Real(v); break;
                 case "OCL": f.OcultarLinhas = Int(v) != 0; break;
                 case "PAT": f.Patamar = Int(v) != 0; break;
+                case "IQT": f.IndicarQuantidade = Int(v) != 0; break;
+                case "IDI": f.IndicarDiametro = Int(v) != 0; break;
+                case "IES": f.IndicarEspacamento = Int(v) != 0; break;
                 case "QBR": if (!f.Quebras.Contains(Int(v))) f.Quebras.Add(Int(v)); break;
                 case "LAP": if (!f.LinhasApagadas.Contains(Int(v))) f.LinhasApagadas.Add(Int(v)); break;
                 case "REP": f.Repeticoes = Math.Max(1, Int(v)); break;
@@ -325,6 +331,7 @@ public static class CodecDados
         S("GRP", d.Grupo); S("PAV", d.Pavimento); S("CLS", d.Classe);
         R("VOL", d.Volume); R("FORMA", d.AreaForma);
         I("SIS", (int)d.Sistema); S("OBS", d.Comentarios); I("NUM", d.Numero);
+        if (d.Repeticoes > 0) I("REP", d.Repeticoes);
         return l;
     }
 
@@ -344,6 +351,7 @@ public static class CodecDados
                 case "SIS": d.Sistema = (SistemaConstrutivo)Int(v); break;
                 case "OBS": d.Comentarios = v as string ?? ""; break;
                 case "NUM": d.Numero = Int(v); break;
+                case "REP": d.Repeticoes = Int(v); break;
             }
         }
         return d;

@@ -122,6 +122,14 @@ public sealed class DadosFaixa
     /// <summary>Faixa em cota: o comprimento da faixa abaixo da linha de cota (pedido do usuário, 2026-10-30; liga/desliga na paleta).</summary>
     public bool MostrarComprimento { get; set; } = true;
 
+    /// <summary>
+    /// Indicação com mais dados no texto (pedido do usuário, 2026-11-03): quantidade (a digitada; 0 = a da barra), diâmetro e
+    /// espaçamento (o da barra). Desligados por padrão — as indicações antigas continuam "N3". A indicação nunca soma na barra.
+    /// </summary>
+    public bool IndicarQuantidade { get; set; }
+    public bool IndicarDiametro { get; set; }
+    public bool IndicarEspacamento { get; set; }
+
     /// <summary>O texto deste tipo de faixa leva quantidade (a indicação só mostra a posição).</summary>
     public bool TextoTemQuantidade => Tipo != TipoFaixa.Indicacao;
     /// <summary>O texto deste tipo de faixa leva diâmetro e espaçamento (chamada e indicação não).</summary>
@@ -198,11 +206,14 @@ public static class TextoFaixa
         // repetições coladas na quantidade, sem parênteses: "2x11 N1 ø10.0 c/15" (a indicação não soma: não repete)
         string rep = f.SomaQuantidade ? Descricao.FormatadorDescricao.Repeticao(f.Repeticoes) : "";
         var campos = new List<string>();
-        bool comQtd = f.TextoTemQuantidade && f.MostrarQuantidade;
-        if (comQtd) campos.Add(rep + f.Quantidade.ToString(CultureInfo.InvariantCulture));
+        bool indic = f.Tipo == TipoFaixa.Indicacao;
+        bool comQtd = indic ? f.IndicarQuantidade : f.TextoTemQuantidade && f.MostrarQuantidade;
+        int qtd = indic && f.Quantidade <= 0 ? barra.Quantidade : f.Quantidade;
+        if (comQtd) campos.Add(rep + qtd.ToString(CultureInfo.InvariantCulture));
         if (f.MostrarPosicao) campos.Add(n);
-        if (f.TextoTemDiametroEspacamento && f.MostrarDiametro) campos.Add(bit);
-        if (f.TextoTemDiametroEspacamento && f.MostrarEspacamento) campos.Add(esp);
+        if (indic ? f.IndicarDiametro : f.TextoTemDiametroEspacamento && f.MostrarDiametro) campos.Add(bit);
+        if (indic ? f.IndicarEspacamento && barra.Espacamento > 0 : f.TextoTemDiametroEspacamento && f.MostrarEspacamento)
+            campos.Add(indic ? "c/" + Calculo.CalculoComprimento.NumeroCompacto(barra.Espacamento) : esp);
         // texto vazio deixaria a faixa invisível e impossível de selecionar: fica ao menos a posição
         string texto = campos.Count > 0 ? string.Join(" ", campos) : n;
         // sem a quantidade no texto, a repetição vai na frente: "2x N1 ø10.0 c/15"

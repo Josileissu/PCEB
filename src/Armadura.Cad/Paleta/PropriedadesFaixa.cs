@@ -15,6 +15,7 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
         "Quantidade" => F.TextoTemQuantidade,
         "DiametroEspacamento" => F.TextoTemDiametroEspacamento,
         "Cota" => F.TemCota,
+        "Indicacao" => F.Tipo == TipoFaixa.Indicacao,
         _ => true,
     };
 
@@ -113,6 +114,41 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
     {
         get => F.MostrarQuantidade;
         set => Campo(f => f.MostrarQuantidade = value);
+    }
+
+    [Category(GT), DisplayName("Indicar quantidade"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Indicacao"),
+     Description("Mostra a quantidade no texto da indicação (não soma na barra).")]
+    public bool IndicarQuantidade
+    {
+        get => F.IndicarQuantidade;
+        set => Campo(f => f.IndicarQuantidade = value);
+    }
+
+    [Category(GT), DisplayName("Quantidade indicada"), SoQuando("Indicacao"),
+     Description("Quantidade escrita na indicação; 0 = a quantidade da barra.")]
+    public int QuantidadeIndicada
+    {
+        get => F.Quantidade;
+        set
+        {
+            if (value < 0) throw new ArgumentException("Quantidade negativa.");
+            Campo(f => f.Quantidade = value);
+        }
+    }
+
+    [Category(GT), DisplayName("Indicar diâmetro"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Indicacao")]
+    public bool IndicarDiametro
+    {
+        get => F.IndicarDiametro;
+        set => Campo(f => f.IndicarDiametro = value);
+    }
+
+    [Category(GT), DisplayName("Indicar espaçamento"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Indicacao"),
+     Description("O espaçamento da barra (\"c/15\"), se ela tiver.")]
+    public bool IndicarEspacamento
+    {
+        get => F.IndicarEspacamento;
+        set => Campo(f => f.IndicarEspacamento = value);
     }
 
     [Category(GT), DisplayName("Mostrar posição (N)"), TypeConverter(typeof(SimNaoConverter))]

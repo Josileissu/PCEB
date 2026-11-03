@@ -42,9 +42,24 @@ internal sealed class PropriedadesDetalhamento
     [Category(G), DisplayName("Pavimento")]
     public string Pavimento { get => D.Pavimento; set { D.Pavimento = value ?? ""; Pendentes.Add(d => d.Pavimento = value ?? ""); } }
 
-    [Category(G), DisplayName("Repetições"), ReadOnly(true),
-     Description("Número de inserções do bloco no desenho: multiplica as barras na relação do aço.")]
-    public int Repeticoes => _repeticoes;
+    [Category(G), DisplayName("Repetições"),
+     Description("Quantidade de peças iguais: multiplica as barras na relação do aço. Vem do número de inserções do bloco; " +
+                 "digite outro valor quando houver mais peças do mesmo detalhamento (0 = volta a contar as inserções).")]
+    public int Repeticoes
+    {
+        get => D.Repeticoes > 0 ? D.Repeticoes : _repeticoes;
+        set
+        {
+            if (value < 0) throw new ArgumentException("Repetições negativas.");
+            int r = value == _repeticoes && D.Repeticoes == 0 ? 0 : value; // igual às inserções: continua automático
+            D.Repeticoes = r;
+            Pendentes.Add(d => d.Repeticoes = r);
+        }
+    }
+
+    [Category(G), DisplayName("Inserções no desenho"), ReadOnly(true),
+     Description("Quantas vezes o bloco está inserido (as repetições usam este número enquanto não forem digitadas).")]
+    public int Insercoes => _repeticoes;
 
     [Category(G), DisplayName("Classe do concreto")]
     public string Classe { get => D.Classe; set { D.Classe = value ?? ""; Pendentes.Add(d => d.Classe = value ?? ""); } }
@@ -70,7 +85,7 @@ internal sealed class PropriedadesDetalhamento
     public string Comentarios { get => D.Comentarios; set { D.Comentarios = value ?? ""; Pendentes.Add(d => d.Comentarios = value ?? ""); } }
 
     [Category(G), DisplayName("Volume total (m³)"), ReadOnly(true)]
-    public string VolumeTotal => (D.Volume * Math.Max(1, _repeticoes)).ToString("0.###", CultureInfo.InvariantCulture);
+    public string VolumeTotal => (D.Volume * Math.Max(1, Repeticoes)).ToString("0.###", CultureInfo.InvariantCulture);
 }
 
 internal sealed class SistemaConverter : NomesEnumConverter<SistemaConstrutivo>
