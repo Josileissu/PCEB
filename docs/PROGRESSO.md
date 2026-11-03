@@ -321,3 +321,5 @@ layers, cotas e posições).
       formas com Tirante / Arm. Inferior / Estribo vertical / Estribo horizontal / Barra de ancoragem / Pino.
 - [x] Etiquetas com patamar ("N12 ——"), estilos de cota ESTRUT50/25/20/10/5, CORTE AA do consolo enxuto. Versão 0.1.19.
 - [ ] Usuário: conferir no GstarCAD.
+- [x] (2026-11-02) REFEDIT do detalhamento: chamadas com patamar iam para longe (deslocadas do ponto de inserção);
+      detecção do conjunto movido compara também com o patamar. Autoteste ARMTESTEMOVERPILAR/ARMTESTEMOVIDO. Versão 0.1.21.
