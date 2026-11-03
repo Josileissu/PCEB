@@ -1382,6 +1382,9 @@ public sealed class AutoTeste
                 // o EXPLODE do GstarCAD pega UM objeto e termina: um Enter só (o 2º repetia o comando e travava o roteiro)
                 doc.SendStringToExecute($"_.EXPLODE (handent \"{_pilarExplodir}\")\n", true, false, true);
                 doc.SendStringToExecute("ARMTESTEEXPLODIDO\n", true, false, true);
+                // como o REFEDIT: tudo deslocado sem mexer no XData (chamadas com patamar; relato de 2026-11-02)
+                doc.SendStringToExecute("ARMTESTEMOVERPILAR\n", true, false, true);
+                doc.SendStringToExecute("ARMTESTEMOVIDO\n", true, false, true);
             }
             // restaura pela linha de comando (a restauração via API em ARMTESTEFIM nem sempre chega ao registro)
             doc.SendStringToExecute($"FILEDIA {Convert.ToInt32(_filedia ?? 1)}\n", true, false, true);
@@ -1439,6 +1442,53 @@ public sealed class AutoTeste
         Checar(ok > 10 && fora == 0, "EXPLODE do detalhamento do pilar: chamadas continuam apontando as barras");
         tr.Commit();
         Gravar(); // roda depois do relatório principal: grava de novo
+    });
+
+    private static readonly Vector3d _pilarMovido = new Vector3d(60000, 0, 0);
+
+    /// <summary>Desloca o pilar explodido pela API (sem tocar no XData), como o REFEDIT faz com as cópias do bloco.</summary>
+    [Rt.CommandMethod("ARMTESTEMOVERPILAR")]
+    public void MoverPilar() => Comandos.Executar("ARMTESTEMOVERPILAR", (doc, ed, db, cfg) =>
+    {
+        using var tr = db.TransactionManager.StartTransaction();
+        var ms = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
+        var p = _pilarExplodirEm;
+        var m = Matrix3d.Displacement(_pilarMovido);
+        int n = 0;
+        foreach (ObjectId id in ms)
+        {
+            if (!(tr.GetObject(id, OpenMode.ForRead) is Entity e)) continue;
+            Extents3d ext;
+            try { ext = e.GeometricExtents; } catch { continue; }
+            var c = ext.MinPoint + (ext.MaxPoint - ext.MinPoint) * 0.5;
+            if (c.X < p.X - 600 || c.X > p.X + 9000 || c.Y < p.Y - 3500 || c.Y > p.Y + 4000) continue;
+            e.UpgradeOpen();
+            e.TransformBy(m);
+            n++;
+        }
+        Rel.AppendLine($"        pilar explodido deslocado como no REFEDIT: {n} objeto(s)");
+        tr.Commit();
+    }, suspender: false); // o Sincronizador tem de ver as modificações (como no REFEDIT)
+
+    /// <summary>Depois do deslocamento: as chamadas (com patamar) acompanham e continuam apontando as barras.</summary>
+    [Rt.CommandMethod("ARMTESTEMOVIDO")]
+    public void Movido() => Comandos.Executar("ARMTESTEMOVIDO", (doc, ed, db, cfg) =>
+    {
+        using var tr = db.TransactionManager.StartTransaction();
+        var ms = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForRead);
+        var p = _pilarExplodirEm + _pilarMovido;
+        bool Dentro(Point3d q) => q.X > p.X - 600 && q.X < p.X + 9000 && q.Y > p.Y - 3500 && q.Y < p.Y + 4000;
+        int ok = 0, fora = 0;
+        foreach (ObjectId id in ms)
+        {
+            if (!(tr.GetObject(id, OpenMode.ForRead) is Line ln) || XDataCad.Tipo(ln) != TipoParte.Chamada) continue;
+            if (!Dentro(ln.EndPoint)) continue;
+            if (Dentro(ln.StartPoint) && ln.Length < 500) ok++; else fora++;
+        }
+        Rel.AppendLine($"        pilar deslocado: {ok} linhas de chamada no lugar, {fora} fora");
+        Checar(ok > 10 && fora == 0, "pilar deslocado sem o XData (REFEDIT): chamadas com patamar acompanham");
+        tr.Commit();
+        Gravar();
     });
 
     /// <summary>Template da base de reservatório (circular com VAR e retangular), desenhado como detalhamento.</summary>
