@@ -1,0 +1,17 @@
+# Biblioteca: material com direitos autorais NÃO vai para o repositório.
+# A pasta existe no Git só com o LEIAME e a lista de nomes; cada usuário alimenta a sua cópia local.
+02_biblioteca/normas/*
+!02_biblioteca/normas/LEIAME.md
+!02_biblioteca/normas/NORMAS_REFERENCIA.txt
+02_biblioteca/livros/*
+02_biblioteca/artigos/*
+02_biblioteca/padroes-escritorio/*
+!02_biblioteca/*/.gitkeep
+
+# Downloads de programas de terceiros (cada um tem a sua licença e origem registradas no NOTAS.md)
+programas/*/download/
+
+# Gerais
+*.tmp
+~$*
+Thumbs.db
