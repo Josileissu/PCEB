@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Plugin para AutoCAD (x64). Os fontes da camada CAD ficam em ..\Armadura.Cad (compartilhados com o projeto GstarCAD);
+    os namespaces Autodesk.AutoCAD.* entram pelos "global using" de GlobalUsings.cs.
+
+    As bibliotecas do AutoCAD vêm do pacote OFICIAL da Autodesk no NuGet ("AutoCAD.NET"), baixado no build:
+    compila em qualquer computador, mesmo sem o AutoCAD instalado (para testar, claro, precisa dele).
+    Versão do AutoCAD: -p:AutoCadVersao=2021…2027 (padrão 2026) → bin\AutoCAD<versão>\ArmaduraBR.AutoCAD.dll
+      2021-2024: pacote 24.0-24.3, .NET Framework 4.8
+      2025-2026: pacote 25.0.1 / 25.1.0, .NET 8 (a 25.0.0 depende de uma versão de teste não publicada; as 25.x.2 / 25.1.1 vieram marcadas como .NET 10)
+      2027:      pacote 26.0.0, .NET 10 (precisa do SDK do .NET 10)
+    Demo: -p:Demo=true → bin\demo\AutoCAD<versão>.
+    Carregar no AutoCAD: NETLOAD da DLL (ou pelo autoloader em %AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle).
+  -->
+  <!-- AutoCadVersao (padrão 2026) e a pasta obj ficam no Directory.Build.props -->
+  <PropertyGroup Condition="'$(AutoCadVersao)' &lt; '2025'">
+    <TargetFramework>net48</TargetFramework>
+    <AutoCadPacote Condition="'$(AutoCadVersao)' == '2021'">24.0.0</AutoCadPacote>
+    <AutoCadPacote Condition="'$(AutoCadVersao)' == '2022'">24.1.51000</AutoCadPacote>
+    <AutoCadPacote Condition="'$(AutoCadVersao)' == '2023'">24.2.0</AutoCadPacote>
+    <AutoCadPacote Condition="'$(AutoCadVersao)' == '2024'">24.3.0</AutoCadPacote>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(AutoCadVersao)' == '2025'">
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <AutoCadPacote>25.0.1</AutoCadPacote>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(AutoCadVersao)' == '2026'">
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <AutoCadPacote>25.1.0</AutoCadPacote>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(AutoCadVersao)' == '2027'">
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <AutoCadPacote>26.0.0</AutoCadPacote>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>ArmaduraBR.AutoCAD</AssemblyName>
+    <RootNamespace>Armadura.Cad</RootNamespace>
+    <DefineConstants>$(DefineConstants);AUTOCAD;AUTOCAD$(AutoCadVersao)</DefineConstants>
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\AutoCAD$(AutoCadVersao)\</OutputPath>
+    <!-- versão de demonstração (1 hora de uso): -p:Demo=true → bin\demo\AutoCAD<versão> -->
+    <DefineConstants Condition="'$(Demo)' == 'true'">$(DefineConstants);DEMO</DefineConstants>
+    <OutputPath Condition="'$(Demo)' == 'true'">$(MSBuildThisFileDirectory)..\..\bin\demo\AutoCAD$(AutoCadVersao)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.1.25</Version>
+    <!-- Sem o hash do Git em ProductVersion: o nome do Setup sai do ProductVersion. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- só para compilar: as DLLs da Autodesk NÃO vão para a pasta de saída (o AutoCAD já as tem) -->
+    <PackageReference Include="AutoCAD.NET" Version="[$(AutoCadPacote)]" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="GlobalUsings.cs" />
+    <Compile Include="..\Armadura.Cad\**\*.cs" LinkBase="Cad"
+             Exclude="..\Armadura.Cad\Infra\Autocompletar.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Armadura.Core\Armadura.Core.csproj" />
+  </ItemGroup>
+
+</Project>
