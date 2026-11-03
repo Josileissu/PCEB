@@ -8,4 +8,4 @@ Quem usar o PCEB obtém as próprias cópias e as coloca aqui com os nomes da li
 pelo Git (`.gitignore`).
 
 Mantenedor: a biblioteca de origem é `S:\Meu Drive\Normas`, indexada para busca em
-`armadura/info_auxiliar/indice_normas`. Ao incluir normas novas, regenere `NORMAS_REFERENCIA.txt`.
+`src/DEB.Cad/info_auxiliar/indice_normas` (busca: `src/DEB.Cad/tools/normas/buscar.py`). Ao incluir normas novas, regenere `NORMAS_REFERENCIA.txt`.

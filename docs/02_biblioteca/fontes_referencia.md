@@ -1,7 +1,7 @@
 # Fontes de referência do meio brasileiro (lista para reunir)
 
 Lista de partida, feita de memória — o usuário confirma, completa e coloca os arquivos nas subpastas.
-Normas do usuário já indexadas em `../../armadura/info_auxiliar/indice_normas` (origem: `S:\Meu Drive\Normas`).
+Normas do usuário já indexadas em `src/DEB.Cad/info_auxiliar/indice_normas` (origem: `S:\Meu Drive\Normas`).
 
 ## Instituições
 | Fonte | O que interessa |

@@ -2,9 +2,9 @@
 
 | Origem | Licença | Plataforma | Situação |
 |---|---|---|---|
-| Escritório (repositório privado `github.com/Josileissu/armadura-gstarcad`) | própria | **GstarCAD 2021** (principal); **AutoCAD 2021–2027** (port testado); ZWCAD 2024–2026 (SDK baixado, port não iniciado) | versão **0.1.23** (03/11/2026); código em `../armadura` ✓ |
+| Escritório (repositório privado `github.com/Josileissu/PCEB`, pasta `src/DEB.Cad`) | própria | **GstarCAD 2021** (principal); **AutoCAD 2021–2027** (port testado); ZWCAD 2024–2026 (SDK baixado, port não iniciado) | versão **0.1.23** (03/11/2026); código em `../armadura` ✓ |
 
-Detalhes técnicos: `armadura/CLAUDE.md`, `docs/ARQUITETURA.md`, `docs/PROGRESSO.md`, `docs/TEMPLATES.md`.
+Detalhes técnicos (em `src/DEB.Cad/`): `CLAUDE.md`, `docs/ARQUITETURA.md`, `docs/PROGRESSO.md`, `docs/TEMPLATES.md`.
 Princípio declarado: **não dimensiona** — desenha, numera e quantifica; decisões de cálculo são do engenheiro.
 
 ## Modelagem

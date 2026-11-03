@@ -41,7 +41,7 @@ continuarem abrindo e funcionando.
 | 0 | ✅ Commitar o trabalho pendente do Armadura BR — feito pelo usuário | — |
 | 1 | ✅ Armadura BR em `src/DEB.Cad` com histórico (git subtree); materiais fora do Git copiados; build GstarCAD/AutoCAD/ZWCAD ok, 178 testes ok (03/11/2026) | — |
 | 2 | ✅ StructuralDetailer em `src/DEB.Revit`; build Revit 2025/2026 ok (03/11/2026) | — |
-| 3 | Estudo vai para `docs/`; CLAUDE.md unificado; build de tudo a partir do PCEB | — |
+| 3 | ✅ Estudo em `docs/`; CLAUDE.md na raiz + um por plugin; `PCEB.sln` compila tudo (0 erros), 178 testes ok (03/11/2026) | — |
 | 4 | Renomear projetos/DLLs/textos para Detalhador Estrutural Brasileiro + migração de `%AppData%` | autoteste do CAD e AutoRun do Revit passando |
 | 5 | Separar o `Nucleo` (regras comuns) e o plugin Revit passar a usá-lo (decisão D7) | — |
 | 6 | Instalador novo (só quando o usuário pedir) | — |
