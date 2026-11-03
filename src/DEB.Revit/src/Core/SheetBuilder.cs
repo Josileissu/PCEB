@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     /// <summary>
     /// Cria a folha do assembly e distribui as vistas:

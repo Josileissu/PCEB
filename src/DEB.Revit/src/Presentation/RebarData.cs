@@ -4,9 +4,9 @@ using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.Presentation
+namespace DEB.Revit.Presentation
 {
     /// <summary>
     /// Dados das barras usados nas tabelas: partição (numeração N1, N2... por peça), aço (CA50/CA60)

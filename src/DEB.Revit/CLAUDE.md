@@ -1,8 +1,10 @@
 # DEB.Revit — Detalhador Estrutural Brasileiro para Revit (ex-StructuralDetailer)
 
 Plugin para Revit 2025/2026 (C#, .NET 8): detalhamento de peças estruturais, com foco em **pilares pré-moldados**
-(consolos, armadura, pranchas no padrão do escritório). Ainda com os nomes antigos no código (`StructuralDetailer`)
-até a etapa 4 da migração (`docs/04_arquitetura/migracao_repositorio_unico.md`).
+(consolos, armadura, pranchas no padrão do escritório). Renomeado na etapa 4 (03/11/2026): projeto/DLL/namespace `DEB.Revit`, aba "Detalhador Estrutural Brasileiro",
+`DEB.Revit.addin`; dados em `%AppData%\PCEB\DEB.Revit` (copiados de `%AppData%\StructuralDetailer` na 1ª execução, `Core/UserFolders.cs`).
+Mantidos por estarem gravados nos modelos: `Tag = "StructuralDetailer"` das barras, grupo de parâmetros compartilhados
+`StructuralDetailer`, parâmetros `SD_*`; também os IDs de botão `SD_*` e as variáveis `SD_AUTORUN`/`SD_AUTOEXIT`/`SD_SAVEAS`.
 
 Arquivos do escritório (fora do Git — padrões não são públicos), na pasta `desenvolvedor`:
 modelo de teste `C:\Users\SUELIO087\Documents\desenvolvedor\Projeto1.rvt`; prancha-modelo
@@ -11,8 +13,8 @@ modelo de teste `C:\Users\SUELIO087\Documents\desenvolvedor\Projeto1.rvt`; pranc
 ## Compilar e instalar
 ```powershell
 cd C:\Users\SUELIO087\Documents\desenvolvedor\PCEB\src\DEB.Revit
-& "C:\Program Files\dotnet\dotnet.exe" build -c Release -p:RevitVersion=2025 -p:NoWarn=MSB3277
-& "C:\Program Files\dotnet\dotnet.exe" build -c Release -p:RevitVersion=2026 -p:NoWarn=MSB3277
+& "C:\Program Files\dotnet\dotnet.exe" build DEB.Revit.csproj -c Release -p:RevitVersion=2025 -p:NoWarn=MSB3277
+& "C:\Program Files\dotnet\dotnet.exe" build DEB.Revit.csproj -c Release -p:RevitVersion=2026 -p:NoWarn=MSB3277
 ```
 - O build copia a DLL e o `.addin` para `%AppData%\Autodesk\Revit\Addins\<versão>\`.
 - **Com o Revit daquela versão aberto a DLL fica bloqueada**: confira com `Get-Process Revit` antes (pode ser de
@@ -30,7 +32,7 @@ $p.WaitForExit(540000)
 ```
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela.
-- Resultados em `%AppData%\StructuralDetailer\logs\` (`autorun.txt` aponta para o arquivo gerado).
+- Resultados em `%AppData%\PCEB\DEB.Revit\logs\` (`autorun.txt` aponta para o arquivo gerado).
   Leia os PNG exportados para conferir a prancha visualmente.
 - Logs de cada execução pelo usuário: `detalhamento_*.log` (exceções com pilha).
   Journals do Revit: `%LocalAppData%\Autodesk\Revit\Autodesk Revit 2025\Journals\`.
@@ -46,7 +48,7 @@ src/
                  ColumnRebarSpec (armadura escolhida + verificações NBR 6118/9062 + modelos salvos),
                  ColumnRebarLayout (geometria das barras em coordenadas locais — usada pela prévia E pelo Revit),
                  RebarFactory, PrecastColumnPipeline, UI/ (janela WPF em código, sem XAML)
-  Presentation/  PresentationStandard (JSON por elemento em %AppData%\StructuralDetailer\Padroes),
+  Presentation/  PresentationStandard (JSON por elemento em %AppData%\PCEB\DEB.Revit\Padroes),
                  Defaults (padrão de fábrica = PP127), StandardDetailer, SheetComposer (regiões),
                  RebarSchedules, RebarData (partição N1.., parâmetros SD_Aço / SD_Peso), AnnotationStyles
 ```

@@ -6,7 +6,7 @@ using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     /// <summary>
     /// Testes de viabilidade da API para pré-moldados (pilar + consolos aninhados na viga).

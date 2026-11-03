@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Autodesk.Revit.DB;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.Precast
+namespace DEB.Revit.Precast
 {
     /// <summary>
     /// Sistema local de um pilar: origem no canto mínimo, X/Y = seção, Z = eixo.

@@ -4,11 +4,11 @@ using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using StructuralDetailer.Core;
-using StructuralDetailer.Precast;
-using StructuralDetailer.Precast.UI;
+using DEB.Revit.Core;
+using DEB.Revit.Precast;
+using DEB.Revit.Precast.UI;
 
-namespace StructuralDetailer.Commands
+namespace DEB.Revit.Commands
 {
     /// <summary>
     /// "Pilares pré-moldados": levanta todos os pilares da obra com seus consolos, agrupa as peças

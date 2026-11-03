@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace StructuralDetailer.UI
+namespace DEB.Revit.UI
 {
     /// <summary>
     /// Gera ícones simples em código, para o plugin não depender de arquivos de imagem.

@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace StructuralDetailer.Presentation
+namespace DEB.Revit.Presentation
 {
     /// <summary>
     /// Padrões de fábrica, gravados na pasta de padrões na primeira execução para servirem de base.

@@ -1,16 +1,16 @@
 using System.Reflection;
 using Autodesk.Revit.UI;
-using StructuralDetailer.Commands;
-using StructuralDetailer.UI;
+using DEB.Revit.Commands;
+using DEB.Revit.UI;
 
-namespace StructuralDetailer
+namespace DEB.Revit
 {
     /// <summary>
-    /// Ponto de entrada do plugin: cria a aba "Detalhamento" no Ribbon.
+    /// Ponto de entrada do plugin: cria a aba "Detalhador Estrutural Brasileiro" no Ribbon.
     /// </summary>
     public class App : IExternalApplication
     {
-        public const string TabName = "Detalhamento";
+        public const string TabName = "Detalhador Estrutural Brasileiro";
 
         public Result OnStartup(UIControlledApplication application)
         {

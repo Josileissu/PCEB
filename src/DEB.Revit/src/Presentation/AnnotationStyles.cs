@@ -1,8 +1,8 @@
 using System.Linq;
 using Autodesk.Revit.DB;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.Presentation
+namespace DEB.Revit.Presentation
 {
     /// <summary>Tipos de cota e de texto definidos pelo padrão; criados (por duplicação) quando não existem no projeto.</summary>
     internal sealed class AnnotationStyles

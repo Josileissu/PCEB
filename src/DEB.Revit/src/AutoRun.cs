@@ -6,17 +6,17 @@ using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
-using StructuralDetailer.Core;
-using StructuralDetailer.Precast;
+using DEB.Revit.Core;
+using DEB.Revit.Precast;
 
-namespace StructuralDetailer
+namespace DEB.Revit
 {
     /// <summary>
     /// Execução sem interação, para testes automatizados. Ativada por variáveis de ambiente
     /// ao abrir o Revit:
     ///   SD_AUTORUN  = diag   → grava o diagnóstico do modelo assim que um projeto estiver aberto
     ///   SD_AUTOEXIT = 1      → fecha o Revit ao terminar
-    /// O resultado (caminho do arquivo gerado ou o erro) vai para %AppData%\StructuralDetailer\logs\autorun.txt.
+    /// O resultado (caminho do arquivo gerado ou o erro) vai para %AppData%\PCEB\DEB.Revit\logs\autorun.txt.
     /// Sem essas variáveis, nada acontece.
     /// </summary>
     internal static class AutoRun

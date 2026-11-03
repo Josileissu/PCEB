@@ -1,9 +1,9 @@
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using StructuralDetailer.Core;
+using DEB.Revit.Core;
 
-namespace StructuralDetailer.Commands
+namespace DEB.Revit.Commands
 {
     /// <summary>Grava o levantamento do modelo (pilares, vigas, consolos, contatos) em JSON.</summary>
     [Transaction(TransactionMode.ReadOnly)]

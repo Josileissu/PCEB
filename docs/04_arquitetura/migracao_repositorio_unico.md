@@ -42,7 +42,7 @@ continuarem abrindo e funcionando.
 | 1 | ✅ Armadura BR em `src/DEB.Cad` com histórico (git subtree); materiais fora do Git copiados; build GstarCAD/AutoCAD/ZWCAD ok, 178 testes ok (03/11/2026) | — |
 | 2 | ✅ StructuralDetailer em `src/DEB.Revit`; build Revit 2025/2026 ok (03/11/2026) | — |
 | 3 | ✅ Estudo em `docs/`; CLAUDE.md na raiz + um por plugin; `PCEB.sln` compila tudo (0 erros), 178 testes ok (03/11/2026) | — |
-| 4 | Renomear projetos/DLLs/textos para Detalhador Estrutural Brasileiro + migração de `%AppData%` | autoteste do CAD e AutoRun do Revit passando |
+| 4 | ✅ Renomeado para DEB (CAD e Revit) + migração de `%AppData%` para `%AppData%\PCEB\DEB.Cad` / `DEB.Revit`. Autoteste GstarCAD 215/216 com escala padrão (falhas = configuração do usuário Escala/EscalaFaixa 25); AutoRun Revit 2025 ok; instalado no Revit 2025/2026 do usuário (03/11/2026). Pendente para a etapa 6: chaves de registro, pasta de instalação e bundle do AutoCAD ainda com o nome antigo | — |
 | 5 | Separar o `Nucleo` (regras comuns) e o plugin Revit passar a usá-lo (decisão D7) | — |
 | 6 | Instalador novo (só quando o usuário pedir) | — |
 

@@ -3,10 +3,10 @@ using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     /// <summary>
-    /// Configuração do escritório. Fica em %AppData%\StructuralDetailer\DetalhamentoConfig.json
+    /// Configuração do escritório. Fica em %AppData%\PCEB\DEB.Revit\DetalhamentoConfig.json
     /// e é criada com os valores padrão na primeira execução.
     /// Escalas são o denominador (25 = 1:25). Medidas de folha em mm de papel.
     /// </summary>
@@ -87,9 +87,7 @@ namespace StructuralDetailer.Core
 
         // ======================================================================
 
-        public static string ConfigPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "StructuralDetailer", "DetalhamentoConfig.json");
+        public static string ConfigPath => Path.Combine(UserFolders.Root, "DetalhamentoConfig.json");
 
         private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
         {

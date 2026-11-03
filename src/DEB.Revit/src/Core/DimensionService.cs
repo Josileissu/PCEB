@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     /// <summary>
     /// Cotas gerais da peça em cada vista ortogonal: para cada eixo local paralelo ao plano da vista,

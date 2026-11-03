@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace StructuralDetailer.Precast.UI
+namespace DEB.Revit.Precast.UI
 {
     /// <summary>
     /// Pré-visualização dos pilares pré-moldados agrupados por similaridade e escolha da armadura de cada grupo.

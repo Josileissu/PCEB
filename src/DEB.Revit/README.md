@@ -21,7 +21,7 @@ O nome do assembly, das vistas e da folha sai da **Marca** da peça (parâmetro 
 **Pré-requisitos:** Visual Studio 2022 (17.8 ou mais recente) com a carga de trabalho ".NET desktop" (já inclui o SDK do .NET 8), e o Revit 2025 e/ou 2026 instalados. Não é preciso nenhum pacote NuGet: as DLLs da API são lidas da pasta do Revit.
 
 ### Pelo Visual Studio
-1. Abra o arquivo `StructuralDetailer.csproj`.
+1. Abra o arquivo `DEB.Revit.csproj`.
 2. Compile (Ctrl+Shift+B). Por padrão, a compilação é para o Revit **2025**.
 3. Ao final da compilação, o plugin é copiado automaticamente para `%AppData%\Autodesk\Revit\Addins\2025\`.
 4. Abra o Revit. A aba **Detalhamento** aparece no Ribbon. Na primeira vez, o Revit pergunta se deve carregar o add-in: escolha "Sempre carregar".
@@ -40,7 +40,7 @@ dotnet build -c Release -p:RevitVersion=2026
 
 ## Configuração
 
-O botão **Configurar** abre `%AppData%\StructuralDetailer\DetalhamentoConfig.json`. O arquivo `DetalhamentoConfig.exemplo.json` deste projeto mostra todos os campos. Os principais:
+O botão **Configurar** abre `%AppData%\PCEB\DEB.Revit\DetalhamentoConfig.json`. O arquivo `DetalhamentoConfig.exemplo.json` deste projeto mostra todos os campos. Os principais:
 
 | Campo | Para que serve |
 |---|---|
@@ -59,7 +59,7 @@ Se o template de vista controlar a escala, o template prevalece e o ajuste autom
 ## Padrões de apresentação (pranchas)
 
 A aparência das pranchas fica em arquivos JSON, um por tipo de elemento, em
-`%AppData%\StructuralDetailer\Padroes\` (cópia versionada em `Padroes/` neste projeto).
+`%AppData%\PCEB\DEB.Revit\Padroes\` (cópia versionada em `Padroes/` neste projeto).
 Na primeira execução o plugin grava o padrão de fábrica; depois é só editar o arquivo.
 Hoje o **pilar pré-moldado** (`pilarpremoldado.json`, baseado na prancha PP127) é usado pelo comando
 "Pilares pré-moldados"; viga, laje e fundação já têm o mesmo formato para as próximas etapas.

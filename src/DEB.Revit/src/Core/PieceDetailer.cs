@@ -5,7 +5,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using Autodesk.Revit.UI;
 
-namespace StructuralDetailer.Core
+namespace DEB.Revit.Core
 {
     internal enum DetailOutcome { Done, Skipped, Failed, CancelAll }
 
