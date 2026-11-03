@@ -11,10 +11,10 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
 
 ## Compilar e testar
 ```powershell
-& "C:\Program Files\dotnet\dotnet.exe" test tests\Armadura.Core.Tests        # núcleo, sem CAD
-& "C:\Program Files\dotnet\dotnet.exe" build src\Armadura.GstarCAD -c Release  # → bin\GstarCAD2021\
+& "C:\Program Files\dotnet\dotnet.exe" test tests\DEB.Core.Tests        # núcleo, sem CAD
+& "C:\Program Files\dotnet\dotnet.exe" build src\DEB.GstarCAD -c Release  # → bin\GstarCAD2021\
 ```
-- Plugin: `bin\GstarCAD2021\ArmaduraBR.GstarCAD.dll` (net48 x64; gmap/gmdb do SDK, Private=false).
+- Plugin: `bin\GstarCAD2021\DEB.GstarCAD.dll` (net48 x64; gmap/gmdb do SDK, Private=false).
   Outras versões do GstarCAD (2026-11-03): `-p:GstarVersao=2022…2027` → `bin\GstarCAD<ano>`. SDKs oficiais baixados pelo
   usuário (`sdk\grxsdk_*.zip`, fora do Git); no Git só `sdk\gstarcad\<ano>\ref\`. 2022-2023: gmap/gmdb, `GrxCAD.*`, net48;
   2024-2025: GcMgd/GcDbMgd/GcCoreMgd, `Gssoft.Gscad.*` (`GlobalUsings.Gssoft.cs`), net48; 2026-2027: idem em .NET 8.
@@ -30,7 +30,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   2. script `.scr` com `(command "_.NETLOAD" "<dll com />")` + `ARMTESTE`, variáveis
      `ARM_AUTOTESTE_SAIDA=<scratchpad>\autoteste.dwg` e `ARM_LOG_DETALHADO=1`, e
      `gcad.exe /nologo /b "<scr>"` numa instância NOVA (a do usuário nunca é tocada).
-  Relatório em `%AppData%\ArmaduraBR\logs\autoteste.txt` (2026-10-27: 174 ok); PNG ao lado do DWG de saída.
+  Relatório em `%AppData%\PCEB\DEB.Cad\logs\autoteste.txt` (2026-10-27: 174 ok); PNG ao lado do DWG de saída.
   Depois confira o `FILEDIA` em `HKCU\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Profiles\<<Unnamed Profile>>\Config`
   (valor ausente = padrão 1; o GstarCAD só grava o que difere do padrão).
 - Antes de encerrar um gcad, confira de onde veio (`Win32_Process` → pai `explorer.exe` = o USUÁRIO abriu).
@@ -38,14 +38,14 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   → `ActiveDocument.ModelSpace`. Formate números com `InvariantCulture` (o Windows é pt-BR).
 - Planilhas do usuário (xlsx): `openpyxl` instalado com `pip --user`; rode `python -E -P script.py` (o `-I`
   ignora o site do usuário). Copie o arquivo para uma pasta própria no scratchpad antes.
-- Testes de unidade: `tests/Armadura.Core.Tests` (108 em 2026-10-27).
-- Log do plugin: `%AppData%\ArmaduraBR\logs\armadura_AAAAMMDD.log`; configuração do usuário: `%AppData%\ArmaduraBR\config.json`.
+- Testes de unidade: `tests/DEB.Core.Tests` (108 em 2026-10-27).
+- Log do plugin: `%AppData%\PCEB\DEB.Cad\logs\deb_AAAAMMDD.log` (até 03/11/2026: `%AppData%\ArmaduraBR`, migrada sozinha na 1ª execução); configuração do usuário: `%AppData%\PCEB\DEB.Cad\config.json`.
 
 ## Estrutura
-- `src/Armadura.Core` (netstandard2.0, sem CAD): tabelas, normas, comprimento, descrição, numeração, RA, codec XData.
-- `src/Armadura.Cad` (fontes compartilhados, sem .csproj): Sincronizador (eventos → fila → CommandEnded),
+- `src/DEB.Core` (netstandard2.0, sem CAD): tabelas, normas, comprimento, descrição, numeração, RA, codec XData.
+- `src/DEB.Cad` (fontes compartilhados, sem .csproj): Sincronizador (eventos → fila → CommandEnded),
   ServicoBarra (cotas/descrição), ServicoRA (tabela), Overrule de desenho (curvatura), Comandos, Testes/AutoTeste.
-- `src/Armadura.GstarCAD`: csproj + `GlobalUsings.cs` (GrxCAD.*). O projeto AutoCAD terá outro GlobalUsings.
+- `src/DEB.GstarCAD`: csproj + `GlobalUsings.cs` (GrxCAD.*). O projeto AutoCAD terá outro GlobalUsings.
 
 ## Armadilhas do GstarCAD 2021 (.NET)
 - **Nunca deixar uma transação ser abortada (Dispose sem Commit) em eventos como CommandWillStart**: no
@@ -166,7 +166,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
 - AUTOCOMPLETE do GstarCAD = lista fixa em `%AppData%\Gstarsoft\GstarCAD\R21\en-WW\Support\alias.pgc`
   (lida ao abrir o CAD). `Infra/Autocompletar.cs` acrescenta os comandos do plugin ao carregar
   (backup `alias.pgc.antes_armadura`). Comando novo → aparece nas sugestões após reabrir o GstarCAD.
-- Sem ribbon .NET no GstarCAD 2021: a paleta separada "Armadura - Comandos" (`Paleta/PainelComandos.cs`,
+- Sem ribbon .NET no GstarCAD 2021: a paleta separada "DEB - Comandos" (`Paleta/PainelComandos.cs`,
   comando ARMCOMANDOS, config `MostrarComandos`) faz esse papel; a paleta "Armadura" só tem Propriedades.
 - Classe NOVA com `[CommandMethod]` → acrescentar `[assembly: Rt.CommandClass(typeof(...))]`: com a lista, o CAD
   só registra as classes listadas (o ARMTEMPLATE ficou fora na 0.1.9). O autoteste confere isso.
@@ -174,34 +174,34 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   `"\x1B\x1B"` (ESC). `\x03` NÃO cancela no GstarCAD. Layout dos botões é manual (AutoSize/FlowLayoutPanel
   aninhados podiam sumir ao re-encaixar). Teste de clique: `BM_CLICK` (SendMessage); cliques postados
   falham (o WinForms confere o cursor real) e NUNCA usar mouse real: o usuário trabalha na mesma tela.
-- **Carregador** (`src/Armadura.Carregador` → `bin\carregador\ArmaduraBR.Carregador.dll`): copia
-  `..\GstarCAD2021\*.dll` (pasta vizinha: a do bin ou a instalada) para `%LocalAppData%\ArmaduraBR\run\<data>\` e faz NETLOAD da cópia no Idle,
+- **Carregador** (`src/DEB.Carregador` → `bin\carregador\DEB.Carregador.dll`): copia
+  `..\GstarCAD2021\*.dll` (pasta vizinha: a do bin ou a instalada) para `%LocalAppData%\PCEB\DEB.Cad\run\<data>\` e faz NETLOAD da cópia no Idle,
   então o build em `bin\GstarCAD2021` não fica preso. O usuário carrega o CARREGADOR, nunca a DLL do bin.
   Autoload: chave `HKCU\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Applications\ArmaduraBR` (LOADCTRLS=2,
   MANAGED=1, LOADER=<dll>). Eu não posso gravar essa chave diretamente; quem grava é o instalador.
 - **Instalador ÚNICO** (2026-11-03, pedido do usuário; Inno Setup 6 em `%LocalAppData%\Programs\Inno Setup 6`):
-  `instalador\ArmaduraBR.iss` via `instalador\gerar.bat` (compila GstarCAD 2021-2027, AutoCAD 2021-2027 e ZWCAD 2024-2026) →
-  `instalador\saida\ArmaduraBR_Setup_<ver>.exe`. Página de componentes GstarCAD / AutoCAD / ZWCAD: procura no registro
+  `instalador\DEB.iss` via `instalador\gerar.bat` (compila GstarCAD 2021-2027, AutoCAD 2021-2027 e ZWCAD 2024-2026) →
+  `instalador\saida\DEB_Setup_<ver>.exe`. Página de componentes GstarCAD / AutoCAD / ZWCAD: procura no registro
   (`Gstarsoft\GstarCAD\R21…R27`, `Autodesk\AutoCAD\R24.0…R26.0`, `ZWSOFT\ZWCAD\<ano>`, HKLM ou HKCU), marca os encontrados e mostra
   "(encontrado: …)"; o usuário pode desmarcar — desmarcado tira o carregamento de uma instalação anterior. Mesmo AppId do antigo
   instalador do GstarCAD; o antigo só-AutoCAD (AppId 6B7A0FEC…) é desinstalado em silêncio antes. Pede para fechar
   gcad/acad/zwcad. Conferido (página de componentes capturada); instalação real com AutoCAD/ZWCAD ainda não testada.
   GstarCAD (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
   grava a chave para cada idioma em `R21\`, avisa se o gcad.exe estiver aberto). Testado: instala, carrega
-  sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do Armadura.GstarCAD.csproj
+  sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do DEB.GstarCAD.csproj
   (0.1.25 em 2026-11-03: instalador único com GstarCAD 2021-2027, AutoCAD e ZWCAD): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
 - **Demonstração** (pedido do usuário, 2026-10-30): `instalador\gerar_demo.bat` → `instalador\saida\demo_<versão>.exe` (numerada pela versão do plugin, pedido de 2026-10-30) (build com
   `-p:Demo=true` → constante DEMO, saída `bin\demo\GstarCAD2021`; ISCC `/DDemo`). `Infra/Demo.cs`: 1 hora a partir da 1ª carga
-  no computador (início em `HKCU\Software\ArmaduraBR\Demo` e `%AppData%\ArmaduraBR\demo.dat`, vale o mais antigo); depois,
+  no computador (início em `HKCU\Software\ArmaduraBR\Demo` e `%AppData%\PCEB\DEB.Cad\demo.dat`, vale o mais antigo); depois,
   `Comandos.Executar` e a paleta não alteram nada (log "demonstração expirada"). Testar sem deixar rastro: apague a chave e o
   demo.dat depois. O build demo usa a mesma pasta obj: o .bat recompila a versão normal no fim.
-- **Layers** (pedido do usuário, 2026-10-30): padrão em `%AppData%\ArmaduraBR\layers.csv` (Layer;Cor;Espessura (mm);Tipo de
+- **Layers** (pedido do usuário, 2026-10-30): padrão em `%AppData%\PCEB\DEB.Cad\layers.csv` (Layer;Cor;Espessura (mm);Tipo de
   linha;Descrição — ELE organiza; criado com o padrão de fábrica `PadroesLayers.Padrao()` se faltar, relido quando muda).
   `Desenho.GarantirLayer` aplica ao CRIAR (fora do arquivo: a cor dada, nunca amarela, e 0,00 mm — nunca a espessura
   "padrão"); ARMLAYERS aplica aos layers existentes do desenho [Abrir] abre o arquivo. Nunca sobrescreva o arquivo dele.
-- **Modelos dos templates** (pedido do usuário, 2026-10-30): `%AppData%/ArmaduraBR/Templates/<id>.csv` (CSV ";", uma linha por
+- **Modelos dos templates** (pedido do usuário, 2026-10-30): `%AppData%/PCEB/DEB.Cad/Templates/<id>.csv` (CSV ";", uma linha por
   modelo, coluna por campo; linha PADRÃO = valores com que a janela abre; números com vírgula para o Excel pt-BR; listas
   entre aspas). Core `ArquivoModelos`; Cad `Infra/ModelosTemplates` (carregado ao abrir o CAD, relido quando muda). Todo
   elemento desenhado pelo ARMTEMPLATE é salvo pelo Nome. Janela: Modelo, Salvar como padrão, Excluir, Importar, Exportar,
@@ -262,9 +262,9 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   ganha "+hash" e o nome do Setup sai errado.
 
 ## Port para AutoCAD (2021 a 2027)
-- `src/Armadura.AutoCAD`: csproj + `GlobalUsings.cs` (Autodesk.AutoCAD.*); compila `src/Armadura.Cad` com os defines
+- `src/DEB.AutoCAD`: csproj + `GlobalUsings.cs` (Autodesk.AutoCAD.*); compila `src/DEB.Cad` com os defines
   `AUTOCAD` e `AUTOCAD<ano>`. Bibliotecas do pacote OFICIAL "AutoCAD.NET" no NuGet (2026-11-03): compila sem o AutoCAD.
-  `dotnet build src\Armadura.AutoCAD -c Release -p:AutoCadVersao=<ano>` (padrão 2026) → `bin\AutoCAD<ano>\ArmaduraBR.AutoCAD.dll`.
+  `dotnet build src\DEB.AutoCAD -c Release -p:AutoCadVersao=<ano>` (padrão 2026) → `bin\AutoCAD<ano>\DEB.AutoCAD.dll`.
   Pacotes: 2021-2024 = 24.0/24.1.51000/24.2/24.3 (net48); 2025 = 25.0.1 e 2026 = 25.1.0 (net8 — a 25.0.0 pede uma versão de
   teste não publicada e as 25.0.2/25.1.1 vieram como net10); 2027 = 26.0.0 (net10: SDK em `%LocalAppData%\Microsoft\dotnet10`,
   instalado com o dotnet-install.ps1 oficial). obj separado por versão (`obj\<ano>`).
@@ -273,19 +273,19 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   extraídos com 7-Zip SEM executar em `sdk\zwcad\<ano>\ZWCAD_*` (fora do Git, 337 MB). No Git: `sdk\zwcad\<ano>\ref\`
   (ZwManaged.dll, ZwDatabaseMgd.dll, ZwDatabaseMgdBrep.dll — .NET Framework 4.x, como o GstarCAD). Manuais .NET 2026 em
   `info_auxiliar\zwcad\2026` (os de 2024/2025 dão 404 no site).
-- **Port para ZWCAD** (2026-11-03): `src/Armadura.ZWCAD` (net48 x64, `GlobalUsings.cs` com `ZwSoft.ZwCAD.*`, defines `ZWCAD` e
-  `ZWCAD<ano>`), `-p:ZwcadVersao=2024|2025|2026` (padrão 2026) → `bin\ZWCAD<ano>\ArmaduraBR.ZWCAD.dll`; demo `-p:Demo=true` →
+- **Port para ZWCAD** (2026-11-03): `src/DEB.ZWCAD` (net48 x64, `GlobalUsings.cs` com `ZwSoft.ZwCAD.*`, defines `ZWCAD` e
+  `ZWCAD<ano>`), `-p:ZwcadVersao=2024|2025|2026` (padrão 2026) → `bin\ZWCAD<ano>\DEB.ZWCAD.dll`; demo `-p:Demo=true` →
   `bin\demo\ZWCAD<ano>`. Compila sem erros; NÃO testado (ZWCAD não está instalado aqui). Diferenças de API ficam em
   `Infra/Compat.cs` (`db.TransacaoLeve()`, `ed.ZoomExtensao()`, `db.SalvarDxf()`): o ZWCAD 2024 não tem
   StartOpenCloseTransaction nem Editor.Command, e o DxfOut dele pede um bool a mais. Como no AutoCAD, `EnumConverter` precisa de
   apelido. Autoload (guia .NET do SDK): `HKCU\Software\ZWSOFT\ZWCAD\<ano>\<idioma>\Applications\ArmaduraBR` (LOADER = a própria
   DLL do plugin, LOADCTRLS=2, MANAGED=1) — gravado pelo instalador único.
 - Autoteste: `tools\autoteste_autocad.ps1 -Versao <ano>` (instância NOVA do AutoCAD; relatório em
-  `%AppData%\ArmaduraBR\logs\autoteste.txt`). Port da 0.1.21: 129 verificações, 0 falhas (AutoCAD 2026, em outra máquina).
+  `%AppData%\PCEB\DEB.Cad\logs\autoteste.txt`). Port da 0.1.21: 129 verificações, 0 falhas (AutoCAD 2026, em outra máquina).
 - Demo do AutoCAD: `-p:Demo=true` → `bin\demo\AutoCAD<ano>`. A pasta obj (inclusive a restauração do NuGet) é definida no
-  `src\Armadura.AutoCAD\Directory.Build.props` (`obj\<ano>` / `obj\demo<ano>`): no .csproj ela chegava tarde (aviso MSB3539).
+  `src\DEB.AutoCAD\Directory.Build.props` (`obj\<ano>` / `obj\demo<ano>`): no .csproj ela chegava tarde (aviso MSB3539).
 - Instalação no AutoCAD (componente do instalador único; o `gerar_autocad.bat` e o `.iss` próprio foram removidos):
-  um bundle só em `%AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle` (sem admin), com um componente por série
+  um bundle só em `%AppData%\Autodesk\ApplicationPlugins\DEB.bundle` (sem admin), com um componente por série
   (R24.0…R26.0) apontando para `Contents\Windows\<ano>\` (`instalador\AutoCAD.bundle\PackageContents.xml`).
 - Código compartilhado NÃO usa mais `GrxCAD.*` direto: use os apelidos `PaletteSet`, `PaletteSetStyles` e `CadUtils`
   (definidos nos dois `GlobalUsings.cs`). `Font` ambíguo no AutoCAD → `System.Drawing.Font`.

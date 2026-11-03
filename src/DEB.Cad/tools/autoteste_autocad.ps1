@@ -1,5 +1,5 @@
 ﻿# Compila o plugin AutoCAD (padrão 2026) e roda o autoteste (ARMTESTE) numa instância NOVA do AutoCAD.
-# A instância do usuário não é tocada. Resultado: %AppData%\ArmaduraBR\logs\autoteste.txt
+# A instância do usuário não é tocada. Resultado: %AppData%\PCEB\DEB.Cad\logs\autoteste.txt
 # Uso: powershell -File tools\autoteste_autocad.ps1 [-Versao 2026] [-Saida <pasta>] [-Acad <acad.exe>] [-SemBuild]
 param(
     [string]$Versao = '2026',
@@ -10,10 +10,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path $PSScriptRoot -Parent
 if (-not $Acad) { $Acad = "C:\Program Files\Autodesk\AutoCAD $Versao\acad.exe" }
-$dll = Join-Path $raiz "bin\AutoCAD$Versao\ArmaduraBR.AutoCAD.dll"
+$dll = Join-Path $raiz "bin\AutoCAD$Versao\DEB.AutoCAD.dll"
 
 if (-not $SemBuild) {
-    & 'C:\Program Files\dotnet\dotnet.exe' build (Join-Path $raiz 'src\Armadura.AutoCAD\Armadura.AutoCAD.csproj') -c Release --nologo -v q "-p:AutoCadVersao=$Versao"
+    & 'C:\Program Files\dotnet\dotnet.exe' build (Join-Path $raiz 'src\DEB.AutoCAD\DEB.AutoCAD.csproj') -c Release --nologo -v q "-p:AutoCadVersao=$Versao"
     if ($LASTEXITCODE -ne 0) { throw 'Falha na compilação.' }
 }
 if (-not (Test-Path $Acad)) { throw "AutoCAD não encontrado: $Acad" }
@@ -31,7 +31,7 @@ $dllLisp = $dll -replace '\\', '/'
     'ARMTESTE'
 ) | Out-File -Encoding ascii $scr
 
-$relatorio = Join-Path $env:APPDATA 'ArmaduraBR\logs\autoteste.txt'
+$relatorio = Join-Path $env:APPDATA 'PCEB\DEB.Cad\logs\autoteste.txt'
 Remove-Item $relatorio -ErrorAction SilentlyContinue
 $env:ARM_AUTOTESTE_SAIDA = Join-Path $Saida 'autoteste.dwg'
 $env:ARM_LOG_DETALHADO = '1'

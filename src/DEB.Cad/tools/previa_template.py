@@ -1,7 +1,7 @@
 """Prévia de um template sem o CAD (checagem de 2026-10-30).
 
 Uso:
-  set ARM_PREVIA=<pasta>  &&  dotnet test tests\\Armadura.Core.Tests --filter GravarPreviaDoPilar
+  set ARM_PREVIA=<pasta>  &&  dotnet test tests\\DEB.Core.Tests --filter GravarPreviaDoPilar
   python -E -P tools/previa_template.py <pasta>\\previa_pilar.json <saida.png>
 
 Textos viram retângulos do tamanho aproximado (largura ~ 0,8·h por caractere), para ver ocupação e vazios.

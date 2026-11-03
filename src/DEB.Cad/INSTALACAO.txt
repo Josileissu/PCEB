@@ -3,7 +3,7 @@ ARMADURA BR - INSTALAÇÃO EM OUTRO COMPUTADOR (GstarCAD 2021, AutoCAD 2021 a 20
 
 FORMA RECOMENDADA: INSTALADOR (um só para os três programas)
 ------------------------------------------------------------
-1. Copie para o outro computador o arquivo instalador\saida\ArmaduraBR_Setup_<versão>.exe
+1. Copie para o outro computador o arquivo instalador\saida\DEB_Setup_<versão>.exe
    (para gerar uma versão nova do arquivo, rode instalador\gerar.bat).
 2. Feche o GstarCAD, o AutoCAD e o ZWCAD e rode o Setup. Ele não pede administrador.
    Se o Windows mostrar "O Windows protegeu o computador", clique em "Mais informações" e
@@ -12,7 +12,7 @@ FORMA RECOMENDADA: INSTALADOR (um só para os três programas)
    Desmarque os que não quiser.
 4. Abra o programa. O plugin carrega sozinho e a paleta Armadura aparece, com a aba "Comandos".
 - Atualizar: rode o Setup novo por cima. Um programa desmarcado deixa de carregar o plugin.
-- Desinstalar: Configurações do Windows > Aplicativos > "Armadura BR".
+- Desinstalar: Configurações do Windows > Aplicativos > "Detalhador Estrutural Brasileiro".
 
 O passo a passo abaixo é a instalação MANUAL no GstarCAD, sem o Setup
 (AutoCAD: INSTALACAO_AUTOCAD.txt).
@@ -27,8 +27,8 @@ REQUISITOS
 ---------------------
 Neste computador, copie as DUAS pastas abaixo (com o conteúdo inteiro):
 
-    armadura\bin\carregador\      (ArmaduraBR.Carregador.dll)
-    armadura\bin\GstarCAD2021\    (ArmaduraBR.GstarCAD.dll e Armadura.Core.dll)
+    armadura\bin\carregador\      (DEB.Carregador.dll)
+    armadura\bin\GstarCAD2021\    (DEB.GstarCAD.dll e DEB.Core.dll)
 
 No outro computador, coloque as duas lado a lado, dentro de uma mesma pasta. Exemplo:
 
@@ -54,7 +54,7 @@ Opção A - automático ao abrir o GstarCAD (recomendado)
   Feche o GstarCAD, abra o PowerShell (sem ser como administrador) e rode a linha abaixo,
   trocando o caminho se você usou outra pasta:
 
-    $k='HKCU:\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Applications\ArmaduraBR'; New-Item $k -Force | Out-Null; Set-ItemProperty $k DESCRIPTION 'Armadura BR'; New-ItemProperty $k LOADCTRLS -Value 2 -PropertyType DWord -Force | Out-Null; New-ItemProperty $k MANAGED -Value 1 -PropertyType DWord -Force | Out-Null; Set-ItemProperty $k LOADER 'C:\ArmaduraBR\carregador\ArmaduraBR.Carregador.dll'
+    $k='HKCU:\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Applications\ArmaduraBR'; New-Item $k -Force | Out-Null; Set-ItemProperty $k DESCRIPTION 'Detalhador Estrutural Brasileiro'; New-ItemProperty $k LOADCTRLS -Value 2 -PropertyType DWord -Force | Out-Null; New-ItemProperty $k MANAGED -Value 1 -PropertyType DWord -Force | Out-Null; Set-ItemProperty $k LOADER 'C:\ArmaduraBR\carregador\DEB.Carregador.dll'
 
   Atenção: "en-WW" é o idioma do GstarCAD instalado. Se a instalação for em outro idioma,
   confira o nome certo no Regedit, em HKEY_CURRENT_USER\SOFTWARE\Gstarsoft\GstarCAD\R21\
@@ -62,7 +62,7 @@ Opção A - automático ao abrir o GstarCAD (recomendado)
 
 Opção B - manual, a cada sessão
   No GstarCAD, digite NETLOAD e escolha:
-    C:\ArmaduraBR\carregador\ArmaduraBR.Carregador.dll
+    C:\ArmaduraBR\carregador\DEB.Carregador.dll
   Carregue sempre o CARREGADOR, nunca a DLL da pasta GstarCAD2021.
 
 
@@ -79,7 +79,7 @@ Reabra o GstarCAD. A linha de comando deve mostrar "Armadura 0.1.0 carregado".
 5) ATUALIZAR PARA UMA VERSÃO NOVA
 ---------------------------------
 Substitua os arquivos da pasta GstarCAD2021 pelos novos. Isso funciona mesmo com o GstarCAD
-aberto, porque ele usa uma cópia em %LocalAppData%\ArmaduraBR\run\. A versão nova entra na
+aberto, porque ele usa uma cópia em %LocalAppData%\PCEB\DEB.Cad\run\. A versão nova entra na
 próxima vez que o GstarCAD for aberto.
 
 
@@ -88,7 +88,7 @@ próxima vez que o GstarCAD for aberto.
 - Opção A: apague a chave
   HKEY_CURRENT_USER\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Applications\ArmaduraBR
 - Apague a pasta C:\ArmaduraBR e a pasta %LocalAppData%\ArmaduraBR.
-- (Opcional) Configurações e logs ficam em %AppData%\ArmaduraBR.
+- (Opcional) Configurações e logs ficam em %AppData%\PCEB\DEB.Cad.
 - (Opcional) Para restaurar o autocompletar original, troque o arquivo
   %AppData%\Gstarsoft\GstarCAD\R21\en-WW\Support\alias.pgc pelo backup
   alias.pgc.antes_armadura que fica na mesma pasta.
