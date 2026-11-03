@@ -126,7 +126,15 @@ Estudo em `robustez_e_estabilidade.md`.
 | D14 | APIs fechadas | **exceção de ligação** (GPL-3 seção 7) em `LICENSE-EXCEPTION.md`: Revit, AutoCAD, Robot, GstarCAD, ZWCAD, CSI OAPI, TQS |
 | D15 | Livros, artigos, padrões | **fora do Git**; padrões do escritório **não** são públicos |
 
+| D16 | Repositório | **um único repositório (PCEB)** com núcleo, plugins e o futuro programa — plano em `04_arquitetura/migracao_repositorio_unico.md` |
+| D17 | Nome dos plugins | **Detalhador Estrutural Brasileiro**, no CAD (ex-Armadura BR) e no Revit (ex-StructuralDetailer) |
+| D18 | Ports futuros | Blender, FreeCAD e o próprio PCEB |
+
 ## Perguntas em aberto
 16. **Titular do copyright**: usei "Marquezin" (o mesmo nome do instalador do Armadura BR). Confirmar o nome correto.
 17. **Versão demo de 1 hora do Armadura BR**: num programa livre deixa de fazer sentido. Remover?
-18. **StructuralDetailer no Git**: ainda não tem repositório. Criar (local, como o PCEB)?
+18. ~~StructuralDetailer no Git~~ — respondida por D16 (entra no repositório do PCEB).
+19. **Etapa 0 da migração**: o trabalho pendente do Armadura BR (instalador único) está concluído e pode ser commitado?
+    Há outra sessão trabalhando nessa pasta?
+20. **GitHub**: renomear o repositório privado `armadura-gstarcad` para o PCEB ou criar um novo?
+21. **Sigla do plugin** (para nomes de DLL/pastas): `DetalhadorEstrutural` por extenso, ou uma sigla (ex.: DEB)?
