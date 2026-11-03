@@ -253,8 +253,11 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   Pacotes: 2021-2024 = 24.0/24.1.51000/24.2/24.3 (net48); 2025 = 25.0.1 e 2026 = 25.1.0 (net8 — a 25.0.0 pede uma versão de
   teste não publicada e as 25.0.2/25.1.1 vieram como net10); 2027 = 26.0.0 (net10: SDK em `%LocalAppData%\Microsoft\dotnet10`,
   instalado com o dotnet-install.ps1 oficial). obj separado por versão (`obj\<ano>`).
-- GstarCAD: o SDK oficial fica no repositório (`sdk\grxsdk`). Pacotes de GstarCAD/ZWCAD no NuGet são de TERCEIROS (não usar);
-  para o ZWCAD, baixar o ZRX SDK oficial da ZWSOFT e guardar em `sdk\` como o do GstarCAD.
+- GstarCAD: o SDK oficial fica no repositório (`sdk\grxsdk`). Pacotes de GstarCAD/ZWCAD no NuGet são de TERCEIROS (não usar).
+- ZWCAD (2026-11-03): ZRXSDK oficial 2024/2025/2026 (instaladores assinados pela ZWSOFT, baixados pelo usuário em `sdk\*.exe`),
+  extraídos com 7-Zip SEM executar em `sdk\zwcad\<ano>\ZWCAD_*` (fora do Git, 337 MB). No Git: `sdk\zwcad\<ano>ef\`
+  (ZwManaged.dll, ZwDatabaseMgd.dll, ZwDatabaseMgdBrep.dll — .NET Framework 4.x, como o GstarCAD). Manuais .NET 2026 em
+  `info_auxiliar\zwcad6` (os de 2024/2025 dão 404 no site). Port para ZWCAD: ainda não começou; ZWCAD não está instalado aqui.
 - Autoteste: `tools\autoteste_autocad.ps1 -Versao <ano>` (instância NOVA do AutoCAD; relatório em
   `%AppData%\ArmaduraBR\logs\autoteste.txt`). Port da 0.1.21: 129 verificações, 0 falhas (AutoCAD 2026, em outra máquina).
 - Instalador: `instalador\gerar_autocad.bat` compila as 7 versões e gera `instalador\saida\ArmaduraBR_AutoCAD_Setup_<versão>.exe`:
