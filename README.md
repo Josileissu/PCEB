@@ -18,7 +18,8 @@ sem fixar linguagem nem código. Os plugins que já temos fazem parte do projeto
 | `notas/` | rascunhos e anotações soltas | rascunhos iniciais |
 
 ## Licença e versionamento
-Software livre sob **GPL-3** (ver `LICENSE`). Versionado em Git; o mantenedor controla o que entra.
+Software livre sob **GPL-3** (ver `LICENSE`), com permissão adicional para ligação com APIs fechadas
+(Revit, AutoCAD, GstarCAD etc. — ver `LICENSE-EXCEPTION.md`). Vale também para o Armadura BR e o StructuralDetailer. Versionado em Git; o mantenedor controla o que entra.
 Normas, livros, artigos e padrões do escritório **não** vão para o repositório (ver `02_biblioteca/normas/LEIAME.md`).
 
 ## Regras

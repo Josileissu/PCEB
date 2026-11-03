@@ -122,11 +122,11 @@ Estudo em `robustez_e_estabilidade.md`.
 | D11 | Licença e versionamento | **GPL-3** (`LICENSE`); versionado em **Git**; o usuário controla o que entra e sai |
 | D12 | Normas | **não publicadas**; ficam no computador do usuário. A pasta `02_biblioteca/normas` existe no repositório com `NORMAS_REFERENCIA.txt` (nomes usados) para cada usuário alimentar a sua |
 
+| D13 | Plugins | **GPL-3 também para o Armadura BR e o StructuralDetailer** |
+| D14 | APIs fechadas | **exceção de ligação** (GPL-3 seção 7) em `LICENSE-EXCEPTION.md`: Revit, AutoCAD, Robot, GstarCAD, ZWCAD, CSI OAPI, TQS |
+| D15 | Livros, artigos, padrões | **fora do Git**; padrões do escritório **não** são públicos |
+
 ## Perguntas em aberto
-13. **GPL-3 vale também para o Armadura BR e o StructuralDetailer?** Hoje o Armadura BR é privado e tem versão
-    demo de 1 hora — num programa livre a demo deixaria de fazer sentido.
-14. **Exceção de ligação para Revit/CAD**: plugins GPL que usam APIs fechadas (Revit, AutoCAD, GstarCAD) ficam numa
-    zona cinzenta da GPL. O usual é acrescentar uma "permissão adicional" (seção 7 da GPL-3) autorizando a ligação
-    com essas APIs. Incluir?
-15. **Livros, artigos e padrões do escritório**: deixei fora do Git como as normas (direitos autorais e projetos de
-    clientes). Algum padrão do escritório pode ser público (ex.: templates sem dados de cliente)?
+16. **Titular do copyright**: usei "Marquezin" (o mesmo nome do instalador do Armadura BR). Confirmar o nome correto.
+17. **Versão demo de 1 hora do Armadura BR**: num programa livre deixa de fazer sentido. Remover?
+18. **StructuralDetailer no Git**: ainda não tem repositório. Criar (local, como o PCEB)?
