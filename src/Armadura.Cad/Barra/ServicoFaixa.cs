@@ -276,7 +276,8 @@ internal static class ServicoFaixa
 
     /// <summary>
     /// Deslocamento do conjunto desde a última atualização, ou null. Conjunto movido = o texto saiu da âncora E as
-    /// linhas de chamada continuam presas a ele (ou o 1º círculo do corte andou o mesmo tanto).
+    /// linhas de chamada continuam presas a ele ou ao patamar (ou o 1º círculo do corte andou o mesmo tanto).
+    /// Vale para REFEDIT/REFCLOSE do detalhamento (relato do usuário, 2026-11-02: chamadas com patamar iam para longe).
     /// </summary>
     private static Vector2d? DeslocamentoDoConjunto(Transaction tr, Database db, Entity ent, DadosFaixa f, string hFaixa)
     {
@@ -285,9 +286,17 @@ internal static class ServicoFaixa
         var d = loc - new Point2d(f.AncoraX, f.AncoraY);
         double tol = Math.Max(1e-6, 1e-3 * mt.TextHeight);
         if (d.Length <= tol) return null;
+        // com patamar as linhas não chegam ao texto: o patamar termina ao lado dele (lado das referências já deslocadas)
+        Point2d? inicioPatamar = f.Patamar && f.Referencias.Count > 0
+            && Patamar(mt, f.Referencias.Average(rf => rf.X) + d.X) is { } pat ? pat.inicio : (Point2d?)null;
         foreach (var p in f.Partes.Select(h => Parte(tr, db, h, hFaixa)).Where(e => e != null))
         {
-            if (p is Line ln && new Point2d(ln.EndPoint.X, ln.EndPoint.Y).GetDistanceTo(loc) <= tol) return d;
+            if (p is Line ln)
+            {
+                var fim = new Point2d(ln.EndPoint.X, ln.EndPoint.Y);
+                if (fim.GetDistanceTo(loc) <= tol) return d;
+                if (inicioPatamar.HasValue && fim.GetDistanceTo(inicioPatamar.Value) <= tol) return d;
+            }
             if (f.TemCirculo0)
             {
                 Point2d? c = p is Circle ci ? new Point2d(ci.Center.X, ci.Center.Y)

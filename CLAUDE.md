@@ -127,6 +127,9 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   (XData ANX/ANY = posição do texto na última atualização) cai no texto. E em qualquer atualização, se o texto saiu da
   âncora e as linhas de chamada continuam presas a ele (ou o 1º círculo do corte, C0X/C0Y, andou igual), a faixa
   desloca os pontos (MOVE de tudo, edição no lugar); texto movido sozinho não mexe nas referências.
+  Com PATAMAR as linhas terminam no início do patamar, não no texto: a detecção compara com o patamar recalculado
+  (2026-11-02, relato do usuário: no REFEDIT do P61 as chamadas iam para longe = deslocadas do ponto de inserção).
+  Autoteste ARMTESTEMOVERPILAR/ARMTESTEMOVIDO desloca o pilar explodido pela API sem tocar no XData (como o REFEDIT).
   Teste por script: o EXPLODE do GstarCAD pega UM objeto e termina — mande um Enter só.
 - Tela soldada: opções por tela no XData ("TDIS" distribuição dos fios, "TCOT" cotas das 2 dimensões, "TDIAG"
   texto na diagonal; padrão: cotas e diagonal ligadas). Fios: `DistribuicaoTela` (Core; longitudinais ao longo do
@@ -226,6 +229,7 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
 - Repositório local em `armadura/` (branch `main`), 1º commit 0.1.14. Fora do repositório (decisão do usuário):
   `auxiliar_cad/` (projetos do escritório) e `info_auxiliar/` (especificação); bin/obj e `instalador/saida/` também.
   O `sdk/` VAI (o build referencia `sdk\grxsdk\inc\gmap.dll`/`gmdb.dll`).
-- Remoto: ainda não existe — o usuário vai criar um repositório VAZIO e passar a URL; aí `git remote add origin <url>` e `git push -u origin main`.
+- Remoto (2026-11-02): `origin` = https://github.com/Josileissu/armadura-gstarcad (privado, conta Josileissu via `gh`);
+  e-mail dos commits: josileissu@gmail.com. Enviar com `git push`.
 - O csproj do plugin tem `IncludeSourceRevisionInInformationalVersion=false`: sem isso, com o Git, a ProductVersion
   ganha "+hash" e o nome do Setup sai errado.
