@@ -38,9 +38,9 @@ continuarem abrindo e funcionando.
 ## 3. Etapas (cada uma com teste antes da próxima)
 | # | Etapa | Pré-requisito |
 |---|---|---|
-| 0 | Commitar o trabalho pendente do Armadura BR (instalador único GstarCAD+AutoCAD, 15 arquivos) | usuário confirma que está concluído e que nenhuma outra sessão trabalha na pasta |
-| 1 | Trazer o histórico do Armadura BR para o PCEB (em `src/…Cad`), sem perder commits | Revit e GstarCAD fechados |
-| 2 | Trazer o StructuralDetailer (sem histórico Git — entra como um commit) | idem |
+| 0 | ✅ Commitar o trabalho pendente do Armadura BR — feito pelo usuário | — |
+| 1 | ✅ Armadura BR em `src/DEB.Cad` com histórico (git subtree); materiais fora do Git copiados; build GstarCAD/AutoCAD/ZWCAD ok, 178 testes ok (03/11/2026) | — |
+| 2 | ✅ StructuralDetailer em `src/DEB.Revit`; build Revit 2025/2026 ok (03/11/2026) | — |
 | 3 | Estudo vai para `docs/`; CLAUDE.md unificado; build de tudo a partir do PCEB | — |
 | 4 | Renomear projetos/DLLs/textos para Detalhador Estrutural Brasileiro + migração de `%AppData%` | autoteste do CAD e AutoRun do Revit passando |
 | 5 | Separar o `Nucleo` (regras comuns) e o plugin Revit passar a usá-lo (decisão D7) | — |
