@@ -1,0 +1,147 @@
+ARMADURA BR - INSTALAÇÃO EM OUTRO COMPUTADOR (GstarCAD 2021, AutoCAD 2021 a 2027, ZWCAD 2024 a 2026)
+=====================================================================================================
+
+FORMA RECOMENDADA: INSTALADOR (um só para os três programas)
+------------------------------------------------------------
+1. Copie para o outro computador o arquivo instalador\saida\ArmaduraBR_Setup_<versão>.exe
+   (para gerar uma versão nova do arquivo, rode instalador\gerar.bat).
+2. Feche o GstarCAD, o AutoCAD e o ZWCAD e rode o Setup. Ele não pede administrador.
+   Se o Windows mostrar "O Windows protegeu o computador", clique em "Mais informações" e
+   depois em "Executar assim mesmo".
+3. O Setup mostra os programas e já deixa marcados os que encontrou no computador.
+   Desmarque os que não quiser.
+4. Abra o programa. O plugin carrega sozinho e a paleta Armadura aparece, com a aba "Comandos".
+- Atualizar: rode o Setup novo por cima. Um programa desmarcado deixa de carregar o plugin.
+- Desinstalar: Configurações do Windows > Aplicativos > "Armadura BR".
+
+O passo a passo abaixo é a instalação MANUAL no GstarCAD, sem o Setup
+(AutoCAD: INSTALACAO_AUTOCAD.txt).
+
+
+REQUISITOS
+- GstarCAD 2021 64 bits.
+- .NET Framework 4.8 (já vem no Windows 10/11 atualizado).
+
+
+1) COPIAR OS ARQUIVOS
+---------------------
+Neste computador, copie as DUAS pastas abaixo (com o conteúdo inteiro):
+
+    armadura\bin\carregador\      (ArmaduraBR.Carregador.dll)
+    armadura\bin\GstarCAD2021\    (ArmaduraBR.GstarCAD.dll e Armadura.Core.dll)
+
+No outro computador, coloque as duas lado a lado, dentro de uma mesma pasta. Exemplo:
+
+    C:\ArmaduraBR\carregador\
+    C:\ArmaduraBR\GstarCAD2021\
+
+IMPORTANTE: as duas pastas precisam ficar lado a lado e manter os nomes "carregador" e
+"GstarCAD2021", porque o carregador procura o plugin em ..\GstarCAD2021.
+Prefira um disco local (C:\) a uma pasta de rede.
+
+
+2) DESBLOQUEAR AS DLLs (se vieram por e-mail, download, pendrive ou ZIP)
+-----------------------------------------------------------------------
+Para cada .dll: clique com o botão direito > Propriedades > marque "Desbloquear" > OK.
+Se as DLLs ficarem bloqueadas, o GstarCAD não carrega o plugin e não mostra nenhum erro.
+Alternativa: no PowerShell, rode:
+    Get-ChildItem C:\ArmaduraBR -Recurse -Filter *.dll | Unblock-File
+
+
+3) CARREGAR NO GSTARCAD (escolha UMA das opções)
+------------------------------------------------
+Opção A - automático ao abrir o GstarCAD (recomendado)
+  Feche o GstarCAD, abra o PowerShell (sem ser como administrador) e rode a linha abaixo,
+  trocando o caminho se você usou outra pasta:
+
+    $k='HKCU:\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Applications\ArmaduraBR'; New-Item $k -Force | Out-Null; Set-ItemProperty $k DESCRIPTION 'Armadura BR'; New-ItemProperty $k LOADCTRLS -Value 2 -PropertyType DWord -Force | Out-Null; New-ItemProperty $k MANAGED -Value 1 -PropertyType DWord -Force | Out-Null; Set-ItemProperty $k LOADER 'C:\ArmaduraBR\carregador\ArmaduraBR.Carregador.dll'
+
+  Atenção: "en-WW" é o idioma do GstarCAD instalado. Se a instalação for em outro idioma,
+  confira o nome certo no Regedit, em HKEY_CURRENT_USER\SOFTWARE\Gstarsoft\GstarCAD\R21\
+  (por exemplo, pt-BR).
+
+Opção B - manual, a cada sessão
+  No GstarCAD, digite NETLOAD e escolha:
+    C:\ArmaduraBR\carregador\ArmaduraBR.Carregador.dll
+  Carregue sempre o CARREGADOR, nunca a DLL da pasta GstarCAD2021.
+
+
+4) CONFERIR
+-----------
+Reabra o GstarCAD. A linha de comando deve mostrar "Armadura 0.1.0 carregado".
+- A paleta "Armadura" abre sozinha. Se não abrir, digite ARMPALETA.
+- A aba "Comandos" da paleta tem os botões de todas as funções.
+- Para os comandos ARM... aparecerem na sugestão da linha de comando (autocompletar), o plugin
+  os acrescenta ao alias.pgc no primeiro carregamento. Feche e abra o GstarCAD mais uma vez
+  para eles aparecerem.
+
+
+5) ATUALIZAR PARA UMA VERSÃO NOVA
+---------------------------------
+Substitua os arquivos da pasta GstarCAD2021 pelos novos. Isso funciona mesmo com o GstarCAD
+aberto, porque ele usa uma cópia em %LocalAppData%\ArmaduraBR\run\. A versão nova entra na
+próxima vez que o GstarCAD for aberto.
+
+
+6) DESINSTALAR
+--------------
+- Opção A: apague a chave
+  HKEY_CURRENT_USER\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Applications\ArmaduraBR
+- Apague a pasta C:\ArmaduraBR e a pasta %LocalAppData%\ArmaduraBR.
+- (Opcional) Configurações e logs ficam em %AppData%\ArmaduraBR.
+- (Opcional) Para restaurar o autocompletar original, troque o arquivo
+  %AppData%\Gstarsoft\GstarCAD\R21\en-WW\Support\alias.pgc pelo backup
+  alias.pgc.antes_armadura que fica na mesma pasta.
+
+
+OBSERVAÇÃO
+----------
+Os desenhos abrem normalmente em computadores sem o plugin: são polilinhas, textos e tabelas
+comuns. Sem o plugin, as cotas, as descrições e a relação do aço apenas deixam de se
+atualizar sozinhas.
+
+
+COMANDOS
+----------
+ARMADURA — RESUMO DOS COMANDOS (plugin ArmaduraBR)
+Carregar: NETLOAD → ...armaduraBR.GstarCAD.dll
+
+BARRAS
+ARMBARRA — desenha a armadura por pontos [Bitola/Aco/Quantidade/Espacamento; Arco/Desfazer]
+ARMBARRA → Cobrimento — desenha clicando nas linhas da forma (desconta o cobrimento)
+ARMCONVERTER — transforma polilinhas em armaduras
+ARMPROP — altera as propriedades da barra pela linha de comando
+ARMEDITSEG — segmento: comprimento, gancho 45/90/180, VAR, cotar
+ARMRECOTA — devolve a cota apagada de um segmento
+ARMREBATER — rebate a barra (fica uma cópia vinculada no lugar original)
+ARMDIVIDIR — divide com traspasse (clique no ponto ou Enter = pelo comprimento comercial)
+
+ESTRIBOS, TRELIÇAS E TELAS
+ARMESTRIBO — diálogo: simples, aberto, múltiplo, pente, circular; seção, rebatido e faixas
+ARMESTRIBOREP — repete o último estribo sem abrir o diálogo
+ARMTRELICA — treliça por 2 pontos do banzo inferior [Modelo/Quantidade/Espacamento]
+ARMTELA — tela soldada por 2 cantos do painel [Modelo]
+
+FAIXAS (quantidade da barra = soma das faixas)
+ARMFAIXAORT / ARMFAIXAALI — faixa com cota ortogonal / alinhada
+ARMCORTECOTAORT / ARMCORTECOTAALI — cota + barras em corte
+ARMCORTECHAMADA / ARMCORTECHAMADAARCO — barras em corte + chamada (reta / arco)
+ARMCHAMADA — chamada com quantidade digitada      ARMINDICACAO — só indica o N (não soma)
+
+RELAÇÃO DO AÇO
+ARMRAINSERIR — insere a tabela [Apresentacao/Resumo/PesoTotal/Dobra (detalhe de dobra)]
+ARMRAATUALIZAR — renumera e atualiza descrições e tabelas
+ARMRAPARCIAL — relação só dos detalhamentos (blocos) escolhidos
+ARMRAASSOCIAR — move blocos para outra relação parcial
+ARMRABLOQUEAR — liga/desliga o bloqueio (revisões: novas/alteradas com *)
+ARMCORTEDOBRA — lista de corte e dobra (CSV + HTML) ao lado do DWG
+(A relação é atualizada sozinha antes de plotar, exportar e salvar.)
+
+DETALHAMENTOS (BLOCOS)
+ARMDETCRIAR — transforma a seleção em detalhamento (bloco nomeado)
+ARMDETGERENCIAR — grade com todos os detalhamentos (grupo, pavimento, volume…)
+
+GERAL
+ARMPALETA — paleta de propriedades (barras, tabelas e detalhamentos)
+ARMCONFIG — configuração [Abrir/Recarregar/GravarNoDesenho/EditarDoDesenho/RemoverDoDesenho]
+ARMSOBRE — versão e aviso: o plugin não dimensiona, só desenha, numera e quantifica
