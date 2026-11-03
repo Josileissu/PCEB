@@ -12,6 +12,12 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
 & "C:\Program Files\dotnet\dotnet.exe" build src\Armadura.GstarCAD -c Release  # → bin\GstarCAD2021\
 ```
 - Plugin: `bin\GstarCAD2021\ArmaduraBR.GstarCAD.dll` (net48 x64; gmap/gmdb do SDK, Private=false).
+  Outras versões do GstarCAD (2026-11-03): `-p:GstarVersao=2022…2027` → `bin\GstarCAD<ano>`. SDKs oficiais baixados pelo
+  usuário (`sdk\grxsdk_*.zip`, fora do Git); no Git só `sdk\gstarcad\<ano>\ref\`. 2022-2023: gmap/gmdb, `GrxCAD.*`, net48;
+  2024-2025: GcMgd/GcDbMgd/GcCoreMgd, `Gssoft.Gscad.*` (`GlobalUsings.Gssoft.cs`), net48; 2026-2027: idem em .NET 8.
+  obj por versão no `Directory.Build.props` (`obj\<ano>`, `obj\demo<ano>`). Autoload: `HKCU\SOFTWARE\Gstarsoft\GstarCAD\R<aa>\
+  <idioma>\Applications` (guia da 2024 em `info_auxiliar\gstarcad\2024`; manuais Mgd*.chm por ano). Só a 2021 está instalada
+  aqui: 2022-2027 compilam, mas NÃO foram testadas.
   O GstarCAD não solta a DLL que carregou; o do usuário carrega uma CÓPIA (carregador, abaixo), então o
   build em `bin\` funciona com ele aberto. Só falha se alguém fez NETLOAD direto da DLL do bin.
 - **Autoteste** (os passos de `tools\autoteste.ps1`; rode-os inline, sem `-ExecutionPolicy Bypass`):
@@ -170,11 +176,17 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   então o build em `bin\GstarCAD2021` não fica preso. O usuário carrega o CARREGADOR, nunca a DLL do bin.
   Autoload: chave `HKCU\SOFTWARE\Gstarsoft\GstarCAD\R21\en-WW\Applications\ArmaduraBR` (LOADCTRLS=2,
   MANAGED=1, LOADER=<dll>). Eu não posso gravar essa chave diretamente; quem grava é o instalador.
-- **Instalador** (Inno Setup 6 em `%LocalAppData%\Programs\Inno Setup 6`): `instalador\gerar.bat` →
-  `instalador\saida\ArmaduraBR_Setup_<ver>.exe` (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
+- **Instalador ÚNICO** (2026-11-03, pedido do usuário; Inno Setup 6 em `%LocalAppData%\Programs\Inno Setup 6`):
+  `instalador\ArmaduraBR.iss` via `instalador\gerar.bat` (compila GstarCAD 2021-2027, AutoCAD 2021-2027 e ZWCAD 2024-2026) →
+  `instalador\saida\ArmaduraBR_Setup_<ver>.exe`. Página de componentes GstarCAD / AutoCAD / ZWCAD: procura no registro
+  (`Gstarsoft\GstarCAD\R21…R27`, `Autodesk\AutoCAD\R24.0…R26.0`, `ZWSOFT\ZWCAD\<ano>`, HKLM ou HKCU), marca os encontrados e mostra
+  "(encontrado: …)"; o usuário pode desmarcar — desmarcado tira o carregamento de uma instalação anterior. Mesmo AppId do antigo
+  instalador do GstarCAD; o antigo só-AutoCAD (AppId 6B7A0FEC…) é desinstalado em silêncio antes. Pede para fechar
+  gcad/acad/zwcad. Conferido (página de componentes capturada); instalação real com AutoCAD/ZWCAD ainda não testada.
+  GstarCAD (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
   grava a chave para cada idioma em `R21\`, avisa se o gcad.exe estiver aberto). Testado: instala, carrega
   sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do Armadura.GstarCAD.csproj
-  (0.1.23 em 2026-11-03): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
+  (0.1.25 em 2026-11-03: instalador único com GstarCAD 2021-2027, AutoCAD e ZWCAD): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
 - **Demonstração** (pedido do usuário, 2026-10-30): `instalador\gerar_demo.bat` → `instalador\saida\demo_<versão>.exe` (numerada pela versão do plugin, pedido de 2026-10-30) (build com
@@ -257,10 +269,19 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
 - ZWCAD (2026-11-03): ZRXSDK oficial 2024/2025/2026 (instaladores assinados pela ZWSOFT, baixados pelo usuário em `sdk\*.exe`),
   extraídos com 7-Zip SEM executar em `sdk\zwcad\<ano>\ZWCAD_*` (fora do Git, 337 MB). No Git: `sdk\zwcad\<ano>\ref\`
   (ZwManaged.dll, ZwDatabaseMgd.dll, ZwDatabaseMgdBrep.dll — .NET Framework 4.x, como o GstarCAD). Manuais .NET 2026 em
-  `info_auxiliar\zwcad\2026` (os de 2024/2025 dão 404 no site). Port para ZWCAD: ainda não começou; ZWCAD não está instalado aqui.
+  `info_auxiliar\zwcad\2026` (os de 2024/2025 dão 404 no site).
+- **Port para ZWCAD** (2026-11-03): `src/Armadura.ZWCAD` (net48 x64, `GlobalUsings.cs` com `ZwSoft.ZwCAD.*`, defines `ZWCAD` e
+  `ZWCAD<ano>`), `-p:ZwcadVersao=2024|2025|2026` (padrão 2026) → `bin\ZWCAD<ano>\ArmaduraBR.ZWCAD.dll`; demo `-p:Demo=true` →
+  `bin\demo\ZWCAD<ano>`. Compila sem erros; NÃO testado (ZWCAD não está instalado aqui). Diferenças de API ficam em
+  `Infra/Compat.cs` (`db.TransacaoLeve()`, `ed.ZoomExtensao()`, `db.SalvarDxf()`): o ZWCAD 2024 não tem
+  StartOpenCloseTransaction nem Editor.Command, e o DxfOut dele pede um bool a mais. Como no AutoCAD, `EnumConverter` precisa de
+  apelido. Autoload (guia .NET do SDK): `HKCU\Software\ZWSOFT\ZWCAD\<ano>\<idioma>\Applications\ArmaduraBR` (LOADER = a própria
+  DLL do plugin, LOADCTRLS=2, MANAGED=1) — gravado pelo instalador único.
 - Autoteste: `tools\autoteste_autocad.ps1 -Versao <ano>` (instância NOVA do AutoCAD; relatório em
   `%AppData%\ArmaduraBR\logs\autoteste.txt`). Port da 0.1.21: 129 verificações, 0 falhas (AutoCAD 2026, em outra máquina).
-- Instalador: `instalador\gerar_autocad.bat` compila as 7 versões e gera `instalador\saida\ArmaduraBR_AutoCAD_Setup_<versão>.exe`:
+- Demo do AutoCAD: `-p:Demo=true` → `bin\demo\AutoCAD<ano>`. A pasta obj (inclusive a restauração do NuGet) é definida no
+  `src\Armadura.AutoCAD\Directory.Build.props` (`obj\<ano>` / `obj\demo<ano>`): no .csproj ela chegava tarde (aviso MSB3539).
+- Instalação no AutoCAD (componente do instalador único; o `gerar_autocad.bat` e o `.iss` próprio foram removidos):
   um bundle só em `%AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle` (sem admin), com um componente por série
   (R24.0…R26.0) apontando para `Contents\Windows\<ano>\` (`instalador\AutoCAD.bundle\PackageContents.xml`).
 - Código compartilhado NÃO usa mais `GrxCAD.*` direto: use os apelidos `PaletteSet`, `PaletteSetStyles` e `CadUtils`

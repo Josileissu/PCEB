@@ -43,7 +43,7 @@ public sealed class ComandosImportacao
         Log.Info($"ARMIMPORTARCAD {System.IO.Path.GetFileName(caminho)}: {resumo} ({relogio.Elapsed.TotalSeconds:0.0} s)");
         ed.WriteMessage("\n" + resumo);
         foreach (var a in r.Avisos) ed.WriteMessage("\nAviso: " + a);
-        try { ed.Command("_.ZOOM", "_E"); } catch { /* sem zoom em script */ }
+        try { ed.ZoomExtensao(); } catch { /* sem zoom em script */ }
     });
 
     private static string PedirArquivo(Editor ed) =>

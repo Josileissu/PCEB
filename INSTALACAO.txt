@@ -1,18 +1,21 @@
-ARMADURA BR - INSTALAÇÃO EM OUTRO COMPUTADOR (GstarCAD 2021)
-=============================================================
+ARMADURA BR - INSTALAÇÃO EM OUTRO COMPUTADOR (GstarCAD 2021, AutoCAD 2021 a 2027, ZWCAD 2024 a 2026)
+=====================================================================================================
 
-FORMA RECOMENDADA: INSTALADOR
------------------------------
+FORMA RECOMENDADA: INSTALADOR (um só para os três programas)
+------------------------------------------------------------
 1. Copie para o outro computador o arquivo instalador\saida\ArmaduraBR_Setup_<versão>.exe
    (para gerar uma versão nova do arquivo, rode instalador\gerar.bat).
-2. Feche o GstarCAD e rode o Setup. Ele não pede administrador.
+2. Feche o GstarCAD, o AutoCAD e o ZWCAD e rode o Setup. Ele não pede administrador.
    Se o Windows mostrar "O Windows protegeu o computador", clique em "Mais informações" e
    depois em "Executar assim mesmo".
-3. Abra o GstarCAD. O plugin carrega sozinho e a paleta Armadura aparece, com a aba "Comandos".
-- Atualizar: rode o Setup novo por cima.
-- Desinstalar: Configurações do Windows > Aplicativos > "Armadura BR para GstarCAD 2021".
+3. O Setup mostra os programas e já deixa marcados os que encontrou no computador.
+   Desmarque os que não quiser.
+4. Abra o programa. O plugin carrega sozinho e a paleta Armadura aparece, com a aba "Comandos".
+- Atualizar: rode o Setup novo por cima. Um programa desmarcado deixa de carregar o plugin.
+- Desinstalar: Configurações do Windows > Aplicativos > "Armadura BR".
 
-O passo a passo abaixo é a instalação MANUAL, sem o Setup.
+O passo a passo abaixo é a instalação MANUAL no GstarCAD, sem o Setup
+(AutoCAD: INSTALACAO_AUTOCAD.txt).
 
 
 REQUISITOS

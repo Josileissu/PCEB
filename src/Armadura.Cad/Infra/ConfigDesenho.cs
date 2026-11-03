@@ -82,7 +82,7 @@ internal static class ConfigDesenho
         {
             string json = null;
             // sempre Commit: no GstarCAD, abortar transações fora de hora atrapalha as notificações
-            using (var tr = db.TransactionManager.StartOpenCloseTransaction())
+            using (var tr = db.TransacaoLeve())
             {
                 var nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
                 if (nod.Contains(Chave))

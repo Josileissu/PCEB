@@ -2120,7 +2120,7 @@ public sealed class AutoTeste
             {
                 db.ReadDwgFile(entrada, FileOpenMode.OpenForReadAndAllShare, true, "");
                 db.CloseInput(true);
-                db.DxfOut(saida, 16, DwgVersion.Current);
+                db.SalvarDxf(saida, 16);
             }
             Log.Info($"ARMTESTEDXF: {entrada} → {saida}");
         }

@@ -22,3 +22,5 @@ info_auxiliar/
 # no Git vão as bibliotecas .NET de referência de cada versão (sdk/zwcad/<ano>/ref)
 sdk/*.exe
 sdk/zwcad/*/ZWCAD_*/
+sdk/grxsdk_*.zip
+sdk/GstarCAD202[2-9]_*.zip

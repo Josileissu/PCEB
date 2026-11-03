@@ -1,40 +1,61 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Plugin para GstarCAD 2021 (x64, .NET Framework 4.8).
-    Os fontes da camada CAD ficam em ..\Armadura.Cad (compartilhados com o futuro projeto AutoCAD);
-    os namespaces GrxCAD.* entram pelos "global using" de GlobalUsings.cs.
-    Carregar no GstarCAD: NETLOAD → bin\GstarCAD2021\ArmaduraBR.GstarCAD.dll
+    Plugin para GstarCAD 2021 a 2027 (x64). Os fontes da camada CAD ficam em ..\Armadura.Cad (compartilhados com AutoCAD e ZWCAD).
+    Versão do GstarCAD: -p:GstarVersao=2021…2027 (padrão 2021) → bin\GstarCAD<ano>\ArmaduraBR.GstarCAD.dll
+      2021:      SDK em sdk\grxsdk (gmap/gmdb, namespaces GrxCAD.*), .NET Framework 4.8
+      2022-2023: SDK em sdk\gstarcad\<ano>\ref (gmap/gmdb, GrxCAD.*), .NET Framework 4.8
+      2024-2025: SDK em sdk\gstarcad\<ano>\ref (GcMgd/GcDbMgd/GcCoreMgd, Gssoft.Gscad.*), .NET Framework 4.8
+      2026-2027: idem, .NET 8
+    Os namespaces entram pelos "global using" de GlobalUsings.cs (GrxCAD) ou GlobalUsings.Gssoft.cs (Gssoft.Gscad).
+    Demo (1 hora de uso): -p:Demo=true → bin\demo\GstarCAD<ano>. A pasta obj fica no Directory.Build.props.
+    Carregar no GstarCAD 2021: NETLOAD → bin\GstarCAD2021\ArmaduraBR.GstarCAD.dll (ou pelo carregador).
   -->
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(GstarVersao)' &lt; '2026'">
     <TargetFramework>net48</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(GstarVersao)' &gt;= '2026'">
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GstarApiNova Condition="'$(GstarVersao)' &gt;= '2024'">true</GstarApiNova>
+    <GrxRef Condition="'$(GstarVersao)' == '2021'">$(MSBuildThisFileDirectory)..\..\sdk\grxsdk\inc</GrxRef>
+    <GrxRef Condition="'$(GstarVersao)' != '2021'">$(MSBuildThisFileDirectory)..\..\sdk\gstarcad\$(GstarVersao)\ref</GrxRef>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>10.0</LangVersion>
     <Nullable>disable</Nullable>
     <AssemblyName>ArmaduraBR.GstarCAD</AssemblyName>
     <RootNamespace>Armadura.Cad</RootNamespace>
-    <DefineConstants>$(DefineConstants);GSTARCAD</DefineConstants>
-    <GrxSdk>$(MSBuildThisFileDirectory)..\..\sdk\grxsdk</GrxSdk>
-    <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\GstarCAD2021\</OutputPath>
-    <!-- versão de demonstração (1 hora de uso): build -p:Demo=true → bin\demo\GstarCAD2021 (instalador\gerar_demo.bat) -->
+    <DefineConstants>$(DefineConstants);GSTARCAD;GSTARCAD$(GstarVersao)</DefineConstants>
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\GstarCAD$(GstarVersao)\</OutputPath>
     <DefineConstants Condition="'$(Demo)' == 'true'">$(DefineConstants);DEMO</DefineConstants>
-    <OutputPath Condition="'$(Demo)' == 'true'">$(MSBuildThisFileDirectory)..\..\bin\demo\GstarCAD2021\</OutputPath>
+    <OutputPath Condition="'$(Demo)' == 'true'">$(MSBuildThisFileDirectory)..\..\bin\demo\GstarCAD$(GstarVersao)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.1.23</Version>
+    <Version>0.1.25</Version>
     <!-- sem o hash do commit na versão (o nome do Setup usa a ProductVersion) -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Reference Include="gmap">
-      <HintPath>$(GrxSdk)\inc\gmap.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="gmdb">
-      <HintPath>$(GrxSdk)\inc\gmdb.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
+  <!-- só para compilar: as DLLs do GstarCAD NÃO vão para a pasta de saída (o GstarCAD já as tem) -->
+  <ItemGroup Condition="'$(GstarApiNova)' != 'true'">
+    <Reference Include="gmap"><HintPath>$(GrxRef)\gmap.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="gmdb"><HintPath>$(GrxRef)\gmdb.dll</HintPath><Private>false</Private></Reference>
+    <Compile Include="GlobalUsings.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(GstarApiNova)' == 'true'">
+    <Reference Include="GcCoreMgd"><HintPath>$(GrxRef)\GcCoreMgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="GcDbMgd"><HintPath>$(GrxRef)\GcDbMgd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="GcMgd"><HintPath>$(GrxRef)\GcMgd.dll</HintPath><Private>false</Private></Reference>
+    <Compile Include="GlobalUsings.Gssoft.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
   </ItemGroup>
