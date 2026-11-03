@@ -115,7 +115,7 @@ internal static class ServicoFaixa
         }
         bool fechado = arco && Math.Abs(Math.Abs(f.AnguloFim - f.AnguloIni) - 2 * Math.PI) < 1e-6;
 
-        if (f.Tipo == TipoFaixa.Indicacao) f.Quantidade = 0;
+        if (f.Tipo == TipoFaixa.Indicacao) { if (f.Quantidade < 0) f.Quantidade = 0; } // só para o texto (0 = a da barra)
         else if (!f.QuantidadeDigitada)
             f.Quantidade = CalculoFaixa.Quantidade(comprimentoCm, f.Espacamento, f.EspacamentoInicial, cfg.ModoQuantidadeFaixa, fechado);
 
@@ -188,6 +188,8 @@ internal static class ServicoFaixa
         if (ent is MText texto2 && !f.OcultarLinhas)
         {
             var alvoTexto = new Point2d(texto2.Location.X, texto2.Location.Y);
+            // a linha termina um pouco afastada do texto, no lado de onde ela vem (pedido do usuário, 2026-11-03)
+            Point2d Alvo(Point2d de) => PontoNoTexto(texto2, de) ?? alvoTexto;
             if ((f.Tipo == TipoFaixa.Chamada || f.Tipo == TipoFaixa.Indicacao) && f.Patamar && f.Referencias.Count > 0
                 && Patamar(texto2, f.Referencias.Average(rf => rf.X)) is { } pat)
             {
@@ -196,12 +198,12 @@ internal static class ServicoFaixa
                 linhas.Add((pat.fim, pat.inicio, IndicePatamar));
             }
             else if (f.Tipo == TipoFaixa.Chamada || f.Tipo == TipoFaixa.Indicacao)
-                linhas.AddRange(f.Referencias.Select((rf, i) => (new Point2d(rf.X, rf.Y), alvoTexto, i)));
+                linhas.AddRange(f.Referencias.Select((rf, i) => (new Point2d(rf.X, rf.Y), Alvo(new Point2d(rf.X, rf.Y)), i)));
             else if (centros.Count > 0)
             {
                 var alvo = f.Tipo == TipoFaixa.CorteChamadaArco ? centros[centros.Count / 2]
                     : f.PontoChamada == 0 ? centros[0] : f.PontoChamada == 2 ? centros[centros.Count - 1] : centros[centros.Count / 2];
-                linhas.Add((alvo, alvoTexto, 0));
+                linhas.Add((alvo, Alvo(alvo), 0));
             }
             linhas.RemoveAll(l => !f.MostraLinha(l.indice));
         }
@@ -257,6 +259,22 @@ internal static class ServicoFaixa
         return (true, f.QuantidadeTotal);
     }
 
+    /// <summary>
+    /// Ponta da linha de chamada junto ao texto: no meio da altura, um pouco afastada (0,4 altura) do lado de onde a linha
+    /// vem — vinda da direita, à direita do texto; vinda da esquerda, à esquerda. null se o texto ainda não tem extensão.
+    /// </summary>
+    private static Point2d? PontoNoTexto(MText texto, Point2d de)
+    {
+        try
+        {
+            var ext = texto.GeometricExtents;
+            double h = texto.TextHeight, yM = (ext.MinPoint.Y + ext.MaxPoint.Y) / 2;
+            bool direita = de.X >= (ext.MinPoint.X + ext.MaxPoint.X) / 2;
+            return new Point2d(direita ? ext.MaxPoint.X + 0.4 * h : ext.MinPoint.X - 0.4 * h, yM);
+        }
+        catch (Exception) { return null; }
+    }
+
     /// <summary>Índice da linha do patamar (não é uma referência).</summary>
     private const int IndicePatamar = 1000;
 
@@ -295,6 +313,8 @@ internal static class ServicoFaixa
             {
                 var fim = new Point2d(ln.EndPoint.X, ln.EndPoint.Y);
                 if (fim.GetDistanceTo(loc) <= tol) return d;
+                // ponta ao lado do texto: o texto e a linha andaram juntos se a ponta continua onde o texto (já movido) a põe
+                if (PontoNoTexto(mt, new Point2d(ln.StartPoint.X, ln.StartPoint.Y)) is Point2d alvo && fim.GetDistanceTo(alvo) <= tol) return d;
                 if (inicioPatamar.HasValue && fim.GetDistanceTo(inicioPatamar.Value) <= tol) return d;
             }
             if (f.TemCirculo0)

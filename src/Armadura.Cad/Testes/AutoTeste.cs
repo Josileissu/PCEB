@@ -536,7 +536,16 @@ public sealed class AutoTeste
                 Nova("K2", 8, (5000, 100), (5200, 100), (5200, 140));
                 var f = new DadosFaixa { Tipo = TipoFaixa.Chamada, Quantidade = 4 };
                 f.Referencias.Add((5100, 0));
-                ServicoFaixa.Criar(tr, k1, f, new Point3d(5150, 40, 0), cfg);
+                var fidK1 = ServicoFaixa.Criar(tr, k1, f, new Point3d(5150, 40, 0), cfg);
+                // a linha de chamada vem da esquerda (5100) para o texto (à direita): termina à ESQUERDA do texto, pouco afastada
+                {
+                    var mtK = (MText)tr.GetObject(fidK1, OpenMode.ForRead);
+                    var ext = mtK.GeometricExtents;
+                    var lnK = ServicoFaixa.Ler(mtK).Partes.Select(hp => Ent<Entity>(tr, db, hp)).OfType<Line>().FirstOrDefault();
+                    double folga = lnK == null ? -1 : ext.MinPoint.X - lnK.EndPoint.X;
+                    Rel.AppendLine(FormattableString.Invariant($"        chamada: ponta da linha a {folga:0.###} do texto (altura {mtK.TextHeight:0.###})"));
+                    Checar(lnK != null && folga > 0 && folga < mtK.TextHeight, "chamada: a linha termina um pouco afastada, do lado de onde vem (à esquerda do texto)");
+                }
 
                 // tudo o que pertence a K1 e K2 (barras, textos, faixa e linhas)
                 var ids = new List<ObjectId>();
@@ -643,6 +652,21 @@ public sealed class AutoTeste
                     Rel.AppendLine("        RA parcial V1: " + string.Join(" | ", linhas.Select(l => string.Join(" ", l))));
                     Checar(linhas.Count == 2 && linhas.Select(l => l[3]).OrderBy(x => x).SequenceEqual(new[] { "2", "8" }),
                         "RA parcial: só as barras de V1, × 2 inserções (8 e 2)");
+                    // repetições digitadas na paleta (5 peças com 2 inserções): K1 4×5 = 20, K2 1×5 = 5; 0 volta às inserções
+                    var defV1 = (BlockTableRecord)tr.GetObject(((BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead))["V1"], OpenMode.ForWrite);
+                    var dV1 = Relacao.ServicoDetalhamento.Ler(defV1);
+                    dV1.Repeticoes = 5;
+                    Relacao.ServicoDetalhamento.Gravar(db, tr, defV1, dV1);
+                    Relacao.ServicoRA.Atualizar(db, tr, cfg);
+                    var l5 = LinhasRelacao(tp);
+                    Rel.AppendLine("        RA parcial V1 com 5 repetições: " + string.Join(" | ", l5.Select(l => string.Join(" ", l))));
+                    dV1.Repeticoes = 0;
+                    Relacao.ServicoDetalhamento.Gravar(db, tr, defV1, dV1);
+                    Relacao.ServicoRA.Atualizar(db, tr, cfg);
+                    var l2 = LinhasRelacao(tp);
+                    Checar(l5.Select(l => l[3]).OrderBy(x => x).SequenceEqual(new[] { "20", "5" }) &&
+                           l2.Select(l => l[3]).OrderBy(x => x).SequenceEqual(new[] { "2", "8" }),
+                        "repetições do detalhamento digitadas (5) valem no lugar das inserções; 0 volta às inserções");
                 }
 
                 // numeração Individual: recomeça no detalhamento; coluna ELEMENTO

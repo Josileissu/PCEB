@@ -20,5 +20,10 @@ public sealed class DadosDetalhamento
     public SistemaConstrutivo Sistema { get; set; } = SistemaConstrutivo.MoldadoInLoco;
     /// <summary>Não aparecem no desenho.</summary>
     public string Comentarios { get; set; } = "";
+    /// <summary>
+    /// Quantidade de peças iguais digitada pelo usuário (pedido de 2026-11-03); 0 = automático (nº de inserções do bloco no
+    /// desenho). Com valor, a relação do aço multiplica por ele em vez das inserções.
+    /// </summary>
+    public int Repeticoes { get; set; }
     public int Numero { get; set; }
 }

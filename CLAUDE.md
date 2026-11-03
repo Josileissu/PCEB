@@ -196,6 +196,11 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   referência de layers, cotas e arranjo. Para medir: copie para o scratchpad, ARMTESTEDXF (ARM_DXF_ENTRADA/SAIDA) numa
   instância nova e leia com ezdxf (`python -E -P`). Prévia rápida do template sem CAD: `tools/previa_template.py`.
 - Autoteste × config do usuário: a cópia de teste também fixa `TipoNumeracao` = 0 (Global); ele usa Individual.
+- Linha de chamada (sem patamar) termina ao lado do texto, 0,4 altura afastada, do lado de onde vem (`ServicoFaixa.PontoNoTexto`;
+  pedido de 2026-11-03); `DeslocamentoDoConjunto` reconhece essa ponta para o MOVE de tudo.
+- Indicação com quantidade/diâmetro/espaçamento opcionais (`IndicarQuantidade/Diametro/Espacamento`, XData IQT/IDI/IES; quantidade
+  digitada, 0 = a da barra; nunca soma). Detalhamento com repetições digitadas (`DadosDetalhamento.Repeticoes`, XData "REP";
+  0 = nº de inserções): `ServicoRA.Coletar` troca as inserções pelo valor.
 - Indicação/chamada com **patamar** (`DadosFaixa.Patamar`, XData "PAT"; paleta "Patamar na chamada"): as linhas das referências
   terminam num ponto ao lado do texto e um trecho horizontal liga ao texto (índice da linha = 1000). Templates: `FaixaTemplate.Patamar`.
 - Cotas dos templates no estilo do escritório: `Infra/EstilosCota` cria ESTRUT{escala} (9/9/9/5/3, tique oblíquo, DIMZIN 8,

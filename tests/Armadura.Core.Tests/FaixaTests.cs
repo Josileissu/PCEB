@@ -45,6 +45,22 @@ public class FaixaTests
     }
 
     [Fact]
+    public void IndicacaoComQuantidadeDiametroEspacamento()
+    {
+        var cfg = new ConfiguracaoArmadura { SimboloDiametro = "ø" };
+        var barra = new DadosArmadura { Numero = 3, Bitola = 10, Quantidade = 12, Espacamento = 15 };
+        var f = new DadosFaixa { Tipo = TipoFaixa.Indicacao };
+        Assert.Equal("N3", TextoFaixa.Formatar(f, barra, cfg)); // padrão: como antes
+        f.IndicarQuantidade = true; f.IndicarDiametro = true; f.IndicarEspacamento = true;
+        Assert.Equal("12 N3 ø10.0 c/15", TextoFaixa.Formatar(f, barra, cfg)); // 0 = quantidade da barra
+        f.Quantidade = 4;
+        Assert.Equal("4 N3 ø10.0 c/15", TextoFaixa.Formatar(f, barra, cfg));
+        Assert.Equal(0, f.QuantidadeTotal); // a indicação não soma na barra
+        var x = Armadura.Core.Persistencia.CodecDados.DecodificarFaixa(Armadura.Core.Persistencia.CodecDados.Codificar(f));
+        Assert.True(x.IndicarQuantidade && x.IndicarDiametro && x.IndicarEspacamento);
+    }
+
+    [Fact]
     public void TextosDasFaixas()
     {
         var cfg = new ConfiguracaoArmadura { SimboloDiametro = "ø" };
