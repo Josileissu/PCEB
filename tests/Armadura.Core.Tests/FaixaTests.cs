@@ -58,6 +58,16 @@ public class FaixaTests
         Assert.Equal(0, f.QuantidadeTotal); // a indicação não soma na barra
         var x = Armadura.Core.Persistencia.CodecDados.DecodificarFaixa(Armadura.Core.Persistencia.CodecDados.Codificar(f));
         Assert.True(x.IndicarQuantidade && x.IndicarDiametro && x.IndicarEspacamento);
+        // um nome só na paleta: "Mostrar…" liga o "Indicar…" na indicação e o "Mostrar…" nas outras
+        var ind = new DadosFaixa { Tipo = TipoFaixa.Indicacao };
+        Assert.False(ind.QuantidadeNoTexto || ind.DiametroNoTexto || ind.EspacamentoNoTexto);
+        ind.QuantidadeNoTexto = true;
+        Assert.True(ind.IndicarQuantidade && ind.MostrarQuantidade);
+        var orto = new DadosFaixa { Tipo = TipoFaixa.Ortogonal };
+        Assert.True(orto.QuantidadeNoTexto);
+        orto.QuantidadeNoTexto = false;
+        Assert.False(orto.MostrarQuantidade);
+        Assert.False(orto.IndicarQuantidade);
     }
 
     [Fact]

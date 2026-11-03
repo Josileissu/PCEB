@@ -89,21 +89,8 @@ public sealed class ComandosTemplate
         return $"{arq.Modelos.Count} modelo(s) de {t.Nome} exportados para {caminho}.";
     }
 
-    /// <summary>Caminho de arquivo: diálogo, ou digitado quando há script ativo (o autoteste não mexe no FILEDIA).</summary>
-    private static string PedirArquivo(Editor ed, bool salvar, string titulo, string sugestao)
-    {
-        bool script = false;
-        try { script = (Convert.ToInt32(CadApp.GetSystemVariable("CMDACTIVE")) & 4) != 0; } catch { }
-        if (!script)
-        {
-            using FileDialog d = salvar ? new SaveFileDialog { FileName = sugestao } : new OpenFileDialog();
-            d.Title = titulo;
-            d.Filter = "Modelos (*.csv)|*.csv|Todos os arquivos|*.*";
-            return d.ShowDialog() == DialogResult.OK ? d.FileName : null;
-        }
-        var r = ed.GetString(new PromptStringOptions("\nArquivo .csv:") { AllowSpaces = true });
-        return r.Status == PromptStatus.OK && r.StringResult.Trim().Length > 0 ? r.StringResult.Trim().Trim('"') : null;
-    }
+    private static string PedirArquivo(Editor ed, bool salvar, string titulo, string sugestao) =>
+        Arquivos.Pedir(ed, salvar, titulo, "Modelos (*.csv)|*.csv|Todos os arquivos|*.*", ".csv", sugestao);
 
     /// <summary>Escolhe o template pela 1ª palavra do nome (Pilar, Base…).</summary>
     private static ITemplateArmadura PedirTemplate(Editor ed)
@@ -517,7 +504,7 @@ internal sealed class FormTemplate : Form
         abrir.Click += (s, e) => Tentar(() =>
         {
             ModelosTemplates.Obter(Escolhido);
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(ModelosTemplates.Caminho(Escolhido)) { UseShellExecute = true });
+            Arquivos.Abrir(ModelosTemplates.Caminho(Escolhido));
         });
 
         lista.AfterSelect += (s, e) =>

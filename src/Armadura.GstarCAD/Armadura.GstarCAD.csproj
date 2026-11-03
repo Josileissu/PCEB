@@ -21,7 +21,7 @@
     <OutputPath Condition="'$(Demo)' == 'true'">$(MSBuildThisFileDirectory)..\..\bin\demo\GstarCAD2021\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.1.22</Version>
+    <Version>0.1.23</Version>
     <!-- sem o hash do commit na versão (o nome do Setup usa a ProductVersion) -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>

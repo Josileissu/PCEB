@@ -1646,12 +1646,7 @@ public sealed class AutoTeste
             f.Modelos.SelectedItem = f.Modelos.Items.Cast<string>().First(x => x == "PTESTE");
             bool janela = f.Valores["B"] == "45" && f.Valores.Tabela("Consolos").Count == 2;
             var saidaM = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
-            if (!string.IsNullOrEmpty(saidaM))
-                using (var bmp = new System.Drawing.Bitmap(f.Width, f.Height))
-                {
-                    f.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, f.Width, f.Height));
-                    bmp.Save(Path.Combine(Path.GetDirectoryName(saidaM), "autoteste_janela_template.png"));
-                }
+            SalvarJanela(f, saidaM, "autoteste_janela_template.png");
             f.Close();
             Checar(vt["B"] == "45" && vt["H"] == "55.5" && exportou && janela,
                 $"modelos do template: importar, exportar e abrir na janela (B={vt["B"]}, H={vt["H"]}, exportou {exportou}, janela {janela})");
@@ -1731,12 +1726,7 @@ public sealed class AutoTeste
             fl.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             fl.Location = new System.Drawing.Point(-3000, -3000);
             fl.Show();
-            if (!string.IsNullOrEmpty(saidaL))
-                using (var bmp = new System.Drawing.Bitmap(fl.Width, fl.Height))
-                {
-                    fl.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, fl.Width, fl.Height));
-                    bmp.Save(Path.Combine(Path.GetDirectoryName(saidaL), "autoteste_janela_longitudinais.png"));
-                }
+            SalvarJanela(fl, saidaL, "autoteste_janela_longitudinais.png");
             // trocar para "Cantos" esvazia "barras por face"
             fl.Digitar(2, 0, "Cantos");
             bool vazio = fl.Celula(2, 1) == "";
@@ -1753,12 +1743,7 @@ public sealed class AutoTeste
             f.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             f.Location = new System.Drawing.Point(-3000, -3000); // fora da tela
             f.Show();
-            if (!string.IsNullOrEmpty(saidaF))
-                using (var bmp = new System.Drawing.Bitmap(f.Width, f.Height))
-                {
-                    f.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, f.Width, f.Height));
-                    bmp.Save(Path.Combine(Path.GetDirectoryName(saidaF), "autoteste_janela_consolos.png"));
-                }
+            SalvarJanela(f, saidaF, "autoteste_janela_consolos.png");
             // faces em lista conforme o tipo: duplo já ocupa as duas faces opostas
             bool facesOk = f.Celula(0, 1) == "1 e 3" && f.Celula(1, 1) == "2";
             f.Digitar(1, 0, "CD 40x23,5x25");
@@ -2091,6 +2076,15 @@ public sealed class AutoTeste
         try { CadApp.SetSystemVariable("TILEMODE", 1); } catch (Exception ex) { Log.Erro("ARMTESTEMODELO", ex); }
     }
 
+    /// <summary>PNG de uma janela (ao lado do DWG de saída do autoteste), para conferir.</summary>
+    private static void SalvarJanela(System.Windows.Forms.Control janela, string saida, string arquivo)
+    {
+        if (string.IsNullOrEmpty(saida)) return;
+        using var bmp = new System.Drawing.Bitmap(janela.Width, janela.Height);
+        janela.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, janela.Width, janela.Height));
+        bmp.Save(Path.Combine(Path.GetDirectoryName(saida), arquivo));
+    }
+
     [Rt.CommandMethod("ARMTESTEMARCA")]
     public void Marca() => Log.Info($"autoteste: marca {++_marca}");
 
@@ -2105,6 +2099,10 @@ public sealed class AutoTeste
             CadApp.Quit();
         }
         catch (Exception ex) { Log.Erro("ARMTESTEFIM", ex); }
+        // desde o teste com layout/viewport o Quit nem sempre fecha a instância (ela ficava aberta até o limite do roteiro,
+        // relato do usuário em 2026-11-03): o desenho já foi salvo e o FILEDIA devolvido — encerra a instância de TESTE
+        Log.Info("autoteste: fim — encerrando a instância de teste");
+        System.Diagnostics.Process.GetCurrentProcess().Kill();
     }
 
     /// <summary>

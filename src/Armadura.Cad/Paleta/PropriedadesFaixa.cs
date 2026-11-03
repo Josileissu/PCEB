@@ -109,19 +109,12 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
 
     private const string GT = "Texto da faixa";
 
+    // um nome só para todos os tipos (na indicação vem desligado; ela não soma na barra) — pedido de 2026-11-03
     [Category(GT), DisplayName("Mostrar quantidade"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Quantidade")]
     public bool MostrarQuantidade
     {
-        get => F.MostrarQuantidade;
-        set => Campo(f => f.MostrarQuantidade = value);
-    }
-
-    [Category(GT), DisplayName("Indicar quantidade"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Indicacao"),
-     Description("Mostra a quantidade no texto da indicação (não soma na barra).")]
-    public bool IndicarQuantidade
-    {
-        get => F.IndicarQuantidade;
-        set => Campo(f => f.IndicarQuantidade = value);
+        get => F.QuantidadeNoTexto;
+        set => Campo(f => f.QuantidadeNoTexto = value);
     }
 
     [Category(GT), DisplayName("Quantidade indicada"), SoQuando("Indicacao"),
@@ -136,21 +129,6 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
         }
     }
 
-    [Category(GT), DisplayName("Indicar diâmetro"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Indicacao")]
-    public bool IndicarDiametro
-    {
-        get => F.IndicarDiametro;
-        set => Campo(f => f.IndicarDiametro = value);
-    }
-
-    [Category(GT), DisplayName("Indicar espaçamento"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Indicacao"),
-     Description("O espaçamento da barra (\"c/15\"), se ela tiver.")]
-    public bool IndicarEspacamento
-    {
-        get => F.IndicarEspacamento;
-        set => Campo(f => f.IndicarEspacamento = value);
-    }
-
     [Category(GT), DisplayName("Mostrar posição (N)"), TypeConverter(typeof(SimNaoConverter))]
     public bool MostrarPosicao
     {
@@ -161,8 +139,8 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
     [Category(GT), DisplayName("Mostrar diâmetro"), TypeConverter(typeof(SimNaoConverter)), SoQuando("DiametroEspacamento")]
     public bool MostrarDiametro
     {
-        get => F.MostrarDiametro;
-        set => Campo(f => f.MostrarDiametro = value);
+        get => F.DiametroNoTexto;
+        set => Campo(f => f.DiametroNoTexto = value);
     }
 
     [Category(GT), DisplayName("Mostrar comprimento"), TypeConverter(typeof(SimNaoConverter)), SoQuando("Cota"),
@@ -173,11 +151,12 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
         set => Campo(f => f.MostrarComprimento = value);
     }
 
-    [Category(GT), DisplayName("Mostrar espaçamento"), TypeConverter(typeof(SimNaoConverter)), SoQuando("DiametroEspacamento")]
+    [Category(GT), DisplayName("Mostrar espaçamento"), TypeConverter(typeof(SimNaoConverter)), SoQuando("DiametroEspacamento"),
+     Description("Na indicação, o espaçamento da barra (\"c/15\"), se ela tiver.")]
     public bool MostrarEspacamento
     {
-        get => F.MostrarEspacamento;
-        set => Campo(f => f.MostrarEspacamento = value);
+        get => F.EspacamentoNoTexto;
+        set => Campo(f => f.EspacamentoNoTexto = value);
     }
 
     private void Campo(Action<DadosFaixa> aplicar)

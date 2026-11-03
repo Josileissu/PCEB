@@ -695,7 +695,7 @@ public sealed class Comandos
         if (r.Status != PromptStatus.OK && r.Status != PromptStatus.None) return;
         if (r.StringResult == "Abrir")
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Layers.Caminho) { UseShellExecute = true });
+            Arquivos.Abrir(Layers.Caminho);
             return;
         }
         int n = 0;
