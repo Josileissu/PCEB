@@ -134,7 +134,6 @@ Estudo em `robustez_e_estabilidade.md`.
 16. **Titular do copyright**: usei "Marquezin" (o mesmo nome do instalador do Armadura BR). Confirmar o nome correto.
 17. **Versão demo de 1 hora do Armadura BR**: num programa livre deixa de fazer sentido. Remover?
 18. ~~StructuralDetailer no Git~~ — respondida por D16 (entra no repositório do PCEB).
-19. **Etapa 0 da migração**: o trabalho pendente do Armadura BR (instalador único) está concluído e pode ser commitado?
-    Há outra sessão trabalhando nessa pasta?
-20. **GitHub**: renomear o repositório privado `armadura-gstarcad` para o PCEB ou criar um novo?
-21. **Sigla do plugin** (para nomes de DLL/pastas): `DetalhadorEstrutural` por extenso, ou uma sigla (ex.: DEB)?
+19. ~~Etapa 0~~ — **feita pelo usuário** (commits c599805 e 667a25a no armadura, já no GitHub).
+20. ~~GitHub~~ — **feito (03/11/2026)**: `armadura-gstarcad` renomeado para **github.com/Josileissu/PCEB** (privado); remoto local do armadura atualizado.
+21. ~~Sigla do plugin~~ — **respondida**: **DEB** (Detalhador Estrutural Brasileiro) nos nomes técnicos (pastas, DLLs, namespaces).

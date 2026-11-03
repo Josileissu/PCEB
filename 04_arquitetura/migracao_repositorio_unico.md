@@ -10,8 +10,8 @@ PCEB/
   docs/                         estudo atual (00_escopo, 01_catalogo, 02_biblioteca, ...)
   src/
     Nucleo/                     regras e cálculos sem plataforma (nasce do Armadura.Core, netstandard2.0)
-    DetalhadorEstrutural.Cad/   ex-Armadura BR: GstarCAD, AutoCAD, ZWCAD (fonte compartilhada + um projeto por CAD)
-    DetalhadorEstrutural.Revit/ ex-StructuralDetailer
+    DEB.Cad/                    ex-Armadura BR: GstarCAD, AutoCAD, ZWCAD (fonte compartilhada + um projeto por CAD)
+    DEB.Revit/                  ex-StructuralDetailer
     (futuro) .Blender/ .FreeCAD/ App/
   tests/
   instalador/
