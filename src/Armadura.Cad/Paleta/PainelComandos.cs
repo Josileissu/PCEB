@@ -28,7 +28,7 @@ internal static class PainelComandos
         ("Geral", new[] { ("Importar .cad", "ARMIMPORTARCAD"), ("Paleta prop.", "ARMPALETA"), ("Prop. rápida", "ARMPALETARAPIDA"), ("Configuração", "ARMCONFIG"), ("Sobre", "ARMSOBRE") }),
     };
 
-    private static GrxCAD.Windows.PaletteSet _ps;
+    private static PaletteSet _ps;
     private static Painel _painel;
 
     public static bool Visivel => _ps != null && _ps.Visible;
@@ -48,9 +48,9 @@ internal static class PainelComandos
 
     private static void Criar()
     {
-        _ps = new GrxCAD.Windows.PaletteSet("Armadura - Comandos", new System.Guid("3B9E5C21-7D4F-4A86-B1C2-8E0F6A9D4C37"))
+        _ps = new PaletteSet("Armadura - Comandos", new System.Guid("3B9E5C21-7D4F-4A86-B1C2-8E0F6A9D4C37"))
         {
-            Style = GrxCAD.Windows.PaletteSetStyles.ShowCloseButton | GrxCAD.Windows.PaletteSetStyles.ShowAutoHideButton,
+            Style = PaletteSetStyles.ShowCloseButton | PaletteSetStyles.ShowAutoHideButton,
             MinimumSize = new Size(120, 150),
             Size = new Size(310, 600),
         };
@@ -72,7 +72,7 @@ internal static class PainelComandos
             var prefixo = string.IsNullOrEmpty(doc.CommandInProgress) ? "" : "\x1B\x1B";
             Log.Info($"Paleta de comandos: {cmd} (em andamento: '{doc.CommandInProgress}')");
             doc.SendStringToExecute(prefixo + "_" + cmd + " ", true, false, true);
-            try { GrxCAD.Internal.Utils.SetFocusToDwgView(); } catch { }
+            try { CadUtils.SetFocusToDwgView(); } catch { }
         }
         catch (System.Exception ex) { Log.Erro("Paleta de comandos: " + cmd, ex); }
     }
@@ -109,7 +109,7 @@ internal static class PainelComandos
 
             foreach (var (grupo, botoes) in Grupos)
             {
-                var titulo = new Label { Text = grupo, AutoSize = false, Height = AlturaTitulo, Font = new Font(Font, FontStyle.Bold) };
+                var titulo = new Label { Text = grupo, AutoSize = false, Height = AlturaTitulo, Font = new System.Drawing.Font(Font, FontStyle.Bold) };
                 if (escuro) titulo.ForeColor = texto;
                 Controls.Add(titulo);
                 var lista = new List<Button>();

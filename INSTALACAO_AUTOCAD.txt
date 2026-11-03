@@ -1,0 +1,148 @@
+ARMADURA BR - INSTALAÇÃO NO AUTOCAD 2026
+=========================================
+
+FORMA RECOMENDADA: INSTALADOR
+-----------------------------
+1. Copie para o outro computador o arquivo
+   instalador\saida\ArmaduraBR_AutoCAD_Setup_<versão>.exe
+   (para gerar uma versão nova do arquivo, rode instalador\gerar_autocad.bat).
+2. Feche o AutoCAD e rode o Setup. Ele não pede administrador.
+   Se o Windows mostrar "O Windows protegeu o computador", clique em "Mais informações" e
+   depois em "Executar assim mesmo".
+3. Abra o AutoCAD 2026. O plugin carrega sozinho e a paleta Armadura aparece, com a aba
+   "Comandos".
+- Atualizar: rode o Setup novo por cima.
+- Desinstalar: Configurações do Windows > Aplicativos > "Armadura BR para AutoCAD 2026".
+
+O passo a passo abaixo é a instalação MANUAL, sem o Setup.
+
+
+REQUISITOS
+- AutoCAD 2026 64 bits (série R25.1).
+- .NET 8 Desktop Runtime (o AutoCAD 2026 já usa .NET 8; se o Windows pedir, instale o
+  "Microsoft .NET Desktop Runtime 8.0 x64").
+
+
+1) COPIAR OS ARQUIVOS
+---------------------
+O plugin usa o Autoloader do AutoCAD. A pasta final deve ficar assim:
+
+    %AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle\
+        PackageContents.xml
+        Contents\
+            Windows\
+                ArmaduraBR.AutoCAD.dll
+                Armadura.Core.dll
+            Help\
+                INSTALACAO_AUTOCAD.txt
+
+No computador onde o projeto foi compilado, os arquivos estão em:
+
+    armadura\instalador\AutoCAD2026.bundle\PackageContents.xml
+    armadura\bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll
+    armadura\bin\AutoCAD2026\Armadura.Core.dll
+    armadura\INSTALACAO_AUTOCAD.txt
+
+Copie o PackageContents.xml para a raiz do bundle e as duas DLLs para Contents\Windows.
+Prefira um disco local (C:\) a uma pasta de rede.
+
+
+2) DESBLOQUEAR AS DLLs (se vieram por e-mail, download, pendrive ou ZIP)
+-----------------------------------------------------------------------
+Para cada .dll: clique com o botão direito > Propriedades > marque "Desbloquear" > OK.
+Se as DLLs ficarem bloqueadas, o AutoCAD não carrega o plugin e não mostra nenhum erro.
+Alternativa: no PowerShell, rode:
+    Get-ChildItem "$env:AppData\Autodesk\ApplicationPlugins\ArmaduraBR.bundle" -Recurse -Filter *.dll | Unblock-File
+
+
+3) CARREGAR NO AUTOCAD (escolha UMA das opções)
+-----------------------------------------------
+Opção A - automático ao abrir o AutoCAD (recomendado)
+  Feche o AutoCAD, copie a pasta do bundle para
+  %AppData%\Autodesk\ApplicationPlugins\ (o caminho acima) e abra o AutoCAD.
+  A pasta ApplicationPlugins é confiável por padrão, mesmo com SECURELOAD=1.
+
+Opção B - manual, a cada sessão
+  No AutoCAD, digite NETLOAD e escolha:
+    %AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle\Contents\Windows\ArmaduraBR.AutoCAD.dll
+  Carregue sempre a DLL de Contents\Windows (junto com a Armadura.Core.dll na mesma pasta).
+
+
+4) CONFERIR
+-----------
+Reabra o AutoCAD. A linha de comando deve mostrar "Armadura 0.1.21 carregado".
+- A paleta "Armadura" abre sozinha. Se não abrir, digite ARMPALETA.
+- A aba "Comandos" da paleta tem os botões de todas as funções.
+- Digite ARMSOBRE para ver a versão e o aviso de uso.
+- Se o AutoCAD mostrar "não foi possível carregar" ou não reconhecer os comandos, confira:
+  * a DLL está desbloqueada (passo 2);
+  * as duas DLLs estão na mesma pasta Contents\Windows;
+  * o AutoCAD é 2026 (R25.1) e 64 bits;
+  * o caminho em PackageContents.xml aponta para .\Contents\Windows\ArmaduraBR.AutoCAD.dll.
+
+
+5) ATUALIZAR PARA UMA VERSÃO NOVA
+---------------------------------
+Feche o AutoCAD e substitua os arquivos do bundle pelos novos (ou rode o Setup novo por
+cima). Se o AutoCAD estiver aberto, ele mantém a versão antiga até ser reiniciado.
+
+
+6) DESINSTALAR
+--------------
+- Opção A: Configurações do Windows > Aplicativos > "Armadura BR para AutoCAD 2026".
+- Opção B: feche o AutoCAD e apague a pasta
+  %AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle
+- (Opcional) Configurações e logs ficam em %AppData%\ArmaduraBR.
+
+
+OBSERVAÇÃO
+----------
+Os desenhos abrem normalmente em computadores sem o plugin: são polilinhas, textos e tabelas
+comuns (LWPOLYLINE, MTEXT, TEXT e TABLE nativa, com XData do plugin). Sem o plugin, as cotas,
+as descrições e a relação do aço apenas deixam de se atualizar sozinhas.
+
+
+COMANDOS
+----------
+ARMADURA — RESUMO DOS COMANDOS (plugin ArmaduraBR)
+Carregar: Autoloader (ApplicationPlugins) ou NETLOAD → ...\Contents\Windows\ArmaduraBR.AutoCAD.dll
+
+BARRAS
+ARMBARRA — desenha a armadura por pontos [Bitola/Aco/Quantidade/Espacamento; Arco/Desfazer]
+ARMBARRA → Cobrimento — desenha clicando nas linhas da forma (desconta o cobrimento)
+ARMCONVERTER — transforma polilinhas em armaduras
+ARMPROP — altera as propriedades da barra pela linha de comando
+ARMEDITSEG — segmento: comprimento, gancho 45/90/180, VAR, cotar
+ARMRECOTA — devolve a cota apagada de um segmento
+ARMREBATER — rebate a barra (fica uma cópia vinculada no lugar original)
+ARMDIVIDIR — divide com traspasse (clique no ponto ou Enter = pelo comprimento comercial)
+
+ESTRIBOS, TRELIÇAS E TELAS
+ARMESTRIBO — diálogo: simples, aberto, múltiplo, pente, circular; seção, rebatido e faixas
+ARMESTRIBOREP — repete o último estribo sem abrir o diálogo
+ARMTRELICA — treliça por 2 pontos do banzo inferior [Modelo/Quantidade/Espacamento]
+ARMTELA — tela soldada por 2 cantos do painel [Modelo]
+
+FAIXAS (quantidade da barra = soma das faixas)
+ARMFAIXAORT / ARMFAIXAALI — faixa com cota ortogonal / alinhada
+ARMCORTECOTAORT / ARMCORTECOTAALI — cota + barras em corte
+ARMCORTECHAMADA / ARMCORTECHAMADAARCO — barras em corte + chamada (reta / arco)
+ARMCHAMADA — chamada com quantidade digitada      ARMINDICACAO — só indica o N (não soma)
+
+RELAÇÃO DO AÇO
+ARMRAINSERIR — insere a tabela [Apresentacao/Resumo/PesoTotal/Dobra (detalhe de dobra)]
+ARMRAATUALIZAR — renumera e atualiza descrições e tabelas
+ARMRAPARCIAL — relação só dos detalhamentos (blocos) escolhidos
+ARMRAASSOCIAR — move blocos para outra relação parcial
+ARMRABLOQUEAR — liga/desliga o bloqueio (revisões: novas/alteradas com *)
+ARMCORTEDOBRA — lista de corte e dobra (CSV + HTML) ao lado do DWG
+(A relação é atualizada sozinha antes de plotar, exportar e salvar.)
+
+DETALHAMENTOS (BLOCOS)
+ARMDETCRIAR — transforma a seleção em detalhamento (bloco nomeado)
+ARMDETGERENCIAR — grade com todos os detalhamentos (grupo, pavimento, volume…)
+
+GERAL
+ARMPALETA — paleta de propriedades (barras, tabelas e detalhamentos)
+ARMCONFIG — configuração [Abrir/Recarregar/GravarNoDesenho/EditarDoDesenho/RemoverDoDesenho]
+ARMSOBRE — versão e aviso: o plugin não dimensiona, só desenha, numera e quantifica

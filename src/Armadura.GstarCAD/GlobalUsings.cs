@@ -9,3 +9,7 @@ global using GrxCAD.Geometry;
 global using Gi = GrxCAD.GraphicsInterface;
 global using Rt = GrxCAD.Runtime;
 global using CadApp = GrxCAD.ApplicationServices.Application;
+// Paleta e foco: o projeto AutoCAD troca estes apelidos por Autodesk.AutoCAD.*.
+global using PaletteSet = GrxCAD.Windows.PaletteSet;
+global using PaletteSetStyles = GrxCAD.Windows.PaletteSetStyles;
+global using CadUtils = GrxCAD.Internal.Utils;
