@@ -1,14 +1,15 @@
-; Instalador do Armadura BR para AutoCAD 2026 (Inno Setup 6).
+﻿; Instalador do Armadura BR para AutoCAD 2021 a 2027 (Inno Setup 6): uma DLL compilada para cada versão no mesmo bundle.
 ; Gera um bundle do Autoloader em %AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle.
 ; Gerar: instalador\gerar_autocad.bat (compila o plugin e roda o ISCC).
 
 #define Raiz ".."
 #define DllPlugin Raiz + "\bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll"
+; versões incluídas (cada uma em bin\AutoCAD<ano>; o gerar_autocad.bat compila todas)
 #define Versao GetStringFileInfo(DllPlugin, "ProductVersion")
 
 [Setup]
 AppId={{6B7A0FEC-1FB7-48F2-A698-A0CEAA1EBF03}
-AppName=Armadura BR para AutoCAD 2026
+AppName=Armadura BR para AutoCAD (2021 a 2027)
 AppVersion={#Versao}
 AppPublisher=Marquezin
 DefaultDirName={userappdata}\Autodesk\ApplicationPlugins\ArmaduraBR.bundle
@@ -22,16 +23,32 @@ OutputBaseFilename=ArmaduraBR_AutoCAD_Setup_{#Versao}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-UninstallDisplayName=Armadura BR para AutoCAD 2026
+UninstallDisplayName=Armadura BR para AutoCAD (2021 a 2027)
 
 [Languages]
 Name: "ptbr"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Files]
-Source: "{#Raiz}\instalador\AutoCAD2026.bundle\PackageContents.xml"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#Raiz}\bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll"; DestDir: "{app}\Contents\Windows"; Flags: ignoreversion
-Source: "{#Raiz}\bin\AutoCAD2026\Armadura.Core.dll"; DestDir: "{app}\Contents\Windows"; Flags: ignoreversion
+Source: "{#Raiz}\instalador\AutoCAD.bundle\PackageContents.xml"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2021\ArmaduraBR.AutoCAD.dll"; DestDir: "{app}\Contents\Windows\2021"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2021\Armadura.Core.dll"; DestDir: "{app}\Contents\Windows\2021"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2022\ArmaduraBR.AutoCAD.dll"; DestDir: "{app}\Contents\Windows\2022"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2022\Armadura.Core.dll"; DestDir: "{app}\Contents\Windows\2022"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2023\ArmaduraBR.AutoCAD.dll"; DestDir: "{app}\Contents\Windows\2023"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2023\Armadura.Core.dll"; DestDir: "{app}\Contents\Windows\2023"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2024\ArmaduraBR.AutoCAD.dll"; DestDir: "{app}\Contents\Windows\2024"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2024\Armadura.Core.dll"; DestDir: "{app}\Contents\Windows\2024"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2025\ArmaduraBR.AutoCAD.dll"; DestDir: "{app}\Contents\Windows\2025"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2025\Armadura.Core.dll"; DestDir: "{app}\Contents\Windows\2025"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll"; DestDir: "{app}\Contents\Windows\2026"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2026\Armadura.Core.dll"; DestDir: "{app}\Contents\Windows\2026"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2027\ArmaduraBR.AutoCAD.dll"; DestDir: "{app}\Contents\Windows\2027"; Flags: ignoreversion
+Source: "{#Raiz}\bin\AutoCAD2027\Armadura.Core.dll"; DestDir: "{app}\Contents\Windows\2027"; Flags: ignoreversion
 Source: "{#Raiz}\INSTALACAO_AUTOCAD.txt"; DestDir: "{app}\Contents\Help"; Flags: ignoreversion
+
+[InstallDelete]
+; versão anterior (só 2026) tinha as DLLs direto em Contents\Windows
+Type: files; Name: "{app}\Contents\Windows\*.dll"
 
 [UninstallDelete]
 ; remove o bundle inteiro (o Autoloader procura a pasta na próxima abertura)
