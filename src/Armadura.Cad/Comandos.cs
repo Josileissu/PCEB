@@ -449,7 +449,7 @@ public sealed class Comandos
         }
         if (!Paleta.PaletaRapida.Mostrar(doc))
             ed.WriteMessage("\nNada do plugin Armadura na seleção.");
-        try { GrxCAD.Internal.Utils.SetFocusToDwgView(); } catch (Exception) { }
+        try { CadUtils.SetFocusToDwgView(); } catch (Exception) { }
     }, suspender: false);
 
     // ================= Relação do aço =================

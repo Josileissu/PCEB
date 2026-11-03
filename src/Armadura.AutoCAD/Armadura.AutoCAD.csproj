@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Plugin para AutoCAD 2026 (x64, .NET 8).
+    Os fontes da camada CAD ficam em ..\Armadura.Cad (compartilhados com o projeto GstarCAD);
+    os namespaces Autodesk.AutoCAD.* entram pelos "global using" de GlobalUsings.cs.
+    Carregar no AutoCAD: NETLOAD → bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll
+    (ou pelo autoloader em %AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>ArmaduraBR.AutoCAD</AssemblyName>
+    <RootNamespace>Armadura.Cad</RootNamespace>
+    <DefineConstants>$(DefineConstants);AUTOCAD</DefineConstants>
+    <!-- Pasta do AutoCAD 2026. Troque aqui se o AutoCAD estiver em outro lugar. -->
+    <AutoCadDir Condition="'$(AutoCadDir)' == ''">C:\Program Files\Autodesk\AutoCAD 2026</AutoCadDir>
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\AutoCAD2026\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.1.21</Version>
+    <!-- Sem o hash do Git em ProductVersion: o nome do Setup sai do ProductVersion. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="AcCoreMgd">
+      <HintPath>$(AutoCadDir)\accoremgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcDbMgd">
+      <HintPath>$(AutoCadDir)\acdbmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcMgd">
+      <HintPath>$(AutoCadDir)\acmgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AdWindows">
+      <HintPath>$(AutoCadDir)\AdWindows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcCui">
+      <HintPath>$(AutoCadDir)\AcCui.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="GlobalUsings.cs" />
+    <Compile Include="..\Armadura.Cad\**\*.cs" LinkBase="Cad"
+             Exclude="..\Armadura.Cad\Infra\Autocompletar.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Armadura.Core\Armadura.Core.csproj" />
+  </ItemGroup>
+
+</Project>

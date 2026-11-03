@@ -233,3 +233,15 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   e-mail dos commits: josileissu@gmail.com. Enviar com `git push`.
 - O csproj do plugin tem `IncludeSourceRevisionInInformationalVersion=false`: sem isso, com o Git, a ProductVersion
   ganha "+hash" e o nome do Setup sai errado.
+
+## Port para AutoCAD 2026 (2026-11-03)
+- `src/Armadura.AutoCAD`: csproj + `GlobalUsings.cs` (Autodesk.AutoCAD.*); compila `src/Armadura.Cad` com o define
+  `AUTOCAD`. Build: `dotnet build src\Armadura.AutoCAD -c Release` → `bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll`
+  (net8.0-windows, x64; referências de `C:\Program Files\Autodesk\AutoCAD 2026`, Private=false).
+- Autoteste: `tools\autoteste_autocad.ps1` (instância NOVA do AutoCAD; relatório em
+  `%AppData%\ArmaduraBR\logs\autoteste.txt`). Port da 0.1.21: 129 verificações, 0 falhas.
+- Instalador: `instalador\gerar_autocad.bat` (Inno Setup 6) → `instalador\saida\ArmaduraBR_AutoCAD_Setup_<versão>.exe`;
+  instala o bundle em `%AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle` (sem admin).
+- Código compartilhado NÃO usa mais `GrxCAD.*` direto: use os apelidos `PaletteSet`, `PaletteSetStyles` e `CadUtils`
+  (definidos nos dois `GlobalUsings.cs`). `Font` ambíguo no AutoCAD → `System.Drawing.Font`.
+- GstarCAD continua compilando e com o mesmo comportamento: os apelidos apontam para os mesmos tipos `GrxCAD.*`.
