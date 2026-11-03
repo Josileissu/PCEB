@@ -17,3 +17,8 @@ info_auxiliar/
 *.dwl
 *.dwl2
 *.sv$
+
+# SDK do ZWCAD (ZWSOFT, ZRXSDK): os instaladores e as extrações completas ficam só na máquina;
+# no Git vão as bibliotecas .NET de referência de cada versão (sdk/zwcad/<ano>/ref)
+sdk/*.exe
+sdk/zwcad/*/ZWCAD_*/
