@@ -61,8 +61,8 @@ namespace DEB.Revit.Core
                 return created;
             }
 
-            RebarBarType longType = GetBarType(_cfg.ColumnLongBarDiameterMm, _cfg.LongBarTypeNameFormat, 5, 5, 3);
-            RebarBarType tieType = GetBarType(_cfg.ColumnStirrupDiameterMm, _cfg.StirrupBarTypeNameFormat, 3, 3, 3);
+            RebarBarType longType = GetBarType(_cfg.ColumnLongBarDiameterMm, _cfg.LongBarTypeNameFormat);
+            RebarBarType tieType = GetBarType(_cfg.ColumnStirrupDiameterMm, _cfg.StirrupBarTypeNameFormat);
             RebarHookType hook135 = GetHook135();
             tieType.SetHookPermission(hook135.Id, true);
 
@@ -181,9 +181,14 @@ namespace DEB.Revit.Core
         /// Usa um tipo de barra do projeto com a bitola pedida; se não houver, cria um.
         /// Diâmetros de dobra em múltiplos da bitola (NBR 6118 tabelas 9.1 e 9.2).
         /// </summary>
-        private RebarBarType GetBarType(double diameterMm, string nameFormat, double bendFactor, double hookFactor, double tieFactor)
+        private RebarBarType GetBarType(double diameterMm, string nameFormat)
         {
             double d = U.Mm(diameterMm);
+            // pinos de dobramento do núcleo comum (NBR 6118, tabelas 9.1 e 9.2)
+            string steel = SharedRules.SteelFor(diameterMm);
+            double bendFactor = SharedRules.BendDiameterMm(diameterMm, steel, false) / diameterMm;
+            double hookFactor = bendFactor;
+            double tieFactor = SharedRules.BendDiameterMm(diameterMm, steel, true) / diameterMm;
             RebarBarType found = new FilteredElementCollector(_doc).OfClass(typeof(RebarBarType)).Cast<RebarBarType>()
                 .Where(t => Math.Abs(t.BarNominalDiameter - d) < U.Mm(0.05))
                 .OrderBy(t => t.Name)

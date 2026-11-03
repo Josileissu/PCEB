@@ -93,8 +93,10 @@ namespace DEB.Revit.Precast
             if (found == null)
             {
                 bool ca60 = diameterMm < 6.3;
-                double bend = ca60 ? 6 : diameterMm < 20 ? 5 : 8;
-                double stirrupBend = diameterMm <= 10 ? 3 : diameterMm < 20 ? 4 : 5;
+                // pinos de dobramento do núcleo comum (NBR 6118, tabelas 9.1 e 9.2)
+                string steel = SharedRules.SteelFor(diameterMm);
+                double bend = SharedRules.BendDiameterMm(diameterMm, steel, false) / diameterMm;
+                double stirrupBend = SharedRules.BendDiameterMm(diameterMm, steel, true) / diameterMm;
 
                 found = RebarBarType.Create(_doc);
                 found.Name = new NameRegistry(new FilteredElementCollector(_doc).OfClass(typeof(RebarBarType)).Select(e => e.Name))
