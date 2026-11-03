@@ -26,11 +26,14 @@ namespace DEB.Revit.Precast
         public List<ElementId> Create(ColumnFrame f, FamilyInstance column, IEnumerable<BarDef> bars, string mark)
         {
             var ids = new List<ElementId>();
+            var created = new List<(BarDef Def, Rebar Bar)>();
             foreach (BarDef b in bars)
             {
                 try
                 {
-                    ids.Add(CreateOne(f, column, b, mark).Id);
+                    Rebar r = CreateOne(f, column, b, mark);
+                    ids.Add(r.Id);
+                    created.Add((b, r));
                 }
                 catch (Exception ex)
                 {
@@ -38,7 +41,28 @@ namespace DEB.Revit.Precast
                     _log.Trace(RoleLabel(b.Role), ex);
                 }
             }
+            // o comprimento do Revit só existe depois de regenerar
+            try { _doc.Regenerate(); foreach (var (def, bar) in created) LogLengthComparison(def, bar); }
+            catch (Exception ex) { _log.Trace("Comprimento pelo núcleo", ex); }
             return ids;
+        }
+
+        /// <summary>
+        /// Etapa 5.3c-1: registra o comprimento do Revit ao lado do comprimento real do núcleo (regras do CAD),
+        /// para conferência antes de o núcleo passar a valer nas tabelas e pesos. Não altera nada no modelo.
+        /// </summary>
+        private void LogLengthComparison(BarDef b, Rebar r)
+        {
+            try
+            {
+                const double cmPerFoot = 30.48;
+                var axis = b.Points.Select(p => (p.A * cmPerFoot, p.B * cmPerFoot, p.C * cmPerFoot)).ToList();
+                bool tie = b.Role == BarRole.Stirrup || b.Role == BarRole.CrossTie || b.Role == BarRole.CorbelSew;
+                double core = SharedRules.RealLengthCm(axis, b.Closed, b.DiameterMm, tie, b.Hooks135);
+                double revit = (r.get_Parameter(BuiltInParameter.REBAR_ELEM_LENGTH)?.AsDouble() ?? 0) * cmPerFoot;
+                _log.Info($"Comprimento {RoleLabel(b.Role)} Ø{Fmt(b.DiameterMm)}: Revit {revit.ToString("0.0", CultureInfo.InvariantCulture)} cm | núcleo {core.ToString("0.0", CultureInfo.InvariantCulture)} cm | diferença {(core - revit).ToString("+0.0;-0.0;0.0", CultureInfo.InvariantCulture)}");
+            }
+            catch (Exception ex) { _log.Trace("Comprimento pelo núcleo", ex); }
         }
 
         private Rebar CreateOne(ColumnFrame f, FamilyInstance column, BarDef b, string mark)

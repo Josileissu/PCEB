@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using DEB.Core.Calculo;
+using DEB.Core.Configuracao;
 using DEB.Core.Normas;
 using DEB.Core.Tabelas;
 
@@ -9,7 +12,8 @@ namespace DEB.Revit.Core
     /// </summary>
     public static class SharedRules
     {
-        private static readonly RegrasDobramento Dobramento = new RegrasDobramento();
+        private static readonly ConfiguracaoArmadura Config = new ConfiguracaoArmadura();
+        private static readonly RegrasDobramento Dobramento = Config.Dobramento;
         private static readonly TabelaBarras Bitolas = TabelaBarras.Padrao();
 
         /// <summary>"CA-60" abaixo de 6,3 mm, senão "CA-50" (mesma convenção dos nomes de tipo de barra).</summary>
@@ -21,5 +25,13 @@ namespace DEB.Revit.Core
 
         /// <summary>Massa linear em kg/m, da tabela de bitolas do núcleo.</summary>
         public static double KgPerMeter(double diameterMm, string steel) => Bitolas.MassaLinear(diameterMm, steel);
+
+        /// <summary>
+        /// Comprimento real (cm, arredondado) de uma barra dada pelo eixo em cm — mesmas regras do CAD:
+        /// desconto das dobras, ganchos e passagens pela norma (ver ComprimentoPorEixo no núcleo).
+        /// </summary>
+        public static double RealLengthCm(IReadOnlyList<(double X, double Y, double Z)> axisCm, bool closed, double diameterMm,
+            bool stirrup, bool hooks135) =>
+            ComprimentoPorEixo.Calcular(axisCm, closed, diameterMm, SteelFor(diameterMm), stirrup, hooks135, Config);
     }
 }
