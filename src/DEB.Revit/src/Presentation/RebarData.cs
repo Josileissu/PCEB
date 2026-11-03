@@ -61,7 +61,7 @@ namespace DEB.Revit.Presentation
         }
 
         /// <summary>Partição, aço e peso de cada barra. Precisa de transação.</summary>
-        public static void Apply(Document doc, IEnumerable<ElementId> rebarIds, string partition, double steelDensity)
+        public static void Apply(Document doc, IEnumerable<ElementId> rebarIds, string partition)
         {
             foreach (Rebar r in rebarIds.Select(doc.GetElement).OfType<Rebar>())
             {
@@ -73,8 +73,9 @@ namespace DEB.Revit.Presentation
 
                 double d = type?.BarNominalDiameter ?? 0;
                 double totalM = UnitUtils.ConvertFromInternalUnits(r.TotalLength, UnitTypeId.Meters);
-                double dM = UnitUtils.ConvertFromInternalUnits(d, UnitTypeId.Meters);
-                double kg = totalM * Math.PI * dM * dM / 4 * steelDensity;
+                double dMm = UnitUtils.ConvertFromInternalUnits(d, UnitTypeId.Millimeters);
+                // massa linear da tabela de bitolas do núcleo (a mesma do plugin de CAD)
+                double kg = totalM * SharedRules.KgPerMeter(dMm, SharedRules.SteelFor(dMm));
                 r.LookupParameter(WeightParam)?.Set(Math.Round(kg, 2));
             }
         }

@@ -43,7 +43,7 @@ continuarem abrindo e funcionando.
 | 2 | ✅ StructuralDetailer em `src/DEB.Revit`; build Revit 2025/2026 ok (03/11/2026) | — |
 | 3 | ✅ Estudo em `docs/`; CLAUDE.md na raiz + um por plugin; `PCEB.sln` compila tudo (0 erros), 178 testes ok (03/11/2026) | — |
 | 4 | ✅ Renomeado para DEB (CAD e Revit) + migração de `%AppData%` para `%AppData%\PCEB\DEB.Cad` / `DEB.Revit`. Autoteste GstarCAD 215/216 com escala padrão (falhas = configuração do usuário Escala/EscalaFaixa 25); AutoRun Revit 2025 ok; instalado no Revit 2025/2026 do usuário (03/11/2026). Pendente para a etapa 6: chaves de registro, pasta de instalação e bundle do AutoCAD ainda com o nome antigo | — |
-| 5 | Separar o `Nucleo` (regras comuns) e o plugin Revit passar a usá-lo (decisão D7) | — |
+| 5 | Núcleo comum (decisão D7) — **em andamento**: 5.1 ✅ `src/DEB.Core` + `tests/` fora do plugin CAD; 5.2 ✅ Revit referencia o núcleo (`SharedRules`); 5.3a ✅ pinos de dobramento do núcleo no Revit (corrige estribo CA-50 10–20 mm: 4φ → 5φ); 5.3b ✅ peso pela tabela de bitolas do núcleo. A fazer: 5.3c comprimento real (desconto das dobras) nos C= e pesos; 5.3d numeração N; 5.3e catálogos de consolos/insertos e armadura padrão do pilar (P56/P61 × PP127); configuração do usuário compartilhada | — |
 | 6 | Instalador novo (só quando o usuário pedir) | — |
 
 As pastas antigas `armadura/` e `StructuralDetailer/` só são apagadas depois que tudo funcionar a partir do PCEB,

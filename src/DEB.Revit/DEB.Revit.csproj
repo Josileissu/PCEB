@@ -43,6 +43,11 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Núcleo comum com o plugin de CAD (regras de dobramento, bitolas, numeração...) -->
+    <ProjectReference Include="..\DEB.Core\DEB.Core.csproj" />
+  </ItemGroup>
+
   <!-- Copia a DLL e o manifesto para %AppData%\Autodesk\Revit\Addins\<versão>\ -->
   <Target Name="DeployToRevitAddins" AfterTargets="Build" Condition="'$(DeployToRevit)' == 'true'">
     <PropertyGroup>

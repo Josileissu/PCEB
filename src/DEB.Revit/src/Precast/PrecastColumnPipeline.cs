@@ -94,7 +94,7 @@ namespace DEB.Revit.Precast
                     Tx("Dados das barras", log, () =>
                     {
                         RebarData.EnsureParameters(_doc);
-                        RebarData.Apply(_doc, rebar, partition, _standard.Armadura.DensidadeAco);
+                        RebarData.Apply(_doc, rebar, partition);
                     }, critical: false);
                 }
 
