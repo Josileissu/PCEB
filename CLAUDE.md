@@ -246,14 +246,20 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
 - O csproj do plugin tem `IncludeSourceRevisionInInformationalVersion=false`: sem isso, com o Git, a ProductVersion
   ganha "+hash" e o nome do Setup sai errado.
 
-## Port para AutoCAD 2026 (2026-11-03)
-- `src/Armadura.AutoCAD`: csproj + `GlobalUsings.cs` (Autodesk.AutoCAD.*); compila `src/Armadura.Cad` com o define
-  `AUTOCAD`. Build: `dotnet build src\Armadura.AutoCAD -c Release` → `bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll`
-  (net8.0-windows, x64; referências de `C:\Program Files\Autodesk\AutoCAD 2026`, Private=false).
-- Autoteste: `tools\autoteste_autocad.ps1` (instância NOVA do AutoCAD; relatório em
-  `%AppData%\ArmaduraBR\logs\autoteste.txt`). Port da 0.1.21: 129 verificações, 0 falhas.
-- Instalador: `instalador\gerar_autocad.bat` (Inno Setup 6) → `instalador\saida\ArmaduraBR_AutoCAD_Setup_<versão>.exe`;
-  instala o bundle em `%AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle` (sem admin).
+## Port para AutoCAD (2021 a 2027)
+- `src/Armadura.AutoCAD`: csproj + `GlobalUsings.cs` (Autodesk.AutoCAD.*); compila `src/Armadura.Cad` com os defines
+  `AUTOCAD` e `AUTOCAD<ano>`. Bibliotecas do pacote OFICIAL "AutoCAD.NET" no NuGet (2026-11-03): compila sem o AutoCAD.
+  `dotnet build src\Armadura.AutoCAD -c Release -p:AutoCadVersao=<ano>` (padrão 2026) → `bin\AutoCAD<ano>\ArmaduraBR.AutoCAD.dll`.
+  Pacotes: 2021-2024 = 24.0/24.1.51000/24.2/24.3 (net48); 2025 = 25.0.1 e 2026 = 25.1.0 (net8 — a 25.0.0 pede uma versão de
+  teste não publicada e as 25.0.2/25.1.1 vieram como net10); 2027 = 26.0.0 (net10: SDK em `%LocalAppData%\Microsoft\dotnet10`,
+  instalado com o dotnet-install.ps1 oficial). obj separado por versão (`obj\<ano>`).
+- GstarCAD: o SDK oficial fica no repositório (`sdk\grxsdk`). Pacotes de GstarCAD/ZWCAD no NuGet são de TERCEIROS (não usar);
+  para o ZWCAD, baixar o ZRX SDK oficial da ZWSOFT e guardar em `sdk\` como o do GstarCAD.
+- Autoteste: `tools\autoteste_autocad.ps1 -Versao <ano>` (instância NOVA do AutoCAD; relatório em
+  `%AppData%\ArmaduraBR\logs\autoteste.txt`). Port da 0.1.21: 129 verificações, 0 falhas (AutoCAD 2026, em outra máquina).
+- Instalador: `instalador\gerar_autocad.bat` compila as 7 versões e gera `instalador\saida\ArmaduraBR_AutoCAD_Setup_<versão>.exe`:
+  um bundle só em `%AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle` (sem admin), com um componente por série
+  (R24.0…R26.0) apontando para `Contents\Windows\<ano>\` (`instalador\AutoCAD.bundle\PackageContents.xml`).
 - Código compartilhado NÃO usa mais `GrxCAD.*` direto: use os apelidos `PaletteSet`, `PaletteSetStyles` e `CadUtils`
   (definidos nos dois `GlobalUsings.cs`). `Font` ambíguo no AutoCAD → `System.Drawing.Font`.
 - GstarCAD continua compilando e com o mesmo comportamento: os apelidos apontam para os mesmos tipos `GrxCAD.*`.

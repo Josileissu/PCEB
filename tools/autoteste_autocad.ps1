@@ -1,17 +1,19 @@
-# Compila o plugin AutoCAD 2026 e roda o autoteste (ARMTESTE) numa instância NOVA do AutoCAD.
+﻿# Compila o plugin AutoCAD (padrão 2026) e roda o autoteste (ARMTESTE) numa instância NOVA do AutoCAD.
 # A instância do usuário não é tocada. Resultado: %AppData%\ArmaduraBR\logs\autoteste.txt
-# Uso: powershell -File tools\autoteste_autocad.ps1 [-Saida <pasta>] [-Acad <acad.exe>] [-SemBuild]
+# Uso: powershell -File tools\autoteste_autocad.ps1 [-Versao 2026] [-Saida <pasta>] [-Acad <acad.exe>] [-SemBuild]
 param(
+    [string]$Versao = '2026',
     [string]$Saida = (Join-Path $env:TEMP 'armadura_acad'),
-    [string]$Acad = 'C:\Program Files\Autodesk\AutoCAD 2026\acad.exe',
+    [string]$Acad = '',
     [switch]$SemBuild
 )
 $ErrorActionPreference = 'Stop'
 $raiz = Split-Path $PSScriptRoot -Parent
-$dll = Join-Path $raiz 'bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll'
+if (-not $Acad) { $Acad = "C:\Program Files\Autodesk\AutoCAD $Versao\acad.exe" }
+$dll = Join-Path $raiz "bin\AutoCAD$Versao\ArmaduraBR.AutoCAD.dll"
 
 if (-not $SemBuild) {
-    & 'C:\Program Files\dotnet\dotnet.exe' build (Join-Path $raiz 'src\Armadura.AutoCAD\Armadura.AutoCAD.csproj') -c Release --nologo -v q
+    & 'C:\Program Files\dotnet\dotnet.exe' build (Join-Path $raiz 'src\Armadura.AutoCAD\Armadura.AutoCAD.csproj') -c Release --nologo -v q "-p:AutoCadVersao=$Versao"
     if ($LASTEXITCODE -ne 0) { throw 'Falha na compilação.' }
 }
 if (-not (Test-Path $Acad)) { throw "AutoCAD não encontrado: $Acad" }

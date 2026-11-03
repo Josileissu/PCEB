@@ -1,4 +1,4 @@
-ARMADURA BR - INSTALAÇÃO NO AUTOCAD 2026
+﻿ARMADURA BR - INSTALAÇÃO NO AUTOCAD 2026
 =========================================
 
 FORMA RECOMENDADA: INSTALADOR
@@ -31,19 +31,19 @@ O plugin usa o Autoloader do AutoCAD. A pasta final deve ficar assim:
         PackageContents.xml
         Contents\
             Windows\
-                ArmaduraBR.AutoCAD.dll
-                Armadura.Core.dll
+                <ano>\ArmaduraBR.AutoCAD.dll     (2021, 2022, ... 2027: a pasta da versão do seu AutoCAD)
+                <ano>\Armadura.Core.dll
             Help\
                 INSTALACAO_AUTOCAD.txt
 
 No computador onde o projeto foi compilado, os arquivos estão em:
 
-    armadura\instalador\AutoCAD2026.bundle\PackageContents.xml
-    armadura\bin\AutoCAD2026\ArmaduraBR.AutoCAD.dll
-    armadura\bin\AutoCAD2026\Armadura.Core.dll
+    armadura\instalador\AutoCAD.bundle\PackageContents.xml
+    armadura\bin\AutoCAD<ano>\ArmaduraBR.AutoCAD.dll
+    armadura\bin\AutoCAD<ano>\Armadura.Core.dll
     armadura\INSTALACAO_AUTOCAD.txt
 
-Copie o PackageContents.xml para a raiz do bundle e as duas DLLs para Contents\Windows.
+Copie o PackageContents.xml para a raiz do bundle e as duas DLLs para Contents\Windows\<ano>.
 Prefira um disco local (C:\) a uma pasta de rede.
 
 
