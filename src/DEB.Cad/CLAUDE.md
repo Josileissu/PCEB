@@ -1,5 +1,8 @@
 # Armadura — plugin de armaduras para GstarCAD (depois AutoCAD)
 
+> Parte do repositório **PCEB** (`src/DEB.Cad`); passará a se chamar **DEB — Detalhador Estrutural Brasileiro** na
+> etapa 4 da migração. Regras gerais do projeto: `CLAUDE.md` da raiz.
+
 Especificação: `info_auxiliar/prompt_port_editor_armaduras_gstarcad_autocad.txt`.
 Arquitetura, modelo de dados, comandos e fases: `docs/ARQUITETURA.md`. SDK GstarCAD 2021: `sdk/`.
 

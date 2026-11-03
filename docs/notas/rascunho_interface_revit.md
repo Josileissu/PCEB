@@ -15,5 +15,5 @@ Ideia comum a todas: um **formato intermediário neutro** (JSON) de modelo anal�
 para trocar o motor sem mexer no Revit.
 
 ## Base no StructuralDetailer
-Comandos e AutoRun já existentes servem de molde (ver `../../StructuralDetailer/src`):
+Comandos e AutoRun já existentes servem de molde (ver `src/DEB.Revit/src`):
 levantamento (`PrecastSurvey`) → spec de armadura → layout → Revit.

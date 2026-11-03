@@ -2,7 +2,7 @@
 
 | Origem | Licença | Plataforma | Situação |
 |---|---|---|---|
-| Escritório | própria | Revit 2025 e 2026, C# / .NET 8 | em desenvolvimento; código em `../StructuralDetailer` ✓ |
+| Escritório | própria | Revit 2025 e 2026, C# / .NET 8 | em desenvolvimento; código em `src/DEB.Revit` ✓ |
 
 Detalhes técnicos: `desenvolvedor/CLAUDE.md`.
 
