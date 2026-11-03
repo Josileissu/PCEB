@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Carregador fixo: copia a versão mais nova do plugin para uma pasta temporária e faz NETLOAD de lá
+       (a DLL em bin\GstarCAD2021 nunca fica presa e o build funciona com o GstarCAD aberto). -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>10.0</LangVersion>
+    <AssemblyName>DEB.Carregador</AssemblyName>
+    <OutputPath>$(MSBuildThisFileDirectory)..\..\bin\carregador\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="gmap"><HintPath>$(MSBuildThisFileDirectory)..\..\sdk\grxsdk\inc\gmap.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="gmdb"><HintPath>$(MSBuildThisFileDirectory)..\..\sdk\grxsdk\inc\gmdb.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

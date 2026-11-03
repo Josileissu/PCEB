@@ -13,15 +13,15 @@ armadura/
   docs/                 este documento, manual do usuário
   dados/                tabelas normativas em JSON (bitolas, dobramentos) — editáveis, com fontes
   src/
-    Armadura.Core/      netstandard2.0 — SEM referência a CAD. Modelo, normas, comprimentos,
+    DEB.Core/      netstandard2.0 — SEM referência a CAD. Modelo, normas, comprimentos,
                         descrição, numeração, relação do aço, codificação dos dados (XData).
-    Armadura.Cad/       código-fonte compartilhado da camada CAD (sem .csproj próprio).
+    DEB.Cad/       código-fonte compartilhado da camada CAD (sem .csproj próprio).
                         Usa só nomes neutros (Polyline, Editor...); o namespace vem dos
                         "global using" de cada projeto abaixo.
-    Armadura.GstarCAD/  net48 x64 — referências gmap.dll / gmdb.dll; GlobalUsings → GrxCAD.*
-    (Armadura.AutoCAD/) futuro — mesmos fontes de Armadura.Cad; GlobalUsings → Autodesk.AutoCAD.*
+    DEB.GstarCAD/  net48 x64 — referências gmap.dll / gmdb.dll; GlobalUsings → GrxCAD.*
+    (DEB.AutoCAD/) futuro — mesmos fontes de DEB.Cad; GlobalUsings → Autodesk.AutoCAD.*
   tests/
-    Armadura.Core.Tests/  xUnit (net8) — testa o núcleo sem CAD
+    DEB.Core.Tests/  xUnit (net8) — testa o núcleo sem CAD
 ```
 
 A API .NET do GstarCAD espelha a do AutoCAD (guia de migração do SDK: basta trocar
@@ -75,7 +75,7 @@ pela unidade do desenho (`INSUNITS`; se indefinida, a configuração — padrão
 | `ARMRECONHECER` | Barras de outros programas/desenho à mão, em QUALQUER layer: polilinhas e LINEs + textos ("25 N1 ø10 c/15 C=300", `Core/Reconhecimento/TextoArmadura`). Cada texto vai para a curva mais próxima (até 8 alturas; C= que confere pesa a favor), um para um; a descrição nasce no lugar do texto, a escala sai da altura do texto, medidas "35"/"42" viram as cotas no mesmo lugar (trechos sem medida ficam sem cota). Fechadas: pergunta estribo. Textos originais: Apagar/Manter. Sem texto → ficam selecionadas |
 | `ARMTEXTOPADRAO` | Descrição e cotas das armaduras selecionadas voltam à posição padrão (desfaz as cotas movidas) |
 | `ARMOFFSET` | Poligonal (aberta ou fechada) → armadura paralela, afastada (ex.: cobrimento) do lado clicado; fechada pode virar estribo |
-| `ARMCOMANDOS` | Liga/desliga a paleta "Armadura - Comandos" (botões; o GstarCAD 2021 não tem ribbon em .NET) |
+| `ARMCOMANDOS` | Liga/desliga a paleta "DEB - Comandos" (botões; o GstarCAD 2021 não tem ribbon em .NET) |
 | `ARMIMPORTARCAD` | Importa um .cad do QiArmaduras (AltoQi Builder): barras, estribos, faixas, indicações, rebatidas, detalhamentos (blocos), relações do aço e o desenho de forma (`docs/FORMATO_QICAD.md`) |
 | `ARMTEMPLATE` | Templates de elementos (bases, blocos, pilares, vigas, lajes) — ambiente pronto, templates a implementar (`docs/TEMPLATES.md`) |
 | `ARMPALETA` | Liga/desliga a paleta "Armadura" (PropertyGrid ligado à seleção; vários objetos = valores diferentes em branco; segmentos só com 1 barra). Abre sozinha ao carregar, se estava aberta |
@@ -124,7 +124,7 @@ pela unidade do desenho (`INSUNITS`; se indefinida, a configuração — padrão
    Vínculos no XData como 1005: o CAD os traduz em BLOCK/COPY/WBLOCK/INSERT.
 4. Traspasse (dividir barra), treliças, telas soldadas, cordoalhas CP-190 — CONCLUÍDA.
 5. RA multi-arquivo, relatórios DOCX/HTML/XLSX/CSV, corte e dobra, reconhecimento de DWG.
-6. Port para AutoCAD (projeto `Armadura.AutoCAD`, mesmos fontes).
+6. Port para AutoCAD (projeto `DEB.AutoCAD`, mesmos fontes).
 
 ## 5. Testes
 
@@ -132,7 +132,7 @@ pela unidade do desenho (`INSUNITS`; se indefinida, a configuração — padrão
   3 formatos, igualdade de barras (inversão, espelho), numeração global, RA e resumo, codificação
   dos dados (ida e volta).
 - **Dentro do GstarCAD**: comando `ARMTESTE` (script automático) cria → edita → copia → apaga →
-  atualiza RA e grava um relatório em `%AppData%\ArmaduraBR\logs`.
+  atualiza RA e grava um relatório em `%AppData%\PCEB\DEB.Cad\logs`.
 - **Aceitação**: critérios da seção 11 da especificação, conferidos pelo engenheiro.
 
 ## Itens a validar pelo engenheiro  [VALIDAR NBR]

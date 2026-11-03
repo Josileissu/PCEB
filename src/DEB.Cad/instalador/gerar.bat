@@ -1,6 +1,6 @@
 @echo off
 rem Compila o plugin para todos os programas e gera o instalador unico:
-rem   instalador\saida\ArmaduraBR_Setup_<versao>.exe   (gerar.bat)
+rem   instalador\saida\DEB_Setup_<versao>.exe   (gerar.bat)
 rem   instalador\saida\demo_<versao>.exe               (gerar.bat demo, ou gerar_demo.bat: 1 hora de uso)
 rem GstarCAD 2021 a 2027, AutoCAD 2021 a 2026 e ZWCAD 2024 a 2026 usam o SDK do .NET 8; o AutoCAD 2027 usa o do .NET 10
 rem (%LocalAppData%\Microsoft\dotnet10, instalado com o dotnet-install.ps1 oficial).
@@ -19,22 +19,22 @@ if not exist "%DOTNET10%" (
   goto erro
 )
 echo Carregador...
-"%DOTNET8%" build src\Armadura.Carregador -c Release --nologo -v q || goto erro
+"%DOTNET8%" build src\DEB.Carregador -c Release --nologo -v q || goto erro
 for %%v in (2021 2022 2023 2024 2025 2026 2027) do (
   echo GstarCAD %%v...
-  "%DOTNET8%" build src\Armadura.GstarCAD %OPC% -p:GstarVersao=%%v || goto erro
+  "%DOTNET8%" build src\DEB.GstarCAD %OPC% -p:GstarVersao=%%v || goto erro
 )
 for %%v in (2021 2022 2023 2024 2025 2026) do (
   echo AutoCAD %%v...
-  "%DOTNET8%" build src\Armadura.AutoCAD %OPC% -p:AutoCadVersao=%%v || goto erro
+  "%DOTNET8%" build src\DEB.AutoCAD %OPC% -p:AutoCadVersao=%%v || goto erro
 )
 echo AutoCAD 2027...
-"%DOTNET10%" build src\Armadura.AutoCAD %OPC% -p:AutoCadVersao=2027 || goto erro
+"%DOTNET10%" build src\DEB.AutoCAD %OPC% -p:AutoCadVersao=2027 || goto erro
 for %%v in (2024 2025 2026) do (
   echo ZWCAD %%v...
-  "%DOTNET8%" build src\Armadura.ZWCAD %OPC% -p:ZwcadVersao=%%v || goto erro
+  "%DOTNET8%" build src\DEB.ZWCAD %OPC% -p:ZwcadVersao=%%v || goto erro
 )
-"%LocalAppData%\Programs\Inno Setup 6\ISCC.exe" /Q %ISCCDEMO% "instalador\ArmaduraBR.iss" || goto erro
+"%LocalAppData%\Programs\Inno Setup 6\ISCC.exe" /Q %ISCCDEMO% "instalador\DEB.iss" || goto erro
 echo.
 echo Instalador gerado em instalador\saida\
 exit /b 0
