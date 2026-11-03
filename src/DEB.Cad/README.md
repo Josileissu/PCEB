@@ -1,4 +1,4 @@
-# Armadura BR
+# Detalhador Estrutural Brasileiro
 
 Plugin .NET para **detalhamento, numeração e quantificação de armaduras** dentro do CAD.
 Desenha barras, estribos, treliças, telas, faixas, chamadas e cortes, mantém a **relação do aço**
@@ -44,16 +44,16 @@ as atualizações automáticas de cotas, descrições e relação do aço.
 
 ```
 src/
-  Armadura.Core/        Núcleo sem CAD: modelo, normas, comprimentos, descrição,
+  DEB.Core/        Núcleo sem CAD: modelo, normas, comprimentos, descrição,
                         numeração, relação do aço, codec XData (netstandard2.0)
-  Armadura.Cad/         Fontes compartilhados da camada CAD (sem .csproj):
+  DEB.Cad/         Fontes compartilhados da camada CAD (sem .csproj):
                         sincronizador de eventos, serviços, overrules e comandos
-  Armadura.GstarCAD/    Projeto GstarCAD (GrxCAD.*)
-  Armadura.AutoCAD/     Projeto AutoCAD (Autodesk.AutoCAD.*)
-  Armadura.ZWCAD/       Projeto ZWCAD (ZwSoft.ZwCAD.*)
-  Armadura.Carregador/  Carregador do GstarCAD (carrega uma cópia da DLL)
+  DEB.GstarCAD/    Projeto GstarCAD (GrxCAD.*)
+  DEB.AutoCAD/     Projeto AutoCAD (Autodesk.AutoCAD.*)
+  DEB.ZWCAD/       Projeto ZWCAD (ZwSoft.ZwCAD.*)
+  DEB.Carregador/  Carregador do GstarCAD (carrega uma cópia da DLL)
 tests/
-  Armadura.Core.Tests/  Testes do núcleo com xUnit (net8.0)
+  DEB.Core.Tests/  Testes do núcleo com xUnit (net8.0)
 instalador/             Script Inno Setup, bundle do AutoCAD e scripts de geração
 sdk/                    Bibliotecas de referência dos SDKs (GstarCAD/ZWCAD)
 docs/                   Arquitetura, formato QiCAD, templates e progresso
@@ -66,22 +66,22 @@ Requisitos: .NET SDK 8 (e .NET 10 para o AutoCAD 2027) e Windows x64.
 
 ```powershell
 # Núcleo + testes (não precisa de CAD instalado)
-dotnet test tests\Armadura.Core.Tests
+dotnet test tests\DEB.Core.Tests
 
 # AutoCAD (padrão 2026) -> bin\AutoCAD2026\
-dotnet build src\Armadura.AutoCAD -c Release
+dotnet build src\DEB.AutoCAD -c Release
 # outras versões: -p:AutoCadVersao=2021 .. 2027
 
 # GstarCAD (padrão 2021) -> bin\GstarCAD2021\
-dotnet build src\Armadura.GstarCAD -c Release
+dotnet build src\DEB.GstarCAD -c Release
 # outras versões: -p:GstarVersao=2022 .. 2027
 
 # ZWCAD (padrão 2026) -> bin\ZWCAD2026\
-dotnet build src\Armadura.ZWCAD -c Release
+dotnet build src\DEB.ZWCAD -c Release
 # outras versões: -p:ZwcadVersao=2024 .. 2026
 
 # Versão de demonstração (1 hora de uso) -> bin\demo\<CAD><versão>\
-dotnet build src\Armadura.AutoCAD -c Release -p:Demo=true
+dotnet build src\DEB.AutoCAD -c Release -p:Demo=true
 ```
 
 Os binários saem em `bin\<CAD><versão>\`, com `AppendTargetFrameworkToOutputPath=false`.
@@ -90,7 +90,7 @@ como referência de compilação (não são copiadas para a saída).
 
 ## Instalar
 
-A forma recomendada é o instalador único (`instalador\saida\ArmaduraBR_Setup_<versão>.exe`),
+A forma recomendada é o instalador único (`instalador\saida\DEB_Setup_<versão>.exe`),
 que detecta GstarCAD, AutoCAD e ZWCAD instalados e registra o autoload de cada um.
 Para gerar um novo instalador:
 
@@ -111,7 +111,7 @@ No dia a dia, use `ARMPALETA` para abrir a paleta, `ARMCOMANDOS` para a paleta d
 
 ## Testes
 
-- Núcleo: `dotnet test tests\Armadura.Core.Tests` (178 testes).
+- Núcleo: `dotnet test tests\DEB.Core.Tests` (178 testes).
 - Integração no CAD: `tools\autoteste.ps1` (GstarCAD) e `tools\autoteste_autocad.ps1` (AutoCAD)
   rodam `ARMTESTE` em uma instância nova; o relatório fica em
   `%AppData%\ArmaduraBR\logs\autoteste.txt`.

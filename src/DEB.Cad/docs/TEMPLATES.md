@@ -17,7 +17,7 @@ de cada um começa quando ele enviar os PDFs/DWGs (pastas em `info_auxiliar/temp
 | Laje | |
 
 ## Estrutura do código
-- `src/DEB.Core/Templates/Templates.cs` (testável, sem CAD):
+- `PCEB/src/DEB.Core/Templates/Templates.cs` (testável, sem CAD):
   - `ITemplateArmadura`: `Id`, `Nome`, `Categoria`, `Descricao`, `Parametros`, `Gerar(valores, cfg)`;
   - `ParametroTemplate` (número, inteiro, texto, opção, bitola, sim/não; grupo, unidade, limites);
   - `ValoresTemplate` (valores digitados, com leitura numérica tolerante a vírgula);
@@ -32,7 +32,7 @@ de cada um começa quando ele enviar os PDFs/DWGs (pastas em `info_auxiliar/temp
   escolhe o canto dos ganchos).
 
 ## Para implementar um template
-1. Nova classe em `src/DEB.Core/Templates/<Elemento>/`, implementando `ITemplateArmadura`.
+1. Nova classe em `PCEB/src/DEB.Core/Templates/<Elemento>/`, implementando `ITemplateArmadura`.
 2. Registrar no carregamento do plugin (`CatalogoTemplates.Registrar`).
 3. Testes de unidade com as medidas de um projeto real (do PDF/DWG do usuário) e uma verificação no autoteste.
 4. Próximos passos previstos: faixas geradas pelo template (distribuição), cortes, quadro de ferros por
