@@ -11,7 +11,7 @@
 -->
 <ApplicationPackage
     SchemaVersion="1.0"
-    AppVersion="0.1.23"
+    AppVersion="0.1.25"
     ProductCode="{E7509458-4339-448A-9FCF-F6286DD5E2D6}"
     UpgradeCode="{80A82AE8-94C2-4B27-8F8A-D2EE32E1AC67}"
     Name="Armadura BR"
@@ -32,7 +32,7 @@
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.0" SeriesMax="R24.0" />
     <ComponentEntry
         AppName="ArmaduraBR"
-        Version="0.1.23"
+        Version="0.1.25"
         ModuleName="./Contents/Windows/2021/ArmaduraBR.AutoCAD.dll"
         AppDescription="Armadura BR"
         LoadOnAutoCADStartup="True"
@@ -44,7 +44,7 @@
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.1" SeriesMax="R24.1" />
     <ComponentEntry
         AppName="ArmaduraBR"
-        Version="0.1.23"
+        Version="0.1.25"
         ModuleName="./Contents/Windows/2022/ArmaduraBR.AutoCAD.dll"
         AppDescription="Armadura BR"
         LoadOnAutoCADStartup="True"
@@ -56,7 +56,7 @@
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.2" SeriesMax="R24.2" />
     <ComponentEntry
         AppName="ArmaduraBR"
-        Version="0.1.23"
+        Version="0.1.25"
         ModuleName="./Contents/Windows/2023/ArmaduraBR.AutoCAD.dll"
         AppDescription="Armadura BR"
         LoadOnAutoCADStartup="True"
@@ -68,7 +68,7 @@
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R24.3" SeriesMax="R24.3" />
     <ComponentEntry
         AppName="ArmaduraBR"
-        Version="0.1.23"
+        Version="0.1.25"
         ModuleName="./Contents/Windows/2024/ArmaduraBR.AutoCAD.dll"
         AppDescription="Armadura BR"
         LoadOnAutoCADStartup="True"
@@ -80,7 +80,7 @@
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R25.0" SeriesMax="R25.0" />
     <ComponentEntry
         AppName="ArmaduraBR"
-        Version="0.1.23"
+        Version="0.1.25"
         ModuleName="./Contents/Windows/2025/ArmaduraBR.AutoCAD.dll"
         AppDescription="Armadura BR"
         LoadOnAutoCADStartup="True"
@@ -92,7 +92,7 @@
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R25.1" SeriesMax="R25.1" />
     <ComponentEntry
         AppName="ArmaduraBR"
-        Version="0.1.23"
+        Version="0.1.25"
         ModuleName="./Contents/Windows/2026/ArmaduraBR.AutoCAD.dll"
         AppDescription="Armadura BR"
         LoadOnAutoCADStartup="True"
@@ -104,7 +104,7 @@
     <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R26.0" SeriesMax="R26.0" />
     <ComponentEntry
         AppName="ArmaduraBR"
-        Version="0.1.23"
+        Version="0.1.25"
         ModuleName="./Contents/Windows/2027/ArmaduraBR.AutoCAD.dll"
         AppDescription="Armadura BR"
         LoadOnAutoCADStartup="True"

@@ -1,0 +1,9 @@
+<Project>
+  <!-- Lido antes do Microsoft.Common.props: a pasta obj (inclusive a restauração do NuGet) fica separada por versão do
+       AutoCAD e pela demo. Definida no .csproj, a restauração de todas as versões caía no mesmo obj\ (aviso MSB3539). -->
+  <PropertyGroup>
+    <AutoCadVersao Condition="'$(AutoCadVersao)' == ''">2026</AutoCadVersao>
+    <BaseIntermediateOutputPath Condition="'$(Demo)' != 'true'">obj\$(AutoCadVersao)\</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath Condition="'$(Demo)' == 'true'">obj\demo$(AutoCadVersao)\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

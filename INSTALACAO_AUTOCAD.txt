@@ -1,18 +1,18 @@
-﻿ARMADURA BR - INSTALAÇÃO NO AUTOCAD 2026
-=========================================
+﻿ARMADURA BR - INSTALAÇÃO NO AUTOCAD 2021 A 2027
+================================================
 
 FORMA RECOMENDADA: INSTALADOR
 -----------------------------
 1. Copie para o outro computador o arquivo
-   instalador\saida\ArmaduraBR_AutoCAD_Setup_<versão>.exe
-   (para gerar uma versão nova do arquivo, rode instalador\gerar_autocad.bat).
+   instalador\saida\ArmaduraBR_Setup_<versão>.exe (instalador único; deixe "AutoCAD" marcado)
+   (para gerar uma versão nova do arquivo, rode instalador\gerar.bat).
 2. Feche o AutoCAD e rode o Setup. Ele não pede administrador.
    Se o Windows mostrar "O Windows protegeu o computador", clique em "Mais informações" e
    depois em "Executar assim mesmo".
-3. Abra o AutoCAD 2026. O plugin carrega sozinho e a paleta Armadura aparece, com a aba
+3. Abra o AutoCAD. O plugin carrega sozinho e a paleta Armadura aparece, com a aba
    "Comandos".
 - Atualizar: rode o Setup novo por cima.
-- Desinstalar: Configurações do Windows > Aplicativos > "Armadura BR para AutoCAD 2026".
+- Desinstalar: Configurações do Windows > Aplicativos > "Armadura BR".
 
 O passo a passo abaixo é a instalação MANUAL, sem o Setup.
 
@@ -89,7 +89,7 @@ cima). Se o AutoCAD estiver aberto, ele mantém a versão antiga até ser reinic
 
 6) DESINSTALAR
 --------------
-- Opção A: Configurações do Windows > Aplicativos > "Armadura BR para AutoCAD 2026".
+- Opção A: Configurações do Windows > Aplicativos > "Armadura BR".
 - Opção B: feche o AutoCAD e apague a pasta
   %AppData%\Autodesk\ApplicationPlugins\ArmaduraBR.bundle
 - (Opcional) Configurações e logs ficam em %AppData%\ArmaduraBR.

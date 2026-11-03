@@ -201,7 +201,7 @@ internal static class PaletaArmadura
         outros = 0;
         var cfg = ConfigDesenho.Obter(db);
         double cpu = Desenho.CmPorUnidade(db, cfg);
-        using var tr = db.TransactionManager.StartOpenCloseTransaction();
+        using var tr = db.TransacaoLeve();
         foreach (var id in ids)
         {
             if (id.IsErased) continue;
@@ -296,7 +296,7 @@ internal static class PaletaArmadura
     {
         var r = new List<PropriedadesTabela>();
         var cfg = ConfigDesenho.Obter(db);
-        using var tr = db.TransactionManager.StartOpenCloseTransaction();
+        using var tr = db.TransacaoLeve();
         foreach (var id in ids)
         {
             if (id.IsErased) continue;
