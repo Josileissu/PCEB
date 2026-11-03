@@ -1,0 +1,132 @@
+PCEB - Referência dos nomes das normas usadas pelo programa
+Gerado em 03/11/2026 a partir da biblioteca do mantenedor (S:\Meu Drive\Normas).
+
+As normas NÃO são distribuídas com o PCEB (direitos autorais). Quem usar o programa deve obter as
+próprias cópias e colocá-las nesta pasta (02_biblioteca/normas/), mantendo a subpasta e o nome
+de arquivo listados abaixo, para que o programa as encontre.
+
+Formato: <subpasta>/<arquivo>
+------------------------------------------------------------------------
+ACIs/ACI 117M-10 Specification for Tolerances for Concrete Construction and Materials and Commentary - Metric.pdf
+ACIs/ACI 305R-10 - Guide to Hot Weather Concreting.pdf
+ACIs/ACI 318R-19.pdf
+ACIs/ACI 351.3R-18 - Report on Foundations for Dynamic Equipment.pdf
+AISC/AISC 2014 - Specification for Structural Joints Using Hight-Strength Bolts.pdf
+AISC/AISC Design Guide 01 - Base Plate And Anchor Rod Design 2nd Ed.pdf
+ANSI - AISC/AISI 2015-2019 FRAMING STANDARDS BUNDLE-PART1.zip
+ANSI - AISC/AISI 2015-2019 FRAMING STANDARDS BUNDLE-PART2.zip
+ANSI - AISC/ANSI-AISC - Specification for Structural Joints using High-Strength Bolts.pdf
+ANSI - AISC/ANSI-AISC 303-16 - Code of Standard Practice for Steel Buildings and Bridges.pdf
+ANSI - AISC/ANSI-AISC 360-16 - Specification for strucutural steel buildings.pdf
+ANSI - AISC/S100-16 & S100-16-C (2018.03.20)_s.pdf
+ANSI - AISC/Specifications for the Design, Fabrication and Erection of Structural Steel - Copia.pdf
+ANSI - AISC/Specifications for the Design, Fabrication and Erection of Structural Steel.pdf
+ASCE/ASCE-SEI 7-22 - Minimum design loads and associated criteria for buildings and others structures.pdf
+AWS/AWS A5.1.pdf
+AWS/AWS-D1.1-D1.1M-2020.pdf
+AWS/AWS_D1_1_D1_1M_2020-PV.pdf
+AWS/vdocument.in_aws-d11-d11m-2010.pdf
+Alvenaria/NBR 16868-1 - 2020 - Alvenaria Estrutural - Parte 1 - Projeto.pdf
+Alvenaria/NBR 16868-2 - 2020 - Alvenaria Estrutural - Parte 2 - Execução e Controle de Obras.pdf
+Alvenaria/NBR 16868-3 - 2020 - Alvenaria Estrutural - Parte 3 - Métodos de ensaio.pdf
+Aço/ANSI-AISC 303-16 - Code of Standard Practice for Steel Buildings and Bridges.pdf
+Aço/ANSI-AISC 360-16 - Specification for Structural Steel Buildings.pdf
+Aço/NBR 14762 - 2010 - Dimensionamento de Perfis de Aço Formados a Frio.pdf
+Aço/NBR 16239 - 2013 - Projeto de estruturas de aço e de estruturas.pdf
+Aço/NBR 5884 - 2013 - Perfil I estrutural de aço soldado por arco elétrico - Requisitos gerais.pdf
+Aço/NBR 6355 - 2012 - Perfis estruturais de aço formados a frio - Padronização.pdf
+Aço/NBR 6355 - Perfis Estruturais de Aço Formados a Frio - Padronização.pdf
+Aço/NBR 8800 - 2008 - Projeto de estruturas de aço e de estruturas mistas de aço e concreto de edifícios.pdf
+Aço/NBR 8800 - 2024 - Projeto de estruturas de aço e de estruturas mistas de aço e concreto de edifícações.pdf
+Aço/Projeto de Norma/PN_ABNT_NBR16775_2019_consulta-nacional.pdf
+Aço/v15.1_vol-1_design-examples.pdf
+Aço/v15.1_vol-2_design-tables.pdf
+Cargas, Ações-Comb, Vento, Sismos/Antigos/Consulta Nacional - NBR 6120.pdf
+Cargas, Ações-Comb, Vento, Sismos/Antigos/NBR 06120 - 2000 - Cargas para o cálculo de estruturas de edificações - Marquezin.pdf
+Cargas, Ações-Comb, Vento, Sismos/Antigos/NBR 06123 - Carga de Vento - ACIR Corrigida.pdf
+Cargas, Ações-Comb, Vento, Sismos/NBR 06120 - 2019 - Cargas para o cálculo de estruturas de edificações.pdf
+Cargas, Ações-Comb, Vento, Sismos/NBR 06123 - 2023 - Força Devido aos Ventos.pdf
+Cargas, Ações-Comb, Vento, Sismos/NBR 07188 - 2013 - Carga móvel rodoviária e de pedestres em pontes, viadutos, passarelas e outras estruturas.pdf
+Cargas, Ações-Comb, Vento, Sismos/NBR 07188 - 2024 - Carga móvel rodoviária e de pedestres em pontes, viadutos, passarelas e outras estruturas.pdf
+Cargas, Ações-Comb, Vento, Sismos/NBR 08681 - 2003 - Ações e segurança nas estruturas - Procedimento.pdf
+Cargas, Ações-Comb, Vento, Sismos/NBR 15421 - 2006 - Projeto de estruturas resistentes a sismos - Procedimento.pdf
+Cargas, Ações-Comb, Vento, Sismos/NBR 15421 - 2023 - Projeto de estruturas resistentes a sismos - Procedimento.pdf
+Cargas, Ações-Comb, Vento, Sismos/Versão NBR 6123 de ACIR Corrigida.pdf
+Chumbadores/NBR 14827 - 2002 - Chumbadores Instalados Em Elementos De Concreto.pdf
+Concreto/Antigos/NBR 12655 - 2006 - Concreto de cimento Portland - Preparo,controle e recebimento - Procedimentoo.pdf
+Concreto/Antigos/NBR 6118 - 2014 - Projeto de estruturas de concreto - Procedimento.pdf
+Concreto/NBR 12655 - 2015 - Concreto de cimento Portland - Preparo, controle, recebimento e aceitação - Procedimento.pdf
+Concreto/NBR 12655 - 2022 - Concreto de cimento Portland - Preparo, controle recebimento e aceitação - Procedimento.pdf
+Concreto/NBR 14931 - 2004 - Execucao de Estruturas de Concreto - Procedimento.pdf
+Concreto/NBR 15900-1 - 2009 - Água para amassamento do concreto Parte 1 - Requisitos.pdf
+Concreto/NBR 16697 - 2018 - Cimento Portland - Requisitos.pdf
+Concreto/NBR 6118 - 2023 - Projeto de estruturas concreto - MARQUEZIN - EMENTA 1 - 11-03-2026.pdf
+Concreto/NBR 6118 - 2023 - Projeto de estruturas concreto - Procedimento.pdf
+Concreto/NBR 6118 - 2023 - Projeto de estruturas de concreto - Procedimento.pdf
+Concreto/NBR 7212 - 2012 - Execução de concreto dosado em central - Procedimento.pdf
+Concreto/NBR 7480 - 2007 - Aço destinado a armaduras para estruturas de concreto armado.pdf
+Concreto/NBR 7680-1 - 2015 - Concreto - Extração, preparo, ensaio e análise de testemunhos de estruturas de concreto - Parte 1 - Resistência à compressão axial.pdf
+Concreto/NBR 8522-1 - 2021 - Concreto endurecido - Determinação dos módulos de elasticidade e de deformação Parte 1.pdf
+Concreto/NBR 8522-2 - 2021 - Concreto endurecido - Determinação dos módulos de elasticidade e de deformação Parte 2.pdf
+Concreto/NBR 8953 - 2015 - Concreto para fins estruturais.pdf
+Concreto/NBR 9781 - 2013 - Peças de concreto para pavimentação - Especificação e métodos de ensaio.pdf
+Concreto/NBR 9833 - 2009 - Concreto fresco - Determinação da massa específica, do rendimento e do teor de ar pelo método gravimétrico.pdf
+Concreto/NBR NM 67 - 1998 - Concreto - Determinação da consistência pelo abatimento do tronco de cone.pdf
+Corpos de Prova - Concreto/NBR 7680-1 - 15_aula.pdf
+Elevadores/2016-1_andre_guilherme_alves_amorim.pdf
+Elevadores/ABNT NM 207-1999.pdf
+Elevadores/Normas utilizadas/Elevadores elétricos e hidráulicos para passageiros.pdf
+Elevadores/elevadordetransportedepessoasparaoprediogaragemdafaculdaderedentor_02082017190037.pdf
+Escadas/NBR 9050 - 2020 - Acessibilidade a edificações, mobiliário, espaços e equipamentos urbanos.pdf
+Escadas/NBR 9077 - 2001 - Saídas de emergência em edifícios.pdf
+Eurocode/EN 1991-1-1 (2002) - Eurocode 1 - Actions on structures - Part 1-1 - General actions - Densities, self-weight, imposed loads for buildings.pdf
+Eurocode/EN 1991-1-4 (2005) - Eurocode 1 - Actions on structures - Part 1-4 - General actions - Wind actions.pdf
+Eurocode/EN 1991-4 (2006) - Eurocode 1 - Actions on structures - Part 4 - Silos and tanks.pdf
+Eurocode/EN 1994-1-1 (2004) - Eurocode 4 - Design of composite steel and concrete structures - Part 1-1 - General rules and rules for buildings.pdf
+Eurocode/Eurocódigo 1 Acções em estruturas Parte 1-4 - Acções gerais Acções do vento NP EN.pdf
+Fibra de Carbono/ACI - 4402r_08.pdf
+Fibra de Carbono/manual-fibra-de-carbono.pdf
+Fibras/NBR 16940 - concreto com fibras.pdf
+Fibras/NBR-16935 - projeto de crf.pdf
+Fundações/NBR 06122 - 2019 - Projeto e execução de fundações.pdf
+Fundações/NBR 06122 - 2022 - Projeto e execução de fundações.pdf
+Fundações/NBR 08036 - 1983 - Programação de sondagens de simples reconhecimento dos solos para fundações de edifícios.pdf
+Fundações/NBR 09603 - 2015 - Sondagem a trado - Procedimento.pdf
+Fôrmas e Escoramentos/NBR 15696 - 2009 - Fôrmas e escoramentos para estruturas de concreto - Projeto, dimensionamento e procedimentos executivos.pdf
+Guarda Corpo - Escada Marinheiro - Esquadrias/Escadas de Segurança - Metálicas.pdf
+Guarda Corpo - Escada Marinheiro - Esquadrias/NBR 10821-2 - 2017 - Esquadrias para edificações - Parte 2 - Esquadrias externas - Requisitos e classificação.pdf
+Guarda Corpo - Escada Marinheiro - Esquadrias/NBR 14718 - 2019 - Esquadria - Guarda-corpos para edificação - Requisitos, procedimentos e métodos de ensaio.pdf
+Guarda Corpo - Escada Marinheiro - Esquadrias/NBR 15708-6 - 2014 - Indústrias do petróleo e gás natural - Perfis pultrudados - Parte 6 - Escada tipo marinheiro.pdf
+Guarda Corpo - Escada Marinheiro - Esquadrias/atualizado_npt-011-saidas_de_emergencia-_publicacao.pdf
+Guarda Corpo - Escada Marinheiro - Esquadrias/pdfcoffee.com_abnt-nbr-14718-guarda-corpos-para-edificaao-pdf-free.pdf
+ICC - Relatório Hilti/ICC_ESR-1752_for_Low_Velocity_Power_Driven_Track_Fasteners_Approval_document_ASSET_DOC_LOC_4.pdf
+IT's/Bahia - IT-08-2016 - Resistência ao fogo dos elementos de construção.pdf
+IT's/Portaria_n-CCB-042_800_23.pdf
+IT's/Portaria_n-CCB-043_e_044_800_23.pdf
+IT's/Rio de Janeiro/NT-2-08-Saidas-de-emergencia-em-edificacoes.pdf
+IT's/São Paulo - IT-08-19.pdf
+IT's/São Paulo/IT-11-19.pdf
+Incêndio/NBR 14323 - 2013 - Projeto de estruturas de aço e de estruturas mistas de aço e concreto de edifícios em situação de incêndio.pdf
+Incêndio/NBR 14432 - 2001 - Exigências de resistência ao fogo de elementos construtivos de edificações.pdf
+Incêndio/NBR 15200 - 2012 - Projeto de estruturas de concreto em situação de incêndio.pdf
+Incêndio/NBR 9077 - 2001 - Saídas de emergência em edifícios.pdf
+Madeira/NBR 7190 - Projeto de estruturas de madeira - Sem marca.pdf
+Madeira/NBR 7190-1 - Projeto de estruturas de madeira - Sem marca.pdf
+Madeira/Tabela.xlsx
+Madeira/pdfcoffee.com_abtn-nbr-7190-2022-pdf-free.pdf
+New Jersey/NBR 15486-2016 - Segurança no trafego - Dispositivos de  contenção viária - Diretrizes de projetos e ensaios de impacto.pdf
+Normas em consulta Nacional/NBR 6123.pdf
+Petrobrás/1 - NTP_Português.zip
+Petrobrás/Catalogo.PDF
+Pontes/NBR 07187 - 2021 - ERRATA 1 - 02-08-2022.pdf
+Pontes/NBR 7187 - 2021 - Projeto de pontes de concreto armado e de concreto protendido.pdf
+Proteção contra quedas/ABNT 16325-1.pdf
+Proteção contra quedas/ABNT 16325-2.pdf
+Proteção contra quedas/Databooks - MEPI/26 -MEPI 711-19 COPS P053 - N.7084 - KILVEM - TIETE AGROINDUSTRIA.pdf
+Proteção contra quedas/Databooks - MEPI/30 - DTB - MEPI 184-20 (001202) - R1 - PC - BONFIM - GUARIBA - SP - RAÍZEN - LVCA.pdf
+Proteção contra quedas/Databooks - MEPI/3°F.17 ORDEM PRODUÇÃO.xlsx
+Proteção contra quedas/Databooks - MEPI/site.txt
+Proteção contra quedas/Guia pratico para calculo de linha de vida e restricao para industria da construcao.pdf
+Pré-Moldado/NBR 14589 - 2016 - Lajes pré-fabricada de concreto - Parte 1.pdf
+Pré-Moldado/NBR 14861 - 2002 - Laje Pré-Fabricada - Painel Alveolar de Concreto Protendido - Requisitos.pdf
+Pré-Moldado/NBR 9062 - 2017 - Projeto e execução de estruturas de concreto pré-moldado - Marquezin.pdf
