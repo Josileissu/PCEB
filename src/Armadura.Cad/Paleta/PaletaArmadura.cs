@@ -17,7 +17,7 @@ namespace Armadura.Cad.Paleta;
 /// </summary>
 internal static class PaletaArmadura
 {
-    private static GrxCAD.Windows.PaletteSet _ps;
+    private static PaletteSet _ps;
     private static PropertyGrid _grid;
     private static Label _status;
     private static Document _docLigado;
@@ -45,9 +45,9 @@ internal static class PaletaArmadura
 
     private static void Criar()
     {
-        _ps = new GrxCAD.Windows.PaletteSet("Armadura", new Guid("6F1C1B0E-4E7B-4D5A-9C3E-2A7B5D0A8E11"))
+        _ps = new PaletteSet("Armadura", new Guid("6F1C1B0E-4E7B-4D5A-9C3E-2A7B5D0A8E11"))
         {
-            Style = GrxCAD.Windows.PaletteSetStyles.ShowCloseButton | GrxCAD.Windows.PaletteSetStyles.ShowAutoHideButton,
+            Style = PaletteSetStyles.ShowCloseButton | PaletteSetStyles.ShowAutoHideButton,
             MinimumSize = new Size(260, 300),
             Size = new Size(320, 560),
         };
