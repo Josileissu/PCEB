@@ -51,7 +51,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DEB.Core\DEB.Core.csproj" />
+    <ProjectReference Include="..\..\..\DEB.Core\DEB.Core.csproj" />
   </ItemGroup>
 
 </Project>

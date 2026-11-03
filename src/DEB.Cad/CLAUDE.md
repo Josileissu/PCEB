@@ -11,7 +11,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
 
 ## Compilar e testar
 ```powershell
-& "C:\Program Files\dotnet\dotnet.exe" test tests\DEB.Core.Tests        # núcleo, sem CAD
+& "C:\Program Files\dotnet\dotnet.exe" test ..\..\tests\DEB.Core.Tests   # núcleo, sem CAD (PCEB\tests)
 & "C:\Program Files\dotnet\dotnet.exe" build src\DEB.GstarCAD -c Release  # → bin\GstarCAD2021\
 ```
 - Plugin: `bin\GstarCAD2021\DEB.GstarCAD.dll` (net48 x64; gmap/gmdb do SDK, Private=false).
@@ -38,11 +38,11 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   → `ActiveDocument.ModelSpace`. Formate números com `InvariantCulture` (o Windows é pt-BR).
 - Planilhas do usuário (xlsx): `openpyxl` instalado com `pip --user`; rode `python -E -P script.py` (o `-I`
   ignora o site do usuário). Copie o arquivo para uma pasta própria no scratchpad antes.
-- Testes de unidade: `tests/DEB.Core.Tests` (108 em 2026-10-27).
+- Testes de unidade: `PCEB/tests/DEB.Core.Tests` (108 em 2026-10-27).
 - Log do plugin: `%AppData%\PCEB\DEB.Cad\logs\deb_AAAAMMDD.log` (até 03/11/2026: `%AppData%\ArmaduraBR`, migrada sozinha na 1ª execução); configuração do usuário: `%AppData%\PCEB\DEB.Cad\config.json`.
 
 ## Estrutura
-- `src/DEB.Core` (netstandard2.0, sem CAD): tabelas, normas, comprimento, descrição, numeração, RA, codec XData.
+- `PCEB/src/DEB.Core` (netstandard2.0, sem CAD; desde a etapa 5 fica fora do plugin, comum ao Revit): tabelas, normas, comprimento, descrição, numeração, RA, codec XData.
 - `src/DEB.Cad` (fontes compartilhados, sem .csproj): Sincronizador (eventos → fila → CommandEnded),
   ServicoBarra (cotas/descrição), ServicoRA (tabela), Overrule de desenho (curvatura), Comandos, Testes/AutoTeste.
 - `src/DEB.GstarCAD`: csproj + `GlobalUsings.cs` (GrxCAD.*). O projeto AutoCAD terá outro GlobalUsings.

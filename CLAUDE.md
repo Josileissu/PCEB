@@ -8,6 +8,8 @@ Ele autorizou instalar o que for preciso e prefere que eu teste sozinho (Revit/C
 ```
 docs/          estudo: 00_escopo (decisões D1… e perguntas em aberto), 01_catalogo, 02_biblioteca,
                03_casos-teste, 04_arquitetura (plano de migração), notas
+src/DEB.Core/  núcleo comum sem plataforma (netstandard2.0): normas, comprimentos, numeração, catálogos
+tests/         testes do núcleo (xUnit)
 src/DEB.Cad/   Detalhador Estrutural Brasileiro para CAD (ex-Armadura BR): GstarCAD, AutoCAD, ZWCAD — ver o CLAUDE.md de lá
 src/DEB.Revit/ Detalhador Estrutural Brasileiro para Revit (ex-StructuralDetailer) — ver o CLAUDE.md de lá
 programas/     downloads de terceiros (fora do Git)
@@ -18,7 +20,7 @@ PCEB.sln       compila tudo
 ```powershell
 cd C:\Users\SUELIO087\Documents\desenvolvedor\PCEB
 & "C:\Program Files\dotnet\dotnet.exe" build PCEB.sln -c Release -p:DeployToRevit=false -p:NoWarn=MSB3277
-& "C:\Program Files\dotnet\dotnet.exe" test src\DEB.Cad\tests\Armadura.Core.Tests -c Release
+& "C:\Program Files\dotnet\dotnet.exe" test tests\DEB.Core.Tests -c Release
 ```
 Versões padrão: GstarCAD 2021, AutoCAD 2026, Revit 2025. Outras versões: compile o projeto com o parâmetro
 próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
