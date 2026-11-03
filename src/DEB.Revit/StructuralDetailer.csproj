@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Plugin de detalhamento estrutural para Revit 2025 / 2026 (.NET 8).
+
+    Compilar:
+      dotnet build -c Release -p:RevitVersion=2025
+      dotnet build -c Release -p:RevitVersion=2026
+
+    As DLLs da API são lidas da instalação do Revit (não precisa de NuGet).
+    Se o Revit estiver em outra pasta:  -p:RevitInstallDir="D:\Autodesk\Revit 2025\"
+    Para não copiar automaticamente para a pasta de Addins: -p:DeployToRevit=false
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>StructuralDetailer</RootNamespace>
+    <AssemblyName>StructuralDetailer</AssemblyName>
+    <Version>0.1.0</Version>
+
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2025</RevitVersion>
+    <RevitInstallDir Condition="'$(RevitInstallDir)' == ''">C:\Program Files\Autodesk\Revit $(RevitVersion)\</RevitInstallDir>
+    <DeployToRevit Condition="'$(DeployToRevit)' == ''">true</DeployToRevit>
+
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\$(Configuration)\R$(RevitVersion)\</OutputPath>
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="RevitAPI">
+      <HintPath>$(RevitInstallDir)RevitAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="RevitAPIUI">
+      <HintPath>$(RevitInstallDir)RevitAPIUI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Copia a DLL e o manifesto para %AppData%\Autodesk\Revit\Addins\<versão>\ -->
+  <Target Name="DeployToRevitAddins" AfterTargets="Build" Condition="'$(DeployToRevit)' == 'true'">
+    <PropertyGroup>
+      <AddinDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)\</AddinDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_SdBuilt Include="$(OutputPath)*.dll;$(OutputPath)*.pdb;$(OutputPath)*.deps.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_SdBuilt)" DestinationFolder="$(AddinDir)StructuralDetailer\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="StructuralDetailer.addin" DestinationFolder="$(AddinDir)" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="Plugin copiado para $(AddinDir)" />
+  </Target>
+
+</Project>
