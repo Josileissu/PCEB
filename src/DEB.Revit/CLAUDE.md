@@ -24,7 +24,8 @@ cd C:\Users\SUELIO087\Documents\desenvolvedor\PCEB\src\DEB.Revit
 ## Testar sem o usuário (AutoRun)
 `src/AutoRun.cs`: abrir o Revit 2025 com variáveis de ambiente roda uma tarefa no evento Idling e fecha o Revit.
 ```powershell
-$env:SD_AUTORUN = "precast"   # diag | probe | precast
+$env:SD_AUTORUN = "precast"   # diag | probe | precast | ferramentas
+$env:SD_COPYFROM = "<.rvt de origem>"   # só "ferramentas": testa as cópias entre arquivos
 $env:SD_AUTOEXIT = "1"
 $env:SD_SAVEAS = "<scratchpad>\Projeto1_teste.rvt"   # resultado vai para uma CÓPIA; o original nunca é salvo
 $p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"C:\Users\SUELIO087\Documents\desenvolvedor\Projeto1.rvt"' -PassThru
@@ -55,6 +56,18 @@ src/
 Fluxo dos pré-moldados: levantamento → grupos de peças iguais → janela (armadura por grupo) →
 para cada pilar: limpar → marca → barras → dados das barras → assembly (pilar + consolos + barras) →
 o 1º do grupo gera a prancha pelo padrão; os demais caem no mesmo tipo de assembly e reaproveitam a folha.
+
+## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
+Os scripts originais ficam em `auxiliar_scripts/` só como referência (fora da compilação: `<Compile Remove>` no csproj).
+- `ToolCommand`: base de todos — barreira de exceções (mensagem + log `logs/ferramentas_AAAAMMDD.log`), `ToolCancelled`.
+- `ToolDialogs`: `FieldForm` (formulário com validação) e `CheckListWindow` (lista com Shift+clique, Todos/Nenhum/Inverter/filtro).
+- `RenumberCommands`: pilares, vigas, lajes, fundações, paredes, peças. Ordem em **DEB.Core** (`Numeracao/OrdenacaoMarcas`,
+  com testes); tolerância 0,50 m; entra em grupos aninhados. `Apply()` sem janela (usado pelo AutoRun).
+- `ModelToolsCommands`: Selecionar por marca (`FiltroMarca` no núcleo) e Alterar material (tipo; ou instância quando a
+  família tem o material na peça — caso do Projeto1).
+- `CopyFromFileCommands`: fundações e montagens com vistas/folhas de outro .rvt (subtransação por montagem; não fecha
+  documento que já estava aberto). `ExportCsvCommand`: 6 CSVs, mesmas colunas do ExportarTudo_Colunas.
+- Janelas WPF não testadas pelo AutoRun (só a lógica): conferir com o usuário.
 
 ## Decisões do usuário (não reabrir sem ele pedir)
 - Consolos são família "Consolo" **aninhada e compartilhada na viga**; entram no **assembly do pilar**

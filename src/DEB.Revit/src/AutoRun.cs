@@ -53,6 +53,9 @@ namespace DEB.Revit
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
                         break;
+                    case "ferramentas":
+                        status = "OK " + Tools.ToolsAutoTest.Run(uiapp, uidoc);
+                        break;
                     default:
                         status = "ERRO tarefa desconhecida: " + _task;
                         break;
