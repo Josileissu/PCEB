@@ -1,6 +1,7 @@
 using System.Reflection;
 using Autodesk.Revit.UI;
 using DEB.Revit.Commands;
+using DEB.Revit.Tools;
 using DEB.Revit.UI;
 
 namespace DEB.Revit
@@ -65,8 +66,54 @@ namespace DEB.Revit
             };
             precast.AddItem(pilares);
 
+            AddToolsPanel(application, dll);
+
             AutoRun.Register(application);
             return Result.Succeeded;
+        }
+
+        /// <summary>Painel "Ferramentas": os scripts do escritório (Revit_Suelio) transformados em comandos do DEB.</summary>
+        private static void AddToolsPanel(UIControlledApplication application, string dll)
+        {
+            RibbonPanel tools = application.CreateRibbonPanel(TabName, "Ferramentas");
+            string projectOnly = typeof(ProjectOnlyAvailability).FullName;
+            PushButtonData Btn(string id, string text, System.Type cmd, string tip, string icon) => new PushButtonData(id, text, dll, cmd.FullName)
+            {
+                ToolTip = tip,
+                AvailabilityClassName = projectOnly,
+                LargeImage = IconFactory.Create(32, icon),
+                Image = IconFactory.Create(16, icon.Substring(0, 1))
+            };
+
+            var renumber = (PulldownButton)tools.AddItem(new PulldownButtonData("DEB_Renumerar", "Renumerar\nmarcas")
+            {
+                ToolTip = "Renumera as marcas das peças selecionadas (soltas ou em grupos), de cima para baixo e da esquerda para a direita.",
+                LargeImage = IconFactory.Create(32, "N#"),
+                Image = IconFactory.Create(16, "N")
+            });
+            const string orderTip = " Selecione as peças ou grupos e informe prefixo e número inicial.";
+            renumber.AddPushButton(Btn("DEB_RenPilares", "Pilares", typeof(RenumberColumnsCommand), "Pilares em linhas pelo canto superior esquerdo do croqui (tolerância 0,50 m)." + orderTip, "P"));
+            renumber.AddPushButton(Btn("DEB_RenVigas", "Vigas", typeof(RenumberBeamsCommand), "Horizontais (cima → baixo), depois verticais (esquerda → direita), depois inclinadas." + orderTip, "V"));
+            renumber.AddPushButton(Btn("DEB_RenLajes", "Lajes", typeof(RenumberSlabsCommand), "Linhas pela sobreposição em Y (≥ 50 % da laje), cada uma da esquerda para a direita." + orderTip, "L"));
+            renumber.AddPushButton(Btn("DEB_RenFundacoes", "Fundações", typeof(RenumberFoundationsCommand), "Fundações em linhas pelo canto superior esquerdo do croqui (tolerância 0,50 m)." + orderTip, "F"));
+            renumber.AddPushButton(Btn("DEB_RenParedes", "Paredes", typeof(RenumberWallsCommand), "Horizontais, depois verticais, depois inclinadas; faixas de 0,50 m de cima para baixo." + orderTip, "W"));
+            renumber.AddPushButton(Btn("DEB_RenPecas", "Peças (qualquer)", typeof(RenumberPiecesCommand), "Qualquer elemento com marca editável, em linhas pelo canto superior esquerdo." + orderTip, "*"));
+
+            tools.AddItem(Btn("DEB_SelMarca", "Selecionar\npor marca", typeof(SelectByMarkCommand),
+                "Seleciona pilares, fundações, vigas, lajes ou paredes pela marca (começa com, contém, igual, expressão regular).", "S"));
+            tools.AddItem(Btn("DEB_Material", "Alterar\nmaterial", typeof(ChangeMaterialCommand),
+                "Grava o material escolhido nos tipos de pilares e/ou vigas (padrão: Concreto - Pré-Moldado - C40).", "M"));
+            tools.AddItem(Btn("DEB_ExportCsv", "Exportar\nCSV", typeof(ExportCsvCommand),
+                "Exporta parâmetros, BuiltInParameters e geometria das peças para 6 arquivos CSV.", "CSV"));
+
+            var copy = (PulldownButton)tools.AddItem(new PulldownButtonData("DEB_Copiar", "Copiar de\noutro arquivo")
+            {
+                ToolTip = "Copia elementos de outro .rvt para o projeto atual, na mesma posição.",
+                LargeImage = IconFactory.Create(32, "⇄"),
+                Image = IconFactory.Create(16, "⇄")
+            });
+            copy.AddPushButton(Btn("DEB_CopFundacoes", "Fundações", typeof(CopyFoundationsCommand), "Fundações, sapatas corridas e montagens com fundações de outro arquivo.", "F"));
+            copy.AddPushButton(Btn("DEB_CopMontagens", "Montagens com vistas", typeof(CopyAssembliesCommand), "Montagens com membros, vistas da montagem e folhas de outro arquivo.", "A"));
         }
 
         public Result OnShutdown(UIControlledApplication application) => Result.Succeeded;

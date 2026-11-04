@@ -44,6 +44,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Scripts originais do escritório (Revit_Suelio): só referência, já viraram comandos em src/Tools -->
+    <Compile Remove="auxiliar_scripts\**" />
+    <None Remove="auxiliar_scripts\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Núcleo comum com o plugin de CAD (regras de dobramento, bitolas, numeração...) -->
     <ProjectReference Include="..\DEB.Core\DEB.Core.csproj" />
   </ItemGroup>

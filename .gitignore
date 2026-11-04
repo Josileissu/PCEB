@@ -15,3 +15,7 @@ programas/*/download/
 *.tmp
 ~$*
 Thumbs.db
+
+# Saídas de compilação (todos os projetos)
+bin/
+obj/
