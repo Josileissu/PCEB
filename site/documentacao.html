@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentação — instalação, comandos e formatos | PCEB</title>
+<meta name="description" content="Documentação do DEB: instalação no CAD e no Revit, comandos essenciais, formatos de dados, normas de referência e perguntas frequentes.">
+<link rel="canonical" href="https://pceb.com.br/documentacao.html">
+<meta name="theme-color" content="#0e171c">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="PCEB">
+<meta property="og:title" content="Documentação — PCEB">
+<meta property="og:description" content="Instalação, comandos, formatos e normas do DEB para CAD e Revit.">
+<meta property="og:url" content="https://pceb.com.br/documentacao.html">
+<meta property="og:image" content="https://pceb.com.br/assets/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Documentação — PCEB">
+<meta name="twitter:description" content="Instalação, comandos, formatos e normas do DEB para CAD e Revit.">
+<meta name="twitter:image" content="https://pceb.com.br/assets/img/og.png">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="index.html" aria-label="PCEB — página inicial">
+      <svg class="brand__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+        <rect x="1" y="1" width="38" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M11 30V10h8.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M25 14h5M25 21h5M25 28h5" stroke="currentColor" stroke-width="1.4"/>
+      </svg>
+      <span class="brand__name"><b>PCEB</b><span>Cálculo Estrutural Brasileiro</span></span>
+    </a>
+    <nav class="nav" id="menu" aria-label="Navegação principal">
+      <a href="deb.html">DEB</a>
+      <a href="documentacao.html" aria-current="page">Documentação</a>
+      <a href="projeto.html">Projeto</a>
+      <a class="btn btn--primary btn--sm" href="baixar.html">Baixar</a>
+    </nav>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menu"><span></span></button>
+  </div>
+</header>
+
+<main id="conteudo">
+
+  <section class="page-hero">
+    <div class="wrap page-hero__inner">
+      <div>
+        <div class="breadcrumb"><a href="index.html">PCEB</a><span>/</span><span>Documentação</span></div>
+        <p class="eyebrow"><span class="dot"></span>Instalação · comandos · formatos</p>
+        <h1>Documentação técnica.</h1>
+        <p class="lead">
+          O necessário para compilar, instalar e operar o DEB no CAD e no Revit. Os documentos
+          completos ficam no repositório, versionados junto com o código.
+        </p>
+      </div>
+      <aside class="page-hero__aside">
+        <b>Comece por aqui</b>
+        Requisitos: Windows x64, .NET SDK 8 (e .NET 10 para AutoCAD 2027).<br>
+        Para o Revit: Revit 2025 ou 2026 instalado.
+      </aside>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Documentos</p>
+          <h2 class="h2">O que está no repositório.</h2>
+        </div>
+        <a class="link-arrow" href="https://github.com/Josileissu/PCEB" rel="noopener">Abrir GitHub</a>
+      </div>
+
+      <div class="doc-grid">
+        <a class="doc-card" href="https://github.com/Josileissu/PCEB/blob/main/src/DEB.Cad/README.md" rel="noopener">
+          <div class="doc-card__top">
+            <svg class="doc-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 4h11l3 3v13H5z" stroke="currentColor" stroke-width="1.6"/><path d="M8 10h8M8 14h8M8 17h5" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span>CAD</span>
+          </div>
+          <h3>README do DEB.Cad</h3>
+          <p>Visão geral, recursos, versões suportadas, compilação, instalação e testes.</p>
+          <span class="doc-card__go">Ler no GitHub →</span>
+        </a>
+
+        <a class="doc-card" href="https://github.com/Josileissu/PCEB/blob/main/src/DEB.Cad/docs/ARQUITETURA.md" rel="noopener">
+          <div class="doc-card__top">
+            <svg class="doc-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20V8l8-4 8 4v12M8 20v-6h8v6" stroke="currentColor" stroke-width="1.6"/></svg>
+            <span>CAD</span>
+          </div>
+          <h3>Arquitetura</h3>
+          <p>Entidades nativas, XData <code>ARMADURA_BR</code>, sincronização e overrules.</p>
+          <span class="doc-card__go">Ler no GitHub →</span>
+        </a>
+
+        <a class="doc-card" href="https://github.com/Josileissu/PCEB/blob/main/src/DEB.Cad/docs/FORMATO_QICAD.md" rel="noopener">
+          <div class="doc-card__top">
+            <svg class="doc-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16v10H4z" stroke="currentColor" stroke-width="1.6"/><path d="M8 11h8M8 14h5" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span>Formato</span>
+          </div>
+          <h3>QiCad / QiArmaduras</h3>
+          <p>Como ler e importar arquivos <code>.cad</code> do AltoQi Builder.</p>
+          <span class="doc-card__go">Ler no GitHub →</span>
+        </a>
+
+        <a class="doc-card" href="https://github.com/Josileissu/PCEB/blob/main/src/DEB.Cad/docs/TEMPLATES.md" rel="noopener">
+          <div class="doc-card__top">
+            <svg class="doc-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="4" width="16" height="16" stroke="currentColor" stroke-width="1.6"/><path d="M4 9h16M9 9v11" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span>CAD</span>
+          </div>
+          <h3>Templates de elementos</h3>
+          <p>Base de reservatório, pilar pré-moldado e o formato dos templates.</p>
+          <span class="doc-card__go">Ler no GitHub →</span>
+        </a>
+
+        <a class="doc-card" href="https://github.com/Josileissu/PCEB/blob/main/src/DEB.Cad/docs/PROGRESSO.md" rel="noopener">
+          <div class="doc-card__top">
+            <svg class="doc-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 19h16M6 16V9M11 16V5M16 16v-4M21 16v-7" stroke="currentColor" stroke-width="1.6"/></svg>
+            <span>Estado</span>
+          </div>
+          <h3>Progresso</h3>
+          <p>O que foi implementado, o que está em teste e o que falta.</p>
+          <span class="doc-card__go">Ler no GitHub →</span>
+        </a>
+
+        <a class="doc-card" href="https://github.com/Josileissu/PCEB/blob/main/src/DEB.Revit/README.md" rel="noopener">
+          <div class="doc-card__top">
+            <svg class="doc-card__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20V8l8-4 8 4v12M8 20v-6h8v6" stroke="currentColor" stroke-width="1.6"/><path d="M9 10h2M14 10h2" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span>Revit</span>
+          </div>
+          <h3>README do DEB.Revit</h3>
+          <p>Compilação, configuração, padrões de prancha e limitações da fase atual.</p>
+          <span class="doc-card__go">Ler no GitHub →</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--paper2" id="cad">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Instalação</p>
+          <h2 class="h2">No CAD, em três passos.</h2>
+          <p class="lead mt-24">O instalador único detecta GstarCAD, AutoCAD e ZWCAD. Também é possível instalar manualmente.</p>
+        </div>
+      </div>
+
+      <div class="install">
+        <div class="install__step">
+          <h3>Compile</h3>
+          <p>Com o .NET SDK instalado, compile a solução ou o projeto do CAD desejado.</p>
+          <p class="mt-24"><code>dotnet build src\DEB.GstarCAD -c Release</code></p>
+          <p class="small">Para AutoCAD: <code>src\DEB.AutoCAD</code>. Para ZWCAD: <code>src\DEB.ZWCAD</code>.</p>
+        </div>
+        <div class="install__step">
+          <h3>Gere o instalador</h3>
+          <p>Rode o script do instalador ou copie a DLL e registre o autoload manualmente.</p>
+          <p class="mt-24"><code>src\DEB.Cad\instalador\gerar.bat</code></p>
+          <p class="small">Requer .NET 8, .NET 10 em <code>%LocalAppData%\Microsoft\dotnet10</code> e Inno Setup 6. A saída fica em <code>src\DEB.Cad\instalador\saida</code>.</p>
+        </div>
+        <div class="install__step">
+          <h3>Abra o CAD</h3>
+          <p>No primeiro uso, o CAD pergunta se deve carregar o plugin. Depois, abra a paleta.</p>
+          <p class="mt-24"><code>ARMPALETA</code> · <code>ARMCOMANDOS</code></p>
+          <p class="small">O comando <code>ARMSOBRE</code> mostra a versão instalada.</p>
+        </div>
+      </div>
+
+      <div class="grid-2 mt-56">
+        <div class="callout">
+          <h3>Instalação manual</h3>
+          <p>O AutoCAD usa o autoloader em <code>%AppData%\Autodesk\ApplicationPlugins</code>. O GstarCAD usa o registro de autoload. O passo a passo completo está em <code>INSTALACAO.txt</code> e <code>INSTALACAO_AUTOCAD.txt</code> no repositório.</p>
+        </div>
+        <div class="callout callout--oxide">
+          <h3>Antes de atualizar</h3>
+          <p>Feche o CAD. Se o plugin estiver carregado, a DLL fica bloqueada e a cópia falha. O instalador novo substitui a versão anterior como atualização.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="revit">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Instalação</p>
+          <h2 class="h2">No Revit, com a aba Detalhamento.</h2>
+        </div>
+      </div>
+
+      <div class="install">
+        <div class="install__step">
+          <h3>Compile</h3>
+          <p>Feche o Revit. Compile para a versão instalada; o plugin é copiado para a pasta de Addins.</p>
+          <p class="mt-24"><code>dotnet build -c Release -p:RevitVersion=2025</code></p>
+          <p class="small">Use <code>2026</code> para o Revit 2026.</p>
+        </div>
+        <div class="install__step">
+          <h3>Abra o Revit</h3>
+          <p>Na primeira carga, escolha "Sempre carregar". A aba <strong>Detalhamento</strong> aparece no Ribbon.</p>
+          <p class="mt-24">Botões: <strong>Detalhar peça</strong>, <strong>Pilares pré-moldados</strong>, <strong>Configurar</strong>.</p>
+        </div>
+        <div class="install__step">
+          <h3>Configure o padrão</h3>
+          <p>Ajuste escalas, templates de vista, carimbo e margens no JSON do escritório.</p>
+          <p class="mt-24"><code>%AppData%\PCEB\DEB.Revit\DetalhamentoConfig.json</code></p>
+          <p class="small">Os padrões de prancha ficam em <code>%AppData%\PCEB\DEB.Revit\Padroes</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--paper2" id="comandos">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Referência</p>
+          <h2 class="h2">Comandos por grupo.</h2>
+          <p class="lead mt-24">Os comandos <code>ARM*</code> foram preservados. A lista completa está no README do DEB.Cad.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption>Desenho e edição</caption>
+          <thead><tr><th>Comando</th><th>Função</th></tr></thead>
+          <tbody>
+            <tr><td><code>ARMBARRA</code></td><td>Barra por pontos ou por cobrimento.</td></tr>
+            <tr><td><code>ARMESTRIBO</code> / <code>ARMESTRIBOREP</code></td><td>Estribo com formato, ramos, gancho, bitola e seção.</td></tr>
+            <tr><td><code>ARMFAIXAORT</code> / <code>ARMFAIXAALI</code></td><td>Faixa ortogonal ou alinhada com espaçamento.</td></tr>
+            <tr><td><code>ARMCORTECOTAORT</code> / <code>ARMCORTECOTAALI</code></td><td>Corte com cota e círculos das barras.</td></tr>
+            <tr><td><code>ARMCORTECHAMADA</code> / <code>ARMCORTECHAMADAARCO</code></td><td>Corte com chamada reta ou em arco.</td></tr>
+            <tr><td><code>ARMCHAMADA</code> / <code>ARMINDICACAO</code></td><td>Chamada com quantidade; indicação simples.</td></tr>
+            <tr><td><code>ARMREBATER</code></td><td>Rebatimento vinculado da barra.</td></tr>
+            <tr><td><code>ARMDIVIDIR</code></td><td>Divisão com traspasse.</td></tr>
+            <tr><td><code>ARMTRELICA</code> / <code>ARMTELA</code></td><td>Treliça por modelo e tela por dois cantos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap mt-24">
+        <table class="data-table">
+          <caption>Relação do aço e detalhamentos</caption>
+          <thead><tr><th>Comando</th><th>Função</th></tr></thead>
+          <tbody>
+            <tr><td><code>ARMRAINSERIR</code></td><td>Insere a relação (apresentação, resumo, peso total ou detalhe de dobra).</td></tr>
+            <tr><td><code>ARMRAATUALIZAR</code></td><td>Renumera e atualiza descrições e tabelas.</td></tr>
+            <tr><td><code>ARMRAPARCIAL</code></td><td>Relação parcial por blocos selecionados.</td></tr>
+            <tr><td><code>ARMRAASSOCIAR</code></td><td>Associa blocos a uma relação parcial.</td></tr>
+            <tr><td><code>ARMRABLOQUEAR</code></td><td>Bloqueia a numeração para revisão.</td></tr>
+            <tr><td><code>ARMCORTEDOBRA</code></td><td>Gera CSV e HTML de corte e dobra.</td></tr>
+            <tr><td><code>ARMDETCRIAR</code> / <code>ARMDETGERENCIAR</code></td><td>Cria e gerencia detalhamentos em blocos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap mt-24">
+        <table class="data-table">
+          <caption>Configuração e apoio</caption>
+          <thead><tr><th>Comando</th><th>Função</th></tr></thead>
+          <tbody>
+            <tr><td><code>ARMPALETA</code></td><td>Paleta de propriedades ligada à seleção.</td></tr>
+            <tr><td><code>ARMPALETARAPIDA</code></td><td>Propriedades rápidas ao lado do cursor.</td></tr>
+            <tr><td><code>ARMCOMANDOS</code></td><td>Paleta de botões com os comandos.</td></tr>
+            <tr><td><code>ARMPROP</code></td><td>Edição de barra, descrição, cota, quantidade e estribo.</td></tr>
+            <tr><td><code>ARMCONFIG</code></td><td>Menu de configurações e arquivo JSON.</td></tr>
+            <tr><td><code>ARMIMPORTARCAD</code></td><td>Importa <code>.cad</code> do QiArmaduras.</td></tr>
+            <tr><td><code>ARMTEMPLATE</code></td><td>Templates de elementos.</td></tr>
+            <tr><td><code>ARMTESTE</code></td><td>Autoteste integrado no CAD.</td></tr>
+            <tr><td><code>ARMSOBRE</code></td><td>Versão e aviso de responsabilidade.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid-2">
+        <div>
+          <p class="eyebrow">Formatos</p>
+          <h2 class="h2">Dados que viajam com o projeto.</h2>
+          <p class="lead mt-24">
+            O DEB não depende de banco externo. A informação fica no arquivo e pode ser
+            lida por outras ferramentas.
+          </p>
+        </div>
+        <div class="prose">
+          <h3>XData <code>ARMADURA_BR</code></h3>
+          <p>Guarda os dados de cada armadura dentro do DWG, junto com a configuração do desenho.</p>
+          <h3><code>.cad</code> do QiArmaduras</h3>
+          <p>Importação de barras, estribos, faixas e indicações vindas do AltoQi Builder.</p>
+          <h3>CSV e HTML</h3>
+          <p>Lista de corte e dobra pronta para planilha e para impressão, com o desenho de cada posição.</p>
+          <h3>JSON</h3>
+          <p>Configuração do CAD e padrões de prancha do Revit, versionáveis por escritório.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="wrap">
+      <div class="grid-2">
+        <div>
+          <p class="eyebrow">Normas</p>
+          <h2 class="h2">Referência brasileira, sem atalho.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            O núcleo aplica regras de detalhamento da <strong>NBR 6118</strong> (pinos de
+            dobramento e traspasse) e conversa com a <strong>NBR 9062</strong> nos
+            pré-moldados. As pranchas do Revit seguem margens da <strong>NBR 10068</strong>.
+          </p>
+          <div class="callout">
+            <h3>O que isso significa</h3>
+            <p>As tabelas e geometrias seguem a norma, mas o plugin não substitui a verificação do engenheiro nem emite selo de conformidade.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="wrap">
+      <div class="faq-grid">
+        <div>
+          <p class="eyebrow">FAQ</p>
+          <h2 class="h2">Dúvidas de instalação.</h2>
+          <p class="lead mt-24">Para problemas específicos, abra uma issue no repositório com a versão do CAD/Revit e o log.</p>
+          <div class="actions mt-24">
+            <a class="link-arrow" href="https://github.com/Josileissu/PCEB/issues" rel="noopener">Abrir issues</a>
+          </div>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>O plugin não carrega no CAD. O que verificar?</summary>
+            <p>Confirme a versão do CAD, o framework do build e o registro de autoload. Feche o CAD antes de recompilar; DLL bloqueada é a causa mais comum.</p>
+          </details>
+          <details>
+            <summary>Preciso de qual .NET?</summary>
+            <p>O núcleo e os testes usam .NET 8. O AutoCAD 2027 exige .NET 10. GstarCAD e ZWCAD usam .NET Framework 4.8 nas versões mais antigas.</p>
+          </details>
+          <details>
+            <summary>O Revit não mostra a aba Detalhamento.</summary>
+            <p>Verifique se o build foi feito para a versão correta (2025 ou 2026) e se o add-in foi copiado para a pasta de Addins. Na primeira carga, escolha "Sempre carregar".</p>
+          </details>
+          <details>
+            <summary>O desenho abre em outro computador?</summary>
+            <p>Sim. O DWG usa entidades nativas e abre legível. Sem o plugin, apenas as atualizações automáticas deixam de ocorrer.</p>
+          </details>
+          <details>
+            <summary>Onde ficam os logs?</summary>
+            <p>No CAD: <code>%AppData%\PCEB\DEB.Cad\logs\autoteste.txt</code>. No Revit: pasta <code>%AppData%\PCEB\DEB.Revit</code>.</p>
+          </details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="wrap cta__inner">
+      <div>
+        <h2>Pronto para instalar?</h2>
+        <p>A página de download reúne requisitos, passos e o modo de demonstração.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn--primary" href="baixar.html">Ir para download</a>
+        <a class="btn btn--ghost-light" href="deb.html">Conhecer o DEB</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a class="brand" href="index.html" aria-label="PCEB — página inicial">
+          <svg class="brand__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+            <rect x="1" y="1" width="38" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M11 30V10h8.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2.4"/>
+            <path d="M25 14h5M25 21h5M25 28h5" stroke="currentColor" stroke-width="1.4"/>
+          </svg>
+          <span class="brand__name"><b>PCEB</b><span>Cálculo Estrutural Brasileiro</span></span>
+        </a>
+        <p>Programa livre de cálculo estrutural brasileiro. Detalhamento disponível hoje; cálculo em desenvolvimento.</p>
+      </div>
+      <div class="footer__col">
+        <h3>Módulo</h3>
+        <ul>
+          <li><a href="deb.html">DEB</a></li>
+          <li><a href="deb.html#cad">DEB.Cad</a></li>
+          <li><a href="deb.html#revit">DEB.Revit</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h3>Projeto</h3>
+        <ul>
+          <li><a href="projeto.html">Sobre o PCEB</a></li>
+          <li><a href="projeto.html#licenca">Licença</a></li>
+          <li><a href="https://github.com/Josileissu/PCEB" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h3>Recursos</h3>
+        <ul>
+          <li><a href="documentacao.html">Documentação</a></li>
+          <li><a href="baixar.html">Instalação</a></li>
+          <li><a href="documentacao.html#faq">FAQ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bar">
+      <span>© <span data-year>2026</span> PCEB · Conteúdo técnico em revisão</span>
+      <span>Feito no Brasil <span class="dot">●</span> GPL-3.0</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/main.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Projeto — origem, princípios e licença | PCEB</title>
+<meta name="description" content="Conheça o PCEB: programa livre de cálculo estrutural brasileiro, origem no detalhamento, princípios, roteiro e licença GPL-3.">
+<link rel="canonical" href="https://pceb.com.br/projeto.html">
+<meta name="theme-color" content="#0e171c">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="PCEB">
+<meta property="og:title" content="Projeto — PCEB">
+<meta property="og:description" content="Origem, princípios, roteiro e licença do Programa de Cálculo Estrutural Brasileiro.">
+<meta property="og:url" content="https://pceb.com.br/projeto.html">
+<meta property="og:image" content="https://pceb.com.br/assets/img/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Projeto — PCEB">
+<meta name="twitter:description" content="Origem, princípios, roteiro e licença do Programa de Cálculo Estrutural Brasileiro.">
+<meta name="twitter:image" content="https://pceb.com.br/assets/img/og.png">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="index.html" aria-label="PCEB — página inicial">
+      <svg class="brand__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+        <rect x="1" y="1" width="38" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M11 30V10h8.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M25 14h5M25 21h5M25 28h5" stroke="currentColor" stroke-width="1.4"/>
+      </svg>
+      <span class="brand__name"><b>PCEB</b><span>Cálculo Estrutural Brasileiro</span></span>
+    </a>
+    <nav class="nav" id="menu" aria-label="Navegação principal">
+      <a href="deb.html">DEB</a>
+      <a href="documentacao.html">Documentação</a>
+      <a href="projeto.html" aria-current="page">Projeto</a>
+      <a class="btn btn--primary btn--sm" href="baixar.html">Baixar</a>
+    </nav>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menu"><span></span></button>
+  </div>
+</header>
+
+<main id="conteudo">
+
+  <section class="page-hero">
+    <div class="wrap page-hero__inner">
+      <div>
+        <div class="breadcrumb"><a href="index.html">PCEB</a><span>/</span><span>Projeto</span></div>
+        <p class="eyebrow"><span class="dot"></span>Programa livre · feito no Brasil</p>
+        <h1>Cálculo estrutural brasileiro, de ponta a ponta.</h1>
+        <p class="lead">
+          O PCEB nasce de uma prática de escritório: detalhar, conferir e emitir projeto.
+          A ambição é cobrir análise, dimensionamento, detalhamento e documentação com
+          normas ABNT — sem depender de uma caixa-preta estrangeira.
+        </p>
+      </div>
+      <aside class="page-hero__aside">
+        <b>Em uma frase</b>
+        Um programa, um núcleo, várias plataformas: CAD, Revit, web e Windows — começando
+        pelo detalhamento que já está em uso.
+      </aside>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid-2">
+        <div>
+          <p class="eyebrow">Origem</p>
+          <h2 class="h2">Começou no detalhamento.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            O DEB nasceu como <strong>Armadura BR</strong>, um plugin para desenhar, numerar
+            e quantificar armaduras dentro do CAD. A dor era concreta: a relação do aço
+            vivia em uma planilha paralela e nunca acompanhava a revisão do desenho.
+          </p>
+          <p>
+            Com o tempo, o plugin cresceu para estribos, faixas, detalhamentos em blocos,
+            templates e importação do QiArmaduras. Em 2026, o projeto passou a se chamar
+            <strong>DEB — Detalhador Estrutural Brasileiro</strong> e ganhou um irmão no
+            Revit, nascido do StructuralDetailer.
+          </p>
+          <p>
+            O PCEB é o passo seguinte: reunir esses módulos em um programa de cálculo
+            estrutural completo, com um núcleo comum de normas, comprimentos, numeração
+            e catálogos. O detalhamento veio primeiro porque já estava pronto e em uso.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--paper2">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Princípios</p>
+          <h2 class="h2">O que não está em negociação.</h2>
+        </div>
+      </div>
+      <div class="principles">
+        <article class="principle">
+          <span>01</span>
+          <h3>Brasileiro de verdade</h3>
+          <p>Normas ABNT, tabelas nacionais, bitolas usuais e a prática de escritório brasileiro. Não é tradução de software estrangeiro.</p>
+        </article>
+        <article class="principle">
+          <span>02</span>
+          <h3>Aberto</h3>
+          <p>GPL-3, código no GitHub e formatos legíveis. O projeto não fica preso a um fornecedor ou a um arquivo proprietário.</p>
+        </article>
+        <article class="principle">
+          <span>03</span>
+          <h3>Nativo na plataforma</h3>
+          <p>No CAD, entidades nativas e XData. No Revit, assembly, vistas e folha. O resultado abre e é editável mesmo sem o plugin.</p>
+        </article>
+        <article class="principle">
+          <span>04</span>
+          <h3>Norma no centro</h3>
+          <p>As regras de detalhamento ficam em um núcleo testado fora das plataformas. A engenharia não fica escondida na interface.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Roteiro</p>
+          <h2 class="h2">A ordem do trabalho.</h2>
+          <p class="lead mt-24">Sem datas públicas. O critério é funcionar no ambiente real antes de avançar.</p>
+        </div>
+      </div>
+      <div class="roadmap">
+        <article class="roadmap__item roadmap__item--live">
+          <span class="roadmap__phase">Etapa atual</span>
+          <h3>Detalhamento</h3>
+          <p>Consolidar o DEB.Cad e o DEB.Revit, compartilhar o núcleo e fechar as diferenças de armadura entre as plataformas.</p>
+          <span class="tag tag--live">em uso</span>
+        </article>
+        <article class="roadmap__item roadmap__item--wip">
+          <span class="roadmap__phase">Próxima</span>
+          <h3>Programa PCEB</h3>
+          <p>Interface web e Windows sobre o mesmo núcleo, começando por pré-moldados: vigas, pilares, painéis e consolos.</p>
+          <span class="tag tag--wip">em estudo</span>
+        </article>
+        <article class="roadmap__item">
+          <span class="roadmap__phase">Depois</span>
+          <h3>Outros sistemas</h3>
+          <p>Fundações, estruturas metálicas, steel frame e wood frame. A ordem será definida com a prática do escritório.</p>
+          <span class="tag tag--next">planejado</span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--white" id="licenca">
+    <div class="wrap">
+      <div class="grid-2">
+        <div>
+          <p class="eyebrow">Código aberto</p>
+          <h2 class="h2">Livre para estudar, usar e melhorar.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            O PCEB é distribuído sob a <strong>GPL-3.0</strong>. A licença garante as
+            liberdades de usar, estudar, modificar e redistribuir o software.
+          </p>
+          <p>
+            Como plugins de CAD e Revit precisam se ligar a APIs proprietárias, existe uma
+            permissão adicional da seção 7 da GPL. Ela permite essa ligação sem transformar
+            as APIs em software livre.
+          </p>
+          <p>
+            Normas, livros e materiais com direitos autorais não são distribuídos com o
+            código. A biblioteca técnica do escritório fica fora do repositório.
+          </p>
+          <div class="actions mt-24">
+            <a class="btn btn--ghost" href="https://github.com/Josileissu/PCEB/blob/main/LICENSE" rel="noopener">Ler a GPL-3</a>
+            <a class="btn btn--ghost" href="https://github.com/Josileissu/PCEB/blob/main/LICENSE-EXCEPTION.md" rel="noopener">Ler a exceção</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="author">
+        <div class="author__body">
+          <p class="eyebrow">Autor</p>
+          <h2>Marquezin</h2>
+          <p>
+            Engenheiro e desenvolvedor do PCEB. O projeto nasceu da rotina de detalhamento
+            de estruturas de concreto armado e pré-moldadas — e continua sendo validado
+            nessa rotina, não em uma vitrine.
+          </p>
+          <p class="mt-24">
+            O código, as decisões e o progresso ficam no GitHub. Contribuições, correções
+            e relatos de uso são bem-vindos.
+          </p>
+          <div class="actions mt-24">
+            <a class="btn btn--primary" href="https://github.com/Josileissu/PCEB" rel="noopener">Ver no GitHub</a>
+            <a class="btn btn--ghost" href="https://github.com/Josileissu/PCEB/issues" rel="noopener">Abrir issue</a>
+          </div>
+        </div>
+        <div class="author__meta">
+          <div><span>Projeto</span><span>PCEB</span></div>
+          <div><span>Repositório</span><span><a href="https://github.com/Josileissu/PCEB" rel="noopener">Josileissu/PCEB</a></span></div>
+          <div><span>Módulo</span><span>DEB 0.1.26</span></div>
+          <div><span>Licença</span><span>GPL-3.0 + exceção</span></div>
+          <div><span>Contato</span><span>issues no GitHub</span></div>
+          <div><span>Idioma</span><span>Português do Brasil</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--paper2">
+    <div class="wrap">
+      <div class="grid-2">
+        <div>
+          <p class="eyebrow">Transparência</p>
+          <h2 class="h2">O que o site não promete.</h2>
+        </div>
+        <div class="prose">
+          <p>
+            O PCEB ainda não calcula estruturas. O escopo do módulo de cálculo está em
+            estudo e não há data de lançamento, preço ou número de usuários a divulgar.
+          </p>
+          <p>
+            O DEB não substitui o software de cálculo, não é homologado por norma e não
+            se integra prontamente a Eberick, TQS, Robot ou Revit além do que está descrito.
+            A importação existente é de arquivos <code>.cad</code> do QiArmaduras.
+          </p>
+          <div class="callout callout--oxide mt-24">
+            <h3>Responsabilidade técnica</h3>
+            <p>As decisões de cálculo e a verificação final são do engenheiro responsável. O software automatiza o trabalho; não assina o projeto.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="wrap cta__inner">
+      <div>
+        <h2>Acompanhe o projeto pelo que já funciona.</h2>
+        <p>Conheça o DEB, veja a documentação e o caminho de instalação.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn--primary" href="deb.html">Conhecer o DEB</a>
+        <a class="btn btn--ghost-light" href="baixar.html">Como instalar</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a class="brand" href="index.html" aria-label="PCEB — página inicial">
+          <svg class="brand__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+            <rect x="1" y="1" width="38" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M11 30V10h8.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2.4"/>
+            <path d="M25 14h5M25 21h5M25 28h5" stroke="currentColor" stroke-width="1.4"/>
+          </svg>
+          <span class="brand__name"><b>PCEB</b><span>Cálculo Estrutural Brasileiro</span></span>
+        </a>
+        <p>Programa livre de cálculo estrutural brasileiro. Detalhamento disponível hoje; cálculo em desenvolvimento.</p>
+      </div>
+      <div class="footer__col">
+        <h3>Módulo</h3>
+        <ul>
+          <li><a href="deb.html">DEB</a></li>
+          <li><a href="deb.html#cad">DEB.Cad</a></li>
+          <li><a href="deb.html#revit">DEB.Revit</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h3>Projeto</h3>
+        <ul>
+          <li><a href="projeto.html">Sobre o PCEB</a></li>
+          <li><a href="projeto.html#licenca">Licença</a></li>
+          <li><a href="https://github.com/Josileissu/PCEB" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h3>Recursos</h3>
+        <ul>
+          <li><a href="documentacao.html">Documentação</a></li>
+          <li><a href="baixar.html">Instalação</a></li>
+          <li><a href="documentacao.html#faq">FAQ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bar">
+      <span>© <span data-year>2026</span> PCEB · Conteúdo técnico em revisão</span>
+      <span>Feito no Brasil <span class="dot">●</span> GPL-3.0</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/main.js" defer></script>
+</body>
+</html>

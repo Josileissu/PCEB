@@ -1,0 +1,743 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCEB — Programa de Cálculo Estrutural Brasileiro</title>
+<meta name="description" content="Programa livre de cálculo estrutural brasileiro. O DEB — Detalhador Estrutural Brasileiro já detalha, numera e quantifica armaduras no CAD e no Revit; o módulo de cálculo está em desenvolvimento.">
+<link rel="canonical" href="https://pceb.com.br/">
+<meta name="theme-color" content="#0e171c">
+<link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="PCEB">
+<meta property="og:title" content="PCEB — Programa de Cálculo Estrutural Brasileiro">
+<meta property="og:description" content="Cálculo estrutural com padrão brasileiro. O DEB já detalha, numera e quantifica armaduras no CAD e no Revit.">
+<meta property="og:url" content="https://pceb.com.br/">
+<meta property="og:image" content="https://pceb.com.br/assets/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="PCEB — Programa de Cálculo Estrutural Brasileiro">
+<meta name="twitter:description" content="Cálculo estrutural com padrão brasileiro. O DEB já detalha, numera e quantifica armaduras no CAD e no Revit.">
+<meta name="twitter:image" content="https://pceb.com.br/assets/img/og.png">
+<link rel="stylesheet" href="assets/css/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "PCEB",
+  "alternateName": "Programa de Cálculo Estrutural Brasileiro",
+  "applicationCategory": "EngineeringApplication",
+  "operatingSystem": "Windows",
+  "description": "Programa livre de cálculo estrutural brasileiro. O DEB — Detalhador Estrutural Brasileiro detalha, numera e quantifica armaduras no CAD e no Revit.",
+  "url": "https://pceb.com.br/",
+  "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+  "author": {
+    "@type": "Person",
+    "name": "Marquezin",
+    "url": "https://github.com/Josileissu"
+  },
+  "softwareVersion": "0.1.26",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
+}
+</script>
+</head>
+<body>
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="index.html" aria-label="PCEB — página inicial">
+      <svg class="brand__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+        <rect x="1" y="1" width="38" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+        <path d="M11 30V10h8.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2.4"/>
+        <path d="M25 14h5M25 21h5M25 28h5" stroke="currentColor" stroke-width="1.4"/>
+      </svg>
+      <span class="brand__name">
+        <b>PCEB</b>
+        <span>Cálculo Estrutural Brasileiro</span>
+      </span>
+    </a>
+    <nav class="nav" id="menu" aria-label="Navegação principal">
+      <a href="deb.html">DEB</a>
+      <a href="documentacao.html">Documentação</a>
+      <a href="projeto.html">Projeto</a>
+      <a class="btn btn--primary btn--sm" href="baixar.html">Baixar</a>
+    </nav>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menu">
+      <span></span>
+    </button>
+  </div>
+</header>
+
+<main id="conteudo">
+
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero__inner">
+        <div class="hero__copy">
+          <p class="eyebrow"><span class="dot"></span>Programa livre · normas ABNT</p>
+          <h1>
+            <span class="line">Cálculo estrutural</span>
+            <span class="line">com <span class="accent">padrão brasileiro</span>.</span>
+          </h1>
+          <p class="hero__lead">
+            O PCEB nasce para reunir análise, dimensionamento e detalhamento em um só lugar.
+            Hoje, o <strong>DEB — Detalhador Estrutural Brasileiro</strong> já leva numeração,
+            relação do aço e pranchas para o CAD e o Revit.
+          </p>
+          <div class="actions hero__actions">
+            <a class="btn btn--primary" href="deb.html">
+              Conhecer o DEB
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+            </a>
+            <a class="btn btn--ghost-light" href="documentacao.html">Ver documentação</a>
+          </div>
+          <dl class="hero__facts">
+            <div>
+              <dt>Módulos</dt>
+              <dd>2 — CAD e Revit</dd>
+            </div>
+            <div>
+              <dt>Núcleo comum</dt>
+              <dd>193 testes</dd>
+            </div>
+            <div>
+              <dt>Licença</dt>
+              <dd>GPL-3</dd>
+            </div>
+          </dl>
+        </div>
+
+        <figure class="board" aria-label="Prancha esquemática de detalhamento de viga">
+          <svg viewBox="0 0 600 520" role="img" aria-labelledby="boardTitle">
+            <title id="boardTitle">Prancha de viga com elevação, seção A-A e relação do aço</title>
+            <defs>
+              <pattern id="boardGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M20 0H0V20" fill="none" stroke="#7fa6b3" stroke-opacity=".14" stroke-width=".6"/>
+              </pattern>
+            </defs>
+            <rect width="600" height="520" fill="#0b1216"/>
+            <rect width="600" height="520" fill="url(#boardGrid)"/>
+
+            <g font-family="IBM Plex Mono, Consolas, monospace" fill="#f6f3ec">
+              <text x="36" y="34" font-size="9" letter-spacing="2" fill="#7fa6b3">PRANCHA DE DETALHAMENTO</text>
+              <text x="564" y="34" font-size="9" letter-spacing="2" text-anchor="end" fill="#c9b48a">PCEB · DEB</text>
+              <line x1="36" y1="44" x2="564" y2="44" stroke="#7fa6b3" stroke-opacity=".35"/>
+
+              <text x="40" y="72" font-size="8.5" letter-spacing="1.6" fill="#c6522c">ELEVAÇÃO — V12</text>
+
+              <g stroke="#f6f3ec" stroke-width="1.5" fill="none">
+                <rect x="58" y="94" width="484" height="106"/>
+                <path d="M58 200v-8M542 200v-8"/>
+              </g>
+
+              <g stroke="#9fb7bf" stroke-width=".9" stroke-opacity=".85">
+                <path d="M76 104v86M90 104v86M104 104v86M118 104v86M132 104v86M146 104v86M160 104v86M174 104v86M188 104v86M202 104v86M216 104v86M230 104v86M244 104v86M258 104v86M272 104v86M286 104v86M300 104v86M314 104v86M328 104v86M342 104v86M356 104v86M370 104v86M384 104v86M398 104v86M412 104v86M426 104v86M440 104v86M454 104v86M468 104v86M482 104v86M496 104v86M510 104v86M524 104v86"/>
+              </g>
+
+              <g fill="none" stroke-width="2.2">
+                <path d="M66 112h468" stroke="#c6522c" style="--len:500;--delay:.2s" class="draw"/>
+                <path d="M66 124h468" stroke="#c9b48a" style="--len:500;--delay:.35s" class="draw"/>
+                <path d="M66 172h468" stroke="#c9b48a" style="--len:500;--delay:.5s" class="draw"/>
+                <path d="M66 184h468" stroke="#c6522c" style="--len:500;--delay:.65s" class="draw"/>
+              </g>
+
+              <g stroke="#c6522c" stroke-width="1" fill="none">
+                <path d="M66 112v-8M534 112v-8M66 124v-8M534 124v-8M66 172v8M534 172v8M66 184v8M534 184v8"/>
+              </g>
+
+              <g fill="#f6f3ec" font-size="7.5">
+                <text x="62" y="90">4 N1 Ø12.5</text>
+                <text x="62" y="150">18 N3 Ø6.3 c/ 16</text>
+                <text x="390" y="164">2 N2 Ø10.0</text>
+                <text x="390" y="92">2 N4 Ø12.5</text>
+              </g>
+
+              <g stroke="#7fa6b3" stroke-width=".8" fill="none">
+                <path d="M58 218h484"/>
+                <path d="M58 214v8M542 214v8M300 214v8"/>
+              </g>
+              <g fill="#7fa6b3" font-size="7">
+                <text x="58" y="232">0</text>
+                <text x="292" y="232">290</text>
+                <text x="524" y="232">580 cm</text>
+              </g>
+
+              <line x1="36" y1="252" x2="564" y2="252" stroke="#7fa6b3" stroke-opacity=".3"/>
+
+              <text x="40" y="274" font-size="8.5" letter-spacing="1.6" fill="#c6522c">SEÇÃO A-A</text>
+              <rect x="40" y="284" width="182" height="136" fill="none" stroke="#f6f3ec" stroke-width="1.4"/>
+              <rect x="51" y="295" width="160" height="114" fill="none" stroke="#9fb7bf" stroke-width=".8" stroke-dasharray="3 3"/>
+              <g fill="none" stroke="#c6522c" stroke-width="1.3">
+                <rect x="57" y="301" width="148" height="102" rx="5"/>
+              </g>
+              <g fill="#0b1216" stroke="#c6522c" stroke-width="1.5">
+                <circle cx="64" cy="308" r="4"/>
+                <circle cx="198" cy="308" r="4"/>
+                <circle cx="64" cy="396" r="4"/>
+                <circle cx="198" cy="396" r="4"/>
+                <circle cx="76" cy="320" r="3.4"/>
+                <circle cx="186" cy="320" r="3.4"/>
+              </g>
+              <g fill="#7fa6b3" font-size="6.5">
+                <text x="54" y="437">20 × 60 cm</text>
+                <text x="154" y="437">cobr. 4,0</text>
+              </g>
+
+              <text x="252" y="274" font-size="8.5" letter-spacing="1.6" fill="#c6522c">RELAÇÃO DO AÇO</text>
+              <g stroke="#7fa6b3" stroke-opacity=".45" fill="none">
+                <rect x="252" y="284" width="312" height="136"/>
+                <path d="M252 306h312M252 330h312M252 354h312M252 378h312M252 402h312"/>
+                <path d="M288 284v136M332 284v136M374 284v136M448 284v136M508 284v136"/>
+              </g>
+              <g fill="#7fa6b3" font-size="6.2" letter-spacing=".6">
+                <text x="258" y="299">POS.</text>
+                <text x="294" y="299">QTD</text>
+                <text x="338" y="299">Ø mm</text>
+                <text x="380" y="299">C cm</text>
+                <text x="454" y="299">kg</text>
+              </g>
+              <g fill="#f6f3ec" font-size="7.4" font-family="IBM Plex Mono, Consolas, monospace">
+                <text x="258" y="321" fill="#e58a63">N1</text><text x="296" y="321">4</text><text x="338" y="321">12.5</text><text x="380" y="321">580</text><text x="454" y="321">22,3</text>
+                <text x="258" y="345" fill="#e58a63">N2</text><text x="296" y="345">2</text><text x="338" y="345">10.0</text><text x="380" y="345">620</text><text x="454" y="345">7,7</text>
+                <text x="258" y="369" fill="#e58a63">N3</text><text x="296" y="369">18</text><text x="338" y="369">6.3</text><text x="380" y="369">150</text><text x="454" y="369">6,6</text>
+                <text x="258" y="393" fill="#e58a63">N4</text><text x="296" y="393">2</text><text x="338" y="393">12.5</text><text x="380" y="393">590</text><text x="454" y="393">11,4</text>
+                <text x="258" y="415" fill="#e58a63">N5</text><text x="296" y="415">12</text><text x="338" y="415">8.0</text><text x="380" y="415">190</text><text x="454" y="415">7,2</text>
+              </g>
+              <text x="508" y="415" font-size="6.4" fill="#7fa6b3">kg</text>
+
+              <line x1="36" y1="452" x2="564" y2="452" stroke="#7fa6b3" stroke-opacity=".35"/>
+              <g font-size="7" fill="#7fa6b3">
+                <text x="40" y="474">OBRA: ESTUDO PCEB</text>
+                <text x="40" y="488">PEÇA: V12 · 1 un.</text>
+                <text x="240" y="474">DESENHO: DEB 0.1.26</text>
+                <text x="240" y="488">DATA: 04/11/2026</text>
+                <text x="440" y="474">ESCALA: 1:25</text>
+                <text x="440" y="488" fill="#e58a63">FOLHA: 01/01</text>
+              </g>
+            </g>
+          </svg>
+          <figcaption class="board__caption">
+            <span>Prancha V12 · elevação, seção e relação do aço</span>
+            <span>desenho esquemático</span>
+          </figcaption>
+        </figure>
+      </div>
+      <div class="hero__scroll">Role para ver o que já está pronto</div>
+    </div>
+  </section>
+
+  <section class="compat-strip" aria-label="Compatibilidade do DEB.Cad">
+    <div class="wrap compat-strip__inner">
+      <div class="compat-strip__intro">
+        <span class="mono">Compatibilidade</span>
+        <strong>O DEB.Cad roda no CAD que você já usa</strong>
+      </div>
+      <div class="compat-strip__item">
+        <b>GstarCAD</b>
+        <span>2021 – 2027</span>
+      </div>
+      <div class="compat-strip__item">
+        <b>AutoCAD</b>
+        <span>2021 – 2027</span>
+      </div>
+      <div class="compat-strip__item">
+        <b>ZWCAD</b>
+        <span>2024 – 2026</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="grid-2">
+        <div>
+          <p class="eyebrow">O programa</p>
+          <h2 class="h2">Um programa, duas frentes.</h2>
+        </div>
+        <div class="measure">
+          <p class="vision__lead">
+            O PCEB não começa do zero. Começa pelo detalhamento que já está em uso,
+            para depois chegar ao <em>cálculo completo</em>.
+          </p>
+          <p class="lead mt-24">
+            A estratégia é simples: primeiro resolver a dor de quem desenha e fecha a relação
+            do aço; em paralelo, construir o núcleo de normas e regras que vai sustentar o
+            programa de cálculo.
+          </p>
+        </div>
+      </div>
+
+      <div class="vision__cols">
+        <article class="vision-card">
+          <div class="vision-card__top">
+            <h3>DEB — Detalhamento</h3>
+            <span class="tag tag--live">disponível</span>
+          </div>
+          <p>
+            Detalha, numera e quantifica armaduras no CAD e no Revit. Usa entidades nativas,
+            mantém a relação do aço viva e gera pranchas com padrão de escritório.
+          </p>
+        </article>
+        <article class="vision-card vision-card--pending">
+          <div class="vision-card__top">
+            <h3>PCEB — Cálculo</h3>
+            <span class="tag tag--wip">em desenvolvimento</span>
+          </div>
+          <p>
+            Análise e dimensionamento com normas ABNT, começando por pré-moldados.
+            O escopo ainda está em estudo e não há data de lançamento.
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--paper2">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Módulo em uso</p>
+          <h2 class="h2">Do traço solto à relação do aço fechada.</h2>
+          <p class="lead mt-24">
+            O DEB trata a armadura como objeto, não como linha e texto. Cada barra carrega
+            bitola, aço, quantidade, comprimento e vínculos — e o desenho acompanha.
+          </p>
+        </div>
+        <a class="link-arrow" href="deb.html">
+          Ver o módulo
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+        </a>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <span class="step__num">01</span>
+          <h3>Desenhe ou reconheça</h3>
+          <p>Barras, estribos, faixas, treliças e telas. Polilinhas existentes podem virar armadura.</p>
+        </div>
+        <div class="step">
+          <span class="step__num">02</span>
+          <h3>Numere</h3>
+          <p>Numeração global, individual ou sequencial, com bloqueio de revisão e relações parciais.</p>
+        </div>
+        <div class="step">
+          <span class="step__num">03</span>
+          <h3>Feche a relação</h3>
+          <p>Tabela com resumo, peso total e detalhe de dobra — atualizada a cada edição.</p>
+        </div>
+        <div class="step">
+          <span class="step__num">04</span>
+          <h3>Emita</h3>
+          <p>Lista de corte e dobra em CSV e HTML no CAD; pranchas com vistas e cotas no Revit.</p>
+        </div>
+      </div>
+
+      <div class="beforeafter">
+        <article class="ba-card">
+          <div class="ba-card__label">
+            <span>Antes</span>
+            <span class="pill">planilha paralela</span>
+          </div>
+          <svg viewBox="0 0 420 240" role="img" aria-label="Desenho com linhas e textos soltos, sem vínculo">
+            <rect width="420" height="240" fill="#f6f3ec"/>
+            <g stroke="#0e171c" stroke-opacity=".65" fill="none" stroke-width="1.2">
+              <path d="M28 68h364M28 84h364M28 152h364M28 168h364"/>
+              <path d="M42 62v112M74 62v112M112 62v112M162 62v112M214 62v112M268 62v112M322 62v112M370 62v112"/>
+              <path d="M28 108h364" stroke-dasharray="4 5"/>
+            </g>
+            <g font-family="IBM Plex Mono, Consolas, monospace" font-size="8" fill="#0e171c">
+              <text x="32" y="56">25 N1 Ø10 C=580</text>
+              <text x="170" y="44" transform="rotate(-8 170 44)">N2? 580</text>
+              <text x="250" y="196">N1 25Ø10</text>
+              <text x="44" y="210">conferir peso...</text>
+              <text x="296" y="212" fill="#a3421f">?</text>
+            </g>
+            <g stroke="#a3421f" stroke-width="1.2" fill="none">
+              <path d="M126 56l28 34M300 60l-34 28M80 190l38-24"/>
+            </g>
+            <g opacity=".35" stroke="#0e171c" fill="none">
+              <rect x="286" y="24" width="106" height="62"/>
+              <path d="M286 42h106M286 60h106M320 24v62M362 24v62"/>
+            </g>
+          </svg>
+          <p class="ba-card__note">Texto copiado, quantidade somada à mão e tabela que nunca fecha.</p>
+        </article>
+
+        <article class="ba-card ba-card--after">
+          <div class="ba-card__label">
+            <span>Depois</span>
+            <span class="pill">objeto vivo</span>
+          </div>
+          <svg viewBox="0 0 420 240" role="img" aria-label="Desenho organizado com armadura, cotas e tabela vinculada">
+            <rect width="420" height="240" fill="#0e171c"/>
+            <g stroke="#f6f3ec" stroke-width="1.4" fill="none">
+              <rect x="24" y="56" width="244" height="88"/>
+            </g>
+            <g stroke="#c6522c" stroke-width="1.8" fill="none">
+              <path d="M34 70h224M34 130h224"/>
+            </g>
+            <g stroke="#9fb7bf" stroke-width=".8" fill="none">
+              <path d="M48 64v72M66 64v72M84 64v72M102 64v72M120 64v72M138 64v72M156 64v72M174 64v72M192 64v72M210 64v72M228 64v72M246 64v72"/>
+            </g>
+            <g stroke="#7fa6b3" stroke-width=".8" fill="none">
+              <path d="M24 162h244M24 158v8M268 158v8"/>
+            </g>
+            <g font-family="IBM Plex Mono, Consolas, monospace" fill="#f6f3ec" font-size="7.2">
+              <text x="24" y="48" fill="#7fa6b3">ELEVAÇÃO</text>
+              <text x="26" y="186">4 N1 Ø12.5 C=580</text>
+              <text x="180" y="186">peso 22,3 kg</text>
+            </g>
+            <g stroke="#7fa6b3" stroke-opacity=".5" fill="none">
+              <rect x="292" y="32" width="104" height="174"/>
+              <path d="M292 56h104M292 78h104M292 100h104M292 122h104M292 144h104M292 166h104M292 188h104"/>
+              <path d="M318 32v174M352 32v174M378 32v174"/>
+            </g>
+            <g font-family="IBM Plex Mono, Consolas, monospace" font-size="6.4" fill="#7fa6b3">
+              <text x="298" y="48">POS</text><text x="324" y="48">QTD</text><text x="356" y="48">Ø</text><text x="382" y="48">kg</text>
+            </g>
+            <g font-family="IBM Plex Mono, Consolas, monospace" font-size="7.2" fill="#f6f3ec">
+              <text x="298" y="70" fill="#e58a63">N1</text><text x="324" y="70">4</text><text x="356" y="70">12.5</text><text x="382" y="70">22,3</text>
+              <text x="298" y="92" fill="#e58a63">N2</text><text x="324" y="92">2</text><text x="356" y="92">10.0</text><text x="382" y="92">7,7</text>
+              <text x="298" y="114" fill="#e58a63">N3</text><text x="324" y="114">18</text><text x="356" y="114">6.3</text><text x="382" y="114">6,6</text>
+              <text x="298" y="136" fill="#e58a63">N4</text><text x="324" y="136">2</text><text x="356" y="136">12.5</text><text x="382" y="136">11,4</text>
+              <text x="298" y="158" fill="#e58a63">N5</text><text x="324" y="158">12</text><text x="356" y="158">8.0</text><text x="382" y="158">7,2</text>
+              <text x="298" y="184" fill="#c9b48a">TOTAL</text><text x="368" y="184" fill="#c9b48a">55,2</text>
+            </g>
+          </svg>
+          <p class="ba-card__note">A mesma edição atualiza descrição, cota, numeração e peso — sem retrabalho.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--ink ra-section">
+    <div class="wrap">
+      <div class="ra-grid">
+        <div class="ra-copy">
+          <p class="eyebrow">Relação do aço</p>
+          <h2 class="h2">A relação do aço deixa de ser uma planilha paralela.</h2>
+          <p class="lead">
+            A tabela nasce do desenho e continua ligada a ele. Editar uma barra é editar
+            a relação; renumerar é atualizar o desenho inteiro.
+          </p>
+          <ul class="ticks">
+            <li>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg>
+              <span><strong>Numeração</strong> global, individual ou sequencial, com bloqueio de revisão.</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg>
+              <span><strong>Resumo e peso total</strong> por apresentação, com detalhe de dobra.</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg>
+              <span><strong>Relações parciais</strong> por detalhamento ou por blocos selecionados.</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg>
+              <span><strong>Lista de corte e dobra</strong> em CSV e HTML, pronta para a fábrica.</span>
+            </li>
+          </ul>
+          <div class="actions mt-40">
+            <a class="btn btn--ghost-light" href="deb.html">Ver recursos do DEB</a>
+          </div>
+        </div>
+
+        <div class="ra-card" aria-label="Exemplo de relação do aço">
+          <div class="ra-card__head">
+            <b>RELAÇÃO DO AÇO — V12</b>
+            <span>1 peça · CA-50</span>
+          </div>
+          <table class="ra-table">
+            <thead>
+              <tr>
+                <th>Pos.</th><th>Forma</th><th>Qtd</th><th>Ø</th><th class="num">C (cm)</th><th class="num">kg</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>N1</td>
+                <td class="shape"><svg viewBox="0 0 46 18" fill="none" aria-hidden="true"><path d="M4 14h38M4 14V4M42 14V4" stroke="#c6522c" stroke-width="1.6"/></svg></td>
+                <td class="num">4</td><td>12.5</td><td class="num">580</td><td class="num">22,3</td>
+              </tr>
+              <tr>
+                <td>N2</td>
+                <td class="shape"><svg viewBox="0 0 46 18" fill="none" aria-hidden="true"><path d="M4 14h38M4 14V8M42 14V8" stroke="#c6522c" stroke-width="1.6"/></svg></td>
+                <td class="num">2</td><td>10.0</td><td class="num">620</td><td class="num">7,7</td>
+              </tr>
+              <tr>
+                <td>N3</td>
+                <td class="shape"><svg viewBox="0 0 46 18" fill="none" aria-hidden="true"><rect x="8" y="4" width="30" height="10" rx="4" stroke="#c6522c" stroke-width="1.6"/></svg></td>
+                <td class="num">18</td><td>6.3</td><td class="num">150</td><td class="num">6,6</td>
+              </tr>
+              <tr>
+                <td>N4</td>
+                <td class="shape"><svg viewBox="0 0 46 18" fill="none" aria-hidden="true"><path d="M4 14h38M4 14V4M42 14V4" stroke="#c6522c" stroke-width="1.6"/></svg></td>
+                <td class="num">2</td><td>12.5</td><td class="num">590</td><td class="num">11,4</td>
+              </tr>
+              <tr>
+                <td>N5</td>
+                <td class="shape"><svg viewBox="0 0 46 18" fill="none" aria-hidden="true"><path d="M4 14h38M4 14V7M42 14V7" stroke="#c6522c" stroke-width="1.6"/></svg></td>
+                <td class="num">12</td><td>8.0</td><td class="num">190</td><td class="num">7,2</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="ra-card__foot">
+            <span>V12 · 1 peça</span>
+            <span>Peso total <b>55,2 kg</b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Recursos</p>
+          <h2 class="h2">O detalhamento completo, sem sair do desenho.</h2>
+        </div>
+        <a class="link-arrow" href="deb.html">
+          Tudo sobre o DEB
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+        </a>
+      </div>
+
+      <div class="cards">
+        <article class="card">
+          <div class="card__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 18h18M4 18V7M20 18V7" stroke="currentColor" stroke-width="1.6"/><path d="M7 9h10M7 12h10" stroke="currentColor" stroke-width="1.2" stroke-dasharray="2 3"/></svg>
+          </div>
+          <h3>Barras e estribos</h3>
+          <p>Desenho por pontos ou cobrimento, ganchos 45°/90°/180°, VAR, recoteamento, rebatimento e divisão com traspasse.</p>
+          <span class="card__tag">CAD</span>
+        </article>
+
+        <article class="card">
+          <div class="card__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 17h16M7 4v16M17 4v16" stroke="currentColor" stroke-width="1.6"/><path d="M4 12h16" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
+          <h3>Faixas e chamadas</h3>
+          <p>Faixas ortogonais e alinhadas, cortes com cota ou chamada, indicação simples e quantidade somada por faixa.</p>
+          <span class="card__tag">CAD</span>
+        </article>
+
+        <article class="card">
+          <div class="card__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" stroke="currentColor" stroke-width="1.6"/><path d="M3 9h18M8 9v11M14 9v11M3 14h18" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
+          <h3>Relação do aço</h3>
+          <p>Tabela com apresentação, resumo, peso total e detalhe de dobra; numeração e relações parciais por detalhamento.</p>
+          <span class="card__tag">CAD · Revit</span>
+        </article>
+
+        <article class="card">
+          <div class="card__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="3" width="8" height="8" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="13" width="8" height="8" stroke="currentColor" stroke-width="1.6"/><path d="M17 13v8M13 17h8" stroke="currentColor" stroke-width="1.6"/></svg>
+          </div>
+          <h3>Detalhamentos em blocos</h3>
+          <p>Seleção vira bloco, propriedades por detalhamento, grade de gerenciamento e relação parcial por bloco.</p>
+          <span class="card__tag">CAD</span>
+        </article>
+
+        <article class="card">
+          <div class="card__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="1.6"/><path d="M8 10h8M8 14h5M16 14l2 2" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
+          <h3>Templates e importação</h3>
+          <p>Templates de elementos (base de reservatório e pilar pré-moldado), importação de <code>.cad</code> do QiArmaduras e camadas padrão.</p>
+          <span class="card__tag">CAD</span>
+        </article>
+
+        <article class="card">
+          <div class="card__icon">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20V8l8-4 8 4v12" stroke="currentColor" stroke-width="1.6"/><path d="M8 20v-6h8v6M8 10h2M14 10h2" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
+          <h3>Do CAD para o Revit</h3>
+          <p>No Revit, o DEB cria assembly, vistas, cortes, cotas e folha da peça — com o padrão de apresentação do escritório.</p>
+          <span class="card__tag">Revit</span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--white">
+    <div class="wrap">
+      <div class="proof-grid">
+        <div class="proof-copy">
+          <p class="eyebrow">Prova técnica</p>
+          <h2 class="h2">Engenharia de verdade, sem caixa-preta.</h2>
+          <p class="lead">
+            O desenho continua sendo desenho: entidades nativas, XData e um núcleo de regras
+            testado fora do CAD. Se o plugin não estiver instalado, o arquivo abre legível.
+          </p>
+          <div class="stats">
+            <div class="stat"><b>193</b><span>testes de núcleo</span></div>
+            <div class="stat"><b>3</b><span>CADs suportados</span></div>
+            <div class="stat"><b>2</b><span>plataformas: CAD e Revit</span></div>
+            <div class="stat"><b>1</b><span>núcleo comum</span></div>
+          </div>
+        </div>
+        <div class="prose">
+          <h3>Entidades nativas</h3>
+          <p>
+            Barras, estribos e textos são <code>LWPOLYLINE</code>, <code>MTEXT</code>,
+            <code>TEXT</code> e <code>TABLE</code>. Nada de objeto proprietário que só abre
+            com o plugin.
+          </p>
+          <h3>XData <code>ARMADURA_BR</code></h3>
+          <p>
+            Os dados de armadura viajam dentro do DWG. É por isso que a relação do aço,
+            as cotas e as descrições continuam vinculadas — e continuam legíveis sem o plugin.
+          </p>
+          <h3>Norma no centro</h3>
+          <p>
+            Pinos de dobramento e regras de traspasse seguem a NBR 6118; pré-moldados
+            conversam com a NBR 9062. As decisões de cálculo continuam sendo do engenheiro.
+          </p>
+          <div class="notice">
+            <b>Importante</b>
+            <p>O DEB não dimensiona estruturas. Ele desenha, numera e quantifica. A verificação e a responsabilidade técnica são do engenheiro responsável.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Roteiro</p>
+          <h2 class="h2">O que está pronto e o que vem depois.</h2>
+          <p class="lead mt-24">Sem datas prometidas. Cada etapa só avança com teste no ambiente real.</p>
+        </div>
+      </div>
+      <div class="roadmap">
+        <article class="roadmap__item roadmap__item--live">
+          <span class="roadmap__phase">Agora</span>
+          <h3>Detalhamento</h3>
+          <p>DEB.Cad 0.1.26 em uso no CAD; DEB.Revit em fase 1, gerando assembly, vistas, cotas e folha.</p>
+          <span class="tag tag--live">disponível</span>
+        </article>
+        <article class="roadmap__item roadmap__item--wip">
+          <span class="roadmap__phase">Em andamento</span>
+          <h3>Núcleo comum</h3>
+          <p>DEB.Core concentra normas, comprimentos, numeração e catálogos para servir aos dois plugins e ao futuro programa.</p>
+          <span class="tag tag--wip">em desenvolvimento</span>
+        </article>
+        <article class="roadmap__item">
+          <span class="roadmap__phase">Depois</span>
+          <h3>Cálculo PCEB</h3>
+          <p>Análise e dimensionamento com interface web e Windows, começando por pré-moldados. O escopo segue em estudo.</p>
+          <span class="tag tag--next">planejado</span>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--paper2">
+    <div class="wrap">
+      <div class="faq-grid">
+        <div>
+          <p class="eyebrow">Perguntas frequentes</p>
+          <h2 class="h2">Antes de instalar.</h2>
+          <p class="lead mt-24">Se a dúvida não estiver aqui, o repositório e a documentação têm o detalhe técnico.</p>
+          <div class="actions mt-24">
+            <a class="link-arrow" href="documentacao.html">Abrir documentação</a>
+          </div>
+        </div>
+        <div class="faq">
+          <details>
+            <summary>O PCEB já calcula estruturas?</summary>
+            <p>Não. O cálculo e o dimensionamento estão em desenvolvimento. O que existe hoje é o DEB, módulo de detalhamento, numeração e quantificação de armaduras.</p>
+          </details>
+          <details>
+            <summary>O DEB substitui meu software de cálculo?</summary>
+            <p>Não. O DEB não dimensiona. Ele organiza o detalhamento e fecha a relação do aço a partir das decisões do engenheiro.</p>
+          </details>
+          <details>
+            <summary>Preciso do plugin para abrir o DWG?</summary>
+            <p>Não. O desenho usa entidades nativas e abre legível em qualquer CAD. Sem o plugin, apenas deixam de acontecer as atualizações automáticas de cotas, descrições e relação do aço.</p>
+          </details>
+          <details>
+            <summary>Quais programas são suportados?</summary>
+            <p>No CAD: GstarCAD 2021–2027, AutoCAD 2021–2027 e ZWCAD 2024–2026. No Revit: 2025 e 2026.</p>
+          </details>
+          <details>
+            <summary>Já existe download público?</summary>
+            <p>O instalador é gerado a partir do repositório, mas o canal de distribuição ainda está em preparação. A página de download explica como compilar e instalar hoje.</p>
+          </details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="wrap cta__inner">
+      <div>
+        <h2>Comece pelo detalhamento que já está pronto.</h2>
+        <p>Veja os recursos do DEB, a documentação técnica e o caminho para compilar e instalar no seu CAD ou Revit.</p>
+      </div>
+      <div class="actions">
+        <a class="btn btn--primary" href="baixar.html">Como instalar</a>
+        <a class="btn btn--ghost-light" href="deb.html">Conhecer o DEB</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <a class="brand" href="index.html" aria-label="PCEB — página inicial">
+          <svg class="brand__mark" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
+            <rect x="1" y="1" width="38" height="38" rx="3" fill="none" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M11 30V10h8.5a5.5 5.5 0 0 1 0 11H11" fill="none" stroke="currentColor" stroke-width="2.4"/>
+            <path d="M25 14h5M25 21h5M25 28h5" stroke="currentColor" stroke-width="1.4"/>
+          </svg>
+          <span class="brand__name"><b>PCEB</b><span>Cálculo Estrutural Brasileiro</span></span>
+        </a>
+        <p>Programa livre de cálculo estrutural brasileiro. Detalhamento disponível hoje; cálculo em desenvolvimento.</p>
+      </div>
+      <div class="footer__col">
+        <h3>Módulo</h3>
+        <ul>
+          <li><a href="deb.html">DEB</a></li>
+          <li><a href="deb.html#cad">DEB.Cad</a></li>
+          <li><a href="deb.html#revit">DEB.Revit</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h3>Projeto</h3>
+        <ul>
+          <li><a href="projeto.html">Sobre o PCEB</a></li>
+          <li><a href="projeto.html#licenca">Licença</a></li>
+          <li><a href="https://github.com/Josileissu/PCEB" rel="noopener">GitHub</a></li>
+        </ul>
+      </div>
+      <div class="footer__col">
+        <h3>Recursos</h3>
+        <ul>
+          <li><a href="documentacao.html">Documentação</a></li>
+          <li><a href="baixar.html">Instalação</a></li>
+          <li><a href="documentacao.html#faq">FAQ</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer__bar">
+      <span>© <span data-year>2026</span> PCEB · Conteúdo técnico em revisão</span>
+      <span>Feito no Brasil <span class="dot">●</span> GPL-3.0</span>
+    </div>
+  </div>
+</footer>
+
+<script src="assets/js/main.js" defer></script>
+</body>
+</html>
