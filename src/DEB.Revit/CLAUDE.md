@@ -58,7 +58,7 @@ para cada pilar: limpar → marca → barras → dados das barras → assembly (
 o 1º do grupo gera a prancha pelo padrão; os demais caem no mesmo tipo de assembly e reaproveitam a folha.
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
-Os scripts originais ficam em `auxiliar_scripts/` só como referência (fora da compilação: `<Compile Remove>` no csproj).
+Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.
 - `ToolCommand`: base de todos — barreira de exceções (mensagem + log `logs/ferramentas_AAAAMMDD.log`), `ToolCancelled`.
 - `ToolDialogs`: `FieldForm` (formulário com validação) e `CheckListWindow` (lista com Shift+clique, Todos/Nenhum/Inverter/filtro).
 - `RenumberCommands`: pilares, vigas, lajes, fundações, paredes, peças. Ordem em **DEB.Core** (`Numeracao/OrdenacaoMarcas`,
