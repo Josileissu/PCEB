@@ -5,7 +5,7 @@
 - Licença: GNU AGPL-3 (LICENSE.md do zip).
 - O que é: solver explícito de elementos finitos (impacto, colisão, explosão, dinâmica fortemente não linear); continuação comunitária do OpenRadioss. Lê .rad (Radioss) e .k/.key (LS-Dyna); conversores para VTK/CSV/d3plot.
 - Site: https://opencourant.org
-- Ficha: ainda não catalogado (`docs/01_catalogo/opensource/`).
+- Ficha: `docs/01_catalogo/opensource/opencourant.md`.
 
 ## Notas de estudo
 (vazio)
