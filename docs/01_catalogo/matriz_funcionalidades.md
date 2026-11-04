@@ -32,6 +32,23 @@
 | Dimensionamento NBR | — | — | — | — | ○ (parâmetros manuais) | — |
 | IFC | — | — | — | — | — | ● |
 
+## Open source — 2ª leva (04/11/2026)
+| Função | code_aster | XC (xcfem) | OpenCourant |
+|---|---|---|---|
+| Papel | motor MEF completo (EDF) | programa de cálculo por script (deriva do OpenSees) | dinâmica explícita (impacto, explosão) |
+| Licença | GPL-3 | GPL-3 + aviso OpenSees ⚠ | AGPL-3 |
+| Linguagem de uso | `.comm` (Python) | Python | `.rad` / `.k` |
+| Pórtico / 2ª ordem | ● | ● | — |
+| Regiões locais (consolo) | ● concreto não linear + protensão | ○ | — |
+| Fases construtivas | ● | ● | — |
+| Ações e combinações | ○ | ● | — |
+| Dimensionamento por norma | ? (EC2, pós de armadura) | ● EC2/EC3/EC5/ACI/AISC… (sem NBR) | — |
+| Windows | ? (container/WSL) | ? (Docker) | ● |
+
+## Outras ferramentas (fichas em `outros/`)
+- **RH Engenharia – Bloco de Estacas 3D + Memorial** (página HTML, licença desconhecida): reações em estacas por bloco rígido,
+  grelha, as-built, memorial passo a passo, IFC/DXF/PDF. Referência para fundações e para o formato do memorial.
+
 ## Nossos (fichas em `proprios/`)
 | Função | Armadura BR (CAD) | StructuralDetailer (Revit) |
 |---|---|---|
@@ -61,5 +78,7 @@
 - **Ninguém cobre tudo** para pré-moldado + NBR + fabricação. TQS chega mais perto no Brasil; Tekla na fabricação; IDEA nas regiões D.
 - Entre os abertos, **sectionproperties/concreteproperties** é o que mais encaixa no dimensionamento
   (licença MIT); **CalculiX/PrePoMax/Gmsh** formam um conjunto para análise local; **OpenSees** para não linearidade, com ressalva de licença.
+- **code_aster** é o mais completo dos abertos para análise local com concreto fissurado e protensão; **XC** é o mais
+  parecido com um programa de cálculo completo (ações, combinações, verificações por norma), mas herda a restrição do OpenSees.
 - Os **nossos** já cobrem detalhamento e documentação em CAD e Revit; falta a parte de análise e dimensionamento.
   O pilar pré-moldado existe nos dois plugins, com padrões diferentes (P56/P61 × PP127).

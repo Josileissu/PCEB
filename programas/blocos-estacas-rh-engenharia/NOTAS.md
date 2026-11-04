@@ -10,7 +10,7 @@
   dimensionamento por bielas e tirantes fica fora (o próprio memorial diz que é feito separadamente).
 - Usa bibliotecas externas da internet (three.js r128, mp4-muxer) — precisa de conexão para abrir.
 - Interesse para o PCEB: referência para fundações (blocos sobre estacas), memorial e exportação IFC/DXF.
-- Ficha: ainda não catalogado (`docs/01_catalogo/`).
+- Ficha: `docs/01_catalogo/outros/rh-blocos-estacas.md`.
 
 ## Notas de estudo
 (vazio)
