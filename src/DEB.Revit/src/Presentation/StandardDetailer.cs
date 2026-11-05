@@ -77,9 +77,10 @@ namespace DEB.Revit.Presentation
                 if (Std.Armadura.DesenhoDeDobramento)
                     Tx("Dobramento das barras", log, () =>
                     {
-                        // Junto à 1ª seção com armadura; a barra que não aparece nela vai para a elevação da armadura.
-                        List<View> targets = views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura).Take(1)
-                            .Concat(views.Where(v => v.Spec.Tipo == ViewKind.Armadura))
+                        // Ao lado da elevação da armadura (como as formas da PP127); na seção só se a barra não aparecer
+                        // na elevação. Na seção elas aumentavam a vista, que não cabia em 1:25 e ia para 1:50.
+                        List<View> targets = views.Where(v => v.Spec.Tipo == ViewKind.Armadura)
+                            .Concat(views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura).Take(1))
                             .Select(v => v.View).ToList();
                         if (targets.Count > 0) BendingDetails(targets, p, rebars, log);
                     }, critical: false);
@@ -207,17 +208,46 @@ namespace DEB.Revit.Presentation
         private PlacedView Setup(View v, ViewSpec spec, string title, string mark, NameRegistry names)
         {
             v.Name = names.Unique($"{mark} - {title.Split('\n')[0]}");
-            if (!string.IsNullOrWhiteSpace(spec.Template))
-            {
-                View t = new FilteredElementCollector(_doc).OfClass(typeof(View)).Cast<View>()
-                    .FirstOrDefault(x => x.IsTemplate && string.Equals(x.Name, spec.Template.Trim(), StringComparison.OrdinalIgnoreCase));
-                if (t != null) Try(() => v.ViewTemplateId = t.Id);
-            }
             Try(() => v.Scale = spec.Escala);
             Try(() => v.DetailLevel = ViewDetailLevel.Fine);
             if (!(v is View3D)) Try(() => v.DisplayStyle = DisplayStyle.HLR);
+            if (!spec.MostrarArmadura) Try(() => v.SetCategoryHidden(new ElementId(BuiltInCategory.OST_Rebar), true));
+            ApplyTemplate(v, spec.Template);
             v.get_Parameter(BuiltInParameter.VIEW_DESCRIPTION)?.Set(title.Replace("\n", " "));
             return new PlacedView { View = v, Spec = spec, Title = title };
+        }
+
+        /// <summary>Parâmetros que o template não controla: escala e recorte são de cada peça (a prancha ajusta).</summary>
+        private static readonly BuiltInParameter[] FreeInTemplate =
+        {
+            BuiltInParameter.VIEW_SCALE_PULLDOWN_METRIC, BuiltInParameter.VIEW_SCALE_PULLDOWN_IMPERIAL, BuiltInParameter.VIEW_SCALE,
+            BuiltInParameter.VIEWER_CROP_REGION, BuiltInParameter.VIEWER_CROP_REGION_VISIBLE, BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE,
+            BuiltInParameter.VIEWER_BOUND_ACTIVE_FAR, BuiltInParameter.VIEWER_BOUND_FAR_CLIPPING, BuiltInParameter.VIEWER_BOUND_OFFSET_FAR,
+            BuiltInParameter.VIEW_DESCRIPTION
+        };
+
+        /// <summary>
+        /// Aplica o template de vista pelo nome. Se não existir, cria a partir desta vista (já configurada pelo
+        /// padrão): o usuário pode depois editar o template no Revit, e as próximas pranchas seguem a edição.
+        /// </summary>
+        private void ApplyTemplate(View v, string name)
+        {
+            name = name?.Trim();
+            if (string.IsNullOrEmpty(name)) return;
+            View t = new FilteredElementCollector(_doc).OfClass(typeof(View)).Cast<View>()
+                .FirstOrDefault(x => x.IsTemplate && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (t == null)
+            {
+                try
+                {
+                    t = v.CreateViewTemplate();
+                    t.Name = name;
+                    var free = new HashSet<long>(FreeInTemplate.Select(b => (long)b));
+                    t.SetNonControlledTemplateParameterIds(t.GetTemplateParameterIds().Where(id => free.Contains(id.Value)).ToList());
+                }
+                catch { return; /* vista sem suporte a template: segue sem */ }
+            }
+            Try(() => v.ViewTemplateId = t.Id);
         }
 
         private void ShowOrHideRebar(AssemblyInstance asm, List<PlacedView> views)
@@ -354,9 +384,19 @@ namespace DEB.Revit.Presentation
                 foreach (View view in targets)
                 {
                     XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
-                    double minU = p.Vertices.Min(v => v.DotProduct(up)), minR = p.Vertices.Min(v => v.DotProduct(right));
+                    double minU = p.Vertices.Min(v => v.DotProduct(up)), maxU = p.Vertices.Max(v => v.DotProduct(up));
+                    double minR = p.Vertices.Min(v => v.DotProduct(right)), maxR = p.Vertices.Max(v => v.DotProduct(right));
                     int i = placedPerView[view.Id];
-                    XYZ pos = right * (minR + i * step) + up * (minU - step * 0.6) + vd * view.Origin.DotProduct(vd);
+                    XYZ pos;
+                    if (maxU - minU > 2 * (maxR - minR))
+                    {
+                        // elevação alta: colunas à direita da peça, de cima para baixo (depois dos rótulos de estribos)
+                        int perCol = Math.Max(1, (int)((maxU - minU) / step));
+                        pos = right * (maxR + step * (2.5 + i / perCol)) + up * (maxU - step * (0.5 + i % perCol));
+                    }
+                    else
+                        pos = right * (minR + i * step) + up * (minU - step * 0.6);
+                    pos += vd * view.Origin.DotProduct(vd);
                     using (var st = new SubTransaction(_doc))
                     {
                         st.Start();

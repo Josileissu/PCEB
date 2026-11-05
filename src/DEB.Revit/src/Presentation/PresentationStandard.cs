@@ -19,6 +19,10 @@ namespace DEB.Revit.Presentation
     /// </summary>
     public sealed class PresentationStandard
     {
+        /// <summary>Código pela convenção PCEB-&lt;ELEMENTO&gt;-&lt;FORMATO&gt;[-variante] (ver docs/04_arquitetura/padroes_apresentacao.md).</summary>
+        public string Codigo { get; set; } = "";
+        /// <summary>Versão do padrão de fábrica. Arquivo do usuário com versão menor é guardado (.bak) e trocado pelo novo.</summary>
+        public int Versao { get; set; }
         public string Nome { get; set; } = "";
         /// <summary>Tipo de elemento a que o padrão se aplica: PilarPreMoldado, VigaPreMoldada, Laje, Fundacao...</summary>
         public string Elemento { get; set; } = "";
@@ -63,12 +67,20 @@ namespace DEB.Revit.Presentation
         {
             warning = null;
             Directory.CreateDirectory(Folder);
+            PresentationStandard def = Defaults.For(elemento);
             foreach (string file in Directory.GetFiles(Folder, "*.json").OrderBy(f => f))
             {
                 try
                 {
                     var s = JsonSerializer.Deserialize<PresentationStandard>(File.ReadAllText(file), Json);
-                    if (s != null && string.Equals(s.Elemento, elemento, StringComparison.OrdinalIgnoreCase)) return s;
+                    if (s == null || !string.Equals(s.Elemento, elemento, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (s.Versao >= def.Versao) return s;
+                    // padrão de fábrica mais novo: guarda o do usuário e passa a usar o novo
+                    string bak = file + $".v{s.Versao}.bak";
+                    File.Copy(file, bak, true);
+                    File.Delete(file);
+                    warning = $"Padrão \"{Path.GetFileName(file)}\" (versão {s.Versao}) substituído pelo {def.Codigo} versão {def.Versao}; o antigo ficou em {Path.GetFileName(bak)}.";
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -76,14 +88,15 @@ namespace DEB.Revit.Presentation
                 }
             }
 
-            PresentationStandard def = Defaults.For(elemento);
             File.WriteAllText(Path.Combine(Folder, def.FileName()), JsonSerializer.Serialize(def, Json));
             return def;
         }
 
-        public string FileName() => Elemento.ToLowerInvariant() + ".json";
+        public string FileName() => (string.IsNullOrWhiteSpace(Codigo) ? Elemento.ToLowerInvariant() : Codigo) + ".json";
 
         public static string Serialize(PresentationStandard s) => JsonSerializer.Serialize(s, Json);
+
+        public static PresentationStandard Deserialize(string json) => JsonSerializer.Deserialize<PresentationStandard>(json, Json);
 
         /// <summary>Substitui {Campos} no texto.</summary>
         public static string Fill(string template, IDictionary<string, string> values)
@@ -97,8 +110,12 @@ namespace DEB.Revit.Presentation
 
     public sealed class SheetSettings
     {
-        /// <summary>Trecho do nome "Família Tipo" do carimbo (vazio = primeiro carimbo do projeto).</summary>
+        /// <summary>Família do carimbo (nome exato; vazio = qualquer família).</summary>
+        public string FamiliaCarimbo { get; set; } = "";
+        /// <summary>Trecho do nome do tipo do carimbo (ex.: "A1"; vazio = primeiro tipo).</summary>
         public string Carimbo { get; set; } = "";
+        /// <summary>.rfa carregado no projeto quando o carimbo não está lá.</summary>
+        public string ArquivoCarimbo { get; set; } = "";
         public string NumeroFolha { get; set; } = "{Marca}";
         public string NomeFolha { get; set; } = "{Marca}";
         /// <summary>Parâmetros do carimbo (ou da folha) a preencher: nome do parâmetro → texto.</summary>
@@ -192,7 +209,10 @@ namespace DEB.Revit.Presentation
         public string Regiao { get; set; } = "Vistas";
         public bool Cotas { get; set; } = true;
         public bool MostrarArmadura { get; set; }
-        /// <summary>Template de vista do projeto (vazio = nenhum).</summary>
+        /// <summary>
+        /// Template de vista (PCEB-&lt;ELEMENTO&gt;-&lt;VISTA&gt;). Se não existir no projeto, é criado a partir da 1ª vista
+        /// configurada por este item (escala e recorte ficam livres, para a prancha poder ajustar). Vazio = nenhum.
+        /// </summary>
         public string Template { get; set; } = "";
     }
 
