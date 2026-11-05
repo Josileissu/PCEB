@@ -6,13 +6,13 @@ Plugin para Revit 2025/2026 (C#, .NET 8): detalhamento de peças estruturais, co
 Mantidos por estarem gravados nos modelos: `Tag = "StructuralDetailer"` das barras, grupo de parâmetros compartilhados
 `StructuralDetailer`, parâmetros `SD_*`; também os IDs de botão `SD_*` e as variáveis `SD_AUTORUN`/`SD_AUTOEXIT`/`SD_SAVEAS`.
 
-Arquivos do escritório (fora do Git — padrões não são públicos), na pasta `desenvolvedor`:
-modelo de teste `C:\Users\SUELIO087\Documents\desenvolvedor\Projeto1.rvt`; prancha-modelo
-`C:\Users\SUELIO087\Documents\desenvolvedor\exemplo_armadura_pilar_pre_moldado.pdf` (PP127, A1, bilíngue PT/EN, cotas em cm).
+Arquivos do escritório (fora do Git — padrões não são públicos), na pasta-mãe do PCEB (`desenvolvedor\`; no PC2, ver
+`docs/04_arquitetura/trabalho_em_paralelo.md`): modelo de teste `Projeto1.rvt`; prancha-modelo
+`exemplo_armadura_pilar_pre_moldado.pdf` (PP127, A1, bilíngue PT/EN, cotas em cm).
 
 ## Compilar e instalar
 ```powershell
-cd C:\Users\SUELIO087\Documents\desenvolvedor\PCEB\src\DEB.Revit
+cd <raiz do PCEB>\src\DEB.Revit
 & "C:\Program Files\dotnet\dotnet.exe" build DEB.Revit.csproj -c Release -p:RevitVersion=2025 -p:NoWarn=MSB3277
 & "C:\Program Files\dotnet\dotnet.exe" build DEB.Revit.csproj -c Release -p:RevitVersion=2026 -p:NoWarn=MSB3277
 ```
@@ -28,7 +28,7 @@ $env:SD_AUTORUN = "precast"   # diag | probe | precast | ferramentas
 $env:SD_COPYFROM = "<.rvt de origem>"   # só "ferramentas": testa as cópias entre arquivos
 $env:SD_AUTOEXIT = "1"
 $env:SD_SAVEAS = "<scratchpad>\Projeto1_teste.rvt"   # resultado vai para uma CÓPIA; o original nunca é salvo
-$p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"C:\Users\SUELIO087\Documents\desenvolvedor\Projeto1.rvt"' -PassThru
+$p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"<pasta-mãe do PCEB>\Projeto1.rvt"' -PassThru
 $p.WaitForExit(540000)
 ```
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
