@@ -76,6 +76,8 @@ def main():
             pastas["/".join(rel.split("/")[:2]) if rel.count("/") >= 2 else rel.split("/")[0]] += tam
             ext = os.path.splitext(n)[1]
             ling = EXT2LING.get(ext) or EXT2LING.get(ext.lower())
+            if ext == ".ts" and ler()[:300].lstrip().startswith(b"<?xml"):
+                ling = "Traduções Qt (.ts)"   # não é TypeScript
             if ling:
                 ling_arq[ling] += 1; ling_bytes[ling] += tam
                 if tam < 5_000_000:
