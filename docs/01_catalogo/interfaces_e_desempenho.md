@@ -24,6 +24,33 @@ grandes misturam tecnologias. Sem ✓ = conhecimento geral, a confirmar.
 | Armadura BR | paletas WinForms dentro do CAD | do CAD | |
 | StructuralDetailer | WPF escrito em código (sem XAML) | do Revit | |
 
+## 1.1 Raio-X das instalações do PC1 (05/11/2026) ✓
+Levantado por varredura das pastas de instalação (nomes de arquivos e cabeçalho PE, só leitura; script
+`docs/notas/ferramentas/raiox.py`: `python -I raiox.py "<nome>" "<pasta>"`). Falsos positivos descartados (ex.: `QT*.DWG` do TQS não é Qt; `V8-*.dgn` do Revit não é V8).
+
+| Programa | Tamanho / DLLs | Interface | Gráfico | Geometria / DWG / IFC | Cálculo | Script / dados / licença |
+|---|---|---|---|---|---|---|
+| **TQS** (`C:\TQSW`, 998 arquivos em `EXEC`) | 1,6 GB; 956 (154 .NET) | nativo + **Codejock 13.4** e **BCGSoft** | Direct3D (D3DCompiler) + OpenGL via ODA | **ODA Teigha 19.12** (DWG nativo, ACIS builder); IFC próprio (`NE3D2IFC`, `NIFCImport`) | — (solver próprio, nativo) | SQLite; **API Python** (wheel); licença **HASP** |
+| **SAP2000 21** | 1,4 GB; 155 (72 .NET) | **.NET/WPF** (`CSI.Core.UI`, `CSIRibbon`, `System.Xaml`) | **SharpDX → Direct3D 11/Direct2D** + `CSIOpenGL` (alternativo) | `IfcImportExport`, CIS/2 (aço), exportação para Revit (`SAP2000xRevit`) | **Fortran Intel** + **OpenMP** (`libiomp5`); solver separado (`CSI.SAPFire.Solver.exe`) | **OAPI** (`CSiAPIv1.dll`, `SAP2000v1.dll`); licença **Sentinel RMS** |
+| **Robot 2026** | 1,1 GB; 1.850 (91 .NET) | **MFC** (interface antiga) | (motor gráfico próprio) | **RealDWG/ObjectARX** (`acdb25`), ACIS, **CGAL** | **Intel TBB** + OpenMP | **API COM** (`RobotOM`, SDK com .h/.cpp/.lib); BeSQLite |
+| **Revit 2026** | 4,3 GB; 3.236 (2.209 .NET) | WPF + **WebView2** (28 DLLs) + Qt6 + BCGSoft + AvalonDock | **Autodesk OGS** (One Graphics System) sobre **Direct3D 11/12**; **USD/Hydra** (há backend Vulkan); Helix Toolkit (Dynamo) | **ODA 25.12** + RealDWG; IFC (exportador aberto da Autodesk) | Intel TBB | **API .NET**; **Dynamo** (1.418 nós `.dyn`); SQL LocalDB |
+| **GstarCAD 2021** | 0,5 GB; 139 (3 .NET) | nativo (MFC) | próprio | **ODA** (`TD_*_3.05src`, versão própria), **ACIS** (`SpaACIS`), IFC 2x3 | — | ARX/GRX (`.grx`), .NET; licença **FlexNet** |
+| **Eberick** (AltoQi) | 1,2 GB; 365 (58 .NET) | **Qt6** + WebView2 | **OpenGL** (glew/freeglut, shaders `.vert/.frag`) | **IfcPlusPlus** + **ifcengine** (RDF); DWG pela ODA | **Intel TBB**, **OpenBLAS/LAPACK** | **Python 3.13 embutido** (`python313.dll` + `get-pip.py`) — automação a investigar; SQLite, LocalDB |
+| **AltoQi Builder** | 1,1 GB; 312 (53 .NET) | **Qt5** + WebView2 | OpenGL | IfcPlusPlus, ifcengine, `IFCParser` | TBB, OpenBLAS/LAPACK | SQLite (`qsqlite`) |
+| **CYPE 2026** | 1,0 GB; 673 (**0 .NET**) | nativo (toolkit próprio) | **OpenGL** (`cyopengl`); exporta **glTF** (`cygltf*`) | IFC (`bimifc`, `bsifc*` — Open BIM) | **OpenMP** | DLLs por módulo: `nbr*`, `euroco*`, `viento*`, `det_*` (detalhamento), `posbar*`, `panele*`, `catfab*` (catálogos de fabricantes) |
+
+**Leituras para o PCEB**
+- **DWG**: todos os comerciais usam **ODA (Teigha)** ou **RealDWG**; ler/gravar DWG sem eles não é realista. Para nós: DXF aberto
+  ou, se precisar de DWG, a ODA (associação paga; o ODA File Converter é gratuito para converter em lote).
+- **IFC**: há bibliotecas abertas em uso comercial (**IfcPlusPlus** no Eberick/Builder; IfcOpenShell no ecossistema aberto).
+- **3D**: Direct3D 11/12 nos programas Autodesk/CSI; **OpenGL** nos brasileiros (Eberick, TQS) e no CYPE. Exportar **glTF**
+  (CYPE) é o caminho mais direto para visualizar no navegador (three.js) — encaixa na recomendação web da seção 2.
+- **Cálculo**: paralelismo por **OpenMP** (SAP2000, CYPE) e **Intel TBB** (Robot, Revit, Eberick); álgebra com MKL/OpenBLAS.
+- **Automação**: TQS (Python), SAP2000 (OAPI), Robot (COM), Revit (.NET + Dynamo); o **Eberick traz Python embutido**
+  (falta descobrir se expõe API ao usuário). CYPE sem API visível.
+- **Tendência de interface**: **WebView2** já aparece no Revit (28 DLLs) e nos AltoQi — telas web dentro de programas nativos,
+  exatamente o modelo proposto na seção 2.
+
 ## 2. Qual a melhor para o nosso projeto (recomendação, não decisão)
 O requisito pede **web (local → nuvem)** e **Windows com as mesmas funções**. Fazer duas interfaces dobra o trabalho.
 O caminho mais econômico é **uma interface web só**:
