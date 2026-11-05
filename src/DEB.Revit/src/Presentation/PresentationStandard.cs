@@ -191,7 +191,11 @@ namespace DEB.Revit.Presentation
         Corte,
         /// <summary>Seção transversal com a armadura.</summary>
         SecaoArmadura,
-        Vista3D
+        Vista3D,
+        /// <summary>Corte vertical pelo meio de cada tipo de consolo (tirante e costura). Título aceita {Consolo}.</summary>
+        ConsoloCorte,
+        /// <summary>Planta de cada tipo de consolo, logo abaixo do topo. Título aceita {Consolo}.</summary>
+        ConsoloPlanta
     }
 
     /// <summary>Onde passa um corte transversal.</summary>
