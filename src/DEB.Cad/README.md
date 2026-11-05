@@ -8,7 +8,7 @@ atualizada e organiza os detalhamentos em blocos — usando apenas entidades nat
 > **O plugin não dimensiona estruturas.** Ele só desenha, numera e quantifica; as decisões de
 > cálculo são do engenheiro responsável.
 
-Versão atual: **0.1.25**
+Versão atual: **0.1.26**
 
 ## Programas suportados
 

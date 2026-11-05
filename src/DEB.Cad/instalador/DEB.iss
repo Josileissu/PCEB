@@ -99,6 +99,8 @@ Source: "{#Bin}\ZWCAD2026\*.dll"; DestDir: "{app}\ZWCAD2026"; Components: zwcad;
 [InstallDelete]
 ; bundle do instalador antigo só do AutoCAD 2026: DLLs direto em Contents\Windows
 Type: files; Name: "{#Bundle}\Contents\Windows\*.dll"
+; bundle do antigo "Armadura BR" (antes de virar Detalhador): sai para não carregar junto com o novo
+Type: filesandordirs; Name: "{userappdata}\Autodesk\ApplicationPlugins\ArmaduraBR.bundle"
 
 [UninstallDelete]
 ; cópias de execução feitas pelo carregador do GstarCAD

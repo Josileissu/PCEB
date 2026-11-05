@@ -36,10 +36,30 @@ Remove-Item $relatorio -ErrorAction SilentlyContinue
 $env:ARM_AUTOTESTE_SAIDA = Join-Path $Saida 'autoteste.dwg'
 $env:ARM_LOG_DETALHADO = '1'
 
-$p = Start-Process $Acad "/nologo /b `"$scr`"" -PassThru
-if (-not $p.WaitForExit(300000)) {
-    Write-Warning "AutoCAD do teste não fechou em 5 min (PID $($p.Id)); encerrando só essa instância."
-    Stop-Process -Id $p.Id -Force
+# O AutoCAD carrega sozinho o bundle instalado (ApplicationPlugins). Se ele entrar primeiro, o NETLOAD
+# do bin recém-compilado é ignorado (mesmo nome de assembly) e o teste rodaria a versão instalada,
+# que pode estar velha. Desliga o autoload só durante o teste e devolve no finally.
+$bundleXml = Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins\DEB.bundle\PackageContents.xml'
+$xmlDesligado = "$bundleXml.off"
+$chavesAuto = @(Get-ChildItem 'HKCU:\Software\Autodesk\AutoCAD' -ErrorAction SilentlyContinue |
+    ForEach-Object { Get-ChildItem $_.PSPath -ErrorAction SilentlyContinue } |
+    ForEach-Object { $k = Join-Path $_.PSPath 'Applications\ArmaduraBR'; if (Test-Path $k) { $k } })
+$loadCtrls = @{}
+foreach ($k in $chavesAuto) {
+    $v = (Get-ItemProperty -Path $k -Name LOADCTRLS -ErrorAction SilentlyContinue).LOADCTRLS
+    if ($null -ne $v) { $loadCtrls[$k] = $v; Set-ItemProperty -Path $k -Name LOADCTRLS -Value 0 }
+}
+if (Test-Path $bundleXml) { Rename-Item $bundleXml 'PackageContents.xml.off' }
+
+try {
+    $p = Start-Process $Acad "/nologo /b `"$scr`"" -PassThru
+    if (-not $p.WaitForExit(300000)) {
+        Write-Warning "AutoCAD do teste não fechou em 5 min (PID $($p.Id)); encerrando só essa instância."
+        Stop-Process -Id $p.Id -Force
+    }
+} finally {
+    foreach ($k in $loadCtrls.Keys) { Set-ItemProperty -Path $k -Name LOADCTRLS -Value $loadCtrls[$k] }
+    if (Test-Path $xmlDesligado) { Rename-Item $xmlDesligado 'PackageContents.xml' }
 }
 if (Test-Path $relatorio) { Get-Content $relatorio } else { Write-Warning 'Sem relatório: veja o log do plugin.' }
 "DWG do teste: $env:ARM_AUTOTESTE_SAIDA"
