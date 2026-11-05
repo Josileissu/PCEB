@@ -1,6 +1,6 @@
 {
   "Codigo": "PCEB-PPM-A1",
-  "Versao": 5,
+  "Versao": 7,
   "Nome": "Pilar pré-moldado – prancha A1 (padrão PP127)",
   "Elemento": "PilarPreMoldado",
   "Descricao": "Prancha A1 como a PP127 e o template pilar-premoldado do DEB.Cad: vistas das 4 faces e elevação da armadura (1:50) à esquerda; seções com armadura e cortes (1:25) no alto, ao centro; relação/resumo do aço, informações de produção e notas à direita; detalhes padrão embaixo; carimbo no canto inferior direito.",
@@ -10,16 +10,14 @@
     "ArquivoCarimbo": "S:\\Meu Drive\\Arquivos\\Familias Revit\\Carimbo e Folhas\\Folhas Revit.rfa",
     "NumeroFolha": "{Marca}",
     "NomeFolha": "ARMADURA DO PILAR / COLUMN REINFORCEMENT - {Marca}",
-    "ParametrosCarimbo": {
-      "Título": "ARMADURA DO PILAR / COLUMN REINFORCEMENT\n{Marca}"
-    },
+    "ParametrosCarimbo": {},
     "MargemEsquerdaMm": 25,
     "MargemDireitaMm": 10,
     "MargemSuperiorMm": 10,
     "MargemInferiorMm": 10,
     "EspacamentoMm": 10,
     "TituloVistaMm": 14,
-    "LarguraCaractereTituloMm": 2.5,
+    "LarguraCaractereTituloMm": 4.3,
     "EscalasAlternativas": [ 20, 25, 50, 75, 100 ]
   },
   "Unidades": {

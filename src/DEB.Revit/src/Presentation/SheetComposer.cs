@@ -63,7 +63,8 @@ namespace DEB.Revit.Presentation
             {
                 if (!Viewport.CanAddViewToSheet(_doc, sheet.Id, pv.View.Id)) { _log.Warn($"{pv.Title.Split('\n')[0]}: não pôde ir para a prancha."); continue; }
                 Viewport vp = Viewport.Create(_doc, sheet.Id, pv.View.Id, center);
-                double labelW = pv.Title.Replace("\n", " ").Length * U.Mm(Std.Folha.LarguraCaractereTituloMm);
+                // o Revit quebra o título na largura da linha: conta a linha mais longa (PT ou EN), não o título inteiro
+                double labelW = pv.Title.Split('\n').Max(l => l.Length) * U.Mm(Std.Folha.LarguraCaractereTituloMm);
                 try { vp.LabelLineLength = labelW; } catch { /* tipo de viewport sem linha de título */ }
                 Put(pv.Spec.Regiao, new Item { Element = vp, Viewport = vp, LabelH = label, LabelW = labelW });
             }
