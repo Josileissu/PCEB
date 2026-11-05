@@ -1,0 +1,97 @@
+{
+  "Codigo": "PCEB-PPM-A1",
+  "Versao": 5,
+  "Nome": "Pilar pré-moldado – prancha A1 (padrão PP127)",
+  "Elemento": "PilarPreMoldado",
+  "Descricao": "Prancha A1 como a PP127 e o template pilar-premoldado do DEB.Cad: vistas das 4 faces e elevação da armadura (1:50) à esquerda; seções com armadura e cortes (1:25) no alto, ao centro; relação/resumo do aço, informações de produção e notas à direita; detalhes padrão embaixo; carimbo no canto inferior direito.",
+  "Folha": {
+    "FamiliaCarimbo": "Folhas Revit",
+    "Carimbo": "A1",
+    "ArquivoCarimbo": "S:\\Meu Drive\\Arquivos\\Familias Revit\\Carimbo e Folhas\\Folhas Revit.rfa",
+    "NumeroFolha": "{Marca}",
+    "NomeFolha": "ARMADURA DO PILAR / COLUMN REINFORCEMENT - {Marca}",
+    "ParametrosCarimbo": {
+      "Título": "ARMADURA DO PILAR / COLUMN REINFORCEMENT\n{Marca}"
+    },
+    "MargemEsquerdaMm": 25,
+    "MargemDireitaMm": 10,
+    "MargemSuperiorMm": 10,
+    "MargemInferiorMm": 10,
+    "EspacamentoMm": 10,
+    "TituloVistaMm": 14,
+    "LarguraCaractereTituloMm": 2.5,
+    "EscalasAlternativas": [ 20, 25, 50, 75, 100 ]
+  },
+  "Unidades": {
+    "Cotas": "cm",
+    "Precisao": 0.5,
+    "TipoDeCota": "SD - Cota cm",
+    "AfastamentoCotaMm": 8
+  },
+  "Textos": {
+    "Fonte": "Arial",
+    "AlturaTextoMm": 2.5,
+    "TituloPeca": "{Marca}",
+    "AlturaTituloPecaMm": 10,
+    "RegiaoTituloPeca": "Titulo"
+  },
+  "Armadura": {
+    "Particao": "{Marca}",
+    "RotuloBarra": "{Qtd} N{N} ø{Diam} C={Comp}",
+    "RotuloEstribos": "{Qtd} N{N} c/{Espacamento}",
+    "DesenhoDeDobramento": true,
+    "DensidadeAco": 7850
+  },
+  "Regioes": {
+    "Titulo":   { "X": 0.00,  "Y": 0.77, "L": 0.12,  "A": 0.05 },
+    "Vistas":   { "X": 0.00,  "Y": 0.44, "L": 0.62,  "A": 0.33 },
+    "Secoes":   { "X": 0.59,  "Y": 0.42, "L": 0.17,  "A": 0.58 },
+    "Tabelas":  { "X": 0.785, "Y": 0.62, "L": 0.215, "A": 0.38 },
+    "Producao": { "X": 0.785, "Y": 0.49, "L": 0.215, "A": 0.12 },
+    "Notas":    { "X": 0.785, "Y": 0.25, "L": 0.215, "A": 0.23 },
+    "Detalhes": { "X": 0.00,  "Y": 0.00, "L": 0.77,  "A": 0.42 }
+  },
+  "Vistas": [
+    { "Tipo": "Face", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "VISTA 1\n(VIEW 1)", "Escala": 50, "Regiao": "Vistas", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-FACE" },
+    { "Tipo": "Face", "Ativa": true, "Face": 2, "Posicao": "Corrente", "Titulo": "VISTA 2\n(VIEW 2)", "Escala": 50, "Regiao": "Vistas", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-FACE" },
+    { "Tipo": "Face", "Ativa": true, "Face": 3, "Posicao": "Corrente", "Titulo": "VISTA 3\n(VIEW 3)", "Escala": 50, "Regiao": "Vistas", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-FACE" },
+    { "Tipo": "Face", "Ativa": true, "Face": 4, "Posicao": "Corrente", "Titulo": "VISTA 4\n(VIEW 4)", "Escala": 50, "Regiao": "Vistas", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-FACE" },
+    { "Tipo": "Armadura", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "ARMADURA\n(REINFORCEMENT)", "Escala": 50, "Regiao": "Vistas", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-ARMADURA" },
+    { "Tipo": "SecaoArmadura", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "SEÇÃO {Numero}-{Numero} - ARMADURA\n(SECTION {Numero}-{Numero} - REBAR)", "Escala": 25, "Regiao": "Secoes", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-SECAO" },
+    { "Tipo": "SecaoArmadura", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "SEÇÃO {Numero}-{Numero} - ARMADURA\n(SECTION {Numero}-{Numero} - REBAR)", "Escala": 25, "Regiao": "Secoes", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-SECAO" },
+    { "Tipo": "Corte", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "CORTE {Letra}-{Letra}\n(SECTION {Letra}-{Letra})", "Escala": 25, "Regiao": "Secoes", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-CORTE" },
+    { "Tipo": "Corte", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "CORTE {Letra}-{Letra}\n(SECTION {Letra}-{Letra})", "Escala": 25, "Regiao": "Secoes", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-CORTE" },
+    { "Tipo": "Vista3D", "Ativa": false, "Face": 1, "Posicao": "Corrente", "Titulo": "VISTA 3D", "Escala": 50, "Regiao": "Detalhes", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-3D" }
+  ],
+  "Tabelas": [
+    { "Tipo": "RelacaoDoAco", "Ativa": true, "Titulo": "RELAÇÃO DO AÇO - (REBAR SCHEDULE)", "Regiao": "Tabelas" },
+    { "Tipo": "ResumoDoAco", "Ativa": true, "Titulo": "RESUMO DO AÇO (REBAR SUMMARY)", "Regiao": "Tabelas" }
+  ],
+  "Quadros": [
+    {
+      "Nome": "Informações para produção",
+      "Texto": "INFORMAÇÕES P/ PRODUÇÃO\nRESISTÊNCIA AO SAQUE: fcj = {fcjSaque} MPa\nRESISTÊNCIA MONTAGEM: fcj = {fcjMontagem} MPa\nRESISTÊNCIA 28 DIAS: fck = {fck} MPa\nVOLUME DE CONCRETO: {Volume} m³\nPESO: {Peso} ton\nQUANTIDADE: {Quantidade} unidades\n\nMANUFACTURING INFORMATION\nSTRENGTH DEMOLDING: fcj = {fcjSaque} MPa\nSTRENGTH ERECTION: fcj = {fcjMontagem} MPa\nSTRENGTH AT 28 DAYS: fck = {fck} MPa\nCONCRETE VOLUME: {Volume} m³\nWEIGHT: {Peso} ton\nQUANTITY: {Quantidade} unit",
+      "Regiao": "Producao",
+      "Moldura": true
+    },
+    {
+      "Nome": "Notas",
+      "Texto": "NOTA:\n1) DIMENSÕES EM CM;\n2) PARA INFORMAÇÕES GERAIS, VER PRANCHA: ----;\n3) UTILIZAR NEOPRENE 15 mm.\n\nNOTE:\n1) DIMENSIONS IN CM;\n2) FOR GENERAL INFORMATION, SEE SHEET: ----;\n3) USE 15 mm NEOPRENE.",
+      "Regiao": "Notas",
+      "Moldura": false
+    }
+  ],
+  "Legendas": [
+    { "Nome": "RAIO DE CURVATURA PARA GANCHOS", "Regiao": "Detalhes" },
+    { "Nome": "COMPRIMENTO DAS BARRAS", "Regiao": "Detalhes" },
+    { "Nome": "EMENDAS POR TRASPASSE", "Regiao": "Detalhes" },
+    { "Nome": "EMENDAS POR SOLDA POR TRASPASSE", "Regiao": "Detalhes" },
+    { "Nome": "ATERRAMENTO ESTRUTURAL PILARES", "Regiao": "Detalhes" }
+  ],
+  "Producao": {
+    "fcjSaque": "30",
+    "fcjMontagem": "35",
+    "fck": "40",
+    "DensidadeConcreto_t_m3": "2.5"
+  }
+}

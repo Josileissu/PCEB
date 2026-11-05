@@ -137,14 +137,46 @@ namespace DEB.Revit.Presentation
 
         private ElementId TitleBlock()
         {
-            List<FamilySymbol> tbs = new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_TitleBlocks)
+            string family = Std.Folha.FamiliaCarimbo?.Trim() ?? "";
+            string want = Std.Folha.Carimbo?.Trim() ?? "";
+            List<FamilySymbol> All() => new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .WhereElementIsElementType().OfType<FamilySymbol>().ToList();
+            FamilySymbol Find(List<FamilySymbol> l) => l
+                .Where(s => family == "" || string.Equals(s.FamilyName, family, StringComparison.OrdinalIgnoreCase))
+                .Where(s => want == "" || (family == "" ? s.FamilyName + " " + s.Name : s.Name).IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0)
+                // "A1" antes de "A1++": o nome mais curto que contém o trecho
+                .OrderBy(s => s.Name.Length).FirstOrDefault();
+
+            List<FamilySymbol> tbs = All();
+            FamilySymbol pick = Find(tbs);
+            string file = Std.Folha.ArquivoCarimbo?.Trim() ?? "";
+            if (pick == null && file != "")
+            {
+                if (!System.IO.File.Exists(file)) _log.Warn($"Arquivo do carimbo não encontrado: {file}");
+                else
+                {
+                    try
+                    {
+                        if (_doc.LoadFamily(file, new OverwriteNothing(), out Family _)) _log.Info($"Carimbo carregado de {file}.");
+                        tbs = All();
+                        pick = Find(tbs);
+                    }
+                    catch (Exception ex) { _log.Warn($"Carimbo não carregado de {file}: {ex.Message}"); }
+                }
+            }
             if (tbs.Count == 0) { _log.Warn("Nenhum carimbo carregado no projeto."); return ElementId.InvalidElementId; }
-            string want = Std.Folha.Carimbo?.Trim();
-            FamilySymbol pick = string.IsNullOrEmpty(want) ? null
-                : tbs.FirstOrDefault(s => (s.FamilyName + " " + s.Name).IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0);
-            if (pick == null && !string.IsNullOrEmpty(want)) _log.Warn($"Carimbo \"{want}\" não encontrado; usado \"{tbs[0].FamilyName} - {tbs[0].Name}\".");
-            return (pick ?? tbs[0]).Id;
+            if (pick == null) _log.Warn($"Carimbo \"{(family + " " + want).Trim()}\" não encontrado; usado \"{tbs[0].FamilyName} - {tbs[0].Name}\".");
+            pick ??= tbs[0];
+            if (!pick.IsActive) pick.Activate();
+            return pick.Id;
+        }
+
+        /// <summary>Carrega a família só se ela ainda não existe (não sobrescreve a do projeto).</summary>
+        private sealed class OverwriteNothing : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues) { overwriteParameterValues = false; return false; }
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            { source = FamilySource.Project; overwriteParameterValues = false; return false; }
         }
 
         /// <summary>Preenche parâmetros do carimbo; se o carimbo não tiver o parâmetro, tenta a própria folha.</summary>
@@ -157,7 +189,12 @@ namespace DEB.Revit.Presentation
                 Parameter p = tb?.LookupParameter(kv.Key) ?? sheet.LookupParameter(kv.Key);
                 if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
                 {
-                    _log.Warn($"Parâmetro \"{kv.Key}\" não encontrado (ou só leitura) no carimbo/folha.");
+                    // lista os parâmetros de texto editáveis, para acertar o nome no padrão
+                    string avail = string.Join(", ", (tb?.Parameters.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
+                        .Concat(sheet.Parameters.Cast<Parameter>())
+                        .Where(x => x.StorageType == StorageType.String && !x.IsReadOnly)
+                        .Select(x => x.Definition.Name).Distinct().OrderBy(n => n));
+                    _log.Warn($"Parâmetro \"{kv.Key}\" não encontrado (ou só leitura) no carimbo/folha. Disponíveis: {avail}");
                     continue;
                 }
                 p.Set(Fill(kv.Value));

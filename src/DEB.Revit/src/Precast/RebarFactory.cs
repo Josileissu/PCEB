@@ -110,8 +110,12 @@ namespace DEB.Revit.Precast
             if (_types.TryGetValue(diameterMm, out RebarBarType cached)) return cached;
 
             double d = U.Mm(diameterMm);
+            // Só aceita tipo do aço certo (nome com CA-50/CA-60): o template do Revit traz tipos "CA25" com pinos de
+            // CA25, que davam aço errado na tabela e comprimentos diferentes do núcleo. Sem tipo certo, cria o do PCEB.
+            string want = SharedRules.SteelFor(diameterMm).Replace("-", "");
             RebarBarType found = new FilteredElementCollector(_doc).OfClass(typeof(RebarBarType)).Cast<RebarBarType>()
                 .Where(t => Math.Abs(t.BarNominalDiameter - d) < U.Mm(0.05))
+                .Where(t => RebarDataSteel(t) == want)
                 .OrderBy(t => t.Name)
                 .FirstOrDefault();
             if (found == null)
@@ -139,6 +143,13 @@ namespace DEB.Revit.Precast
             found.SetHookPermission(Hook135().Id, true);
             _types[diameterMm] = found;
             return found;
+        }
+
+        /// <summary>Aço indicado no nome do tipo ("CA50", "CA60", "CA25") ou "" se o nome não indica.</summary>
+        private static string RebarDataSteel(RebarBarType t)
+        {
+            string n = (t?.Name ?? "").ToUpperInvariant().Replace("-", "").Replace(" ", "");
+            return n.Contains("CA60") ? "CA60" : n.Contains("CA50") ? "CA50" : n.Contains("CA25") ? "CA25" : "";
         }
 
         /// <summary>Gancho de 135° (ponta reta 10 Ø ≥ 5 cm, NBR 6118 9.4.6.1).</summary>

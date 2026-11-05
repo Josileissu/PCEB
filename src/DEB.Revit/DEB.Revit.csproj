@@ -48,6 +48,11 @@
     <ProjectReference Include="..\DEB.Core\DEB.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Padrões de apresentação do PCEB (fonte: Padroes\; convenção de nomes em docs/04_arquitetura/padroes_apresentacao.md) -->
+    <EmbeddedResource Include="Padroes\*.json" LogicalName="DEB.Revit.Padroes.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- Copia a DLL e o manifesto para %AppData%\Autodesk\Revit\Addins\<versão>\ -->
   <Target Name="DeployToRevitAddins" AfterTargets="Build" Condition="'$(DeployToRevit)' == 'true'">
     <PropertyGroup>
