@@ -1,4 +1,4 @@
-﻿# Templates de armadura (ambiente preparado em 2026-10-27)
+# Templates de armadura (ambiente preparado em 2026-10-27)
 
 Pedido do usuário: templates para os elementos com padrão estabelecido no escritório. A implementação
 de cada um começa quando ele enviar os PDFs/DWGs (pastas em `info_auxiliar/templates/<elemento>/`).
@@ -149,3 +149,25 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
     Grampos); os valores não são guardados nos detalhamentos, então não há migração.
 - Próximas (quando houver projeto real): seções circular/L/T/U/vazada e pilar-parede, seção variável, topo inclinado/garfo,
   base com chapa/luvas/esperas, consolo esconso/corrido/metálico, furos e nichos, seção na altura do consolo.
+
+### Reservatório retangular (Templates/Reservatorio/, 2026-11-05, PC2, branch pc2/template-reservatorio)
+Pedido do usuário: reconhecer a estrutura de um DWG de outro programa e gerar o detalhamento no padrão do exemplo
+uxiliar_cad/reservatório (armadura.dwg + forma.dwg), usando só as bitolas e espaçamentos do desenho original.
+- TemplateReservatorio (id eservatorio, também no ARMTEMPLATE): retângulo externo Lx × Ly, paredes de espessura t,
+  internas de face a face (eixos x/y), altura H acima do fundo, fundo hf com balanço, lajes superiores (tabela: nome,
+  nível, espessura, células). Vistas: paredes em planta 1:25 (horizontais rebatidas em volta, L de canto externo e L nos
+  cantos das células, verticais de canto com indicação), cortes A-A e B-B 1:25 (verticais rebatidas, arranques), fundo
+  positivo/negativo 1:50 com faixas e borda, cada laje superior 1:50, RA.
+- Regras medidas no exemplo (padrões editáveis): horizontais = comprimento externo − 2c com ganchos que fecham na outra
+  face (t − 2c; as internas atravessam as externas); verticais da face inferior do fundo ao topo − 2c com gancho de 90°
+  da NBR; dobras do fundo hf − 2c, positiva volta 30 por cima; cobrimento 4,5 (paredes) e 3,5 (lajes); perna do L 88;
+  arranque 100 (fundo) × 111 (parede) com gancho 6. Avisos quando menores que lb/traspasse (NBR 6118, fck).
+- ReconhecedorReservatorio (Core, sem CAD): vistas = agrupamentos das linhas de forma (layer com "forma", sem "barra"/"arm")
+  casadas com os títulos (PLANTA, CORTE, ARMAÇÃO … LAJES (nível)); no Eberick o título fica embaixo e à DIREITA da vista
+  inteira. "Escala 1:n" perto do título; desenho em cm de papel (vista < 150 un) é multiplicado por n. Famílias = par
+  (bitola, espaçamento) mais frequente nos textos da vista (horizontais por direção pelo giro do texto; negativa sem ø
+  usa a bitola da positiva, com aviso).
+- ARMRESERVATORIO (em ComandosTemplate.cs): seleção → reconhecer → gerar ao lado do original, direto (decisão do usuário).
+  Testado no AutoCAD 2026 com o DWG de teste do usuário (Eberick, 396 × 402, 1 interna): leitura correta, 13 posições.
+- Fora da v1 (avisos): furos/aberturas, mísulas, planta em L, paredes de espessuras diferentes, vistas por nível
+  ("vista topo", "inferior à laje") e corte D-D do exemplo.

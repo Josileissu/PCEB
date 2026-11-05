@@ -65,7 +65,7 @@ public class NovidadesTests
     [Fact]
     public void CatalogoValidaERegistraTemplates()
     {
-        Assert.Equal(8, CatalogoTemplates.Categorias.Count);
+        Assert.Equal(9, CatalogoTemplates.Categorias.Count); // + Reservatório (2026-11-05)
         var t = new Exemplo();
         CatalogoTemplates.Registrar(t);
         try
