@@ -58,6 +58,7 @@ Lido direto dos pacotes em `programas/*/download`, sem extrair, compilar nem rod
 | Programa | Tamanho | Linguagens (linhas) | Interface | Gráfico | Geometria / formatos | Cálculo | Script / licença |
 |---|---|---|---|---|---|---|---|
 | **Blender** (5.4 alpha) | 20.945 arq. | C/C++ 3,9 mi; Python 530 mil; GLSL | própria (GHOST, desenhada pela GPU) | **OpenGL + Vulkan + Metal** (`gpu/`); Cycles (CUDA/HIP/oneAPI/Embree) | Manifold, Eigen; USD, Alembic, FBX, OBJ, STL, PLY, glTF | TBB; numpy | Python embutido; GPL |
+| **FreeCAD** 27.1-dev | 13.313 arq. | C/C++ 1,7 mi; Python 810 mil; 27 traduções pt-BR | **Qt** (PySide6) | **Coin3D/OpenGL** | **Open CASCADE**; IFC nativo (IfcOpenShell); STEP, DXF, SVG, PDF | (FEM: CalculiX, Elmer…) | Python em tudo; **`ArchRebar`** + TechDraw; LGPL-2.1 |
 | **IfcOpenShell** 0.9.0 (+ Bonsai) | 4.253 arq. | C/C++ 1,07 mi (esquemas IFC); Python 600 mil | Qt (ifcviewer); Blender (Bonsai); web (pyodide) | OpenGL | **Open CASCADE**, CGAL, Manifold; IFC2X3 → IFC4X3; SVG, **DXF (ezdxf)**, glTF, USD | — | Python/SWIG; **MCP (`ifcmcp`)**; LGPL-3 (lib), GPL-3 (Bonsai) |
 | **code_aster** | 32.854 arq. | **Fortran 1,47 mi**; Python 720 mil; C/C++ 400 mil | — (Salome-Meca à parte) | — | malha MED | MPI, **MUMPS**, HDF5 | comandos em Python; GPL-3 |
 | **XC** | 7.390 arq. | C++ 690 mil; Python 350 mil | — | VTK (pós) | CGAL, Boost, Eigen; Gmsh | MUMPS, UMFPACK, ARPACK, MPI, OpenMP | Python; normas EC/ACI/EHE/SIA; GPL-3 + aviso OpenSees |
@@ -70,7 +71,8 @@ Lido direto dos pacotes em `programas/*/download`, sem extrair, compilar nem rod
 
 **Leituras para o PCEB**
 - **Nenhum open source cria ou detalha armadura**: IfcOpenShell só lê e escreve `IfcReinforcingBar`; XC e code_aster
-  calculam áreas de aço. O motor D19 não tem atalho aberto (o FreeCAD Reinforcement, ainda não catalogado, é o único candidato).
+  calculam áreas de aço. O FreeCAD tem a barra paramétrica (`ArchRebar`), mas as formas prontas, as armaduras por elemento e o BBS
+  ficam no complemento "Reinforcement" (ainda não baixado).
 - **IFC**: o IfcOpenShell é a biblioteca aberta de referência (LGPL, pode ser ligada); já traz um **servidor MCP** para IA.
 - **Geometria**: **Open CASCADE** é o kernel aberto comum (IfcOpenShell, Gmsh, PrePoMax); CGAL/Manifold para booleanas.
 - **Gráfico**: o Blender separa OpenGL/Vulkan/Metal atrás de uma camada própria; PrePoMax mostra **WinForms + VTK em C#**,

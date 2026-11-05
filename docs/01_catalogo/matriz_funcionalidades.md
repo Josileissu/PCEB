@@ -48,6 +48,9 @@
 | Windows | ? (container/WSL) | ? (Docker) | ● |
 | Armadura | ○ áreas (`CALC_FERRAILLAGE`) | ○ seções de fibras, esquema TikZ | — |
 
+**FreeCAD** (ficha `opensource/freecad.md`): modelo BIM + IFC nativo + barra paramétrica (`ArchRebar`) + pranchas
+(TechDraw) + FEM (CalculiX); LGPL-2.1. Complemento Reinforcement (formas, BBS) a levantar.
+
 Raio-X do código-fonte de todos os open source: `interfaces_e_desempenho.md`, seção 1.2 (05/11/2026). IfcOpenShell e
 Bonsai têm ficha própria (`opensource/ifcopenshell.md`).
 
