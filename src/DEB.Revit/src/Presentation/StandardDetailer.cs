@@ -71,24 +71,19 @@ namespace DEB.Revit.Presentation
                 }
             }, critical: false);
 
-            // Níveis: linha traço-ponto atravessando todas as vistas de face e a armadura (como o template do CAD);
-            // nomes, cotas e comprimento total só na 1ª vista de face.
-            PlacedView firstFace = views.FirstOrDefault(v => v.Spec.Tipo == ViewKind.Face);
-            if (firstFace != null && p.Kind == PieceKind.Column)
-                Tx("Níveis", log, () =>
-                {
-                    foreach (PlacedView v in views.Where(v => v.Corbel == null && (v.Spec.Tipo == ViewKind.Face || v.Spec.Tipo == ViewKind.Armadura)))
-                        LevelMarks(v.View, p, styles, labels: v == firstFace, log);
-                }, critical: false);
-
             List<Rebar> rebars = asm.GetMemberIds().Select(_doc.GetElement).OfType<Rebar>().ToList();
+            var schematic = _schematic;   // vista esquemática → pontos do desenho
+            schematic.Clear();
             if (rebars.Count > 0)
             {
                 Tx("Rotular armadura", log, () =>
                 {
                     _doc.Regenerate();   // numeração das posições
                     foreach (PlacedView v in views.Where(v => v.Spec.Tipo == ViewKind.Armadura))
-                        LabelRebar(v.View, p, rebars, styles);
+                    {
+                        if (v.Spec.Esquematica) schematic[v.View.Id] = SchematicElevation(v.View, p, rebars, styles);
+                        else LabelRebar(v.View, p, rebars, styles);
+                    }
                 }, critical: false);
 
                 if (Std.Armadura.DesenhoDeDobramento)
@@ -101,7 +96,37 @@ namespace DEB.Revit.Presentation
                             .Select(v => v.View).ToList();
                         if (targets.Count > 0) BendingDetails(targets, p, rebars, styles, log);
                     }, critical: false);
+
+                // Esquemática: o concreto some; a armadura 3D fica em BRANCO (oculta, as formas das barras somem junto);
+                // o recorte passa a abranger o desenho.
+                if (schematic.Count > 0)
+                    Tx("Elevação esquemática", log, () =>
+                    {
+                        var hide = new[] { p.Instance.Id }.Concat(p.Attached.Select(k => k.Id)).ToList();
+                        var white = new OverrideGraphicSettings();
+                        white.SetProjectionLineColor(new Color(255, 255, 255));
+                        white.SetCutLineColor(new Color(255, 255, 255));
+                        foreach (PlacedView v in views.Where(v => schematic.ContainsKey(v.View.Id)))
+                        {
+                            List<ElementId> h = hide.Where(id => _doc.GetElement(id).CanBeHidden(v.View)).ToList();
+                            if (h.Count > 0) v.View.HideElements(h);
+                            foreach (Rebar r in rebars) Try(() => v.View.SetElementOverrides(r.Id, white));
+                            if (v.View is ViewSection vs)
+                                ViewFactory.FitCrop(vs, p.Vertices.Concat(schematic[v.View.Id]), U.Mm(_cfg.CropMarginMm));
+                        }
+                    }, critical: false);
             }
+
+            // Níveis: linha traço-ponto atravessando todas as vistas de face e a armadura (como o template do CAD);
+            // nomes, cotas e comprimento total só na 1ª vista de face.
+            PlacedView firstFace = views.FirstOrDefault(v => v.Spec.Tipo == ViewKind.Face);
+            if (firstFace != null && p.Kind == PieceKind.Column)
+                Tx("Níveis", log, () =>
+                {
+                    foreach (PlacedView v in views.Where(v => v.Corbel == null && (v.Spec.Tipo == ViewKind.Face || v.Spec.Tipo == ViewKind.Armadura)))
+                        LevelMarks(v.View, p, styles, labels: v == firstFace, log,
+                            schematic.TryGetValue(v.View.Id, out List<XYZ> sp) ? sp : null);
+                }, critical: false);
 
             ViewSheet sheet = null;
             if (!Tx("Montar prancha", log, () => sheet = new SheetComposer(_doc, _ctx, styles, log).Compose(asm, views)))
@@ -392,6 +417,7 @@ namespace DEB.Revit.Presentation
         // ------------------------------------------------------------------
         // Níveis (topo, níveis do projeto que cruzam a peça, base) e comprimento total
 
+        private readonly Dictionary<ElementId, List<XYZ>> _schematic = new Dictionary<ElementId, List<XYZ>>();
         private GraphicsStyle _levelLineStyle;
         private bool _levelLineStyleLogged;
 
@@ -412,14 +438,16 @@ namespace DEB.Revit.Presentation
             return _levelLineStyle;
         }
 
-        private void LevelMarks(View view, PieceInfo p, AnnotationStyles styles, bool labels, PieceLog log)
+        private void LevelMarks(View view, PieceInfo p, AnnotationStyles styles, bool labels, PieceLog log, List<XYZ> extra = null)
         {
             XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
             double scale = view.Scale;
             double w = view.Origin.DotProduct(vd);
             XYZ At(double r, double u) => right * r + up * u + vd * w;
-            double minR = p.Vertices.Min(v => v.DotProduct(right));
-            double maxR = p.Vertices.Max(v => v.DotProduct(right));
+            // extra = pontos do desenho esquemático: as linhas de nível atravessam o desenho todo
+            IEnumerable<XYZ> span = extra == null ? p.Vertices : p.Vertices.Concat(extra);
+            double minR = span.Min(v => v.DotProduct(right));
+            double maxR = span.Max(v => v.DotProduct(right));
             double bottom = p.Vertices.Min(v => v.DotProduct(up)), top = p.Vertices.Max(v => v.DotProduct(up));
             double zBottom = p.Vertices.Min(v => v.Z), zTop = p.Vertices.Max(v => v.Z);
             // cota vertical da vista ↔ Z do modelo (a vista de face é vertical: up = +Z)
@@ -503,6 +531,114 @@ namespace DEB.Revit.Presentation
                 var merged = new RebarRow(first, g.Sum(x => x.Quantity));
                 TextNote.Create(_doc, view.Id, At(minR - gap, top - i++ * line * 1.4), Fill(Std.Armadura.RotuloBarra, merged), left);
             }
+        }
+
+        // ------------------------------------------------------------------
+        // Elevação esquemática da armadura ("explodida"), como o template de pilar do DEB.Cad
+
+        /// <summary>
+        /// Cada posição longitudinal vira uma linha grossa vertical (da cota mais baixa à mais alta das barras), lado a
+        /// lado a partir da face esquerda, com o rótulo vertical "4 N1 ø12.5 C=695" à esquerda. À direita, uma linha de
+        /// cota com traços nos limites de cada trecho de estribos e o rótulo vertical do trecho ("71 N1 c/15 + 2x71 N3").
+        /// Devolve os pontos do desenho (para o recorte e as linhas de nível).
+        /// </summary>
+        private List<XYZ> SchematicElevation(View view, PieceInfo p, List<Rebar> rebars, AnnotationStyles styles)
+        {
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            double s = view.Scale, w = view.Origin.DotProduct(vd);
+            XYZ At(double r, double u) => right * r + up * u + vd * w;
+            double minR = p.Vertices.Min(v => v.DotProduct(right));
+            double textLine = U.Mm(Std.Textos.AlturaTextoMm * 1.7) * s;
+            var pts = new List<XYZ>();
+
+            (double Lo, double Hi) Span(IEnumerable<Rebar> rs)
+            {
+                double lo = double.MaxValue, hi = double.MinValue;
+                foreach (Rebar r in rs)
+                {
+                    BoundingBoxXYZ bb = r.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    foreach (double x in new[] { bb.Min.X, bb.Max.X })
+                        foreach (double y in new[] { bb.Min.Y, bb.Max.Y })
+                            foreach (double z in new[] { bb.Min.Z, bb.Max.Z })
+                            {
+                                double u = new XYZ(x, y, z).DotProduct(up);
+                                lo = Math.Min(lo, u); hi = Math.Max(hi, u);
+                            }
+                }
+                return (lo, hi);
+            }
+
+            GraphicsStyle thick = null, thin = null;
+            DetailCurve Line_(double r0, double u0, double r1, double u1, bool heavy)
+            {
+                pts.Add(At(r0, u0)); pts.Add(At(r1, u1));
+                DetailCurve dc = _doc.Create.NewDetailCurve(view, Line.CreateBound(At(r0, u0), At(r1, u1)));
+                if (thick == null)
+                {
+                    List<GraphicsStyle> all = dc.GetLineStyleIds().Select(id => _doc.GetElement(id)).OfType<GraphicsStyle>().ToList();
+                    thick = all.FirstOrDefault(g => g.Name.IndexOf("grossa", StringComparison.OrdinalIgnoreCase) >= 0 || g.Name.IndexOf("Wide", StringComparison.OrdinalIgnoreCase) >= 0);
+                    thin = all.FirstOrDefault(g => g.Name.IndexOf("finas", StringComparison.OrdinalIgnoreCase) >= 0 || g.Name.IndexOf("Thin", StringComparison.OrdinalIgnoreCase) >= 0);
+                }
+                GraphicsStyle gs = heavy ? thick : thin;
+                if (gs != null) Try(() => dc.LineStyle = gs);
+                return dc;
+            }
+            // texto vertical (lido de baixo para cima): o ponto é o meio do lado de cima do texto, que fica à esquerda
+            var vertical = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center, Rotation = Math.PI / 2 };
+            void VText(double r, double u, string text)
+            {
+                pts.Add(At(r, u)); pts.Add(At(r + textLine, u));
+                Try(() => TextNote.Create(_doc, view.Id, At(r, u), text, vertical));
+            }
+
+            var rows = rebars.Select(r => new RebarRow(_doc, r)).Where(r => r.Number != "").ToList();
+
+            // Longitudinais: uma linha por posição
+            double pitch = U.Mm(11) * s;
+            double x = minR + pitch;
+            foreach (var g in rows.Where(r => r.Role == "Longitudinal").GroupBy(r => r.Number).OrderBy(g => NumberKey(g.Key)))
+            {
+                var (lo, hi) = Span(g.Select(r => r.Rebar));
+                if (lo >= hi) continue;
+                Line_(x, lo, x, hi, heavy: true);
+                // texto vertical: o texto cresce para a direita do ponto (uma linha de texto)
+                VText(x - U.Mm(3) * s - textLine, (lo + hi) / 2, Fill(Std.Armadura.RotuloBarra, new RebarRow(g.First(), g.Sum(r => r.Quantity))));
+                x += pitch;
+            }
+
+            // Estribos: linha de cota com os trechos
+            var runs = rows.Where(r => r.Role == "Estribo").Select(r => (Row: r, Span: Span(new[] { r.Rebar })))
+                .Where(t => t.Span.Lo < t.Span.Hi).OrderBy(t => t.Span.Lo).ToList();
+            if (runs.Count > 0)
+            {
+                double xs = x + U.Mm(6) * s, tick = U.Mm(1.5) * s;
+                double charW = U.Mm(Std.Textos.AlturaTextoMm * 0.8) * s;   // largura média de um caractere
+                Line_(xs, runs.First().Span.Lo, xs, runs.Max(t => t.Span.Hi), heavy: false);
+                var horiz = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Left };
+                double nextTop = double.MaxValue;   // rótulos horizontais: de cima para baixo, sem sobrepor
+                foreach (var (row, (lo, hi)) in runs.OrderByDescending(t => t.Span.Hi))
+                {
+                    Line_(xs - tick, lo, xs + tick, lo, heavy: false);
+                    Line_(xs - tick, hi, xs + tick, hi, heavy: false);
+                    // uma barra só: sem espaçamento ("1 N2", não "1 N2 c/0")
+                    string text = row.Quantity <= 1 ? $"{row.Quantity} N{row.Number}" : Fill(Std.Armadura.RotuloEstribos, row);
+                    List<RebarRow> ties = rows.Where(t => t.Role == "Grampo" && Math.Abs(t.Center.DotProduct(up) - row.Center.DotProduct(up)) < U.Mm(20)).ToList();
+                    if (ties.Count > 0) text += $" + {ties.Count}x{ties[0].Quantity} N{ties[0].Number}";
+                    if (text.Length * charW < (hi - lo) * 0.9)
+                        VText(xs + U.Mm(1.5) * s + textLine, (lo + hi) / 2, text);   // cabe no trecho: vertical
+                    else
+                    {
+                        // trecho curto: horizontal à direita, na altura do trecho (ou logo abaixo do rótulo anterior)
+                        double top = Math.Min((lo + hi) / 2 + textLine / 2, nextTop);
+                        double r0 = xs + U.Mm(2.5) * s;
+                        Try(() => TextNote.Create(_doc, view.Id, At(r0, top), text, horiz));
+                        pts.Add(At(r0, top)); pts.Add(At(r0 + text.Length * charW, top - textLine));
+                        nextTop = top - textLine * 1.2;
+                    }
+                }
+            }
+            return pts;
         }
 
         private static int NumberKey(string n) => int.TryParse(n, out int v) ? v : 9999;
@@ -593,8 +729,11 @@ namespace DEB.Revit.Presentation
                     double s = view.Scale;
                     double minU = p.Vertices.Min(v => v.DotProduct(up)), maxU = p.Vertices.Max(v => v.DotProduct(up));
                     double minR = p.Vertices.Min(v => v.DotProduct(right)), maxR = p.Vertices.Max(v => v.DotProduct(right));
+                    // elevação esquemática: as formas vão à direita do desenho
+                    if (_schematic.TryGetValue(view.Id, out List<XYZ> sp) && sp.Count > 0)
+                        maxR = Math.Max(maxR, sp.Max(q => q.DotProduct(right)) - U.Mm(36) * s);
                     int i = placedPerView[view.Id];
-                    double pitch = U.Mm(ShapeHmm + 8) * s, colW = U.Mm(ShapeWmm + 18) * s;
+                    double pitch = U.Mm(ShapeHmm + 11) * s, colW = U.Mm(ShapeWmm + 12) * s;
                     XYZ pos;
                     if (maxU - minU > 2 * (maxR - minR))
                     {
@@ -611,7 +750,7 @@ namespace DEB.Revit.Presentation
                         try
                         {
                             RebarBendingDetail.Create(_doc, view.Id, first.Rebar.Id, 0, type, pos, 0);
-                            TextNote.Create(_doc, view.Id, pos - up * (U.Mm(ShapeHmm / 2 + 5) * s), label, center);
+                            TextNote.Create(_doc, view.Id, pos - up * (U.Mm(ShapeHmm / 2 + 6) * s), label, center);
                             st.Commit();
                             placedPerView[view.Id] = i + 1;
                             ok = true;
