@@ -30,6 +30,9 @@ aço, padrão configurável); análise e dimensionamento ficam nas fichas.
   IDEA/ligações.
 - **Lacunas de mercado** que o motor D19 preenche: painéis tilt-up detalhados pela NBR, folha de capeamento,
   consolos metálicos detalhados, e tudo isso **no Revit com o padrão do escritório**.
+- **Open source**: nenhum gera o detalhamento desses elementos. O mais perto é o **FreeCAD** (barra paramétrica
+  `ArchRebar` + pranchas TechDraw; formas prontas e BBS no complemento Reinforcement, a levantar); o IfcOpenShell só
+  lê e grava a armadura em IFC (`opensource/freecad.md`, `opensource/ifcopenshell.md`).
 - **Nossos plugins hoje**: pilar pré-moldado com consolo (CAD e Revit) e base de reservatório (CAD); o resto está
   previsto. A ordem do `motor_detalhamento.md` continua válida.
 
