@@ -59,7 +59,7 @@ resumo do aço, informações de produção e notas à direita; detalhes padrão
 | Item da PP127 / template do CAD | Revit (05/11/2026) |
 |---|---|
 | Aço CA-50 nas barras ≥ 6,3 | **corrigido** (só usa tipo de barra do aço certo; senão cria `Ø… CA-50`) |
-| Carimbo do escritório A1 | **feito**: carrega `Folhas Revit.rfa`; parâmetros do carimbo a mapear |
+| Carimbo do escritório A1 | **feito**: carrega `Folhas Revit.rfa`; o título da peça vai no **Nome da folha** (decisão do usuário, 05/11/2026) |
 | Regiões sem sobreposição | **feito**: regiões medidas na PP127 (conferir nos PNG do AutoRun) |
 | Templates de vista | **feito**: `PCEB-PPM-FACE/ARMADURA/SECAO/CORTE/3D` |
 | Níveis (topo, térreo, piso, base) e comprimento total nas vistas | falta |
@@ -68,4 +68,4 @@ resumo do aço, informações de produção e notas à direita; detalhes padrão
 | Armaduras do consolo (planta, corte AA/BB, tirante, costura) | falta |
 | Alça de içamento (lifting handle) | barra criada; detalhe falta |
 | Reforço nos furos, chaves de cisalhamento, aterramento (SPDA) | falta (legendas/detalhes padrão) |
-| Legendas padrão (raio, emendas, comprimento) | faltam no projeto de teste |
+| Legendas padrão (raio, emendas, comprimento, aterramento) | **o usuário vai criar** as legendas do escritório (05/11/2026); o plugin já as coloca pelo nome quando existirem |
