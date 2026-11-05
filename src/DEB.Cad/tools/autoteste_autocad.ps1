@@ -1,7 +1,8 @@
 ﻿# Compila o plugin AutoCAD (padrão 2026) e roda o autoteste (ARMTESTE) numa instância NOVA do AutoCAD.
 # A instância do usuário não é tocada. Resultado: %AppData%\PCEB\DEB.Cad\logs\autoteste.txt
-# Uso: powershell -File tools\autoteste_autocad.ps1 [-Versao 2026] [-Saida <pasta>] [-Acad <acad.exe>] [-SemBuild]
+# Uso: powershell -File tools\autoteste_autocad.ps1 [-Comando ARMTESTE|ARMTESTEPALETA|ARMTESTEMATCH] [-Versao 2026] [-Saida <pasta>] [-Acad <acad.exe>] [-SemBuild]
 param(
+    [string]$Comando = 'ARMTESTE',
     [string]$Versao = '2026',
     [string]$Saida = (Join-Path $env:TEMP 'armadura_acad'),
     [string]$Acad = '',
@@ -23,13 +24,11 @@ $scr = Join-Path $Saida 'armadura_autoteste_acad.scr'
 $dllLisp = $dll -replace '\\', '/'
 # FILEDIA=0 para o PNGOUT; SECURELOAD=0 para o NETLOAD; ZOOM _E porque o /b abre sem vista
 # (sem vista, as janelas de seleção do STRETCH/MOVE acham 0 objetos e o autoteste trava).
-@(
-    'FILEDIA', '0',
-    'SECURELOAD', '0',
-    "(command `"_.NETLOAD`" `"$dllLisp`")",
-    '_.ZOOM', '_E',
-    'ARMTESTE'
-) | Out-File -Encoding ascii $scr
+# FILEDIA só no teste completo: é ele que o devolve (ARMTESTEFIM); os testes parciais não usam o PNGOUT
+$linhas = @()
+if ($Comando -eq 'ARMTESTE') { $linhas += 'FILEDIA', '0' }
+$linhas += 'SECURELOAD', '0', "(command `"_.NETLOAD`" `"$dllLisp`")", '_.ZOOM', '_E', $Comando
+$linhas | Out-File -Encoding ascii $scr
 
 $relatorio = Join-Path $env:APPDATA 'PCEB\DEB.Cad\logs\autoteste.txt'
 Remove-Item $relatorio -ErrorAction SilentlyContinue
@@ -58,8 +57,13 @@ try {
         Stop-Process -Id $p.Id -Force
     }
 } finally {
-    foreach ($k in $loadCtrls.Keys) { Set-ItemProperty -Path $k -Name LOADCTRLS -Value $loadCtrls[$k] }
+    # o bundle PRIMEIRO: é ele que faz o plugin carregar no AutoCAD do usuário
     if (Test-Path $xmlDesligado) { Rename-Item $xmlDesligado 'PackageContents.xml' }
+    # o AutoCAD do teste, sem achar o bundle, apaga as chaves Applications\ArmaduraBR que ele mesmo tinha
+    # criado a partir do bundle (2026-11-05); ele as recria ao abrir. Só devolve o valor das que existem.
+    foreach ($k in $loadCtrls.Keys) {
+        if (Test-Path $k) { Set-ItemProperty -Path $k -Name LOADCTRLS -Value $loadCtrls[$k] -ErrorAction SilentlyContinue }
+    }
 }
 if (Test-Path $relatorio) { Get-Content $relatorio } else { Write-Warning 'Sem relatório: veja o log do plugin.' }
 "DWG do teste: $env:ARM_AUTOTESTE_SAIDA"

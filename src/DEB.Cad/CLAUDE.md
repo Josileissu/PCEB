@@ -282,6 +282,22 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   DLL do plugin, LOADCTRLS=2, MANAGED=1) — gravado pelo instalador único.
 - Autoteste: `tools\autoteste_autocad.ps1 -Versao <ano>` (instância NOVA do AutoCAD; relatório em
   `%AppData%\PCEB\DEB.Cad\logs\autoteste.txt`). Port da 0.1.21: 129 verificações, 0 falhas (AutoCAD 2026, em outra máquina).
+  O roteiro desliga o bundle instalado (PackageContents.xml → .off) durante o teste; o AutoCAD então apaga as chaves
+  `Applications\ArmaduraBR` (recria ao abrir com o bundle). Se o roteiro parar no meio, CONFIRA que o .xml voltou.
+- Descrição da barra: barra nova nasce girada com o maior segmento; a cópia recria o texto com a posição relativa e a
+  ROTAÇÃO do original (texto original, senão `DescricaoRotacao`, XData "DROT"; ausente = 0). Pedidos de 2026-11-05.
+- **MATCHPROP/PAINTER** (pedido de 2026-11-05): o Sincronizador copia também os dados do plugin entre objetos do MESMO tipo
+  — barra→barra (`DadosArmadura.CopiarPropriedadesDe`: bitola, aço, quantidade, espaçamento, escala, campos…; nunca geometria,
+  partes, Id ou N; tipo treliça/tela não muda), faixa/indicação/chamada→idem (`DadosFaixa.CopiarPropriedadesDe`; nunca barra
+  dona, tipo ou pontos) e tabela→tabela (`OpcoesTabelaRA.CopiarPropriedadesDe`; não copia os Blocos da RA parcial). Origem =
+  1º `PromptForEntityEnding` do comando (ou a pré-seleção de 1 objeto); destinos = seleções + modificados. Clicar num texto,
+  cota ou linha de chamada vale pelo objeto dono. Autoteste: `tools\autoteste_autocad.ps1 -Comando ARMTESTEMATCH`.
+  GstarCAD/ZWCAD têm os mesmos eventos (compilam), mas NÃO foram testados.
+- Faixas em cota ORTOGONAL e ALINHADA nascem sem o diâmetro no texto (`DadosFaixa.MostrarDiametroAoCriar`, ARMFAIXAORT/ALI e
+  faixa do ARMESTRIBO; pedido de 2026-11-05). As existentes não mudam (sem "MDIA" no XData = mostra); templates usam o deles.
+- Autoteste completo no AutoCAD desta máquina (2026-11-05): trava no STRETCH (janela sem objetos → ARMBARRA fica esperando);
+  provavelmente a vista da instância de teste (o ZOOM _E roda com o desenho vazio) — não investigado. Os testes parciais
+  (-Comando) funcionam.
 - Demo do AutoCAD: `-p:Demo=true` → `bin\demo\AutoCAD<ano>`. A pasta obj (inclusive a restauração do NuGet) é definida no
   `src\DEB.AutoCAD\Directory.Build.props` (`obj\<ano>` / `obj\demo<ano>`): no .csproj ela chegava tarde (aviso MSB3539).
 - Instalação no AutoCAD (componente do instalador único; o `gerar_autocad.bat` e o `.iss` próprio foram removidos):

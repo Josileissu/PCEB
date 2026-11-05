@@ -62,7 +62,11 @@ public sealed class ComandosFaixa
         int criadas = 0;
         while (true)
         {
-            var f = new DadosFaixa { Tipo = tipo, Espacamento = esp, EspacamentoInicial = cfg.EspacamentoInicialFaixa, Escala = cfg.EscalaFaixa };
+            var f = new DadosFaixa
+            {
+                Tipo = tipo, Espacamento = esp, EspacamentoInicial = cfg.EspacamentoInicialFaixa, Escala = cfg.EscalaFaixa,
+                MostrarDiametro = DadosFaixa.MostrarDiametroAoCriar(tipo),
+            };
             Point3d? posicao = tipo switch
             {
                 TipoFaixa.CorteChamadaArco => PedirArco(ed, db, f),

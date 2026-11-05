@@ -57,6 +57,22 @@ public sealed class OpcoesTabelaRA
     public double PosX { get; set; }
     public double PosY { get; set; }
 
+    /// <summary>
+    /// MATCHPROP entre tabelas (pedido do usuário, 2026-11-05): copia a apresentação, a escala e as colunas. Não copia o
+    /// que a tabela LISTA (Blocos da RA parcial) nem o desenho dos detalhes (partes e posição) — cada uma continua com o seu.
+    /// </summary>
+    public void CopiarPropriedadesDe(OpcoesTabelaRA o)
+    {
+        if (o == null || ReferenceEquals(o, this)) return;
+        ColunaElemento = o.ColunaElemento;
+        NomeNoTitulo = o.NomeNoTitulo;
+        Apresentacao = o.Apresentacao;
+        Resumo = o.Resumo;
+        MostrarPesoTotal = o.MostrarPesoTotal;
+        Escala = o.Escala;
+        DetalheDobra = o.DetalheDobra;
+    }
+
     public static OpcoesTabelaRA Padrao(ConfiguracaoArmadura cfg) => new OpcoesTabelaRA
     {
         Apresentacao = cfg.ApresentacaoRA,
