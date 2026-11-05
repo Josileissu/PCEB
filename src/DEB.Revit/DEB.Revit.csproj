@@ -58,6 +58,9 @@
     <PropertyGroup>
       <AddinDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)\</AddinDir>
     </PropertyGroup>
+    <!-- Assina DEB.Revit.dll e DEB.Core.dll com o certificado "CN=PCEB DEB" do usuário, se existir (o Revit deixa de
+         pedir "Sempre carregar" a cada build). Sem o certificado, segue sem assinar. Ver src/DEB.Revit/CLAUDE.md. -->
+    <Exec ContinueOnError="true" Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$c = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object Subject -eq 'CN=PCEB DEB' | Select-Object -First 1; if ($c) { Get-Item '$(OutputPath)DEB.Revit.dll','$(OutputPath)DEB.Core.dll' | Set-AuthenticodeSignature -Certificate $c -HashAlgorithm SHA256 | Out-Null; Write-Host 'DLLs assinadas (PCEB DEB)' } else { Write-Host 'Sem certificado PCEB DEB: DLLs sem assinatura' }&quot;" />
     <ItemGroup>
       <_SdBuilt Include="$(OutputPath)*.dll;$(OutputPath)*.pdb;$(OutputPath)*.deps.json" />
     </ItemGroup>
