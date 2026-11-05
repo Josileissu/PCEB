@@ -46,8 +46,8 @@ Levantado por varredura das pastas de instalação (nomes de arquivos e cabeçal
 - **3D**: Direct3D 11/12 nos programas Autodesk/CSI; **OpenGL** nos brasileiros (Eberick, TQS) e no CYPE. Exportar **glTF**
   (CYPE) é o caminho mais direto para visualizar no navegador (three.js) — encaixa na recomendação web da seção 2.
 - **Cálculo**: paralelismo por **OpenMP** (SAP2000, CYPE) e **Intel TBB** (Robot, Revit, Eberick); álgebra com MKL/OpenBLAS.
-- **Automação**: TQS (Python), SAP2000 (OAPI), Robot (COM), Revit (.NET + Dynamo); o **Eberick traz Python embutido**
-  (falta descobrir se expõe API ao usuário). CYPE sem API visível.
+- **Automação**: TQS (Python), SAP2000 (OAPI), Robot (COM), Revit (.NET + Dynamo), **Eberick (Axis Nodes:
+  programação visual por nós + nó Python)**. CYPE sem API visível.
 - **Tendência de interface**: **WebView2** já aparece no Revit (28 DLLs) e nos AltoQi — telas web dentro de programas nativos,
   exatamente o modelo proposto na seção 2.
 
