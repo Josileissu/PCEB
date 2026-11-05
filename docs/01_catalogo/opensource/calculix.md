@@ -30,3 +30,9 @@
 
 ## A confirmar
 - Modelos de material para concreto; desempenho em Windows (binários e paralelismo).
+
+## Raio-X do código-fonte (05/11/2026) ✓
+Lido direto do pacote em `programas/*/download` com `docs/notas/ferramentas/raiox_fonte.py` (sem compilar nem rodar).
+- **O download só tem o `cgx` 2.23** (pré/pós gráfico), **não o solver `ccx`** — baixar o `ccx` se formos testar.
+- `cgx`: C, ~190 mil linhas; interface **GLUT + OpenGL** (glut 3.5 incluído); malhas com **TetGen** e Netgen;
+  NURBS com libSNL; 40 MB de manual e 23 MB de exemplos. GPL-2 ✓.

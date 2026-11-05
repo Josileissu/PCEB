@@ -33,3 +33,10 @@
 
 ## A confirmar
 - Compatibilidade com Python 3.14; conferir resultados contra exemplos da NBR 6118 / livros da biblioteca.
+
+## Raio-X do código-fonte (05/11/2026) ✓
+Lido direto do pacote em `programas/*/download` com `docs/notas/ferramentas/raiox_fonte.py` (sem compilar nem rodar).
+- Pequeno: 63 arquivos Python, ~24 mil linhas; numpy, scipy, **shapely**, numba (opcional). MIT ✓.
+- Módulos: `geometry`, `pre`/`fea`/`solver`/`post` (MEF de seção com triângulos de 6 nós), `stress_post`,
+  bibliotecas `concrete_sections`, `steel_sections`, `timber_sections`, `bridge_sections`, `rhino` (importa do Rhino).
+- O **concreteproperties** (flexão composta, diagramas M-N) é outro pacote e **não está no download**.
