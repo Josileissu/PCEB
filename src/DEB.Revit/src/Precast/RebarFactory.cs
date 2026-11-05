@@ -57,7 +57,7 @@ namespace DEB.Revit.Precast
             {
                 const double cmPerFoot = 30.48;
                 var axis = b.Points.Select(p => (p.A * cmPerFoot, p.B * cmPerFoot, p.C * cmPerFoot)).ToList();
-                bool tie = b.Role == BarRole.Stirrup || b.Role == BarRole.CrossTie || b.Role == BarRole.CorbelSew;
+                bool tie = IsTie(b.Role);
                 double core = SharedRules.RealLengthCm(axis, b.Closed, b.DiameterMm, tie, b.Hooks135);
                 double revit = (r.get_Parameter(BuiltInParameter.REBAR_ELEM_LENGTH)?.AsDouble() ?? 0) * cmPerFoot;
                 _log.Info($"Comprimento {RoleLabel(b.Role)} Ø{Fmt(b.DiameterMm)}: Revit {revit.ToString("0.0", CultureInfo.InvariantCulture)} cm | núcleo {core.ToString("0.0", CultureInfo.InvariantCulture)} cm | diferença {(core - revit).ToString("+0.0;-0.0;0.0", CultureInfo.InvariantCulture)}");
@@ -74,7 +74,7 @@ namespace DEB.Revit.Precast
             for (int i = 0; i < pts.Count - 1; i++) curves.Add(Line.CreateBound(f.ToWorld(pts[i]), f.ToWorld(pts[i + 1])));
             if (b.Closed) curves.Add(Line.CreateBound(f.ToWorld(pts[^1]), f.ToWorld(pts[0])));
 
-            bool tie = b.Role == BarRole.Stirrup || b.Role == BarRole.CrossTie || b.Role == BarRole.CorbelSew;
+            bool tie = IsTie(b.Role);
             RebarHookType hook = b.Hooks135 ? Hook135() : null;
             Element host = (Element)b.HostCorbel?.Instance ?? column;
 
@@ -169,6 +169,9 @@ namespace DEB.Revit.Precast
             return _hook135;
         }
 
+        /// <summary>Estribos e grampos (estilo de estribo do Revit; pinos da tabela 9.2 da NBR 6118).</summary>
+        private static bool IsTie(BarRole r) => r == BarRole.Stirrup || r == BarRole.CrossTie || r == BarRole.CorbelSew || r == BarRole.CorbelStirrup;
+
         public static string RoleLabel(BarRole r) => r switch
         {
             BarRole.Longitudinal => "Longitudinal",
@@ -177,6 +180,10 @@ namespace DEB.Revit.Precast
             BarRole.CorbelTie => "Tirante do consolo",
             BarRole.CorbelSew => "Costura do consolo",
             BarRole.LiftLoop => "Alça de içamento",
+            BarRole.CorbelAnchor => "Barra soldada do tirante",
+            BarRole.CorbelStirrup => "Estribo vertical do consolo",
+            BarRole.CorbelBottom => "Armadura inferior do consolo",
+            BarRole.CorbelPin => "Pino do consolo",
             _ => r.ToString()
         };
 

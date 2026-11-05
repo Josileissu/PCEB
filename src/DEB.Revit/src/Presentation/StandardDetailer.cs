@@ -97,7 +97,10 @@ namespace DEB.Revit.Presentation
                         List<View> targets = views.Where(v => v.Spec.Tipo == ViewKind.Armadura)
                             .Concat(views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura).Take(1))
                             .Select(v => v.View).ToList();
-                        if (targets.Count > 0) BendingDetails(targets, p, rebars, styles, log);
+                        // Barras do consolo: no quadro do consolo (embaixo do corte do consolo), como o "ARMADURAS console".
+                        List<View> corbelTargets = views.Where(v => v.Spec.Tipo == ViewKind.ConsoloCorte)
+                            .Concat(views.Where(v => v.Spec.Tipo == ViewKind.ConsoloPlanta)).Select(v => v.View).ToList();
+                        if (targets.Count > 0) BendingDetails(targets, corbelTargets, p, rebars, styles, log);
                     }, critical: false);
 
                 // Esquemática: o concreto some; a armadura 3D fica em BRANCO (oculta, as formas das barras somem junto);
@@ -669,6 +672,8 @@ namespace DEB.Revit.Presentation
             {
                 string n = r.get_Parameter(BuiltInParameter.REBAR_NUMBER)?.AsString() ?? "";
                 if (n == "") continue;
+                // barras do consolo são chamadas no quadro do consolo (na seção ficariam amontoadas)
+                if (IsCorbelRole(new RebarRow(_doc, r).Role)) continue;
                 for (int i = 0; i < r.NumberOfBarPositions; i++)
                 {
                     IList<Curve> cs;
@@ -828,10 +833,15 @@ namespace DEB.Revit.Presentation
             return t;
         }
 
-        private void BendingDetails(List<View> targets, PieceInfo p, List<Rebar> rebars, AnnotationStyles styles, PieceLog log)
+        /// <summary>Barras do consolo (tirante, barra soldada, costura, estribos verticais, inferior, pinos).</summary>
+        private static bool IsCorbelRole(string role) =>
+            role.IndexOf("consolo", StringComparison.OrdinalIgnoreCase) >= 0 || role.IndexOf("soldada", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        private void BendingDetails(List<View> targets, List<View> corbelTargets, PieceInfo p, List<Rebar> rebars, AnnotationStyles styles, PieceLog log)
         {
             RebarBendingDetailType type = BendingType(styles);
-            var placedPerView = targets.ToDictionary(v => v.Id, v => 0);
+            var placedPerView = targets.Concat(corbelTargets).GroupBy(v => v.Id).ToDictionary(g => g.Key, g => 0);
+            var corbelIds = new HashSet<ElementId>(corbelTargets.Select(v => v.Id));
             var center = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
 
             // uma forma por posição (N), na ordem da numeração; quantidade = soma dos conjuntos da posição
@@ -845,12 +855,22 @@ namespace DEB.Revit.Presentation
                 RebarRow first = g.First();
                 string label = Fill(Std.Armadura.RotuloBarra, new RebarRow(first, g.Sum(x => x.Quantity)));
                 bool ok = false;
-                foreach (View view in targets)
+                IEnumerable<View> order = IsCorbelRole(first.Role) ? corbelTargets.Concat(targets) : targets;
+                foreach (View view in order)
                 {
                     XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
                     double s = view.Scale;
                     double minU = p.Vertices.Min(v => v.DotProduct(up)), maxU = p.Vertices.Max(v => v.DotProduct(up));
                     double minR = p.Vertices.Min(v => v.DotProduct(right)), maxR = p.Vertices.Max(v => v.DotProduct(right));
+                    if (corbelIds.Contains(view.Id) && view is ViewSection cv)
+                    {
+                        // vista do consolo: as formas vão em linha embaixo do recorte
+                        BoundingBoxXYZ cb = cv.CropBox;
+                        var cs = new[] { cb.Min, cb.Max, new XYZ(cb.Min.X, cb.Max.Y, 0), new XYZ(cb.Max.X, cb.Min.Y, 0) }
+                            .Select(q => cb.Transform.OfPoint(new XYZ(q.X, q.Y, 0))).ToList();
+                        minU = cs.Min(q => q.DotProduct(up)); maxU = cs.Max(q => q.DotProduct(up));
+                        minR = cs.Min(q => q.DotProduct(right)); maxR = cs.Max(q => q.DotProduct(right));
+                    }
                     // elevação esquemática: as formas vão à direita do desenho
                     if (_schematic.TryGetValue(view.Id, out List<XYZ> sp) && sp.Count > 0)
                         maxR = Math.Max(maxR, sp.Max(q => q.DotProduct(right)) - U.Mm(36) * s);
@@ -862,6 +882,12 @@ namespace DEB.Revit.Presentation
                         // elevação alta: colunas à direita, depois dos rótulos dos estribos
                         int perCol = Math.Max(1, (int)((maxU - minU) / pitch));
                         pos = right * (maxR + U.Mm(42) * s + colW * (0.5 + i / perCol)) + up * (maxU - pitch * (0.5 + i % perCol));
+                    }
+                    else if (corbelIds.Contains(view.Id))
+                    {
+                        // quadro do consolo: 3 formas por linha, embaixo do corte
+                        const int perRow = 3;
+                        pos = right * (minR + colW * (0.5 + i % perRow)) + up * (minU - pitch * (0.8 + i / perRow));
                     }
                     else
                         pos = right * (minR + colW * (0.5 + i)) + up * (minU - pitch * 0.8);
