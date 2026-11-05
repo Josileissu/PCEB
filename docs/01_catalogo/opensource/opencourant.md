@@ -28,3 +28,9 @@
 
 ## A confirmar
 - Se vale manter no catálogo (escopo distante); situação do projeto em relação ao OpenRadioss original.
+
+## Raio-X do código-fonte (05/11/2026) ✓
+Lido direto do pacote em `programas/*/download` com `docs/notas/ferramentas/raiox_fonte.py` (sem compilar nem rodar).
+- 10.564 arquivos: **Fortran ~2,1 milhões de linhas** (`engine`, `starter`), C/C++ ~220 mil (`reader`).
+- MPI, MUMPS; sem interface gráfica (entrada `.rad`/`.k`, configurações do HyperMesh em `hm_cfg_files`).
+- 108 MB de testes (`qa-tests/miniqa`). AGPL-3 ✓. Fora do foco do D19.

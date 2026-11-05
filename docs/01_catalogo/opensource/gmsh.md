@@ -23,3 +23,10 @@
 
 ## Uso possível para nós
 - Gerar malhas dos consolos/peças para o CalculiX, por script, a partir da geometria do Revit.
+
+## Raio-X do código-fonte (05/11/2026) ✓
+Lido direto do pacote em `programas/*/download` com `docs/notas/ferramentas/raiox_fonte.py` (sem compilar nem rodar).
+- 4.589 arquivos: C++ ~1,38 milhão de linhas (com **Eigen**, Netgen, ALGLIB, METIS, voro++, HXT em `contrib/`).
+- Interface **FLTK + OpenGL** (`src/fltk`), alternativa Qt em `utils/qt`; **API** em C, C++, **Python**, Julia e Java (SWIG).
+- **Open CASCADE** opcional (STEP/IGES/BREP); solvers opcionais **PETSc**/**MUMPS**; leitura/escrita MED, VTK, UNV, Abaqus.
+- GPL-2 ou posterior **com exceção de ligação** ✓ (`LICENSE.txt`) — confirmar o texto antes de ligar ao PCEB.

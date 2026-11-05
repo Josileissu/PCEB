@@ -34,3 +34,12 @@
 ## A confirmar
 - Binários para Windows (oficialmente Linux; salome_meca em container); tempo de aprendizado; pós de armadura por norma.
 - Os repositórios `validation` e `data` (dados proprietários) não vêm no zip ✓ — conferir se fazem falta.
+
+## Raio-X do código-fonte (05/11/2026) ✓
+Lido direto do pacote em `programas/*/download` com `docs/notas/ferramentas/raiox_fonte.py` (sem compilar nem rodar).
+- 32.854 arquivos: **Fortran ~1,47 milhão de linhas** (`bibfor`), Python ~720 mil (`code_aster/`, comandos e macros),
+  C/C++ ~400 mil (`bibc`, `bibcxx` com pybind11). Build **waf**; MPI, **MUMPS**, HDF5/**MED**.
+- `astest`: **494 MB de casos-teste** de verificação — a maior base de validação entre os open source.
+- **Armadura**: `CALC_FERRAILLAGE` (`calc_ferraillage.py`), `COMBINAISON_FERRAILLAGE` e `POST_VERI_FERRAILLAGE` —
+  calcula e verifica **áreas de aço** em cascas e barras (densidade por elemento), **não desenha barras**.
+- Mensagens traduzidas (`i18n`: en-US, ja-JP, ro-RO…); sem português.

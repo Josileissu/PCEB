@@ -51,6 +51,34 @@ Levantado por varredura das pastas de instalação (nomes de arquivos e cabeçal
 - **Tendência de interface**: **WebView2** já aparece no Revit (28 DLLs) e nos AltoQi — telas web dentro de programas nativos,
   exatamente o modelo proposto na seção 2.
 
+## 1.2 Raio-X do código-fonte dos open source (05/11/2026) ✓
+Lido direto dos pacotes em `programas/*/download`, sem extrair, compilar nem rodar (script
+`docs/notas/ferramentas/raiox_fonte.py`: `python -I raiox_fonte.py "<nome>" <arquivo...>`). Linhas contadas por arquivo.
+
+| Programa | Tamanho | Linguagens (linhas) | Interface | Gráfico | Geometria / formatos | Cálculo | Script / licença |
+|---|---|---|---|---|---|---|---|
+| **Blender** (5.4 alpha) | 20.945 arq. | C/C++ 3,9 mi; Python 530 mil; GLSL | própria (GHOST, desenhada pela GPU) | **OpenGL + Vulkan + Metal** (`gpu/`); Cycles (CUDA/HIP/oneAPI/Embree) | Manifold, Eigen; USD, Alembic, FBX, OBJ, STL, PLY, glTF | TBB; numpy | Python embutido; GPL |
+| **IfcOpenShell** 0.9.0 (+ Bonsai) | 4.253 arq. | C/C++ 1,07 mi (esquemas IFC); Python 600 mil | Qt (ifcviewer); Blender (Bonsai); web (pyodide) | OpenGL | **Open CASCADE**, CGAL, Manifold; IFC2X3 → IFC4X3; SVG, **DXF (ezdxf)**, glTF, USD | — | Python/SWIG; **MCP (`ifcmcp`)**; LGPL-3 (lib), GPL-3 (Bonsai) |
+| **code_aster** | 32.854 arq. | **Fortran 1,47 mi**; Python 720 mil; C/C++ 400 mil | — (Salome-Meca à parte) | — | malha MED | MPI, **MUMPS**, HDF5 | comandos em Python; GPL-3 |
+| **XC** | 7.390 arq. | C++ 690 mil; Python 350 mil | — | VTK (pós) | CGAL, Boost, Eigen; Gmsh | MUMPS, UMFPACK, ARPACK, MPI, OpenMP | Python; normas EC/ACI/EHE/SIA; GPL-3 + aviso OpenSees |
+| **OpenSees** | 6.347 arq. | C++ 1,68 mi; Fortran 130 mil; Tcl | — (Tk antigo) | OpenGL antigo | TetGen | UMFPACK, ARPACK, SuperLU, MUMPS, MPI, MKL | Tcl e Python; licença acadêmica ⚠ |
+| **Gmsh** 4.15.2 | 4.589 arq. | C++ 1,38 mi | **FLTK** (+ Qt opcional) | OpenGL | **Open CASCADE** (STEP/IGES), MED, VTK | PETSc, MUMPS, Eigen | API C/C++/Python/Julia/Java; GPL-2+ com exceção |
+| **PrePoMax** | 2.940 arq. | **C# 420 mil**; Python 50 mil | **WinForms** | **VTK** (`vtkControl`) | Open CASCADE; Gmsh, Netgen, mmg | (CalculiX) | API Python; GPL-3 |
+| **CalculiX cgx** 2.23 | 426 arq. | C 190 mil | GLUT | OpenGL | TetGen, Netgen, NURBS (libSNL) | — | GPL-2 (**solver `ccx` não baixado**) |
+| **OpenCourant** | 10.564 arq. | **Fortran 2,1 mi**; C/C++ 220 mil | — | — | — | MPI, MUMPS | AGPL-3 |
+| **sectionproperties** | 168 arq. | Python 24 mil | — (matplotlib) | — | shapely; importa Rhino/DXF | numpy, scipy, numba | MIT |
+
+**Leituras para o PCEB**
+- **Nenhum open source cria ou detalha armadura**: IfcOpenShell só lê e escreve `IfcReinforcingBar`; XC e code_aster
+  calculam áreas de aço. O motor D19 não tem atalho aberto (o FreeCAD Reinforcement, ainda não catalogado, é o único candidato).
+- **IFC**: o IfcOpenShell é a biblioteca aberta de referência (LGPL, pode ser ligada); já traz um **servidor MCP** para IA.
+- **Geometria**: **Open CASCADE** é o kernel aberto comum (IfcOpenShell, Gmsh, PrePoMax); CGAL/Manifold para booleanas.
+- **Gráfico**: o Blender separa OpenGL/Vulkan/Metal atrás de uma camada própria; PrePoMax mostra **WinForms + VTK em C#**,
+  o mais próximo da nossa pilha .NET.
+- **Cálculo**: o núcleo pesado continua em Fortran/C++ (code_aster, OpenCourant, OpenSees) com MUMPS/UMFPACK — para a
+  fase de análise, usar como motor externo e não reescrever.
+- **Normas**: o XC organiza cada norma em um módulo Python (`materials/ec2`, `ehe`, `aci`…) — bom modelo para a NBR no núcleo.
+
 ## 2. Qual a melhor para o nosso projeto (recomendação, não decisão)
 O requisito pede **web (local → nuvem)** e **Windows com as mesmas funções**. Fazer duas interfaces dobra o trabalho.
 O caminho mais econômico é **uma interface web só**:
