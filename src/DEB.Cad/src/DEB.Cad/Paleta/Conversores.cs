@@ -197,6 +197,12 @@ internal sealed class OrdemDeclaradaConverter : ExpandableObjectConverter
             props = new PropertyDescriptorCollection(props.Cast<PropertyDescriptor>()
                 .Where(p => !(p.Attributes[typeof(SoQuandoAttribute)] is SoQuandoAttribute s) || cond.Mostrar(s.Condicao)).ToArray());
         var nomes = valor.GetType().GetProperties().OrderBy(p => p.MetadataToken).Select(p => p.Name).ToArray();
-        return props.Sort(nomes);
+        // Coleção NOVA na ordem declarada, e não props.Sort(nomes): a coleção do Sort guarda os nomes e,
+        // no .NET 8 (AutoCAD 2025/2026), o PropertyGrid com várias barras ordena por nome e depois
+        // reaplica essa ordem — a busca binária da fusão não acha as propriedades e a paleta mostra só
+        // algumas (relato do usuário: com mais de uma barra, "somem" opções). O GstarCAD (net48) não
+        // tinha o problema, mas a coleção nova também mantém a ordem lá.
+        var ordenadas = nomes.Select(n => props[n]).Where(p => p != null).ToArray();
+        return new PropertyDescriptorCollection(ordenadas, readOnly: true);
     }
 }

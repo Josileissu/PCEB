@@ -141,6 +141,105 @@ public sealed class AutoTeste
         doc.SendStringToExecute("ARMTESTE2\n", true, false, true);
     }, suspender: false);
 
+    /// <summary>
+    /// Só a paleta com DUAS barras selecionadas: no AutoCAD 2025/2026 (.NET 8) a fusão do PropertyGrid
+    /// sumia com quase todas as opções quando o conversor devolvia a coleção com a ordem declarada
+    /// (relato do usuário, 2026-11-05). Rode com o desenho vazio: cria duas barras longe do resto.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEPALETA")]
+    public void SoPaleta() => Comandos.Executar("ARMTESTEPALETA", (doc, ed, db, cfg) =>
+    {
+        Log.Info("autoteste: ARMTESTEPALETA inicio");
+        Rel.Clear(); _ok = _falhas = 0; H.Clear();
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+            Polyline Nova(string nome, double y)
+            {
+                var pl = new Polyline();
+                pl.SetDatabaseDefaults(db);
+                pl.AddVertexAt(0, new Point2d(12000, y), 0, 0, 0);
+                pl.AddVertexAt(1, new Point2d(12300, y), 0, 0, 0);
+                esp.AppendEntity(pl);
+                tr.AddNewlyCreatedDBObject(pl, true);
+                ServicoBarra.Criar(tr, pl, new DadosArmadura { Bitola = 10, Quantidade = 2, Aco = "CA-50" }, cfg);
+                H[nome] = XDataCad.Hex(pl.ObjectId);
+                return pl;
+            }
+            Nova("A", -5000);
+            Nova("B", -5100);
+            tr.Commit();
+        }
+
+        Paleta.PaletaArmadura.Mostrar();
+        System.Windows.Forms.Application.DoEvents();
+        var ids = new[] { Id(db, H["A"]), Id(db, H["B"]) };
+        doc.Editor.SetImpliedSelection(ids);
+        Paleta.PaletaArmadura.Recarregar();
+        System.Windows.Forms.Application.DoEvents();
+        var mostradas = Paleta.PaletaArmadura.Mostradas;
+        var itens = Paleta.PaletaArmadura.ItensVisiveisParaTeste();
+        Checar(mostradas.Count == 2, $"paleta: 2 barras lidas ({mostradas.Count})");
+        Checar(itens.Contains("Bitola (mm)") && itens.Contains("Aço") && itens.Contains("Quantidade") &&
+               itens.Contains("Descrição") && itens.Contains("Mostrar quantidade"),
+            $"paleta: com 2 barras, as opções continuam ({itens.Count}: {string.Join(", ", itens)})");
+        Checar(!itens.Contains("Segmentos"), "paleta: segmentos não aparecem com 2 barras");
+        doc.Editor.SetImpliedSelection(new ObjectId[0]);
+
+        // descrição girada com o maior segmento, também na cópia só da barra (pedido de 2026-11-05)
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+            Polyline Inclinada(double x0, double y0, double angGraus)
+            {
+                double a = angGraus * Math.PI / 180;
+                var p0 = new Point2d(x0, y0);
+                var p1 = p0 + new Vector2d(Math.Cos(a), Math.Sin(a)) * 300;
+                var p2 = p1 + new Vector2d(-Math.Sin(a), Math.Cos(a)) * 40;
+                var pl = new Polyline();
+                pl.SetDatabaseDefaults(db);
+                pl.AddVertexAt(0, p0, 0, 0, 0);
+                pl.AddVertexAt(1, p1, 0, 0, 0);
+                pl.AddVertexAt(2, p2, 0, 0, 0);
+                esp.AppendEntity(pl);
+                tr.AddNewlyCreatedDBObject(pl, true);
+                ServicoBarra.Criar(tr, pl, new DadosArmadura { Bitola = 10, Quantidade = 2, Aco = "CA-50" }, cfg);
+                return pl;
+            }
+            double Rot(Polyline pl) => ServicoBarra.Parte<MText>(tr, db, XDataCad.LerBarra(pl).HandleDescricao,
+                TipoParte.Descricao, XDataCad.Hex(pl.ObjectId))?.Rotation ?? double.NaN;
+            // o AutoCAD normaliza Rotation para [0, 2π): -30° volta como 330° — compara o ângulo módulo 360°
+            bool Perto(double rad, double graus)
+            {
+                double dif = Math.IEEERemainder(rad - graus * Math.PI / 180, 2 * Math.PI);
+                return Math.Abs(dif) < 1e-6;
+            }
+
+            var i30 = Inclinada(12000, -5400, 30);
+            Checar(Perto(Rot(i30), 30), $"descrição girada com o maior segmento (30° → {Rot(i30) * 180 / Math.PI:0.##}°)");
+            var i150 = Inclinada(12600, -5400, 150);
+            Checar(Perto(Rot(i150), -30), $"segmento a 150°: texto legível a -30° ({Rot(i150) * 180 / Math.PI:0.##}°)");
+            var i90 = Inclinada(13000, -5400, 90);
+            Checar(Perto(Rot(i90), 90), $"segmento vertical: texto a 90° ({Rot(i90) * 180 / Math.PI:0.##}°)");
+
+            // cópia só da barra (como o COPY sem o texto): o vínculo aponta para a descrição do original,
+            // a validação recíproca descarta e a cópia recria a sua — tem de nascer girada também
+            var copia = (Polyline)i30.Clone();
+            copia.TransformBy(Matrix3d.Displacement(new Vector3d(0, -300, 0)));
+            esp.AppendEntity(copia);
+            tr.AddNewlyCreatedDBObject(copia, true);
+            ServicoBarra.Atualizar(tr, copia, cfg);
+            var dCop = XDataCad.LerBarra(copia);
+            Checar(dCop.HandleDescricao != XDataCad.LerBarra(i30).HandleDescricao && Perto(Rot(copia), 30),
+                $"cópia da barra: descrição própria e girada ({Rot(copia) * 180 / Math.PI:0.##}°)");
+            tr.Commit();
+        }
+        Gravar();
+        Log.Info($"autoteste: ARMTESTEPALETA fim ({_ok} ok, {_falhas} falha(s))");
+        doc.Editor.SetImpliedSelection(new ObjectId[0]);
+        Paleta.PaletaArmadura.Recarregar();
+    }, suspender: false);
+
     [Rt.CommandMethod("ARMTESTE2")]
     public void Fase2() => Comandos.Executar("ARMTESTE2", (doc, ed, db, cfg) =>
     {
@@ -1891,6 +1990,14 @@ public sealed class AutoTeste
             doc.Editor.SetImpliedSelection(ids);
             Paleta.PaletaArmadura.Recarregar();
             Rel.AppendLine($"        paleta com a seleção implícita: {Paleta.PaletaArmadura.Mostradas.Count} barra(s)");
+            // .NET 8 (AutoCAD 2025/2026): a fusão do PropertyGrid com várias barras sumia com quase todas
+            // as opções (a coleção do conversor levava a ordem declarada para dentro da ordenação por nome)
+            var itens = Paleta.PaletaArmadura.ItensVisiveisParaTeste();
+            Rel.AppendLine("        paleta com 2 barras, opções: " + string.Join(", ", itens));
+            Checar(itens.Contains("Bitola (mm)") && itens.Contains("Aço") && itens.Contains("Quantidade") &&
+                   itens.Contains("Descrição") && itens.Contains("Mostrar quantidade"),
+                $"paleta: com 2 barras, as opções continuam ({itens.Count})");
+            Checar(!itens.Contains("Segmentos"), "paleta: segmentos não aparecem com 2 barras");
 
             // propriedades rápidas (ARMPALETARAPIDA): mesma seleção, janela flutuante
             Checar(Paleta.PaletaRapida.Mostrar(doc), "paleta rápida: abre com a seleção");

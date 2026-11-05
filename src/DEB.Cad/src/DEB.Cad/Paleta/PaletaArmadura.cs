@@ -29,6 +29,33 @@ internal static class PaletaArmadura
     internal static IReadOnlyList<PropriedadesBarra> Mostradas =>
         _grid?.SelectedObjects?.OfType<PropriedadesBarra>().ToList() ?? new List<PropriedadesBarra>();
 
+    /// <summary>
+    /// Rótulos das propriedades que o PropertyGrid está mostrando (para o autoteste). Precisa da paleta
+    /// visível: as linhas só existem depois que o controle tem janela.
+    /// </summary>
+    internal static List<string> ItensVisiveisParaTeste()
+    {
+        var vistos = new List<string>();
+        void Andar(GridItemCollection itens)
+        {
+            if (itens == null) return;
+            foreach (GridItem item in itens)
+            {
+                var filhos = item.GridItems;
+                if (filhos != null && filhos.Count > 0) Andar(filhos);
+                else vistos.Add(item.Label);
+            }
+        }
+        try
+        {
+            var topo = _grid?.SelectedGridItem;
+            while (topo?.Parent != null) topo = topo.Parent;
+            Andar(topo?.GridItems);
+        }
+        catch (Exception ex) { Log.Erro("Paleta.ItensVisiveisParaTeste", ex); }
+        return vistos;
+    }
+
     public static void Mostrar()
     {
         if (_ps == null) Criar();
