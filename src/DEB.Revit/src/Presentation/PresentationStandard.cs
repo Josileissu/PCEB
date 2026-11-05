@@ -131,6 +131,11 @@ namespace DEB.Revit.Presentation
         public double TituloVistaMm { get; set; } = 14;
         /// <summary>Largura média de um caractere do título das vistas (mm de papel), para não sobrepor títulos.</summary>
         public double LarguraCaractereTituloMm { get; set; } = 4.3;
+        /// <summary>Título das vistas em texto centrado ACIMA da vista (como o template do CAD), no lugar da etiqueta
+        /// do Revit embaixo. A 1ª linha (PT) sai em negrito sublinhado; depois vem <see cref="TituloEscala"/>.</summary>
+        public bool TituloAcima { get; set; }
+        /// <summary>Linha da escala no título acima ({Escala} = denominador). Vazio = sem linha de escala.</summary>
+        public string TituloEscala { get; set; } = "Esc. 1:{Escala}";
         /// <summary>Escalas tentadas, em ordem, quando as vistas de uma região não cabem.</summary>
         public int[] EscalasAlternativas { get; set; } = { 20, 25, 50, 75, 100 };
     }
@@ -155,6 +160,8 @@ namespace DEB.Revit.Presentation
         public string TituloPeca { get; set; } = "{Marca}";
         public double AlturaTituloPecaMm { get; set; } = 10;
         public string RegiaoTituloPeca { get; set; } = "Titulo";
+        /// <summary>Altura (mm de papel) do título das vistas quando ele vai acima delas.</summary>
+        public double AlturaTituloVistaMm { get; set; } = 3.5;
     }
 
     public sealed class RebarSettings

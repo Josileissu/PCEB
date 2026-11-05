@@ -86,8 +86,9 @@ resumo do aço, informações de produção e notas à direita; detalhes padrão
 | Carimbo do escritório A1 | **feito**: carrega `Folhas Revit.rfa`; o título da peça vai no **Nome da folha** (decisão do usuário, 05/11/2026) |
 | Regiões sem sobreposição | **feito**: regiões medidas na PP127 (conferir nos PNG do AutoRun) |
 | Templates de vista | **feito**: `PCEB-PPM-FACE/ARMADURA/SECAO/CORTE/3D` |
-| Níveis (topo, térreo, piso, base) e comprimento total nas vistas | falta |
-| Embutimento = deslocamento negativo da base da família | falta |
+| Títulos acima das vistas (negrito sublinhado + EN + "Esc. 1:n") | **feito** (`TituloAcima`; viewport "PCEB - Sem título") |
+| Níveis (topo, níveis, base) e comprimento total | **feito**: nomes e cotas na VISTA 1; linha traço-ponto ("Linha de centro") em todas as vistas de face e na armadura |
+| Embutimento = deslocamento negativo da base da família | **feito** |
 | Formas das barras cotadas (estribos, grampos) | parcial (dobramento esquemático) |
 | Armaduras do consolo (planta, corte AA/BB, tirante, costura) | falta |
 | Alça de içamento (lifting handle) | barra criada; detalhe falta |

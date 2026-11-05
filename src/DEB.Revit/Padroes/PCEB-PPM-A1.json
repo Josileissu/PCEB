@@ -1,6 +1,6 @@
 {
   "Codigo": "PCEB-PPM-A1",
-  "Versao": 11,
+  "Versao": 13,
   "Nome": "Pilar pré-moldado – prancha A1 (padrão PP127)",
   "Elemento": "PilarPreMoldado",
   "Descricao": "Prancha A1 como a PP127 e o template pilar-premoldado do DEB.Cad: vistas das 4 faces e elevação da armadura (1:50) à esquerda; seções com armadura e cortes (1:25) no alto, ao centro; relação/resumo do aço, informações de produção e notas à direita; detalhes padrão embaixo; carimbo no canto inferior direito.",
@@ -18,6 +18,8 @@
     "EspacamentoMm": 6,
     "TituloVistaMm": 14,
     "LarguraCaractereTituloMm": 4.3,
+    "TituloAcima": true,
+    "TituloEscala": "Esc. 1:{Escala}",
     "EscalasAlternativas": [ 20, 25, 50, 75, 100 ]
   },
   "Unidades": {
@@ -31,7 +33,8 @@
     "AlturaTextoMm": 2.5,
     "TituloPeca": "{Marca}",
     "AlturaTituloPecaMm": 10,
-    "RegiaoTituloPeca": "Titulo"
+    "RegiaoTituloPeca": "Titulo",
+    "AlturaTituloVistaMm": 3.5
   },
   "Armadura": {
     "Particao": "{Marca}",
@@ -41,8 +44,8 @@
     "DensidadeAco": 7850
   },
   "Regioes": {
-    "Titulo":   { "X": 0.00,  "Y": 0.77, "L": 0.12,  "A": 0.05 },
-    "Vistas":   { "X": 0.00,  "Y": 0.44, "L": 0.595,  "A": 0.33 },
+    "Titulo":   { "X": 0.00,  "Y": 0.94, "L": 0.12,  "A": 0.06 },
+    "Vistas":   { "X": 0.00,  "Y": 0.44, "L": 0.595,  "A": 0.50 },
     "Secoes":   { "X": 0.60,  "Y": 0.42, "L": 0.12,  "A": 0.58 },
     "Tabelas":  { "X": 0.785, "Y": 0.62, "L": 0.215, "A": 0.38 },
     "Producao": { "X": 0.785, "Y": 0.49, "L": 0.215, "A": 0.12 },

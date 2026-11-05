@@ -11,6 +11,7 @@ namespace DEB.Revit.Presentation
         public TextNoteType Text { get; private set; }
         public TextNoteType FramedText { get; private set; }
         public TextNoteType Title { get; private set; }
+        public TextNoteType ViewTitle { get; private set; }
 
         /// <summary>Precisa de transação.</summary>
         public static AnnotationStyles Ensure(Document doc, PresentationStandard s)
@@ -20,7 +21,8 @@ namespace DEB.Revit.Presentation
                 Dimension = DimensionTypeFor(doc, s.Unidades),
                 Text = TextType(doc, $"SD - Texto {s.Textos.AlturaTextoMm:0.#} mm", s.Textos.AlturaTextoMm, s.Textos.Fonte, false),
                 FramedText = TextType(doc, $"SD - Texto {s.Textos.AlturaTextoMm:0.#} mm (moldura)", s.Textos.AlturaTextoMm, s.Textos.Fonte, true),
-                Title = TextType(doc, $"SD - Título {s.Textos.AlturaTituloPecaMm:0.#} mm", s.Textos.AlturaTituloPecaMm, s.Textos.Fonte, false)
+                Title = TextType(doc, $"SD - Título {s.Textos.AlturaTituloPecaMm:0.#} mm", s.Textos.AlturaTituloPecaMm, s.Textos.Fonte, false),
+                ViewTitle = TextType(doc, $"SD - Título vista {s.Textos.AlturaTituloVistaMm:0.#} mm", s.Textos.AlturaTituloVistaMm, s.Textos.Fonte, false)
             };
             return st;
         }
