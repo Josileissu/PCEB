@@ -8,4 +8,6 @@
 - Ficha: ainda não catalogado (`docs/01_catalogo/comerciais/`).
 
 ## Notas de estudo
-(vazio)
+- 05/11/2026: o nome "GN Corbel" **não aparece** dentro do instalador. O único ID da Store embutido nele é **9PLM9XGG6VKS**, que a API da Microsoft Store identifica como **ChatGPT (OpenAI)**. Pode ser um ID padrão do instalador genérico, ou o arquivo pode não ser do GN Corbel. Não dá para saber sem executar, e ele **não foi executado**.
+- Busca na web por "GN Corbel": nada encontrado.
+- Para catalogar, falta o usuário informar onde achou o programa (link da Store ou site do autor).

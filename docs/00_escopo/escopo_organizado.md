@@ -106,6 +106,18 @@ Estudo em `robustez_e_estabilidade.md`.
 | 4 | Estruturas metálicas | a fazer |
 | 5 | Programa PCEB (web local + Windows) operando o Revit; depois nuvem, CAM, demais sistemas e análises | a fazer |
 
+### Plano de ataque (05/11/2026)
+Com a D19 (detalhamento primeiro), o estudo do catálogo passa a olhar primeiro o **detalhamento**; análise e
+dimensionamento ficam registrados, mas sem aprofundar agora.
+
+| Etapa | O que | Entrega |
+|---|---|---|
+| A | Fechar pendências curtas do catálogo: GN Corbel (aguarda link), linha "materiais/sistemas cobertos" nas fichas. Aço (mCalc, Dimperfil), vento (Visual Ventos) e steel/wood frame **adiados** para a fase de análise | fichas atualizadas |
+| B | **Obra-piloto**: escolher uma obra real do escritório com o máximo de elementos da lista D19; reunir as pranchas dela como gabarito | `03_casos-teste/obra-piloto/` (fora do Git se for de cliente) |
+| C | **Matriz elemento × programa** só de detalhamento: para cada um dos 15 elementos, como TQS, Eberick, CYPE, Tekla, Revit e DEB (CAD/Revit) detalham — entradas, regras, saídas (vistas, cortes, quadro de aço), o que é configurável | `01_catalogo/matriz_detalhamento.md` |
+| D | **Regras por elemento**: NBR 6118 (cap. 18 e 20–22), NBR 9062, manuais (ABECE, Gerdau) e o padrão do escritório, conferidas com o DEB.Cad (D7) | `04_arquitetura/regras_detalhamento/<elemento>.md` |
+| E | Motor (`motor_detalhamento.md`): núcleo comum → pilar pré-moldado → demais, na ordem do plano | código + testes |
+
 ## Decisões do usuário (03/11/2026)
 | # | Assunto | Decisão |
 |---|---|---|
@@ -129,6 +141,9 @@ Estudo em `robustez_e_estabilidade.md`.
 | D16 | Repositório | **um único repositório (PCEB)** com núcleo, plugins e o futuro programa — plano em `04_arquitetura/migracao_repositorio_unico.md` |
 | D17 | Nome dos plugins | **Detalhador Estrutural Brasileiro**, no CAD (ex-Armadura BR) e no Revit (ex-StructuralDetailer) |
 | D18 | Ports futuros | Blender, FreeCAD e o próprio PCEB |
+| D19 | Prioridade (05/11/2026) | **motor de detalhamento antes das análises estruturais**: detalhar uma obra inteira primeiro — rotinas paramétricas + templates de dados, 5 motores; plano em `04_arquitetura/motor_detalhamento.md` |
+| D20 | Catálogo (05/11/2026) | aço (mCalc, Dimperfil), vento (Visual Ventos) e steel/wood frame **adiados** para a fase de análise; Tekla será estudado depois, no outro computador do usuário (onde está instalado) |
+| D21 | Ordem (05/11/2026) | **obra-piloto ainda não** (etapa B adiada); primeiro fazer o **detalhamento no Revit** (etapa E) |
 
 ## Perguntas em aberto
 16. **Titular do copyright**: usei "Marquezin" (o mesmo nome do instalador do Armadura BR). Confirmar o nome correto.
