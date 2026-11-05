@@ -31,6 +31,8 @@
 | Seções / flexão composta | ○ (fibras) | — | — | — | ● | — |
 | Dimensionamento NBR | — | — | — | — | ○ (parâmetros manuais) | — |
 | IFC | — | — | — | — | — | ● |
+| Armadura (criar/detalhar) | — | — | — | — | — | — (só lê/grava `IfcReinforcingBar`) |
+| IA / MCP | — | — | — | — | — | ● `ifcmcp` (IfcOpenShell) |
 
 ## Open source — 2ª leva (04/11/2026)
 | Função | code_aster | XC (xcfem) | OpenCourant |
@@ -44,6 +46,10 @@
 | Ações e combinações | ○ | ● | — |
 | Dimensionamento por norma | ? (EC2, pós de armadura) | ● EC2/EC3/EC5/ACI/AISC… (sem NBR) | — |
 | Windows | ? (container/WSL) | ? (Docker) | ● |
+| Armadura | ○ áreas (`CALC_FERRAILLAGE`) | ○ seções de fibras, esquema TikZ | — |
+
+Raio-X do código-fonte de todos os open source: `interfaces_e_desempenho.md`, seção 1.2 (05/11/2026). IfcOpenShell e
+Bonsai têm ficha própria (`opensource/ifcopenshell.md`).
 
 ## Outras ferramentas (fichas em `outros/`)
 - **RH Engenharia – Bloco de Estacas 3D + Memorial** (página HTML, licença desconhecida): reações em estacas por bloco rígido,
