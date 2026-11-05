@@ -206,7 +206,7 @@ namespace DEB.Revit.Precast
                 {
                     Instance = fi,
                     Info = info,
-                    EmbedmentMm = ReadLengthMm(fi, "Embutimento"),
+                    EmbedmentMm = Embedment(fi),
                     CurrentMark = fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString()
                 };
 
@@ -318,6 +318,19 @@ namespace DEB.Revit.Precast
             string.Format(CultureInfo.InvariantCulture, "{0:0}x{1:0}x{2:0}|e{3:0}|{4}",
                 Math.Round(U_.ToMm(f.Bx)), Math.Round(U_.ToMm(f.By)), Math.Round(U_.ToMm(f.H)), embedmentMm,
                 string.Join(";", corbels.Select(c => c.Signature())));
+
+        /// <summary>
+        /// Embutimento no cálice: parâmetro "Embutimento", se a família tiver; senão o deslocamento negativo da base
+        /// (padrão do escritório na família "Pilar Pré-Moldado": base −1,00 m = 100 cm embutidos abaixo do nível).
+        /// </summary>
+        internal static double Embedment(FamilyInstance fi)
+        {
+            double named = ReadLengthMm(fi, "Embutimento");
+            if (named > 0) return named;
+            Parameter off = fi.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM);
+            double mm = off == null || off.StorageType != StorageType.Double ? 0 : Math.Round(U_.ToMm(off.AsDouble()));
+            return mm < 0 ? -mm : 0;
+        }
 
         private static double ReadLengthMm(Element e, string name)
         {

@@ -65,6 +65,8 @@ namespace DEB.Revit.Precast
             Document doc = app.NewProjectDocument(template);
             double mm(double v) => UnitUtils.ConvertToInternalUnits(v, UnitTypeId.Millimeters);
             const double vao = 6000, altura = 6000;
+            double embutimento = double.TryParse(Environment.GetEnvironmentVariable("SD_EMBUTIMENTO_MM"), NumberStyles.Float,
+                CultureInfo.InvariantCulture, out double e) ? e : 1000;
 
             using (var t = new Transaction(doc, "Modelo de teste — pré-moldados"))
             {
@@ -98,7 +100,8 @@ namespace DEB.Revit.Precast
                         pos[(i, j)] = p;
                         FamilyInstance c = doc.Create.NewFamilyInstance(p, i == 1 ? meio : canto, baseLv, Autodesk.Revit.DB.Structure.StructuralType.Column);
                         c.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_PARAM).Set(topLv.Id);
-                        c.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM).Set(0.0);
+                        // embutimento no cálice = deslocamento negativo da base (padrão do escritório); SD_EMBUTIMENTO_MM muda
+                        c.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM).Set(-mm(embutimento));
                         c.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM).Set(0.0);
                         sb.AppendLine($"pilar ({i},{j}) {c.Symbol.Name} id {c.Id.Value}");
                     }

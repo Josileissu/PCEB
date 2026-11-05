@@ -64,6 +64,11 @@ namespace DEB.Revit.Presentation
                 }
             }, critical: false);
 
+            // Níveis e comprimento total na 1ª vista de face (como a VISTA 1 da PP127)
+            PlacedView firstFace = views.FirstOrDefault(v => v.Spec.Tipo == ViewKind.Face);
+            if (firstFace != null && p.Kind == PieceKind.Column)
+                Tx("Níveis", log, () => LevelMarks(firstFace.View, p, styles), critical: false);
+
             List<Rebar> rebars = asm.GetMemberIds().Select(_doc.GetElement).OfType<Rebar>().ToList();
             if (rebars.Count > 0)
             {
@@ -284,6 +289,59 @@ namespace DEB.Revit.Presentation
                 if (hide.Count > 0) Try(() => pv.View.HideElements(hide));
             }
         }
+
+        // ------------------------------------------------------------------
+        // Níveis (topo, níveis do projeto que cruzam a peça, base) e comprimento total
+
+        private void LevelMarks(View view, PieceInfo p, AnnotationStyles styles)
+        {
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            double scale = view.Scale;
+            double w = view.Origin.DotProduct(vd);
+            XYZ At(double r, double u) => right * r + up * u + vd * w;
+            double minR = p.Vertices.Min(v => v.DotProduct(right));
+            double bottom = p.Vertices.Min(v => v.DotProduct(up)), top = p.Vertices.Max(v => v.DotProduct(up));
+            double zBottom = p.Vertices.Min(v => v.Z), zTop = p.Vertices.Max(v => v.Z);
+            // cota vertical da vista ↔ Z do modelo (a vista de face é vertical: up = +Z)
+            double Vz(double z) => bottom + (z - zBottom) * (up.Z >= 0 ? 1 : -1);
+
+            double tick = U.Mm(25) * scale;             // traço do nível até a peça
+            double x0 = minR - U.Mm(14) * scale;        // fim do traço (afastado das cotas da vista)
+            double textX = x0 - tick;
+            var opt = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Left };
+
+            var marks = new List<(string Name, double Z)> { ("TOPO PILAR\n(TOP COLUMN)", zTop) };
+            foreach (Level lv in new FilteredElementCollector(_doc).OfClass(typeof(Level)).Cast<Level>())
+                if (lv.Elevation > zBottom + U.Mm(5) && lv.Elevation < zTop - U.Mm(5))
+                    marks.Add((lv.Name.ToUpperInvariant(), lv.Elevation));
+            marks.Add(("BASE PILAR\n(COLUMN BASE)", zBottom));
+
+            foreach (var (name, z) in marks)
+            {
+                double u = Vz(z);
+                Try(() =>
+                {
+                    DetailCurve dc = _doc.Create.NewDetailCurve(view, Line.CreateBound(At(textX, u), At(minR, u)));
+                    // linha fina e tracejada não aparece na prancha: estilo "Linhas médias"/"Medium Lines" se existir
+                    GraphicsStyle gs = dc.GetLineStyleIds().Select(id => _doc.GetElement(id)).OfType<GraphicsStyle>()
+                        .FirstOrDefault(g => g.Name.IndexOf("dia", StringComparison.OrdinalIgnoreCase) >= 0 || g.Name.IndexOf("Medium", StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (gs != null) dc.LineStyle = gs;
+                });
+                double zm = Math.Round(UnitUtils.ConvertFromInternalUnits(z, UnitTypeId.Meters), 2);
+                string elev = zm == 0 ? "0,00" : zm.ToString("+0.00;-0.00", CultureInfo.GetCultureInfo("pt-BR"));
+                double lineH = U.Mm(Std.Textos.AlturaTextoMm * 1.9) * scale;
+                Try(() => TextNote.Create(_doc, view.Id, At(textX, u + lineH * 2.2), name, opt));
+                Try(() => TextNote.Create(_doc, view.Id, At(x0 - tick * 0.9, u + lineH * 0.9), elev, opt));
+            }
+
+            // comprimento total (texto vertical à esquerda dos níveis)
+            double lenCm = Math.Round(U_ToCm(zTop - zBottom));
+            var vert = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center, Rotation = Math.PI / 2 };
+            Try(() => TextNote.Create(_doc, view.Id, At(textX - U.Mm(8) * scale, (bottom + top) / 2),
+                $"COMPRIMENTO TOTAL DO PILAR {lenCm:0}\n(TOTAL COLUMN LENGTH {lenCm:0})", vert));
+        }
+
+        private static double U_ToCm(double feet) => UnitUtils.ConvertFromInternalUnits(feet, UnitTypeId.Centimeters);
 
         // ------------------------------------------------------------------
         // Rótulos das posições na elevação da armadura
