@@ -18,10 +18,35 @@ Situação: a fazer · em andamento · aguardando usuário · pronto p/ merge ·
 ## PC1 — código
 | # | Tarefa | Situação | Branch | Entrega / observação |
 |---|---|---|---|---|
-| P1-1 | Pilar pré-moldado no Revit igual à PP127 | aguardando usuário | — | o usuário vai testar a janela e mandar prints e a lista de diferenças |
+| P1-1 | Pilar pré-moldado no Revit igual à PP127 | **pausado — continua no PC2** (no PC1 há outros usuários no Revit) | `pc1/teste-pilares` | ver "Passagem para o PC2" abaixo |
 | P1-2 | Levar a lógica do pilar para o `DEB.Core` (motor de lineares + perfil JSON) | a fazer | `pc1/motor-lineares` | depois do P1-1 |
 | P1-3 | Colunas TQS e DEB da matriz de detalhamento | a fazer | `pc1/matriz-detalhamento` | junta com o P2-5 |
 
+## Passagem para o PC2 — pilar pré-moldado (05/11/2026)
+O usuário pediu para **aguardar a ordem dele** antes de continuar; os testes no Revit passam para o PC2.
+
+Feito no PC1 (branch `pc1/teste-pilares`):
+- Tarefas de AutoRun sem projeto aberto: `familias` e `criarmodelo` (`src/DEB.Revit/src/Precast/TestModel.cs`; uso no
+  `CLAUDE.md` do DEB.Revit). O modelo de teste é gerado de novo em cada computador (não vai para o Git).
+- Famílias usadas (`S:\Meu Drive\Arquivos\Familias Revit\Estrutura\Concreto`): `Pilar Pré-Moldado.rfa` (tipos
+  "40x40 - docas" e "50x50 - internos") e `Viga Pré-Moldada.rfa` (consolos aninhados). Template:
+  `Structural Analysis-DefaultBRAPTB.rte` do Revit 2025.
+- Resultado: P1 = 4 pilares de canto (giros 0/90/180/270°), P2 = 2 do meio (0/180°); armadura e prancha geradas.
+
+Respostas do usuário:
+- **Folha padrão**: `S:\Meu Drive\Arquivos\Familias Revit\Carimbo e Folhas\Folhas Revit.rfa`, com tipos/instâncias A0, A1, A2, A3…
+  (a PP127 é A1).
+- **Embutimento** na família "Pilar Pré-Moldado": **deslocamento negativo da base** (não há parâmetro "Embutimento").
+
+Próximos passos (só com a ordem do usuário), comparando com a PP127:
+1. Aço CA25 saindo nas barras Ø8/12,5/16 — deve ser **CA50** (erro).
+2. Carimbo: usar `Folhas Revit.rfa` (A1).
+3. Embutimento lido do deslocamento negativo da base; `criarmodelo` passa a criar pilares com base negativa.
+4. Layout: seções e cortes em 1:25, sem sobreposição com tabelas e títulos.
+5. Faltam: detalhe da armadura do consolo (planta, cortes, formas), formas das barras cotadas, níveis (topo/térreo/base),
+   alça de içamento, legendas padrão (raio, emendas, comprimento). Aviso no P2: ρ = 0,39% < 0,40%.
+
 ## Aguardando o usuário
-- Link de origem do **GN Corbel** (o instalador baixado só tem o ID da Store do ChatGPT).
-- Pasta privada no Google Drive para Projeto1.rvt, PP127 e padrões do escritório (para o PC2).
+- GN Corbel: avaliar depois (decisão do usuário, 05/11/2026).
+- Pasta privada no Drive: ainda não é necessária (decisão do usuário, 05/11/2026). A PP127 e o `Projeto1.rvt`, se o PC2 precisar,
+  passam para lá depois.
