@@ -132,6 +132,13 @@ namespace DEB.Revit.Presentation
                     _doc.Regenerate();
                     Measure(sheet, kv.Value, r.W);
                     if (Pack(kv.Value, r, strict: true)) { fits = true; break; }
+                    if (attempt == 0)
+                    {
+                        // diagnóstico: o que não coube na escala do padrão (larguras e alturas em mm de papel)
+                        string sizes = string.Join("; ", kv.Value.Select(i =>
+                            $"{(i.Heading != null ? i.HeadingText.Split('\n')[0] : i.Element.Name)} {U.ToMm(i.W):0}x{U.ToMm(i.H):0}"));
+                        _log.Info($"Região \"{kv.Key}\" ({U.ToMm(r.W):0}x{U.ToMm(r.H):0} mm) não coube na escala do padrão: {sizes}");
+                    }
                     if (!IncreaseScales(kv.Value)) break;
                 }
                 if (!fits)
@@ -285,7 +292,7 @@ namespace DEB.Revit.Presentation
                     Outline o = it.Viewport.GetBoxOutline();
                     // altura pelo número de linhas (a caixa medida pelo Revit sai bem maior que o texto)
                     int lines = it.HeadingText.Split('\n').Length + (string.IsNullOrWhiteSpace(Std.Folha.TituloEscala) ? 0 : 1);
-                    it.LabelH = lines * U.Mm(Std.Textos.AlturaTituloVistaMm * 1.7) + U.Mm(3);
+                    it.LabelH = lines * U.Mm(Std.Textos.AlturaTituloVistaMm * 1.55) + U.Mm(3);
                     it.W = Math.Max(o.MaximumPoint.X - o.MinimumPoint.X, it.LabelW);
                     it.H = o.MaximumPoint.Y - o.MinimumPoint.Y + it.LabelH;
                 }

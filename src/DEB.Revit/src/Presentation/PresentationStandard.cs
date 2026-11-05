@@ -220,6 +220,10 @@ namespace DEB.Revit.Presentation
         public string Regiao { get; set; } = "Vistas";
         public bool Cotas { get; set; } = true;
         public bool MostrarArmadura { get; set; }
+        /// <summary>Só elevação da armadura: desenho esquemático ("explodido") como o template do CAD — cada posição
+        /// longitudinal numa linha com rótulo vertical e as zonas de estribos numa linha de cota; a armadura 3D e o
+        /// concreto ficam ocultos na vista.</summary>
+        public bool Esquematica { get; set; }
         /// <summary>
         /// Template de vista (PCEB-&lt;ELEMENTO&gt;-&lt;VISTA&gt;). Se não existir no projeto, é criado a partir da 1ª vista
         /// configurada por este item (escala e recorte ficam livres, para a prancha poder ajustar). Vazio = nenhum.
