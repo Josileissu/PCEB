@@ -31,6 +31,13 @@ $env:SD_SAVEAS = "<scratchpad>\Projeto1_teste.rvt"   # resultado vai para uma C�
 $p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"<pasta-mãe do PCEB>\Projeto1.rvt"' -PassThru
 $p.WaitForExit(540000)
 ```
+- Sem projeto aberto (`src/Precast/TestModel.cs`): `familias` (relatório de `SD_FAMILIAS`, .rfa separados por `;`) e
+  `criarmodelo` (projeto novo de `SD_TEMPLATE` com grade 3×2 de `SD_PILAR` + vigas `SD_VIGA`, gravado em `SD_SAVEAS`).
+  Famílias do usuário em `S:\Meu Drive\Arquivos\Familias Revit` (copiar antes; `.000N.rfa` são backups). O template do
+  escritório `EST_RVT_Residência.rte` traz uma residência modelada — para teste use `Structural Analysis-DefaultBRAPTB.rte`.
+- Vigas pré-moldadas com consolos aninhados: a folga vem de `folga_esq`/`folga_dir` da família; **recuo da junta
+  (START/END_JOIN_CUTBACK, ½" padrão) e extensões inicial/final da instância têm de ser 0**, senão os consolos se afastam
+  do pilar e o levantamento não os encontra.
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela.
 - Resultados em `%AppData%\PCEB\DEB.Revit\logs\` (`autorun.txt` aponta para o arquivo gerado).

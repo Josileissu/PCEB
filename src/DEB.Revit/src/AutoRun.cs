@@ -35,15 +35,23 @@ namespace DEB.Revit
         private static void OnIdling(object sender, IdlingEventArgs e)
         {
             var uiapp = (UIApplication)sender;
+            string task = _task.Trim().ToLowerInvariant();
+            bool semProjeto = task == "familias" || task == "criarmodelo";   // tarefas que não precisam de projeto aberto
             UIDocument uidoc = uiapp.ActiveUIDocument;
-            if (uidoc == null || uidoc.Document.IsFamilyDocument) return;   // ainda abrindo o projeto
+            if (!semProjeto && (uidoc == null || uidoc.Document.IsFamilyDocument)) return;   // ainda abrindo o projeto
 
             uiapp.Idling -= OnIdling;
             string status;
             try
             {
-                switch (_task.Trim().ToLowerInvariant())
+                switch (task)
                 {
+                    case "familias":
+                        status = "OK " + TestModel.InspectFamilies(uiapp.Application);
+                        break;
+                    case "criarmodelo":
+                        status = "OK " + TestModel.BuildPrecastModel(uiapp.Application);
+                        break;
                     case "diag":
                         status = "OK " + ModelDiagnostics.Run(uidoc.Document);
                         break;
