@@ -87,7 +87,7 @@ namespace DEB.Revit.Presentation
                         List<View> targets = views.Where(v => v.Spec.Tipo == ViewKind.Armadura)
                             .Concat(views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura).Take(1))
                             .Select(v => v.View).ToList();
-                        if (targets.Count > 0) BendingDetails(targets, p, rebars, log);
+                        if (targets.Count > 0) BendingDetails(targets, p, rebars, styles, log);
                     }, critical: false);
             }
 
@@ -421,46 +421,73 @@ namespace DEB.Revit.Presentation
         }
 
         // ------------------------------------------------------------------
-        // Dobramento (forma das barras) abaixo da seção com armadura
+        // Formas das barras (RebarBendingDetail) com rótulo, como as formas cotadas da PP127
 
-        private void BendingDetails(List<View> targets, PieceInfo p, List<Rebar> rebars, PieceLog log)
+        private const string BendingTypeName = "PCEB - Forma esquemática";
+        private const double ShapeWmm = 28, ShapeHmm = 16;   // tamanho da forma no papel
+
+        /// <summary>Tipo de forma do PCEB: esquemático, cotas de segmento no tipo de cota em cm, sem pino nem ângulo.</summary>
+        private RebarBendingDetailType BendingType(AnnotationStyles styles)
         {
-            RebarBendingDetailType type = new FilteredElementCollector(_doc).OfClass(typeof(RebarBendingDetailType))
-                .Cast<RebarBendingDetailType>().FirstOrDefault() ?? RebarBendingDetailType.CreateSchematic(_doc);
-            double step = Math.Max(p.LengthX, p.LengthY) * 1.6;
+            RebarBendingDetailType t = new FilteredElementCollector(_doc).OfClass(typeof(RebarBendingDetailType))
+                .Cast<RebarBendingDetailType>().FirstOrDefault(x => x.Name == BendingTypeName);
+            if (t != null) return t;
+            t = RebarBendingDetailType.CreateSchematic(_doc);
+            Try(() => t.Name = BendingTypeName);
+            Try(() => t.SegmentLengthDimensionsEnabled = true);
+            if (styles?.Dimension != null) Try(() => t.SegmentLengthDimensionTypeId = styles.Dimension.Id);
+            Try(() => t.BendDiameterDimensionsEnabled = false);
+            Try(() => t.AngularDimensionsEnabled = false);
+            Try(() => t.OrthogonalAndOverallDimesionsEnabled = false);
+            Try(() => t.SchematicWidth = U.Mm(ShapeWmm));
+            Try(() => t.SchematicHeight = U.Mm(ShapeHmm));
+            // sem a etiqueta automática (com linha de chamada até a barra): o rótulo da PP127 vai em texto embaixo
+            Try(() => t.TagTypeId = ElementId.InvalidElementId);
+            return t;
+        }
+
+        private void BendingDetails(List<View> targets, PieceInfo p, List<Rebar> rebars, AnnotationStyles styles, PieceLog log)
+        {
+            RebarBendingDetailType type = BendingType(styles);
             var placedPerView = targets.ToDictionary(v => v.Id, v => 0);
+            var center = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
 
-            var done = new HashSet<string>();
-            foreach (Rebar r in rebars)
+            // uma forma por posição (N), na ordem da numeração; quantidade = soma dos conjuntos da posição
+            var byNumber = rebars
+                .Select(r => new RebarRow(_doc, r))
+                .Where(r => r.Role != "Longitudinal" && r.Number != "")
+                .GroupBy(r => r.Number).OrderBy(g => NumberKey(g.Key));
+
+            foreach (var g in byNumber)
             {
-                string role = (r.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString() ?? "").Split('|').ElementAtOrDefault(2) ?? "";
-                if (role == "Longitudinal") continue;
-                string n = r.get_Parameter(BuiltInParameter.REBAR_NUMBER)?.AsString() ?? r.Id.ToString();
-                if (!done.Add(n)) continue;
-
+                RebarRow first = g.First();
+                string label = Fill(Std.Armadura.RotuloBarra, new RebarRow(first, g.Sum(x => x.Quantity)));
                 bool ok = false;
                 foreach (View view in targets)
                 {
                     XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+                    double s = view.Scale;
                     double minU = p.Vertices.Min(v => v.DotProduct(up)), maxU = p.Vertices.Max(v => v.DotProduct(up));
                     double minR = p.Vertices.Min(v => v.DotProduct(right)), maxR = p.Vertices.Max(v => v.DotProduct(right));
                     int i = placedPerView[view.Id];
+                    double pitch = U.Mm(ShapeHmm + 8) * s, colW = U.Mm(ShapeWmm + 18) * s;
                     XYZ pos;
                     if (maxU - minU > 2 * (maxR - minR))
                     {
-                        // elevação alta: colunas à direita da peça, de cima para baixo (depois dos rótulos de estribos)
-                        int perCol = Math.Max(1, (int)((maxU - minU) / step));
-                        pos = right * (maxR + step * (2.5 + i / perCol)) + up * (maxU - step * (0.5 + i % perCol));
+                        // elevação alta: colunas à direita, depois dos rótulos dos estribos
+                        int perCol = Math.Max(1, (int)((maxU - minU) / pitch));
+                        pos = right * (maxR + U.Mm(42) * s + colW * (0.5 + i / perCol)) + up * (maxU - pitch * (0.5 + i % perCol));
                     }
                     else
-                        pos = right * (minR + i * step) + up * (minU - step * 0.6);
+                        pos = right * (minR + colW * (0.5 + i)) + up * (minU - pitch * 0.8);
                     pos += vd * view.Origin.DotProduct(vd);
                     using (var st = new SubTransaction(_doc))
                     {
                         st.Start();
                         try
                         {
-                            RebarBendingDetail.Create(_doc, view.Id, r.Id, 0, type, pos, 0);
+                            RebarBendingDetail.Create(_doc, view.Id, first.Rebar.Id, 0, type, pos, 0);
+                            TextNote.Create(_doc, view.Id, pos - up * (U.Mm(ShapeHmm / 2 + 5) * s), label, center);
                             st.Commit();
                             placedPerView[view.Id] = i + 1;
                             ok = true;
@@ -472,7 +499,7 @@ namespace DEB.Revit.Presentation
                         }
                     }
                 }
-                if (!ok) log.Warn($"Dobramento da posição N{n} não criado (a barra não aparece nas vistas de armadura).");
+                if (!ok) log.Warn($"Forma da posição N{g.Key} não criada (a barra não aparece nas vistas de armadura).");
             }
         }
 
