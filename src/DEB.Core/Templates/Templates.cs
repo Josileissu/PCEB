@@ -23,6 +23,8 @@ public enum CategoriaElemento
     PilarMoldadoInLoco,
     VigaMoldadaInLoco,
     Laje,
+    /// <summary>Reservatório de concreto (paredes, fundo e tampas), pedido de 2026-11-05.</summary>
+    Reservatorio,
 }
 
 public enum TipoParametro { Numero, Inteiro, Texto, Opcao, Bitola, SimNao, Tabela }
@@ -285,6 +287,7 @@ public static class CatalogoTemplates
         (CategoriaElemento.PilarMoldadoInLoco, "Pilar moldado in loco", ""),
         (CategoriaElemento.VigaMoldadaInLoco, "Viga moldada in loco", ""),
         (CategoriaElemento.Laje, "Laje", ""),
+        (CategoriaElemento.Reservatorio, "Reservatório", "retangular: paredes externas e internas, fundo, laje intermediária e tampa"),
     };
 
     public static IReadOnlyList<ITemplateArmadura> Todos => Registrados;
