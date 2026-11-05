@@ -71,10 +71,15 @@ namespace DEB.Revit.Presentation
                 }
             }, critical: false);
 
-            // Níveis e comprimento total na 1ª vista de face (como a VISTA 1 da PP127)
+            // Níveis: linha traço-ponto atravessando todas as vistas de face e a armadura (como o template do CAD);
+            // nomes, cotas e comprimento total só na 1ª vista de face.
             PlacedView firstFace = views.FirstOrDefault(v => v.Spec.Tipo == ViewKind.Face);
             if (firstFace != null && p.Kind == PieceKind.Column)
-                Tx("Níveis", log, () => LevelMarks(firstFace.View, p, styles), critical: false);
+                Tx("Níveis", log, () =>
+                {
+                    foreach (PlacedView v in views.Where(v => v.Corbel == null && (v.Spec.Tipo == ViewKind.Face || v.Spec.Tipo == ViewKind.Armadura)))
+                        LevelMarks(v.View, p, styles, labels: v == firstFace, log);
+                }, critical: false);
 
             List<Rebar> rebars = asm.GetMemberIds().Select(_doc.GetElement).OfType<Rebar>().ToList();
             if (rebars.Count > 0)
@@ -387,13 +392,34 @@ namespace DEB.Revit.Presentation
         // ------------------------------------------------------------------
         // Níveis (topo, níveis do projeto que cruzam a peça, base) e comprimento total
 
-        private void LevelMarks(View view, PieceInfo p, AnnotationStyles styles)
+        private GraphicsStyle _levelLineStyle;
+        private bool _levelLineStyleLogged;
+
+        /// <summary>Estilo das linhas de nível: traço-ponto (Centro/Center) se existir; senão "Linhas médias".</summary>
+        private GraphicsStyle LevelLineStyle(DetailCurve dc, PieceLog log)
+        {
+            if (_levelLineStyle != null) return _levelLineStyle;
+            List<GraphicsStyle> all = dc.GetLineStyleIds().Select(id => _doc.GetElement(id)).OfType<GraphicsStyle>().ToList();
+            bool Has(GraphicsStyle g, params string[] k) => k.Any(x => g.Name.IndexOf(x, StringComparison.OrdinalIgnoreCase) >= 0);
+            _levelLineStyle = all.FirstOrDefault(g => Has(g, "traço-ponto", "traco-ponto", "dash dot", "dash-dot"))
+                              ?? all.FirstOrDefault(g => Has(g, "centro", "center"))
+                              ?? all.FirstOrDefault(g => Has(g, "dia", "medium"));
+            if (!_levelLineStyleLogged)
+            {
+                _levelLineStyleLogged = true;
+                log?.Info($"Linhas de nível: estilo \"{_levelLineStyle?.Name ?? "(padrão)"}\" (disponíveis: {string.Join(", ", all.Select(g => g.Name))}).");
+            }
+            return _levelLineStyle;
+        }
+
+        private void LevelMarks(View view, PieceInfo p, AnnotationStyles styles, bool labels, PieceLog log)
         {
             XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
             double scale = view.Scale;
             double w = view.Origin.DotProduct(vd);
             XYZ At(double r, double u) => right * r + up * u + vd * w;
             double minR = p.Vertices.Min(v => v.DotProduct(right));
+            double maxR = p.Vertices.Max(v => v.DotProduct(right));
             double bottom = p.Vertices.Min(v => v.DotProduct(up)), top = p.Vertices.Max(v => v.DotProduct(up));
             double zBottom = p.Vertices.Min(v => v.Z), zTop = p.Vertices.Max(v => v.Z);
             // cota vertical da vista ↔ Z do modelo (a vista de face é vertical: up = +Z)
@@ -415,23 +441,27 @@ namespace DEB.Revit.Presentation
                 double u = Vz(z);
                 Try(() =>
                 {
-                    DetailCurve dc = _doc.Create.NewDetailCurve(view, Line.CreateBound(At(textX, u), At(minR, u)));
-                    // linha fina e tracejada não aparece na prancha: estilo "Linhas médias"/"Medium Lines" se existir
-                    GraphicsStyle gs = dc.GetLineStyleIds().Select(id => _doc.GetElement(id)).OfType<GraphicsStyle>()
-                        .FirstOrDefault(g => g.Name.IndexOf("dia", StringComparison.OrdinalIgnoreCase) >= 0 || g.Name.IndexOf("Medium", StringComparison.OrdinalIgnoreCase) >= 0);
+                    // atravessa a peça (e os consolos) até um pouco além da face direita
+                    double r0 = labels ? textX : minR - U.Mm(8) * scale;
+                    DetailCurve dc = _doc.Create.NewDetailCurve(view, Line.CreateBound(At(r0, u), At(maxR + U.Mm(8) * scale, u)));
+                    GraphicsStyle gs = LevelLineStyle(dc, log);
                     if (gs != null) dc.LineStyle = gs;
                 });
+                if (!labels) continue;
                 double zm = Math.Round(UnitUtils.ConvertFromInternalUnits(z, UnitTypeId.Meters), 2);
                 string elev = zm == 0 ? "0,00" : zm.ToString("+0.00;-0.00", CultureInfo.GetCultureInfo("pt-BR"));
                 double lineH = U.Mm(Std.Textos.AlturaTextoMm * 1.9) * scale;
-                Try(() => TextNote.Create(_doc, view.Id, At(textX, u + lineH * 2.2), name, opt));
-                Try(() => TextNote.Create(_doc, view.Id, At(x0 - tick * 0.9, u + lineH * 0.9), elev, opt));
+                // cota logo acima da linha; o nome (1 ou 2 linhas) acima da cota
+                int nameLines = name.Split('\n').Length;
+                Try(() => TextNote.Create(_doc, view.Id, At(textX, u + lineH * (1.0 + nameLines)), name, opt));
+                Try(() => TextNote.Create(_doc, view.Id, At(textX, u + lineH * 1.0), elev, opt));
             }
 
-            // comprimento total (texto vertical à esquerda dos níveis)
+            if (!labels) return;
+            // comprimento total (texto vertical à esquerda dos níveis, sem encostar nos nomes)
             double lenCm = Math.Round(U_ToCm(zTop - zBottom));
             var vert = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center, Rotation = Math.PI / 2 };
-            Try(() => TextNote.Create(_doc, view.Id, At(textX - U.Mm(8) * scale, (bottom + top) / 2),
+            Try(() => TextNote.Create(_doc, view.Id, At(textX - U.Mm(13) * scale, (bottom + top) / 2),
                 $"COMPRIMENTO TOTAL DO PILAR {lenCm:0}\n(TOTAL COLUMN LENGTH {lenCm:0})", vert));
         }
 

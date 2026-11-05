@@ -23,6 +23,8 @@ namespace DEB.Revit.Presentation
         {
             public Element Element;
             public Viewport Viewport;           // null para tabelas, textos e título
+            public TextNote Heading;            // título acima da vista (TituloAcima)
+            public string HeadingText;          // título sem a linha da escala
             public double W, H, LabelH;
             public double LabelW;               // largura estimada do título da vista
             public Rect2 Target;
@@ -59,10 +61,24 @@ namespace DEB.Revit.Presentation
 
             // Vistas
             double label = U.Mm(Std.Folha.TituloVistaMm);
+            ElementId noLabel = null;
             foreach (PlacedView pv in views)
             {
                 if (!Viewport.CanAddViewToSheet(_doc, sheet.Id, pv.View.Id)) { _log.Warn($"{pv.Title.Split('\n')[0]}: não pôde ir para a prancha."); continue; }
                 Viewport vp = Viewport.Create(_doc, sheet.Id, pv.View.Id, center);
+                if (Std.Folha.TituloAcima)
+                {
+                    noLabel ??= ViewportTypeWithoutLabel(vp);
+                    if (noLabel != ElementId.InvalidElementId) vp.ChangeTypeId(noLabel);
+                    var opt = new TextNoteOptions(_styles.ViewTitle.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
+                    // largura da caixa = linha mais longa (sem largura, a caixa do texto fica bem maior que o texto e
+                    // o arranjo acha que a vista não cabe)
+                    int chars = pv.Title.Split('\n').Concat(new[] { Std.Folha.TituloEscala ?? "" }).Max(l => l.Length) + 2;
+                    double hw = chars * U.Mm(Std.Textos.AlturaTituloVistaMm * 0.8);
+                    TextNote h = TextNote.Create(_doc, sheet.Id, center, hw, pv.Title, opt);
+                    Put(pv.Spec.Regiao, new Item { Element = vp, Viewport = vp, Heading = h, HeadingText = pv.Title, LabelW = hw });
+                    continue;
+                }
                 // o Revit quebra o título na largura da linha: conta a linha mais longa (PT ou EN), não o título inteiro
                 double labelW = pv.Title.Split('\n').Max(l => l.Length) * U.Mm(Std.Folha.LarguraCaractereTituloMm);
                 try { vp.LabelLineLength = labelW; } catch { /* tipo de viewport sem linha de título */ }
@@ -112,6 +128,7 @@ namespace DEB.Revit.Presentation
                 bool fits = false;
                 for (int attempt = 0; attempt < 6; attempt++)
                 {
+                    UpdateHeadings(kv.Value);
                     _doc.Regenerate();
                     Measure(sheet, kv.Value, r.W);
                     if (Pack(kv.Value, r, strict: true)) { fits = true; break; }
@@ -122,6 +139,7 @@ namespace DEB.Revit.Presentation
                     // Não coube nem reduzindo: volta às escalas do padrão e arranja assim mesmo.
                     foreach (var o in original)
                         try { ((View)_doc.GetElement(o.Key)).Scale = o.Value; } catch { /* escala do template */ }
+                    UpdateHeadings(kv.Value);
                     _doc.Regenerate();
                     Measure(sheet, kv.Value, r.W);
                     Pack(kv.Value, r, strict: false);
@@ -135,6 +153,44 @@ namespace DEB.Revit.Presentation
         // ------------------------------------------------------------------
 
         private string Fill(string s) => PresentationStandard.Fill(s, _ctx.Values);
+
+        /// <summary>Tipo de viewport igual ao atual, mas sem o título do Revit ("PCEB - Sem título").</summary>
+        private ElementId ViewportTypeWithoutLabel(Viewport vp)
+        {
+            const string name = "PCEB - Sem título";
+            try
+            {
+                if (!(_doc.GetElement(vp.GetTypeId()) is ElementType cur)) return ElementId.InvalidElementId;
+                ElementType t = new FilteredElementCollector(_doc).OfClass(typeof(ElementType)).Cast<ElementType>()
+                    .FirstOrDefault(e => e.FamilyName == cur.FamilyName && e.Name == name)
+                    ?? cur.Duplicate(name);
+                t.get_Parameter(BuiltInParameter.VIEWPORT_ATTR_SHOW_LABEL)?.Set(0);
+                return t.Id;
+            }
+            catch (Exception ex) { _log.Warn($"Tipo de viewport sem título não criado: {ex.Message}"); return ElementId.InvalidElementId; }
+        }
+
+        /// <summary>Texto do título acima de cada vista: título + linha da escala atual (a escala muda no arranjo).
+        /// A 1ª linha vai em negrito sublinhado.</summary>
+        private void UpdateHeadings(List<Item> items)
+        {
+            foreach (Item it in items.Where(i => i.Heading != null))
+            {
+                View v = _doc.GetElement(it.Viewport.ViewId) as View;
+                string scale = string.IsNullOrWhiteSpace(Std.Folha.TituloEscala) || v == null ? ""
+                    : "\n" + Std.Folha.TituloEscala.Replace("{Escala}", v.Scale.ToString());
+                it.Heading.Text = it.HeadingText + scale;
+                try
+                {
+                    FormattedText ft = it.Heading.GetFormattedText();
+                    var range = new TextRange(0, it.HeadingText.Split('\n')[0].Length);
+                    ft.SetBoldStatus(range, true);
+                    ft.SetUnderlineStatus(range, true);
+                    it.Heading.SetFormattedText(ft);
+                }
+                catch { /* formatação é só estética */ }
+            }
+        }
 
         private ElementId TitleBlock()
         {
@@ -220,11 +276,20 @@ namespace DEB.Revit.Presentation
         }
 
         /// <summary>Tamanhos na folha. O título da vista conta na largura, mas no máximo a largura da região (ele quebra linha).</summary>
-        private static void Measure(ViewSheet sheet, List<Item> items, double regionWidth)
+        private void Measure(ViewSheet sheet, List<Item> items, double regionWidth)
         {
             foreach (Item it in items)
             {
-                if (it.Viewport != null)
+                if (it.Heading != null)
+                {
+                    Outline o = it.Viewport.GetBoxOutline();
+                    // altura pelo número de linhas (a caixa medida pelo Revit sai bem maior que o texto)
+                    int lines = it.HeadingText.Split('\n').Length + (string.IsNullOrWhiteSpace(Std.Folha.TituloEscala) ? 0 : 1);
+                    it.LabelH = lines * U.Mm(Std.Textos.AlturaTituloVistaMm * 1.7) + U.Mm(3);
+                    it.W = Math.Max(o.MaximumPoint.X - o.MinimumPoint.X, it.LabelW);
+                    it.H = o.MaximumPoint.Y - o.MinimumPoint.Y + it.LabelH;
+                }
+                else if (it.Viewport != null)
                 {
                     Outline o = it.Viewport.GetBoxOutline();
                     it.W = Math.Max(o.MaximumPoint.X - o.MinimumPoint.X, Math.Min(it.LabelW, regionWidth));
@@ -283,8 +348,11 @@ namespace DEB.Revit.Presentation
                     Outline o = it.Viewport.GetBoxOutline();
                     XYZ oc = (o.MinimumPoint + o.MaximumPoint) / 2;
                     double boxH = it.H - it.LabelH;
-                    var target = new XYZ(it.Target.L + it.W / 2, it.Target.T - boxH / 2, 0);
+                    // título acima: a vista desce o espaço do título; etiqueta do Revit: a vista fica no alto
+                    double top = it.Heading != null ? it.Target.T - it.LabelH : it.Target.T;
+                    var target = new XYZ(it.Target.L + it.W / 2, top - boxH / 2, 0);
                     it.Viewport.SetBoxCenter(it.Viewport.GetBoxCenter() + (target - oc));
+                    if (it.Heading != null) it.Heading.Coord = new XYZ(it.Target.L + it.W / 2, it.Target.T, 0);
                 }
                 else if (it.Element is ScheduleSheetInstance si)
                 {
