@@ -153,6 +153,7 @@ public class BarraTests
             Numero = 7, Bitola = 16, Aco = "CA-50", Quantidade = 3, Repeticoes = 2, Espacamento = 12.5,
             Estribo = true, Corrido = true, Visivel = false, Campos = CamposDescricao.Numero | CamposDescricao.Bitola,
             HandleDescricao = "2AF", TemPosicaoDescricao = true, DescricaoDx = 10.5, DescricaoDy = -3,
+            DescricaoRotacao = 1.25,
         };
         d.Segmentos.Add(new Segmento { Formato = FormatoSegmento.Gancho90, Cotar = false, ComprimentoRegistrado = 20, HandleCota = "2B0" });
         d.Segmentos.Add(new Segmento { Var = true, ComprimentoRegistrado = 300, Sobreposto = true });
@@ -168,6 +169,8 @@ public class BarraTests
         Assert.Equal(d.Campos, x.Campos);
         Assert.Equal("2AF", x.HandleDescricao);
         Assert.Equal(-3, x.DescricaoDy);
+        Assert.Equal(1.25, x.DescricaoRotacao);
+        Assert.Equal(0, CodecDados.DecodificarBarra(CodecDados.Codificar(new DadosArmadura())).DescricaoRotacao);
         Assert.Equal(2, x.Segmentos.Count);
         Assert.Equal(FormatoSegmento.Gancho90, x.Segmentos[0].Formato);
         Assert.False(x.Segmentos[0].Cotar);

@@ -45,6 +45,8 @@ public sealed class DadosArmadura
     public double DescricaoDx { get; set; }
     public double DescricaoDy { get; set; }
     public bool TemPosicaoDescricao { get; set; }
+    /// <summary>Rotação da descrição (rad) na última atualização: a cópia da barra recria o texto com ela.</summary>
+    public double DescricaoRotacao { get; set; }
     /// <summary>Quebras de linha que o usuário deu na descrição (depois da palavra k; ver QuebrasTexto).</summary>
     public List<int> QuebrasDescricao { get; set; } = new List<int>();
 
@@ -129,6 +131,35 @@ public sealed class DadosArmadura
     {
         while (Segmentos.Count > quantidade) Segmentos.RemoveAt(Segmentos.Count - 1);
         while (Segmentos.Count < quantidade) Segmentos.Add(new Segmento());
+    }
+
+    /// <summary>
+    /// MATCHPROP entre barras (pedido do usuário, 2026-11-05): copia os dados da armadura, nunca a geometria
+    /// (segmentos, comprimentos), as partes ligadas (descrição, cotas, faixas, rebatidas) nem a identidade (Id, N).
+    /// O tipo da barra não muda: modelo de treliça/tela só passa entre treliças/telas.
+    /// </summary>
+    public void CopiarPropriedadesDe(DadosArmadura o)
+    {
+        if (o == null || ReferenceEquals(o, this)) return;
+        Bitola = o.Bitola;
+        Aco = o.Aco;
+        Quantidade = o.Quantidade; // com faixas que somam ou grupo VAR, a atualização recalcula
+        Repeticoes = o.Repeticoes;
+        Espacamento = o.Espacamento;
+        Estribo = o.Estribo;
+        Corrido = o.Corrido;
+        Visivel = o.Visivel;
+        Campos = o.Campos;
+        Escala = o.Escala;
+        Camadas = o.Camadas;
+        if (EhTrelica && o.EhTrelica) Trelica = o.Trelica;
+        if (EhTela && o.EhTela)
+        {
+            Tela = o.Tela;
+            TelaDistribuicao = o.TelaDistribuicao;
+            TelaCotas = o.TelaCotas;
+            TelaTextoDiagonal = o.TelaTextoDiagonal;
+        }
     }
 
     public DadosArmadura Clonar()

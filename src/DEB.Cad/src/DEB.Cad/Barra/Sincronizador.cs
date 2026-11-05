@@ -30,6 +30,18 @@ internal sealed class Sincronizador
     private static readonly HashSet<string> ComandosDeExplodir = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "EXPLODE", "XPLODE", "BURST" };
     private int _suspenso;
 
+    // MATCHPROP (pedido do usuário, 2026-11-05): o comando nativo só copia layer/cor/estilo; os dados do plugin
+    // (barra, faixa, tabela) vão junto por aqui. A origem é o 1º objeto escolhido (ou o pré-selecionado); os destinos
+    // são os escolhidos depois e os modificados pelo comando.
+    private static readonly HashSet<string> ComandosDeCopiarPropriedades =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MATCHPROP", "PAINTER" };
+    private bool _matchAtivo;
+    private bool _matchOrigemPreSelecionada;
+    private ObjectId _matchOrigem = ObjectId.Null;
+    private readonly List<ObjectId> _matchDestinos = new List<ObjectId>();
+    private ObjectId _matchOrigemPendente = ObjectId.Null;
+    private List<ObjectId> _matchDestinosPendentes = new List<ObjectId>();
+
     /// <summary>Log de cada fim de comando (variável de ambiente ARM_LOG_DETALHADO=1).</summary>
     private static readonly bool Detalhado = Environment.GetEnvironmentVariable("ARM_LOG_DETALHADO") == "1";
 
@@ -131,14 +143,158 @@ internal sealed class Sincronizador
     {
         if (Detalhado)
             Log.Info($"fim de {e.GlobalCommandName}: modificados {_modificados.Count}, apagados {_apagados.Count}, anexados {_anexados.Count}");
+        if (_matchAtivo) FinalizarMatch();
         if (ComandosDeDesfazer.Contains(e.GlobalCommandName ?? "")) { Limpar(); return; }
         Processar();
+    }
+
+    // ---------- MATCHPROP ----------
+
+    private void IniciarMatch()
+    {
+        _matchAtivo = true;
+        _matchOrigem = ObjectId.Null;
+        _matchOrigemPreSelecionada = false;
+        _matchDestinos.Clear();
+        var ed = _doc.Editor;
+        try
+        {
+            // com PICKFIRST, o objeto pré-selecionado é a origem e o comando não pergunta por ela
+            var pre = ed.SelectImplied();
+            if (pre.Status == PromptStatus.OK && pre.Value != null && pre.Value.Count == 1)
+            {
+                _matchOrigem = pre.Value[0].ObjectId;
+                _matchOrigemPreSelecionada = true;
+            }
+        }
+        catch (Exception ex) { Log.Erro("MATCHPROP: pré-seleção", ex); }
+        ed.PromptForEntityEnding += AoEscolherEntidade;
+        ed.PromptForSelectionEnding += AoSelecionar;
+    }
+
+    private void FinalizarMatch()
+    {
+        _matchAtivo = false;
+        try
+        {
+            _doc.Editor.PromptForEntityEnding -= AoEscolherEntidade;
+            _doc.Editor.PromptForSelectionEnding -= AoSelecionar;
+        }
+        catch (Exception ex) { Log.Erro("MATCHPROP: desligar eventos", ex); }
+        if (_matchOrigem.IsNull) return;
+        // Enter ou ESC no fim: o que já foi pintado fica, então aplica nos dois casos
+        _matchOrigemPendente = _matchOrigem;
+        _matchDestinosPendentes = _matchDestinos.ToList();
+        _matchOrigem = ObjectId.Null;
+        _matchDestinos.Clear();
+    }
+
+    private void AoEscolherEntidade(object sender, PromptForEntityEndingEventArgs e)
+    {
+        try
+        {
+            if (!_matchAtivo || e.Result == null || e.Result.Status != PromptStatus.OK) return;
+            var id = e.Result.ObjectId;
+            if (_matchOrigem.IsNull) _matchOrigem = id;
+            // pré-selecionado e o CAD perguntou mesmo assim: a escolha confirma a origem, não é destino
+            else if (_matchOrigemPreSelecionada && _matchDestinos.Count == 0 && id == _matchOrigem) return;
+            else _matchDestinos.Add(id);
+            _matchOrigemPreSelecionada = false;
+        }
+        catch (Exception ex) { Log.Erro("MATCHPROP: escolha", ex); }
+    }
+
+    private void AoSelecionar(object sender, PromptForSelectionEndingEventArgs e)
+    {
+        try
+        {
+            if (!_matchAtivo || e.Selection == null) return;
+            foreach (SelectedObject so in e.Selection)
+                if (so != null) _matchDestinos.Add(so.ObjectId);
+        }
+        catch (Exception ex) { Log.Erro("MATCHPROP: seleção", ex); }
+    }
+
+    private enum TipoCopia { Nenhum, Barra, Faixa, Tabela }
+
+    /// <summary>O objeto do plugin por trás do que foi clicado (texto ou cota → barra; linha/círculo → faixa).</summary>
+    private static (TipoCopia tipo, Entity principal) Classificar(Transaction tr, Entity ent)
+    {
+        switch (XDataCad.Tipo(ent))
+        {
+            case TipoParte.Faixa: return (TipoCopia.Faixa, ent);
+            case TipoParte.Corte:
+            case TipoParte.Chamada:
+                var f = ServicoFaixa.FaixaDaParte(tr, ent);
+                return f == null ? (TipoCopia.Nenhum, null) : (TipoCopia.Faixa, f);
+            case TipoParte.Tabela when ent is Table: return (TipoCopia.Tabela, ent);
+            case TipoParte.Barra:
+            case TipoParte.Descricao:
+            case TipoParte.Cota:
+            case TipoParte.Rebatida:
+            case TipoParte.Desenho:
+                var b = ServicoBarra.BarraDe(tr, ent);
+                return b == null ? (TipoCopia.Nenhum, null) : (TipoCopia.Barra, b);
+            default: return (TipoCopia.Nenhum, null);
+        }
+    }
+
+    /// <summary>Copia os dados do plugin da origem para os destinos do mesmo tipo (barra, faixa ou tabela).</summary>
+    private static int AplicarMatch(Transaction tr, ObjectId origemId, IEnumerable<ObjectId> destinos,
+        HashSet<ObjectId> barras, ref bool atualizarRA, Core.Configuracao.ConfiguracaoArmadura cfg)
+    {
+        if (!origemId.IsValid || origemId.IsErased || !(tr.GetObject(origemId, OpenMode.ForRead) is Entity oe)) return 0;
+        var (tipo, origem) = Classificar(tr, oe);
+        if (tipo == TipoCopia.Nenhum) return 0;
+        var feitos = new HashSet<ObjectId> { origem.ObjectId };
+        int n = 0;
+        foreach (var id in destinos)
+        {
+            if (!id.IsValid || id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Entity de)) continue;
+            var (td, destino) = Classificar(tr, de);
+            if (td != tipo || !feitos.Add(destino.ObjectId)) continue;
+            switch (tipo)
+            {
+                case TipoCopia.Barra:
+                {
+                    var d = XDataCad.LerBarra(destino);
+                    d.CopiarPropriedadesDe(XDataCad.LerBarra(origem));
+                    destino.UpgradeOpen();
+                    XDataCad.Gravar(destino, d);
+                    barras.Add(destino.ObjectId);
+                    break;
+                }
+                case TipoCopia.Faixa:
+                {
+                    var f = ServicoFaixa.Ler(destino);
+                    f.CopiarPropriedadesDe(ServicoFaixa.Ler(origem));
+                    destino.UpgradeOpen();
+                    XDataCad.Gravar(destino, f);
+                    var bar = ServicoFaixa.BarraDaFaixa(tr, destino);
+                    if (bar != null) barras.Add(bar.ObjectId);
+                    break;
+                }
+                case TipoCopia.Tabela:
+                {
+                    var t = (Table)destino;
+                    var op = Relacao.ServicoRA.Opcoes(t, cfg);
+                    op.CopiarPropriedadesDe(Relacao.ServicoRA.Opcoes(origem, cfg));
+                    Relacao.ServicoRA.GravarOpcoes(t, op);
+                    atualizarRA = true;
+                    break;
+                }
+            }
+            n++;
+        }
+        return n;
     }
 
     /// <summary>Antes de plotar, exportar ou salvar: renumera e atualiza as tabelas (seção 2.8).</summary>
     private void AoIniciarComando(object sender, CommandEventArgs e)
     {
         _comando = e.GlobalCommandName ?? "";
+        try { if (ComandosDeCopiarPropriedades.Contains(_comando)) IniciarMatch(); }
+        catch (Exception ex) { Log.Erro("MATCHPROP: início", ex); }
         try
         {
             // roda no início de TODO comando: decide pela configuração já em memória, sem abrir o DWG
@@ -183,11 +339,15 @@ internal sealed class Sincronizador
 
     public void Processar()
     {
-        if (_modificados.Count == 0 && _apagados.Count == 0 && _anexados.Count == 0) return;
+        if (_modificados.Count == 0 && _apagados.Count == 0 && _anexados.Count == 0 && _matchOrigemPendente.IsNull) return;
         var anexados = _anexados.ToList();
         var apagados = _apagados.ToList();
         var modificados = _modificados.ToList();
         var explodidos = _explodidos.ToList();
+        var matchOrigem = _matchOrigemPendente;
+        var matchDestinos = _matchDestinosPendentes.Concat(modificados).ToList();
+        _matchOrigemPendente = ObjectId.Null;
+        _matchDestinosPendentes = new List<ObjectId>();
         Limpar();
 
         var cfg = ConfigDesenho.Obter(_doc.Database);
@@ -369,6 +529,17 @@ internal sealed class Sincronizador
                             XDataCad.Gravar(pl, d);
                             barras.Add(bid);
                         }
+                    }
+                }
+
+                // MATCHPROP: os dados do plugin da origem vão para os destinos ANTES da atualização (que já usa os novos)
+                if (!matchOrigem.IsNull)
+                {
+                    int copiados = AplicarMatch(tr, matchOrigem, matchDestinos, barras, ref atualizarRA, cfg);
+                    if (copiados > 0)
+                    {
+                        Log.Info($"MATCHPROP: propriedades do plugin copiadas para {copiados} objeto(s).");
+                        try { _doc.Editor.WriteMessage($"\nArmadura: propriedades copiadas para {copiados} objeto(s)."); } catch { }
                     }
                 }
 

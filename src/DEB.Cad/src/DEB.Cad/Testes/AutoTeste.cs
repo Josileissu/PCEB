@@ -232,6 +232,37 @@ public sealed class AutoTeste
             var dCop = XDataCad.LerBarra(copia);
             Checar(dCop.HandleDescricao != XDataCad.LerBarra(i30).HandleDescricao && Perto(Rot(copia), 30),
                 $"cópia da barra: descrição própria e girada ({Rot(copia) * 180 / Math.PI:0.##}°)");
+
+            // relato do usuário (2026-11-05): barra vertical com a chamada HORIZONTAL em outra posição —
+            // a cópia tem de manter o texto como o do original (horizontal, mesma posição relativa)
+            var descV = ServicoBarra.Parte<MText>(tr, db, XDataCad.LerBarra(i90).HandleDescricao,
+                TipoParte.Descricao, XDataCad.Hex(i90.ObjectId));
+            descV.UpgradeOpen();
+            descV.Rotation = 0;
+            descV.Location += new Vector3d(-80, 120, 0);
+            ServicoBarra.Atualizar(tr, i90, cfg);
+            var dV = XDataCad.LerBarra(i90);
+            var copiaV = (Polyline)i90.Clone();
+            copiaV.TransformBy(Matrix3d.Displacement(new Vector3d(400, 0, 0)));
+            esp.AppendEntity(copiaV);
+            tr.AddNewlyCreatedDBObject(copiaV, true);
+            ServicoBarra.Atualizar(tr, copiaV, cfg);
+            var descCopV = ServicoBarra.Parte<MText>(tr, db, XDataCad.LerBarra(copiaV).HandleDescricao,
+                TipoParte.Descricao, XDataCad.Hex(copiaV.ObjectId));
+            var o0 = copiaV.GetPoint2dAt(0);
+            Checar(descCopV != null && descCopV.ObjectId != descV.ObjectId && Perto(descCopV.Rotation, 0)
+                   && Math.Abs(descCopV.Location.X - (o0.X + dV.DescricaoDx)) < 1e-6
+                   && Math.Abs(descCopV.Location.Y - (o0.Y + dV.DescricaoDy)) < 1e-6,
+                $"cópia de barra vertical com chamada horizontal: texto continua horizontal ({Rot(copiaV) * 180 / Math.PI:0.##}°) e no mesmo lugar relativo");
+
+            // original apagado antes da atualização da cópia (sem texto para consultar): vale a rotação guardada
+            var copiaV2 = (Polyline)i90.Clone();
+            copiaV2.TransformBy(Matrix3d.Displacement(new Vector3d(800, 0, 0)));
+            esp.AppendEntity(copiaV2);
+            tr.AddNewlyCreatedDBObject(copiaV2, true);
+            descV.Erase();
+            ServicoBarra.Atualizar(tr, copiaV2, cfg);
+            Checar(Perto(Rot(copiaV2), 0), $"cópia sem o texto original: usa a rotação guardada ({Rot(copiaV2) * 180 / Math.PI:0.##}°)");
             tr.Commit();
         }
         Gravar();
@@ -395,6 +426,8 @@ public sealed class AutoTeste
             // o comprimento da faixa vem abaixo da linha (\X300), ligado por padrão
             Checar(dimG != null && dimG.DimensionText.StartsWith("21 N") && dimG.DimensionText.EndsWith("c/15\\X300"),
                 "ARMFAIXAORT + STRETCH: faixa recalculada (300 cm c/15 = 21) com o comprimento");
+            // faixa ortogonal nova nasce sem o diâmetro no texto (pedido do usuário, 2026-11-05)
+            Checar(dimG != null && !dimG.DimensionText.Contains("%%c"), $"ARMFAIXAORT: faixa nova sem o diâmetro ({dimG?.DimensionText})");
             Checar(Barra(tr, db, "G").Quantidade == 21, $"quantidade do estribo = soma das faixas ({Barra(tr, db, "G").Quantidade})");
             Checar(dimG != null && Math.Abs(dimG.Dimtxt - 2) < 1e-9, $"texto da faixa na escala da barra (2 un; {dimG?.Dimtxt})");
 
@@ -2191,6 +2224,120 @@ public sealed class AutoTeste
         janela.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, janela.Width, janela.Height));
         bmp.Save(Path.Combine(Path.GetDirectoryName(saida), arquivo));
     }
+
+    /// <summary>
+    /// MATCHPROP nativo copiando os dados do plugin (pedido do usuário, 2026-11-05): barra → barra (também clicando
+    /// nos textos e com a origem pré-selecionada), faixa → faixa, tabela → tabela, e nada entre tipos diferentes.
+    /// Desenho vazio; objetos em y ≈ −6000. Roda os MATCHPROP de verdade e confere em ARMTESTEMATCH2.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEMATCH")]
+    public void Match() => Comandos.Executar("ARMTESTEMATCH", (doc, ed, db, cfg) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0; H.Clear(); Antes.Clear();
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+            Polyline Nova(string nome, double x, double y, DadosArmadura d, bool dobrada = false)
+            {
+                var pl = new Polyline();
+                pl.SetDatabaseDefaults(db);
+                pl.AddVertexAt(0, new Point2d(x, y), 0, 0, 0);
+                pl.AddVertexAt(1, new Point2d(x + 300, y), 0, 0, 0);
+                if (dobrada) pl.AddVertexAt(2, new Point2d(x + 300, y + 50), 0, 0, 0);
+                esp.AppendEntity(pl);
+                tr.AddNewlyCreatedDBObject(pl, true);
+                ServicoBarra.Criar(tr, pl, d, cfg);
+                H[nome] = XDataCad.Hex(pl.ObjectId);
+                return pl;
+            }
+            var a = Nova("A", 12000, -6000, new DadosArmadura { Bitola = 16, Aco = "CA-50", Quantidade = 5, Espacamento = 12, Escala = 25 });
+            var b = Nova("B", 12000, -6200, new DadosArmadura { Bitola = 8, Aco = "CA-60", Quantidade = 2 }, dobrada: true);
+            Nova("C", 12500, -6000, new DadosArmadura { Bitola = 6.3, Aco = "CA-60", Quantidade = 3 });
+            Nova("D", 12500, -6200, new DadosArmadura { Bitola = 5, Aco = "CA-60", Quantidade = 1 });
+            Nova("E", 12000, -6400, new DadosArmadura { Bitola = 10, Aco = "CA-50", Quantidade = 1 });
+            H["descA"] = XDataCad.LerBarra(a).HandleDescricao;
+            H["descC"] = XDataCad.LerBarra((Polyline)tr.GetObject(Id(db, H["C"]), OpenMode.ForRead)).HandleDescricao;
+            Antes["compB"] = b.Length;
+            Antes["vertB"] = b.NumberOfVertices;
+
+            // faixas: F1 (origem) e F2 em barras diferentes; F3 recebe tinta de uma BARRA e não pode mudar
+            ObjectId Faixa(Polyline bar, double y, double espac, double escala) => ServicoFaixa.Criar(tr, bar,
+                new DadosFaixa { Tipo = TipoFaixa.Ortogonal, Espacamento = espac, Escala = escala,
+                                 P1X = bar.GetPoint2dAt(0).X, P1Y = y, P2X = bar.GetPoint2dAt(0).X + 300, P2Y = y },
+                new Point3d(bar.GetPoint2dAt(0).X + 150, y - 20, 0), cfg);
+            H["F1"] = XDataCad.Hex(Faixa(a, -6080, 10, 25));
+            var cBar = (Polyline)tr.GetObject(Id(db, H["C"]), OpenMode.ForRead);
+            H["F2"] = XDataCad.Hex(Faixa(cBar, -6080, 20, 0));
+            var dBar = (Polyline)tr.GetObject(Id(db, H["D"]), OpenMode.ForRead);
+            H["F3"] = XDataCad.Hex(Faixa(dBar, -6280, 30, 0));
+
+            // tabelas: T1 (origem) só tabela 1:50; T2 padrão
+            var t1 = ServicoRA.Inserir(db, tr, new Point3d(13200, -6000, 0), cfg,
+                new Core.RelacaoAco.OpcoesTabelaRA { Apresentacao = Core.RelacaoAco.ApresentacaoRA.SomenteTabela, Escala = 50, MostrarPesoTotal = false });
+            var t2 = ServicoRA.Inserir(db, tr, new Point3d(14200, -6000, 0), cfg);
+            H["T1"] = XDataCad.Hex(t1);
+            H["T2"] = XDataCad.Hex(t2);
+            tr.Commit();
+        }
+        Gravar();
+
+        string Sel(string h) => $"(handent \"{h}\")";
+        // barra → barra e barra → faixa (esta não muda)
+        doc.SendStringToExecute($"_.MATCHPROP {Sel(H["A"])}\n{Sel(H["B"])}\n{Sel(H["F3"])}\n\n", true, false, true);
+        // clicando nos textos: descrição de A → descrição de C
+        doc.SendStringToExecute($"_.MATCHPROP {Sel(H["descA"])}\n{Sel(H["descC"])}\n\n", true, false, true);
+        doc.SendStringToExecute($"_.MATCHPROP {Sel(H["F1"])}\n{Sel(H["F2"])}\n\n", true, false, true);
+        doc.SendStringToExecute($"_.MATCHPROP {Sel(H["T1"])}\n{Sel(H["T2"])}\n\n", true, false, true);
+        // origem pré-selecionada (PICKFIRST): A → D
+        doc.SendStringToExecute($"(sssetfirst nil (ssadd {Sel(H["A"])}))\n", true, false, true);
+        doc.SendStringToExecute($"_.MATCHPROP {Sel(H["D"])}\n\n", true, false, true);
+        // faixas ortogonal e alinhada novas, digitadas como o usuário: nascem sem o diâmetro (pedido de 2026-11-05)
+        doc.SendStringToExecute($"(sssetfirst nil (ssadd {Sel(H["E"])}))\nARMFAIXAORT\n12000,-6450\n12300,-6450\n12150,-6480\n15\n\n", true, false, true);
+        doc.SendStringToExecute($"(sssetfirst nil (ssadd {Sel(H["E"])}))\nARMFAIXAALI\n12000,-6520\n12300,-6520\n12150,-6550\n15\n\n", true, false, true);
+        doc.SendStringToExecute("ARMTESTEMATCH2\n", true, false, true);
+    }, suspender: false);
+
+    [Rt.CommandMethod("ARMTESTEMATCH2")]
+    public void Match2() => Comandos.Executar("ARMTESTEMATCH2", (doc, ed, db, cfg) =>
+    {
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            DadosArmadura Bar(string n) => XDataCad.LerBarra(tr.GetObject(Id(db, H[n]), OpenMode.ForRead));
+            DadosFaixa Fx(string n) => ServicoFaixa.Ler((Entity)tr.GetObject(Id(db, H[n]), OpenMode.ForRead));
+            var a = Bar("A");
+            var b = Bar("B");
+            var plB = (Polyline)tr.GetObject(Id(db, H["B"]), OpenMode.ForRead);
+            Checar(b.Bitola == 16 && b.Aco == "CA-50" && b.Escala == 25 && b.Espacamento == 12,
+                $"MATCHPROP barra → barra: ø{b.Bitola} {b.Aco} esc {b.Escala} e{b.Espacamento}");
+            Checar(plB.NumberOfVertices == (int)Antes["vertB"] && b.Segmentos.Count == 2 && b.Id != a.Id,
+                $"MATCHPROP barra → barra: forma e identidade continuam as dela ({plB.NumberOfVertices} vértices)");
+            var descB = Ent<MText>(tr, db, b.HandleDescricao);
+            Checar(descB != null && descB.Contents.Contains("16"), $"MATCHPROP: descrição do destino atualizada ({descB?.Contents})");
+            Checar(Fx("F3").Espacamento == 30, $"MATCHPROP barra → faixa: a faixa não muda (e{Fx("F3").Espacamento})");
+            var c = Bar("C");
+            Checar(c.Bitola == 16 && c.Escala == 25, $"MATCHPROP clicando nas descrições: C recebeu ø{c.Bitola} esc {c.Escala}");
+            var f2 = Fx("F2");
+            Checar(f2.Espacamento == 10 && f2.Escala == 25 && f2.HandleBarra == H["C"],
+                $"MATCHPROP faixa → faixa: e{f2.Espacamento} esc {f2.Escala}, continua na barra C");
+            var op2 = ServicoRA.Opcoes((Entity)tr.GetObject(Id(db, H["T2"]), OpenMode.ForRead), cfg);
+            Checar(op2.Apresentacao == Core.RelacaoAco.ApresentacaoRA.SomenteTabela && op2.Escala == 50 && !op2.MostrarPesoTotal,
+                $"MATCHPROP tabela → tabela: {op2.Apresentacao} 1:{op2.Escala}");
+            var d = Bar("D");
+            Checar(d.Bitola == 16, $"MATCHPROP com a origem pré-selecionada: D recebeu ø{d.Bitola}");
+            Checar(Bar("A").Bitola == 16 && Fx("F1").Espacamento == 10, "MATCHPROP: a origem não muda");
+
+            var fe = Bar("E").Faixas.Select(h => tr.GetObject(Id(db, h), OpenMode.ForRead) as Dimension).Where(x => x != null).ToList();
+            var tipos = fe.Select(x => ServicoFaixa.Ler(x).Tipo).OrderBy(t => t).ToList();
+            Checar(fe.Count == 2 && tipos[0] == TipoFaixa.Ortogonal && tipos[1] == TipoFaixa.Alinhada
+                   && fe.All(x => !x.DimensionText.Contains("%%c") && x.DimensionText.Contains("c/15")),
+                $"ARMFAIXAORT/ARMFAIXAALI: faixas novas sem o diâmetro ({string.Join(" | ", fe.Select(x => x.DimensionText))})");
+            tr.Commit();
+        }
+        Gravar();
+        Log.Info($"autoteste: ARMTESTEMATCH fim ({_ok} ok, {_falhas} falha(s))");
+        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA")))
+            doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
+    }, suspender: false);
 
     [Rt.CommandMethod("ARMTESTEMARCA")]
     public void Marca() => Log.Info($"autoteste: marca {++_marca}");

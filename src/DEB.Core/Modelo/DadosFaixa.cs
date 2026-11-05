@@ -111,6 +111,48 @@ public sealed class DadosFaixa
         if (TemCirculo0) { Circulo0X += dx; Circulo0Y += dy; }
     }
 
+    /// <summary>
+    /// MATCHPROP entre faixas, indicações e chamadas (pedido do usuário, 2026-11-05): copia as opções (escala, campos do
+    /// texto, patamar, linhas, repetições) e, entre faixas de distribuição, o espaçamento. Nunca copia a barra dona, o tipo,
+    /// os pontos (linha base, arco, referências) nem as partes desenhadas.
+    /// </summary>
+    public void CopiarPropriedadesDe(DadosFaixa o)
+    {
+        if (o == null || ReferenceEquals(o, this)) return;
+        Escala = o.Escala;
+        Repeticoes = o.Repeticoes;
+        // campos do texto pelo nome único (na indicação vão para os "Indicar…"); a chamada não mostra diâmetro/espaçamento
+        QuantidadeNoTexto = o.QuantidadeNoTexto;
+        MostrarPosicao = o.MostrarPosicao;
+        if (o.TextoTemDiametroEspacamento && TextoTemDiametroEspacamento)
+        {
+            DiametroNoTexto = o.DiametroNoTexto;
+            EspacamentoNoTexto = o.EspacamentoNoTexto;
+        }
+        if (o.TemCota && TemCota) MostrarComprimento = o.MostrarComprimento;
+        if (o.TemLinhasDeChamada && TemLinhasDeChamada)
+        {
+            OcultarLinhas = o.OcultarLinhas;
+            Patamar = o.Patamar;
+        }
+        // distribuição (cota/corte): espaçamento; quantidade digitada: só entre chamadas, e entre indicações
+        bool distribui = Tipo != TipoFaixa.Chamada && Tipo != TipoFaixa.Indicacao;
+        bool origemDistribui = o.Tipo != TipoFaixa.Chamada && o.Tipo != TipoFaixa.Indicacao;
+        if (distribui && origemDistribui)
+        {
+            Espacamento = o.Espacamento;
+            EspacamentoInicial = o.EspacamentoInicial;
+        }
+        else if (Tipo == o.Tipo && (Tipo == TipoFaixa.Chamada || Tipo == TipoFaixa.Indicacao))
+            Quantidade = o.Quantidade;
+    }
+
+    /// <summary>
+    /// Diâmetro no texto ao CRIAR a faixa: as faixas em cota ortogonal e alinhada nascem sem ele (pedido do usuário,
+    /// 2026-11-05); as outras, com ele. Não muda as faixas existentes (o padrão da classe continua ligado).
+    /// </summary>
+    public static bool MostrarDiametroAoCriar(TipoFaixa tipo) => tipo != TipoFaixa.Ortogonal && tipo != TipoFaixa.Alinhada;
+
     /// <summary>Quantidade que a faixa soma na barra (com as repetições).</summary>
     public int QuantidadeTotal => SomaQuantidade ? Math.Max(0, Quantidade) * Math.Max(1, Repeticoes) : 0;
 

@@ -218,6 +218,7 @@ public sealed class ComandosEstribo
             var f = new DadosFaixa
             {
                 Tipo = TipoFaixa.Ortogonal, Espacamento = espacamento, EspacamentoInicial = cfg.EspacamentoInicialFaixa,
+                MostrarDiametro = DadosFaixa.MostrarDiametroAoCriar(TipoFaixa.Ortogonal),
                 P1X = p1.X, P1Y = p1.Y, P2X = p2.X, P2Y = p2.Y,
             };
             ServicoFaixa.Criar(tr, pl, f, posicao + n * (i * passo), cfg);

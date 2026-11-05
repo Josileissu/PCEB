@@ -114,16 +114,27 @@ internal static class ServicoBarra
         var desc = Parte<MText>(tr, db, d.HandleDescricao, TipoParte.Descricao, hBarra);
         if (desc == null)
         {
-            // texto girado com o maior segmento (pedido do usuário, 2026-11-05) — também quando a cópia
-            // da barra recria a descrição (antes ela voltava sempre na horizontal)
+            // Barra nova: texto girado com o maior segmento (pedido do usuário, 2026-11-05).
+            // Cópia da barra (já tem posição guardada): o texto recriado fica como o do ORIGINAL — mesma
+            // posição relativa e mesma rotação. Barra vertical com chamada horizontal continua horizontal
+            // (relato do usuário, 2026-11-05: a cópia virava o texto para a vertical).
             var (posPadrao, rotPadrao) = PosicaoPadraoDescricao(pl, d, geo, h);
             Point2d pos = d.TemPosicaoDescricao
                 ? origem + new Vector2d(d.DescricaoDx, d.DescricaoDy)
                 : posPadrao;
+            double rotacao = rotPadrao;
+            if (d.TemPosicaoDescricao)
+            {
+                // a cópia ainda aponta para a descrição do original: a rotação atual dela é a melhor fonte
+                var idOrig = XDataCad.IdDoHandle(db, d.HandleDescricao);
+                rotacao = !idOrig.IsNull && !idOrig.IsErased && tr.GetObject(idOrig, OpenMode.ForRead) is MText orig
+                    ? orig.Rotation
+                    : d.DescricaoRotacao;
+            }
             desc = new MText
             {
                 Location = new Point3d(pos.X, pos.Y, pl.Elevation),
-                Rotation = rotPadrao,
+                Rotation = rotacao,
                 TextHeight = h,
                 Attachment = AttachmentPoint.MiddleCenter,
                 Contents = texto,
@@ -141,6 +152,7 @@ internal static class ServicoBarra
         AjustarTextoDaTela(pl, d, desc, h);
         d.DescricaoDx = desc.Location.X - origem.X;
         d.DescricaoDy = desc.Location.Y - origem.Y;
+        d.DescricaoRotacao = desc.Rotation;
         d.TemPosicaoDescricao = true;
 
         // ---- cotas dos segmentos ----

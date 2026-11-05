@@ -119,6 +119,7 @@ public static class CodecDados
         foreach (var q in d.QuebrasDescricao) I("QBR", q);
         R("DDX", d.DescricaoDx);
         R("DDY", d.DescricaoDy);
+        if (d.DescricaoRotacao != 0) R("DROT", d.DescricaoRotacao); // ausente = horizontal (desenhos antigos)
         foreach (var fx in d.Faixas) H("FX", fx);
         foreach (var rb in d.Rebatidas) H("RB", rb);
         I("SEG", d.Segmentos.Count);
@@ -174,6 +175,7 @@ public static class CodecDados
                 case "QBR": if (!d.QuebrasDescricao.Contains(Int(v))) d.QuebrasDescricao.Add(Int(v)); break;
                 case "DDX": d.DescricaoDx = Real(v); break;
                 case "DDY": d.DescricaoDy = Real(v); break;
+                case "DROT": d.DescricaoRotacao = Real(v); break;
                 case "FX": if (v is string fx && fx.Length > 0) d.Faixas.Add(fx); break;
                 case "RB": if (v is string rb && rb.Length > 0) d.Rebatidas.Add(rb); break;
                 case "SF": seg = new Segmento { Formato = (FormatoSegmento)Int(v) }; d.Segmentos.Add(seg); break;
