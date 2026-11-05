@@ -30,3 +30,13 @@
 
 ## A confirmar
 - Texto atual da licença; wheel do `openseespy` para Python 3.14 (provavelmente precisa de venv com versão anterior).
+
+## Raio-X do código-fonte (05/11/2026) ✓
+Lido direto do pacote em `programas/*/download` com `docs/notas/ferramentas/raiox_fonte.py` (sem compilar nem rodar).
+- 6.347 arquivos: C++ ~1,68 milhão de linhas, Fortran ~130 mil (bibliotecas numéricas em `OTHER/`: UMFPACK, ARPACK,
+  SuperLU, MUMPS, LAPACK, TetGen, AMGCL), Tcl 264 scripts. CMake e Makefiles por máquina (`MAKES/`).
+- **46 famílias de elementos** em `SRC/element` (`forceBeamColumn`, `dispBeamColumn`, `elasticBeamColumn`,
+  `mvlem` para paredes, `shell`, `joint`, `zeroLength`, `elastomericBearing`, `frictionBearing`, `truss`…).
+- Interpretadores **Tcl** e **Python** (`SRC/interpreter`); saída HDF5 opcional; visualização OpenGL antiga.
+- Licença própria da UC Berkeley ✓ (`COPYRIGHT`): livre para ensino e pesquisa; **uso comercial requer contato**.
+- O pacote `OpenSeesDocumentation-master.zip` não foi lido nesta rodada.

@@ -30,3 +30,13 @@
 
 ## A confirmar
 - Versão atual; se a exportação de STEP do Revit chega limpa.
+
+## Raio-X do código-fonte (05/11/2026) ✓
+Lido direto do pacote em `programas/*/download` com `docs/notas/ferramentas/raiox_fonte.py` (sem compilar nem rodar).
+- 2.940 arquivos: **C# ~420 mil linhas** (1.921 arquivos), Python ~50 mil (`APIs/Python`), C/C++ e Fortran de terceiros.
+- Interface **WinForms** ✓ (`*.csproj`), 3D com **VTK** (`vtkControl`), geometria por **Open CASCADE**; malha com
+  **Gmsh 4.13 SDK**, **Netgen**, mmg, QuadMesher e quadwild (`ThirdParty/`).
+- `CaeModel/FileInOut`: escreve o `.inp` do CalculiX (formato Abaqus) — passos, cargas, contatos, flambagem,
+  dinâmica, térmico.
+- **API Python** (`APIs/Python`, `Python_API_Overview.md`) — automação sem a interface. GPL-3 ✓.
+- É o open source mais parecido com a nossa pilha (.NET/Windows); bom exemplo de WinForms + VTK em C#.
