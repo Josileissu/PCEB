@@ -173,6 +173,8 @@ namespace DEB.Revit.Presentation
         public string RotuloEstribos { get; set; } = "{Qtd} N{N} c/{Espacamento}";
         /// <summary>Desenha o dobramento (forma) das barras de estribo/tirante junto às seções.</summary>
         public bool DesenhoDeDobramento { get; set; } = true;
+        /// <summary>Chamadas "N1" com linha de chamada até cada barra que atravessa as seções com armadura.</summary>
+        public bool ChamadasNasSecoes { get; set; } = true;
         /// <summary>Densidade do aço para o peso (kg/m³).</summary>
         public double DensidadeAco { get; set; } = 7850;
     }

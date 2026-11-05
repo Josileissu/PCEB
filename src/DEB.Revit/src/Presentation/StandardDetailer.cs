@@ -84,6 +84,9 @@ namespace DEB.Revit.Presentation
                         if (v.Spec.Esquematica) schematic[v.View.Id] = SchematicElevation(v.View, p, rebars, styles);
                         else LabelRebar(v.View, p, rebars, styles);
                     }
+                    if (Std.Armadura.ChamadasNasSecoes)
+                        foreach (PlacedView v in views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura))
+                            SectionCallouts(v.View, p, rebars, styles, log);
                 }, critical: false);
 
                 if (Std.Armadura.DesenhoDeDobramento)
@@ -639,6 +642,125 @@ namespace DEB.Revit.Presentation
                 }
             }
             return pts;
+        }
+
+        // ------------------------------------------------------------------
+        // Chamadas N nas seções com armadura (como o template do CAD)
+
+        /// <summary>
+        /// Barras que atravessam a seção (retas na direção da vista, dentro da profundidade): as de canto ganham chamada
+        /// própria na diagonal; as demais são agrupadas por lado e por N — um texto "N1" fora do concreto com uma linha de
+        /// chamada para cada barra.
+        /// </summary>
+        private void SectionCallouts(View view, PieceInfo p, List<Rebar> rebars, AnnotationStyles styles, PieceLog log)
+        {
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            double s = view.Scale, d = view.Origin.DotProduct(vd);
+            double far = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR)?.AsDouble() ?? U.Mm(1000);
+            XYZ At(double r, double u) => right * r + up * u + vd * d;
+            double minR = p.Vertices.Min(v => v.DotProduct(right)), maxR = p.Vertices.Max(v => v.DotProduct(right));
+            double minU = p.Vertices.Min(v => v.DotProduct(up)), maxU = p.Vertices.Max(v => v.DotProduct(up));
+            double cr = (minR + maxR) / 2, cu = (minU + maxU) / 2, hw = (maxR - minR) / 2, hh = (maxU - minU) / 2;
+            if (hw <= 0 || hh <= 0) return;
+
+            // pontos das barras na seção
+            var bars = new List<(string N, double R, double U)>();
+            foreach (Rebar r in rebars)
+            {
+                string n = r.get_Parameter(BuiltInParameter.REBAR_NUMBER)?.AsString() ?? "";
+                if (n == "") continue;
+                for (int i = 0; i < r.NumberOfBarPositions; i++)
+                {
+                    IList<Curve> cs;
+                    try { cs = r.GetCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i); }
+                    catch { continue; }
+                    foreach (Line ln in cs.OfType<Line>())
+                    {
+                        if (Math.Abs(ln.Direction.DotProduct(vd)) < 0.95) continue;   // só barras que atravessam a seção
+                        XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
+                        double da = a.DotProduct(vd), db = b.DotProduct(vd);
+                        if (Math.Max(da, db) < d - far || Math.Min(da, db) > d + U.Mm(5)) continue;
+                        XYZ q = Math.Abs(db - da) < 1e-9 ? a : a + (b - a) * Math.Max(0, Math.Min(1, (d - da) / (db - da)));
+                        bars.Add((n, q.DotProduct(right), q.DotProduct(up)));
+                        break;
+                    }
+                }
+            }
+            if (bars.Count == 0) { log.Info($"{view.Name}: nenhuma barra atravessa a seção (sem chamadas)."); return; }
+
+            double off = U.Mm(5) * s, textH = U.Mm(Std.Textos.AlturaTextoMm * 1.6) * s;
+            // barras fora do pilar (consolo): o texto vai além delas
+            double cover = U.Mm(50);   // da barra à face do consolo
+            minR = Math.Min(minR, bars.Min(b => b.R) - cover); maxR = Math.Max(maxR, bars.Max(b => b.R) + cover);
+            minU = Math.Min(minU, bars.Min(b => b.U) - cover); maxU = Math.Max(maxU, bars.Max(b => b.U) + cover);
+            // consolos cortados (ou vistos) pela seção: o texto vai além do concreto deles
+            foreach (FamilyInstance k in p.Attached)
+            {
+                BoundingBoxXYZ bb = k.get_BoundingBox(null);
+                if (bb == null) continue;
+                var corners = new List<XYZ>();
+                foreach (double x in new[] { bb.Min.X, bb.Max.X })
+                    foreach (double y in new[] { bb.Min.Y, bb.Max.Y })
+                        foreach (double z in new[] { bb.Min.Z, bb.Max.Z })
+                            corners.Add(bb.Transform.OfPoint(new XYZ(x, y, z)));
+                double lo = corners.Min(c => c.DotProduct(vd)), hi = corners.Max(c => c.DotProduct(vd));
+                if (hi < d - far || lo > d + U.Mm(5)) continue;
+                minR = Math.Min(minR, corners.Min(c => c.DotProduct(right))); maxR = Math.Max(maxR, corners.Max(c => c.DotProduct(right)));
+                minU = Math.Min(minU, corners.Min(c => c.DotProduct(up))); maxU = Math.Max(maxU, corners.Max(c => c.DotProduct(up)));
+            }
+            var leftOpt = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Right };
+            var rightOpt = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Left };
+            var centerOpt = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
+
+            void Callout(XYZ textAt, TextNoteOptions opt, string text, IEnumerable<(double R, double U)> targets)
+            {
+                Try(() =>
+                {
+                    TextNote tn = TextNote.Create(_doc, view.Id, textAt, text, opt);
+                    foreach (var (r, u) in targets)
+                    {
+                        Leader l = tn.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
+                        l.End = At(r, u);
+                    }
+                });
+            }
+
+            // cantos: chamada própria na diagonal, para fora
+            bool Corner((string N, double R, double U) b) => Math.Abs(b.R - cr) > hw * 0.6 && Math.Abs(b.U - cu) > hh * 0.6;
+            foreach (var b in bars.Where(Corner))
+            {
+                double sr = Math.Sign(b.R - cr), su = Math.Sign(b.U - cu);
+                XYZ at = At((sr > 0 ? maxR : minR) + sr * off, (su > 0 ? maxU : minU) + su * off + (su > 0 ? textH : 0));
+                Callout(at, sr > 0 ? rightOpt : leftOpt, "N" + b.N, new[] { (b.R, b.U) });
+            }
+
+            // lados: agrupadas por (lado, N)
+            string Side((string N, double R, double U) b) =>
+                Math.Abs(b.R - cr) / hw >= Math.Abs(b.U - cu) / hh ? (b.R > cr ? "D" : "E") : (b.U > cu ? "C" : "B");
+            // textos de um mesmo lado não se sobrepõem: o seguinte anda uma linha (E/D para baixo; C/B para o lado)
+            var used = new Dictionary<string, List<double>>();
+            double Free(string side, double v, double step)
+            {
+                if (!used.TryGetValue(side, out List<double> l)) used[side] = l = new List<double>();
+                while (l.Any(x => Math.Abs(x - v) < Math.Abs(step) * 0.95)) v += step;
+                l.Add(v);
+                return v;
+            }
+            double charW = U.Mm(Std.Textos.AlturaTextoMm * 0.9) * s;
+            foreach (var g in bars.Where(b => !Corner(b)).GroupBy(b => (Side(b), b.N)).OrderBy(g => NumberKey(g.Key.N)))
+            {
+                var pts = g.Select(b => (b.R, b.U)).ToList();
+                double mr = pts.Average(t => t.R), mu = pts.Average(t => t.U);
+                string text = "N" + g.Key.N, side = g.Key.Item1;
+                double tw = (text.Length + 1) * charW;
+                switch (side)
+                {
+                    case "E": Callout(At(minR - off * 1.6, Free(side, mu + textH / 2, -textH * 1.2)), leftOpt, text, pts); break;
+                    case "D": Callout(At(maxR + off * 1.6, Free(side, mu + textH / 2, -textH * 1.2)), rightOpt, text, pts); break;
+                    case "C": Callout(At(Free(side, mr, tw), maxU + off * 1.6 + textH), centerOpt, text, pts); break;
+                    default: Callout(At(Free(side, mr, tw), minU - off * 1.6), centerOpt, text, pts); break;
+                }
+            }
         }
 
         private static int NumberKey(string n) => int.TryParse(n, out int v) ? v : 9999;
