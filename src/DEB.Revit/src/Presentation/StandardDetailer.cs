@@ -23,6 +23,8 @@ namespace DEB.Revit.Presentation
         public View View { get; set; }
         public ViewSpec Spec { get; set; }
         public string Title { get; set; }
+        /// <summary>Consolo detalhado nesta vista (vistas de consolo); null nas demais.</summary>
+        public FamilyInstance Corbel { get; set; }
     }
 
     /// <summary>
@@ -58,6 +60,11 @@ namespace DEB.Revit.Presentation
                 var ds = new DimensionService(_doc, _cfg, log) { DimensionType = styles.Dimension };
                 foreach (PlacedView v in views.Where(v => v.Spec.Cotas && !(v.View is View3D)))
                 {
+                    if (v.Corbel != null)
+                    {
+                        dims += ds.AddAttachedDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p, v.Corbel);
+                        continue;
+                    }
                     dims += ds.AddOverallDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p);
                     foreach (FamilyInstance k in p.Attached)
                         dims += ds.AddAttachedDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p, k);
@@ -143,6 +150,19 @@ namespace DEB.Revit.Presentation
                             }
                             break;
                         }
+                        case ViewKind.ConsoloCorte:
+                        case ViewKind.ConsoloPlanta:
+                        {
+                            foreach (CorbelGeo cg in DistinctCorbels(p))
+                            {
+                                ViewSection v = CreateCorbelView(cg, spec.Tipo == ViewKind.ConsoloPlanta);
+                                if (v == null) { log.Warn($"{spec.Titulo.Split('\n')[0]}: vista do consolo não criada."); break; }
+                                PlacedView pv = Setup(v, spec, Title(spec, "", "").Replace("{Consolo}", cg.Label), mark, names);
+                                pv.Corbel = cg.K;
+                                result.Add(pv);
+                            }
+                            break;
+                        }
                         case ViewKind.Vista3D:
                         {
                             View3D v3 = AssemblyViewUtils.Create3DOrthographic(_doc, asm.Id);
@@ -163,7 +183,7 @@ namespace DEB.Revit.Presentation
             foreach (FamilyInstance k in p.Attached) pts.AddRange(GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null)));
             foreach (PlacedView pv in result)
             {
-                if (pv.View is ViewSection vs)
+                if (pv.View is ViewSection vs && pv.Corbel == null)
                 {
                     try { ViewFactory.FitCrop(vs, pts, U.Mm(_cfg.CropMarginMm)); }
                     catch (Exception ex) { log.Warn($"{pv.Title.Split('\n')[0]}: recorte não ajustado ({ex.Message})."); }
@@ -288,6 +308,80 @@ namespace DEB.Revit.Presentation
                     .Select(m => m.Id).ToList();
                 if (hide.Count > 0) Try(() => pv.View.HideElements(hide));
             }
+        }
+
+        // ------------------------------------------------------------------
+        // Consolos: um detalhe (corte e planta) por tipo de consolo da peça, como "ARMADURAS console" da PP127
+
+        private sealed class CorbelGeo
+        {
+            public FamilyInstance K;
+            public XYZ U, T, Z;                      // para fora da face, ao longo da face, eixo da peça
+            public double U0, U1, T0, T1, Z0, Z1;    // face do pilar / ponta, lados, base / topo
+            public double ColU0;                     // face oposta do pilar na direção U
+            public string Label;                     // largura × altura × balanço (cm)
+        }
+
+        private static List<CorbelGeo> DistinctCorbels(PieceInfo p)
+        {
+            var result = new List<CorbelGeo>();
+            var keys = new HashSet<string>();
+            XYZ c = p.Vertices.Aggregate(XYZ.Zero, (a, b) => a + b) / p.Vertices.Count;
+            string Cm(double ft) => Math.Round(UnitUtils.ConvertFromInternalUnits(ft, UnitTypeId.Centimeters), 1)
+                .ToString("0.#", CultureInfo.InvariantCulture);
+            foreach (FamilyInstance k in p.Attached)
+            {
+                List<XYZ> kv = GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null));
+                if (kv.Count == 0) continue;
+                XYZ kc = kv.Aggregate(XYZ.Zero, (a, b) => a + b) / kv.Count;
+                XYZ d = kc - c;
+                XYZ u = new[] { p.AxisX, p.AxisX.Negate(), p.AxisY, p.AxisY.Negate() }.OrderByDescending(a => a.DotProduct(d)).First();
+                XYZ z = p.AxisZ, t = z.CrossProduct(u);
+                var g = new CorbelGeo
+                {
+                    K = k, U = u, T = t, Z = z,
+                    U0 = p.Vertices.Max(v => v.DotProduct(u)), U1 = kv.Max(v => v.DotProduct(u)),
+                    T0 = kv.Min(v => v.DotProduct(t)), T1 = kv.Max(v => v.DotProduct(t)),
+                    Z0 = kv.Min(v => v.DotProduct(z)), Z1 = kv.Max(v => v.DotProduct(z)),
+                    ColU0 = p.Vertices.Min(v => v.DotProduct(u))
+                };
+                g.Label = $"{Cm(g.T1 - g.T0)}x{Cm(g.Z1 - g.Z0)}x{Cm(g.U1 - g.U0)}";
+                if (keys.Add(g.Label)) result.Add(g);
+            }
+            return result;
+        }
+
+        /// <summary>Corte vertical pelo meio do consolo (olhando ao longo da face) ou planta logo abaixo do topo.</summary>
+        private ViewSection CreateCorbelView(CorbelGeo g, bool plan)
+        {
+            ViewFamilyType vft = new FilteredElementCollector(_doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
+                .FirstOrDefault(t => t.ViewFamily == ViewFamily.Section);
+            if (vft == null) return null;
+            double m = U.Mm(100);
+            double tMid = (g.T0 + g.T1) / 2, w = g.T1 - g.T0, h = g.Z1 - g.Z0, c = g.U1 - g.U0;
+            double back = Math.Min(g.U0 - g.ColU0, U.Mm(150));   // só um trecho do pilar atrás do consolo (como a PP127)
+            var box = new BoundingBoxXYZ();
+            Transform tr = Transform.Identity;
+            if (!plan)
+            {
+                tr.Origin = g.U * g.U0 + g.T * tMid + g.Z * ((g.Z0 + g.Z1) / 2);
+                tr.BasisX = g.U; tr.BasisY = g.Z; tr.BasisZ = g.U.CrossProduct(g.Z);
+                box.Min = new XYZ(-back - m, -h / 2 - m, -(w / 2 + m));
+                box.Max = new XYZ(c + m, h / 2 + m, 0);
+            }
+            else
+            {
+                tr.Origin = g.U * g.U0 + g.T * tMid + g.Z * (g.Z1 - U.Mm(30));
+                tr.BasisX = g.U; tr.BasisY = g.Z.CrossProduct(g.U); tr.BasisZ = g.Z;
+                box.Min = new XYZ(-back - m, -(w / 2 + m), -(h + m));
+                box.Max = new XYZ(c + m, w / 2 + m, 0);
+            }
+            box.Transform = tr;
+            ViewSection v = ViewSection.CreateSection(_doc, vft.Id, box);
+            v.CropBoxActive = true;
+            v.CropBoxVisible = false;
+            v.get_Parameter(BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE)?.Set(0);
+            return v;
         }
 
         // ------------------------------------------------------------------
