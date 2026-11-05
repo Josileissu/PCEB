@@ -90,6 +90,7 @@ resumo do aço, informações de produção e notas à direita; detalhes padrão
 | Níveis (topo, níveis, base) e comprimento total | **feito**: nomes e cotas na VISTA 1; linha traço-ponto ("Linha de centro") em todas as vistas de face e na armadura |
 | Embutimento = deslocamento negativo da base da família | **feito** |
 | Elevação da armadura esquemática ("explodida") | **feito** (`"Esquematica": true` na vista Armadura): uma linha grossa por posição longitudinal com rótulo vertical; linha de cota dos trechos de estribos (vertical se cabe, senão horizontal); concreto oculto e armadura 3D em branco na vista (as formas precisam da barra visível). Falta: grampos U desenhados na altura, cotas das emendas |
+| Chamadas N nas seções com armadura | **feito** (`ChamadasNasSecoes`): TextNote com uma linha de chamada por barra; cantos na diagonal, lados agrupados por N, textos além do concreto dos consolos. Falta: formas dos estribos embaixo das seções (hoje ao lado da elevação) |
 | Formas das barras cotadas (estribos, grampos) | parcial (RebarBendingDetail ao lado da elevação esquemática, cotas em cm) |
 | Armaduras do consolo (planta, corte AA/BB, tirante, costura) | falta |
 | Alça de içamento (lifting handle) | barra criada; detalhe falta |
