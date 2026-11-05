@@ -19,7 +19,7 @@ Situação: a fazer · em andamento · aguardando usuário · pronto p/ merge ·
 ## PC1 — código
 | # | Tarefa | Situação | Branch | Entrega / observação |
 |---|---|---|---|---|
-| P1-1 | Pilar pré-moldado no Revit igual à PP127 | **pausado — continua no PC2** (no PC1 há outros usuários no Revit) | `pc1/teste-pilares` | ver "Passagem para o PC2" abaixo |
+| P1-1 | Pilar pré-moldado no Revit igual à PP127 | **em andamento no PC2** (ordem do usuário, 05/11) | `pc2/pilar-premoldado` | feitos: CA-50, carimbo Folhas Revit A1, padrão `PCEB-PPM-A1` no repo, templates `PCEB-PPM-*`, regiões da PP127 (`docs/04_arquitetura/padroes_apresentacao.md`). Próximos: títulos dos cortes (testar), dobramentos em cm, níveis, embutimento, consolo. Testes no Revit 2026 do PC2 (o 2025 é o do usuário) |
 | P1-2 | Levar a lógica do pilar para o `DEB.Core` (motor de lineares + perfil JSON) | a fazer | `pc1/motor-lineares` | depois do P1-1 |
 | P1-3 | Colunas TQS e DEB da matriz de detalhamento | a fazer | `pc1/matriz-detalhamento` | junta com o P2-5 |
 
