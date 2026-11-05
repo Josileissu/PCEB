@@ -114,12 +114,16 @@ internal static class ServicoBarra
         var desc = Parte<MText>(tr, db, d.HandleDescricao, TipoParte.Descricao, hBarra);
         if (desc == null)
         {
+            // texto girado com o maior segmento (pedido do usuário, 2026-11-05) — também quando a cópia
+            // da barra recria a descrição (antes ela voltava sempre na horizontal)
+            var (posPadrao, rotPadrao) = PosicaoPadraoDescricao(pl, d, geo, h);
             Point2d pos = d.TemPosicaoDescricao
                 ? origem + new Vector2d(d.DescricaoDx, d.DescricaoDy)
-                : PosicaoPadraoDescricao(pl, d, geo, h);
+                : posPadrao;
             desc = new MText
             {
                 Location = new Point3d(pos.X, pos.Y, pl.Elevation),
+                Rotation = rotPadrao,
                 TextHeight = h,
                 Attachment = AttachmentPoint.MiddleCenter,
                 Contents = texto,
@@ -263,9 +267,10 @@ internal static class ServicoBarra
         var desc = Parte<MText>(tr, pl.Database, d.HandleDescricao, TipoParte.Descricao, XDataCad.Hex(pl.ObjectId));
         if (desc != null)
         {
-            var pos = PosicaoPadraoDescricao(pl, d, GeometriaBarra.Ler(pl, cpu), cfg.AlturaTexto(cpu, d.Escala));
+            var (pos, rot) = PosicaoPadraoDescricao(pl, d, GeometriaBarra.Ler(pl, cpu), cfg.AlturaTexto(cpu, d.Escala));
             desc.UpgradeOpen();
             desc.Location = new Point3d(pos.X, pos.Y, pl.Elevation);
+            desc.Rotation = rot;
         }
         if (!pl.IsWriteEnabled) pl.UpgradeOpen();
         XDataCad.Gravar(pl, d);
@@ -461,9 +466,13 @@ internal static class ServicoBarra
     /// Posição inicial da descrição, sempre do lado de FORA do desenho da barra: estribos e barras
     /// fechadas → abaixo do desenho; demais → ao lado do maior segmento, afastada da cota.
     /// </summary>
-    private static Point2d PosicaoPadraoDescricao(Polyline pl, DadosArmadura d, System.Collections.Generic.List<GeoSegmento> geo, double h)
+    /// <summary>
+    /// Posição e rotação padrão da descrição. Barra aberta: ao lado do maior segmento, girada com ele (sempre
+    /// legível, como as cotas). Fechada/estribo, treliça e tela: horizontal (rotação 0).
+    /// </summary>
+    private static (Point2d pos, double rot) PosicaoPadraoDescricao(Polyline pl, DadosArmadura d, System.Collections.Generic.List<GeoSegmento> geo, double h)
     {
-        if (geo.Count == 0) return pl.NumberOfVertices > 0 ? pl.GetPoint2dAt(0) : Point2d.Origin;
+        if (geo.Count == 0) return (pl.NumberOfVertices > 0 ? pl.GetPoint2dAt(0) : Point2d.Origin, 0);
         if (d.EhTrelica && pl.NumberOfVertices >= 2)
         {
             // acima do banzo superior (a altura vem do catálogo)
@@ -472,23 +481,23 @@ internal static class ServicoBarra
             var a = pl.GetPoint2dAt(0);
             var b = pl.GetPoint2dAt(1);
             var u = (b - a).GetNormal();
-            return a + (b - a) * 0.5 + u.GetPerpendicularVector() * (hTr + 2.5 * h);
+            return (a + (b - a) * 0.5 + u.GetPerpendicularVector() * (hTr + 2.5 * h), 0);
         }
         var ext = pl.GeometricExtents;
         var centro = new Point2d((ext.MinPoint.X + ext.MaxPoint.X) / 2, (ext.MinPoint.Y + ext.MaxPoint.Y) / 2);
         bool fechada = pl.Closed || pl.GetPoint2dAt(0).GetDistanceTo(pl.GetPoint2dAt(pl.NumberOfVertices - 1)) < 1e-6
                        || (d.Estribo && geo.Count >= 4);
-        if (fechada) return new Point2d(centro.X, ext.MinPoint.Y - 2.5 * h);
+        if (fechada) return (new Point2d(centro.X, ext.MinPoint.Y - 2.5 * h), 0);
 
         int maior = Enumerable.Range(0, geo.Count).OrderByDescending(i => geo[i].Comprimento).First();
         var (meio, dir) = GeometriaBarra.Meio(pl, maior);
-        // maior segmento mais vertical que horizontal: o texto (horizontal) ao lado dele invadiria o
-        // desenho → abaixo do desenho
-        if (Math.Abs(dir.Y) > Math.Abs(dir.X)) return new Point2d(centro.X, ext.MinPoint.Y - 2.5 * h);
+        if (dir.Length < 1e-12) return (new Point2d(centro.X, ext.MinPoint.Y - 2.5 * h), 0);
+        // legível (entre -90° e +90°), o mesmo critério das cotas
         if (dir.X < -1e-9 || (Math.Abs(dir.X) <= 1e-9 && dir.Y < 0)) dir = dir.Negate();
+        dir = dir.GetNormal();
         var normal = dir.GetPerpendicularVector();
         // para fora: do lado oposto ao centro do desenho (em barra reta, fica acima, como antes)
         if ((centro - meio).DotProduct(normal) > 1e-6) normal = normal.Negate();
-        return meio + normal * (3.5 * h);
+        return (meio + normal * (3.5 * h), Math.Atan2(dir.Y, dir.X));
     }
 }
