@@ -63,6 +63,90 @@ public sealed class ComandosTemplate
         }
     });
 
+    /// <summary>
+    /// ARMRESERVATORIO (pedido do usuário, 2026-11-05): reconhece um reservatório desenhado por outro programa (Eberick:
+    /// planta das paredes, cortes e plantas das lajes, inclusive em cm de papel) e gera o detalhamento no padrão do
+    /// escritório pelo template "reservatorio", ao lado do desenho original. Direto, sem janela (decisão do usuário);
+    /// o que foi lido e o que ficou no padrão saem na linha de comando.
+    /// </summary>
+    [Rt.CommandMethod("ARMRESERVATORIO", Rt.CommandFlags.UsePickSet)]
+    public void ArmReservatorio() => Comandos.Executar("ARMRESERVATORIO", (doc, ed, db, cfg) =>
+    {
+        var t = CatalogoTemplates.Obter("reservatorio");
+        if (t == null) { ed.WriteMessage("\nTemplate de reservatório não registrado."); return; }
+        ObjectId[] ids;
+        var impl = ed.SelectImplied();
+        if (impl.Status == PromptStatus.OK && impl.Value != null && impl.Value.Count > 0) { ids = impl.Value.GetObjectIds(); ed.SetImpliedSelection(new ObjectId[0]); }
+        else
+        {
+            var r = ed.GetSelection(new PromptSelectionOptions { MessageForAdding = "\nSelecione o desenho do reservatório (planta, cortes e lajes, com os títulos):" },
+                new SelectionFilter(new[] { new TypedValue((int)DxfCode.Start, "LINE,LWPOLYLINE,TEXT,MTEXT") }));
+            if (r.Status != PromptStatus.OK) return;
+            ids = r.Value.GetObjectIds();
+        }
+
+        var linhas = new List<Core.Templates.Reservatorio.LinhaDesenho>();
+        var textos = new List<Core.Templates.Reservatorio.TextoDesenho>();
+        using (var tr = new TransacaoSegura(db))
+        {
+            foreach (var id in ids)
+            {
+                if (id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Entity e)) continue;
+                if (XDataCad.Tipo(e) != Core.Persistencia.TipoParte.Nenhum) continue; // já é do plugin
+                switch (e)
+                {
+                    case Line ln:
+                        linhas.Add(new Core.Templates.Reservatorio.LinhaDesenho(ln.StartPoint.X, ln.StartPoint.Y, ln.EndPoint.X, ln.EndPoint.Y, ln.Layer));
+                        break;
+                    case Polyline pl:
+                        for (int i = 0; i < pl.NumberOfVertices - (pl.Closed ? 0 : 1); i++)
+                        {
+                            if (pl.GetSegmentType(i) != SegmentType.Line) continue;
+                            var s = pl.GetLineSegment2dAt(i);
+                            linhas.Add(new Core.Templates.Reservatorio.LinhaDesenho(s.StartPoint.X, s.StartPoint.Y, s.EndPoint.X, s.EndPoint.Y, pl.Layer));
+                        }
+                        break;
+                    case DBText dt:
+                        textos.Add(new Core.Templates.Reservatorio.TextoDesenho
+                        {
+                            Texto = Core.Reconhecimento.TextoArmadura.Limpar(dt.TextString), X = dt.Position.X, Y = dt.Position.Y,
+                            Altura = dt.Height, Rotacao = dt.Rotation, Layer = dt.Layer,
+                        });
+                        break;
+                    case MText mt:
+                        textos.Add(new Core.Templates.Reservatorio.TextoDesenho
+                        {
+                            Texto = Core.Reconhecimento.TextoArmadura.Limpar(mt.Contents), X = mt.Location.X, Y = mt.Location.Y,
+                            Altura = mt.TextHeight, Rotacao = mt.Rotation, Layer = mt.Layer,
+                        });
+                        break;
+                }
+            }
+            tr.Commit();
+        }
+
+        var rec = Core.Templates.Reservatorio.ReconhecedorReservatorio.Reconhecer(linhas, textos);
+        ed.WriteMessage("\nReconhecimento do reservatório:");
+        foreach (var s in rec.Relatorio) ed.WriteMessage("\n  " + s);
+        foreach (var a in rec.Avisos) ed.WriteMessage("\n  Aviso: " + a);
+        Log.Info("ARMRESERVATORIO: " + string.Join(" | ", rec.Relatorio.Concat(rec.Avisos.Select(a => "Aviso: " + a))));
+        if (!rec.Ok) { ed.WriteMessage("\nNada foi gerado."); return; }
+
+        var resultado = t.Gerar(rec.Valores, cfg);
+        // ao lado do original (à direita, alinhado pelo topo)
+        double largura = rec.XMax - linhas.Min(l => Math.Min(l.X1, l.X2));
+        var origem = new Point3d(rec.XMax + Math.Max(500, 0.2 * largura), rec.YMax, 0);
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var desenhadas = Desenhar(tr, db, cfg, resultado, origem);
+            tr.Commit();
+            ed.WriteMessage($"\n{t.Nome}: {desenhadas.Count} armadura(s) desenhada(s)" +
+                            (resultado.Detalhamento.Length > 0 ? $" no detalhamento \"{resultado.Detalhamento}\"" : "") +
+                            FormattableString.Invariant($", a partir de ({origem.X:0}, {origem.Y:0})."));
+        }
+        foreach (var a in resultado.Avisos) ed.WriteMessage("\nAviso: " + a);
+    });
+
     /// <summary>Importa um arquivo de modelos para o arquivo do template; devolve a mensagem para o usuário (null = cancelado).</summary>
     internal static string Importar(ITemplateArmadura t, string caminho, bool perguntar)
     {

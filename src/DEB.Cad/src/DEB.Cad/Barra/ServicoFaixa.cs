@@ -131,6 +131,9 @@ internal static class ServicoFaixa
                 if (!d2.IsWriteEnabled) d2.UpgradeOpen();
                 d2.DimensionText = texto;
                 AplicarEstiloCota(d2, h);
+                // o desenho guardado da cota (bloco anônimo) não acompanha o texto sozinho: dentro de um detalhamento
+                // (bloco) a faixa ficava "N0" no plot até um REGEN (2026-11-05, template de reservatório)
+                try { d2.RecomputeDimensionBlock(true); } catch (Rt.Exception) { }
             }
         }
         else if (ent is MText mt && (mt.Contents != texto || Math.Abs(mt.TextHeight - h) > 1e-9))
