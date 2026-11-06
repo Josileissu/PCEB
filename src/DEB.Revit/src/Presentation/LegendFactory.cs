@@ -149,6 +149,77 @@ namespace DEB.Revit.Presentation
             finally { app.FailuresProcessing -= Quiet; }
         }
 
+        // ------------------------------------------------------------------ níveis da obra
+
+        /// <summary>
+        /// Legenda "PCEB - Níveis da obra 1:N": para cada nível do projeto, linha traço-ponto com o nome e a cota em cima,
+        /// em y = cota do nível (na escala da legenda), para a folha alinhar com as elevações. Uma por escala; refeita quando
+        /// os níveis mudam (assinatura na descrição da vista). Precisa de transação. Null (com aviso) sem legenda base.
+        /// </summary>
+        public View LevelsLegend(int scale)
+        {
+            List<Level> levels = new FilteredElementCollector(_doc).OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(l => l.Elevation).ToList();
+            if (levels.Count == 0) return null;
+            var pt = System.Globalization.CultureInfo.GetCultureInfo("pt-BR");
+            string Elev(double ft)
+            {
+                double m = Math.Round(UnitUtils.ConvertFromInternalUnits(ft, UnitTypeId.Meters), 2);
+                return m == 0 ? "0,00" : m.ToString("+0.00;-0.00", pt);
+            }
+            string sign = string.Join(";", levels.Select(l => l.Name + "=" + Elev(l.Elevation)));
+            string name = $"PCEB - Níveis da obra 1:{scale}";
+            View view = Find(_doc, name);
+            if (view != null)
+            {
+                if (view.get_Parameter(BuiltInParameter.VIEW_DESCRIPTION)?.AsString() == sign) return view;
+                // níveis mudaram: apaga o desenho (a vista fica, com os viewports das folhas) e redesenha
+                List<ElementId> old = new FilteredElementCollector(_doc, view.Id).WhereElementIsNotElementType()
+                    .Where(e => e is DetailCurve || e is TextNote).Select(e => e.Id).ToList();
+                if (old.Count > 0) _doc.Delete(old);
+                _log.Info($"Legenda \"{name}\": níveis do projeto mudaram, redesenhada.");
+            }
+            else
+            {
+                View source = BaseLegend();
+                if (source == null)
+                {
+                    _log.Warn("Legenda de níveis não criada: o projeto não tem nenhuma legenda para servir de base (crie uma legenda " +
+                              "vazia em Vista → Legendas ou indique \"ArquivoLegendaBase\" no padrão).");
+                    return null;
+                }
+                view = (View)_doc.GetElement(source.Duplicate(ViewDuplicateOption.Duplicate));
+                view.Name = NameRegistry.ForViews(_doc).Unique(name);
+                view.Scale = scale;
+                _log.Info($"Legenda \"{view.Name}\" criada ({levels.Count} níveis).");
+            }
+            view.get_Parameter(BuiltInParameter.VIEW_DESCRIPTION)?.Set(sign);
+
+            double s = scale, len = U.Mm(32) * s;
+            double textH = (_styles.Text.get_Parameter(BuiltInParameter.TEXT_SIZE)?.AsDouble() ?? U.Mm(2.5)) * s;
+            var opt = new TextNoteOptions(_styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Left, VerticalAlignment = VerticalTextAlignment.Bottom };
+            GraphicsStyle dashDot = null;
+            foreach (Level l in levels)
+            {
+                double y = l.Elevation;
+                DetailCurve dc = _doc.Create.NewDetailCurve(view, Line.CreateBound(new XYZ(-len, y, 0), new XYZ(0, y, 0)));
+                dashDot ??= DashDotStyle(dc);
+                if (dashDot != null) dc.LineStyle = dashDot;
+                TextNote.Create(_doc, view.Id, new XYZ(-len, y + textH * 0.6, 0), Elev(l.Elevation), opt);
+                TextNote.Create(_doc, view.Id, new XYZ(-len, y + textH * 2.4, 0), l.Name.ToUpperInvariant(), opt);
+            }
+            return view;
+        }
+
+        /// <summary>Estilo traço-ponto (Centro/Center) das linhas; senão o padrão.</summary>
+        private GraphicsStyle DashDotStyle(DetailCurve dc)
+        {
+            List<GraphicsStyle> all = dc.GetLineStyleIds().Select(id => _doc.GetElement(id)).OfType<GraphicsStyle>().ToList();
+            bool Has(GraphicsStyle g, params string[] k) => k.Any(x => g.Name.IndexOf(x, StringComparison.OrdinalIgnoreCase) >= 0);
+            return all.FirstOrDefault(g => Has(g, "traço-ponto", "traco-ponto", "dash dot", "dash-dot"))
+                   ?? all.FirstOrDefault(g => Has(g, "centro", "center"));
+        }
+
         // ------------------------------------------------------------------ desenho
 
         private static readonly double Cm = U.Mm(10);

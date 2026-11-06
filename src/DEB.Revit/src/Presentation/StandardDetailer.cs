@@ -27,6 +27,8 @@ namespace DEB.Revit.Presentation
         public FamilyInstance Corbel { get; set; }
         /// <summary>Cortes e seções transversais: altura do corte (ao longo do eixo da peça, coordenada do projeto) e "A"/"1".</summary>
         public double CutZ { get; set; } = double.NaN;
+        /// <summary>Elevações da peça (faces e armadura): ponto da base do pilar, usado para nivelar as vistas na folha.</summary>
+        public XYZ Anchor { get; set; }
         public string CutId { get; set; }
     }
 
@@ -135,9 +137,9 @@ namespace DEB.Revit.Presentation
                             List<ElementId> h = real ? new List<ElementId>() : hide.Where(id => _doc.GetElement(id).CanBeHidden(v.View)).ToList();
                             if (h.Count > 0) v.View.HideElements(h);
                             if (!real) foreach (Rebar r in rebars) Try(() => v.View.SetElementOverrides(r.Id, white));
-                            // detalhes de curvatura em escala herdam o branco do vergalhão: voltam ao preto
+                            // detalhes de curvatura em escala herdam o branco do vergalhão: voltam ao vermelho da armadura
                             var black = new OverrideGraphicSettings();
-                            black.SetProjectionLineColor(new Color(0, 0, 0));
+                            black.SetProjectionLineColor(RebarRed);
                             List<Element> details = new FilteredElementCollector(_doc, v.View.Id).OfCategory(BuiltInCategory.OST_RebarBendingDetails)
                                 .WhereElementIsNotElementType().ToList();
                             foreach (Element d in details) Try(() => v.View.SetElementOverrides(d.Id, black));
@@ -220,7 +222,13 @@ namespace DEB.Revit.Presentation
                         {
                             View v = CreateElevation(asm, FaceDirection(p, spec.Face));
                             if (v == null) { log.Warn($"{spec.Titulo}: elevação da face {spec.Face} não criada."); break; }
-                            result.Add(Setup(v, spec, Title(spec, spec.Face.ToString(), ""), mark, names));
+                            PlacedView ev = Setup(v, spec, Title(spec, spec.Face.ToString(), ""), mark, names);
+                            if (p.Kind == PieceKind.Column)
+                            {
+                                XYZ c0 = p.Vertices.Aggregate(XYZ.Zero, (a, b) => a + b) / p.Vertices.Count;
+                                ev.Anchor = new XYZ(c0.X, c0.Y, p.Vertices.Min(q => q.Z));
+                            }
+                            result.Add(ev);
                             break;
                         }
                         case ViewKind.Corte:
@@ -340,7 +348,7 @@ namespace DEB.Revit.Presentation
             Try(() => v.DetailLevel = ViewDetailLevel.Fine);
             if (!(v is View3D)) Try(() => v.DisplayStyle = DisplayStyle.HLR);
             if (!spec.MostrarArmadura) Try(() => v.SetCategoryHidden(new ElementId(BuiltInCategory.OST_Rebar), true));
-            ApplyTemplate(v, spec.Template);
+            ApplyTemplate(v, spec.Template, spec.MostrarArmadura);
             // folga do recorte de anotação (padrão do Revit: 1" de papel por lado = a vista ocupa ~50 mm a mais na prancha)
             if (!(v is View3D) && Std.Folha.FolgaAnotacaoMm > 0)
                 Try(() =>
@@ -368,10 +376,10 @@ namespace DEB.Revit.Presentation
         /// Aplica o template de vista pelo nome. Se não existir, cria a partir desta vista (já configurada pelo
         /// padrão): o usuário pode depois editar o template no Revit, e as próximas pranchas seguem a edição.
         /// </summary>
-        private void ApplyTemplate(View v, string name)
+        private void ApplyTemplate(View v, string name, bool rebar = false)
         {
             name = name?.Trim();
-            if (string.IsNullOrEmpty(name)) return;
+            if (string.IsNullOrEmpty(name)) { if (rebar) Try(() => RebarInRed(v)); return; }
             View t = new FilteredElementCollector(_doc).OfClass(typeof(View)).Cast<View>()
                 .FirstOrDefault(x => x.IsTemplate && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
             if (t == null)
@@ -385,7 +393,28 @@ namespace DEB.Revit.Presentation
                 }
                 catch { return; /* vista sem suporte a template: segue sem */ }
             }
+            if (rebar) Try(() => RebarInRed(t));
             Try(() => v.ViewTemplateId = t.Id);
+        }
+
+        private static readonly Color RebarRed = new Color(255, 0, 0);
+
+        /// <summary>
+        /// Armadura em vermelho (vergalhões e detalhes de curvatura = armadura rebatida), como na PP127: sobreposição da
+        /// categoria no template (ou na vista sem template). Cor já escolhida pelo escritório no template é mantida.
+        /// </summary>
+        private void RebarInRed(View v)
+        {
+            foreach (BuiltInCategory bic in new[] { BuiltInCategory.OST_Rebar, BuiltInCategory.OST_RebarBendingDetails })
+            {
+                Category c = Category.GetCategory(_doc, bic);
+                if (c == null || !v.IsCategoryOverridable(c.Id)) continue;
+                OverrideGraphicSettings o = v.GetCategoryOverrides(c.Id);
+                if (o.ProjectionLineColor.IsValid) continue;   // o escritório já escolheu a cor
+                o.SetProjectionLineColor(RebarRed);
+                o.SetCutLineColor(RebarRed);
+                v.SetCategoryOverrides(c.Id, o);
+            }
         }
 
         private void ShowOrHideRebar(AssemblyInstance asm, List<PlacedView> views)
@@ -606,9 +635,11 @@ namespace DEB.Revit.Presentation
             var opt = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Left };
 
             var marks = new List<(string Name, double Z)> { ("TOPO PILAR\n(TOP COLUMN)", zTop) };
+            // com a legenda de níveis na folha, os nomes dos níveis do projeto ficam nela; na vista, só a linha
+            bool legend = Std.Folha.LegendaNiveis;
             foreach (Level lv in new FilteredElementCollector(_doc).OfClass(typeof(Level)).Cast<Level>())
                 if (lv.Elevation > zBottom + U.Mm(5) && lv.Elevation < zTop - U.Mm(5))
-                    marks.Add((lv.Name.ToUpperInvariant(), lv.Elevation));
+                    marks.Add((legend ? null : lv.Name.ToUpperInvariant(), lv.Elevation));
             marks.Add(("BASE PILAR\n(COLUMN BASE)", zBottom));
 
             foreach (var (name, z) in marks)
@@ -617,12 +648,12 @@ namespace DEB.Revit.Presentation
                 Try(() =>
                 {
                     // atravessa a peça (e os consolos) até um pouco além da face direita
-                    double r0 = labels ? textX : minR - U.Mm(8) * scale;
+                    double r0 = labels && (name != null || !legend) ? textX : minR - U.Mm(8) * scale;
                     DetailCurve dc = _doc.Create.NewDetailCurve(view, Line.CreateBound(At(r0, u), At(maxR + U.Mm(8) * scale, u)));
                     GraphicsStyle gs = LevelLineStyle(dc, log);
                     if (gs != null) dc.LineStyle = gs;
                 });
-                if (!labels) continue;
+                if (!labels || name == null) continue;
                 double zm = Math.Round(UnitUtils.ConvertFromInternalUnits(z, UnitTypeId.Meters), 2);
                 string elev = zm == 0 ? "0,00" : zm.ToString("+0.00;-0.00", CultureInfo.GetCultureInfo("pt-BR"));
                 double lineH = U.Mm(Std.Textos.AlturaTextoMm * 1.9) * scale;
