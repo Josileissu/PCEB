@@ -52,11 +52,12 @@ namespace DEB.Revit.Core
         /// balanço e largura. Cada cota só é feita quando o eixo correspondente está no plano da vista.
         /// </summary>
         /// <param name="detail">Vista de detalhe do consolo: só as medidas dele (sem a cadeia até a base do pilar).</param>
-        public int AddAttachedDimensions(DetailView dv, PieceInfo p, FamilyInstance k, bool detail = false)
+        /// <param name="skipLevels">Sem a cadeia vertical (a vista recebe a cota acumulada de <see cref="AddLevelChain"/>).</param>
+        public int AddAttachedDimensions(DetailView dv, PieceInfo p, FamilyInstance k, bool detail = false, bool skipLevels = false)
         {
             try
             {
-                return AddAttachedDimensionsCore(dv, p, k, detail);
+                return AddAttachedDimensionsCore(dv, p, k, detail, skipLevels);
             }
             catch (Exception ex)
             {
@@ -66,7 +67,7 @@ namespace DEB.Revit.Core
             }
         }
 
-        private int AddAttachedDimensionsCore(DetailView dv, PieceInfo p, FamilyInstance k, bool detail)
+        private int AddAttachedDimensionsCore(DetailView dv, PieceInfo p, FamilyInstance k, bool detail, bool skipLevels)
         {
             View view = dv.View;
             if (view is View3D) return 0;
@@ -96,7 +97,7 @@ namespace DEB.Revit.Core
             // 1º passo: referências e linhas (sólidos não são acessados depois de criar cotas).
             var plans = new List<(Line Line, ReferenceArray Refs)>();
 
-            if (InPlane(p.AxisZ))
+            if (InPlane(p.AxisZ) && !skipLevels)
             {
                 // Base do pilar + níveis do consolo, em cadeia, ao lado da ponta do consolo.
                 var refs = new List<(double T, Reference Ref)>();
@@ -166,6 +167,49 @@ namespace DEB.Revit.Core
             plans.Add((Line.CreateBound(P(refs[0].T), P(refs[^1].T)), ra));
         }
 
+        /// <summary>
+        /// Cota acumulada da elevação (como o pilar padrão do CAD): uma cadeia só, à direita, da base ao topo do pilar
+        /// passando pelas faces horizontais de todos os consolos — no lugar de uma cadeia por consolo.
+        /// </summary>
+        public int AddLevelChain(DetailView dv, PieceInfo p)
+        {
+            try
+            {
+                View view = dv.View;
+                XYZ vd = view.ViewDirection, right = view.RightDirection;
+                if (view is View3D || Math.Abs(p.AxisZ.DotProduct(vd)) > 1e-3 || p.Attached.Count == 0) return 0;
+                List<SolidRef> cs = GeometryHelper.GetSolids(p.Instance, view);
+                if (cs.Count == 0) cs = GeometryHelper.GetSolids(p.Instance, null);
+                var refs = new List<(double T, Reference Ref)>();
+                if (GeometryHelper.TryGetExtremeFaces(cs, p.AxisZ, out Reference rb, out double tb, out Reference rt, out double tt))
+                {
+                    refs.Add((tb, rb));
+                    refs.Add((tt, rt));
+                }
+                var kv = new List<XYZ>();
+                foreach (FamilyInstance k in p.Attached)
+                {
+                    List<SolidRef> ks = GeometryHelper.GetSolids(k, view);
+                    if (ks.Count == 0) ks = GeometryHelper.GetSolids(k, null);
+                    kv.AddRange(GeometryHelper.GetVertices(ks));
+                    foreach (var r in GeometryHelper.RefsAlong(ks, p.AxisZ, vd))
+                        if (!refs.Any(x => Math.Abs(x.T - r.T) < U.Mm(1))) refs.Add(r);
+                }
+                double gap = U.Mm(_cfg.DimensionOffsetMm) * view.Scale;
+                double s = Math.Max(p.MaxAlong(right), kv.Count > 0 ? kv.Max(v => v.DotProduct(right)) : double.MinValue) + gap;
+                var plans = new List<(Line, ReferenceArray)>();
+                Add(plans, refs, p.AxisZ, right, s, vd, view.Origin.DotProduct(vd));
+                foreach (var (line, ra) in plans) NewDimension(view, line, ra);
+                return plans.Count;
+            }
+            catch (Exception ex)
+            {
+                _log.Warn($"{dv.Title}: cota acumulada não criada ({ex.Message}).");
+                _log.Trace($"Cota acumulada {dv.Title}", ex);
+                return 0;
+            }
+        }
+
         private int AddOverallDimensionsCore(DetailView dv, PieceInfo p)
         {
             View view = dv.View;
@@ -177,6 +221,7 @@ namespace DEB.Revit.Core
 
             List<SolidRef> solids = GeometryHelper.GetSolids(p.Instance, view);
             if (solids.Count == 0) solids = GeometryHelper.GetSolids(p.Instance, null);
+            List<XYZ> attached = p.Attached.SelectMany(k => GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null))).ToList();
 
             // 1º passo: lê todas as faces extremas. Criar uma cota regenera a vista e, em cortes,
             // invalida os sólidos da geometria de vista (acessá-los depois gera SEHException).
@@ -199,7 +244,11 @@ namespace DEB.Revit.Core
                 }
 
                 // axis, outDir e vd são ortonormais: o ponto é montado pelas três coordenadas.
-                double s = p.MaxAlong(outDir) + U.Mm(_cfg.DimensionOffsetMm) * view.Scale;
+                double gap = U.Mm(_cfg.DimensionOffsetMm) * view.Scale;
+                double s = p.MaxAlong(outDir) + gap;
+                if (outDir.IsAlmostEqualTo(right) && attached.Count > 0)
+                    // total vertical por fora dos consolos e da cadeia acumulada (AddLevelChain)
+                    s = Math.Max(p.MaxAlong(outDir), attached.Max(v => v.DotProduct(outDir))) + 2 * gap;
                 XYZ P(double t) => axis * t + outDir * s + vd * w;
                 lines.Add((Line.CreateBound(P(tMin), P(tMax)), rMin, rMax));
             }
