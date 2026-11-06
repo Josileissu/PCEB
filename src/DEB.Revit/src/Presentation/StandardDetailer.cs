@@ -30,6 +30,8 @@ namespace DEB.Revit.Presentation
         public string CutId { get; set; }
         /// <summary>Elevações da peça (faces e armadura): ponto da base do pilar, usado para nivelar as vistas na folha.</summary>
         public XYZ Anchor { get; set; }
+        /// <summary>Elevação com os rótulos de nível: começo (à esquerda) das linhas de nível, onde a legenda encosta.</summary>
+        public XYZ LevelLineStart { get; set; }
         /// <summary>Vista da alça de içamento: a alça detalhada.</summary>
         internal LiftLoopGeo Loop { get; set; }
     }
@@ -116,7 +118,16 @@ namespace DEB.Revit.Presentation
                 }, critical: false);
 
                 foreach (PlacedView v in views.Where(v => v.Loop != null))
-                    Tx("Detalhe da alça", log, () => LiftDetail(v.View, v.Loop, styles), critical: false);
+                    Tx("Detalhe da alça", log, () =>
+                    {
+                        // só a alça: as outras barras (estribos, longitudinais) somem desta vista
+                        List<ElementId> other = rebars.Where(r => r.Id != v.Loop.Bar.Id && r.CanBeHidden(v.View)).Select(r => r.Id).ToList();
+                        // e os níveis do projeto que cortam o recorte (a linha "Nível 4" passava por cima da etiqueta)
+                        other.AddRange(new FilteredElementCollector(_doc).OfClass(typeof(Level)).Where(l => l.CanBeHidden(v.View)).Select(l => l.Id));
+                        if (other.Count > 0) v.View.HideElements(other);
+                        List<XYZ> pts = LiftDetail(v.View, v.Loop, styles);
+                        if (v.View is ViewSection vs && pts.Count > 0) ViewFactory.FitCrop(vs, pts, U.Mm(20));
+                    }, critical: false);
 
                 if (Std.Armadura.DesenhoDeDobramento)
                     Tx("Dobramento das barras", log, () =>
@@ -172,8 +183,11 @@ namespace DEB.Revit.Presentation
                 Tx("Níveis", log, () =>
                 {
                     foreach (PlacedView v in views.Where(v => v.Corbel == null && (v.Spec.Tipo == ViewKind.Face || v.Spec.Tipo == ViewKind.Armadura)))
-                        LevelMarks(v.View, p, styles, labels: v == firstFace, log,
+                    {
+                        XYZ ls = LevelMarks(v.View, p, styles, labels: v == firstFace, log,
                             schematic.TryGetValue(v.View.Id, out List<XYZ> sp) ? sp : null);
+                        if (v == firstFace) v.LevelLineStart = ls;
+                    }
                 }, critical: false);
 
             // Marcas de corte como no pilar padrão do CAD (traço + letra/número dos dois lados), no lugar das do Revit
@@ -633,7 +647,7 @@ namespace DEB.Revit.Presentation
         /// cadeia perna embutida + largura + perna; embaixo a etiqueta da posição (quantidade, bitola e comprimento).
         /// As cotas pegam traços curtos de linha de detalhe nos pontos medidos (a cota de vergalhão não tem referência).
         /// </summary>
-        private void LiftDetail(View view, LiftLoopGeo g, AnnotationStyles styles)
+        private List<XYZ> LiftDetail(View view, LiftLoopGeo g, AnnotationStyles styles)
         {
             XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
             double s = view.Scale, w = view.Origin.DotProduct(vd);
@@ -649,8 +663,10 @@ namespace DEB.Revit.Presentation
                 .Select(l => l.GetEndPoint(0).DotProduct(up)).OrderBy(x => x).ToList();
             double zA = pts.Min(q => q.DotProduct(up)), zD = pts.Max(q => q.DotProduct(up));
             double tick = U.Mm(1.5) * s, off = U.Mm(8) * s;
+            var used = new List<XYZ>(pts);
             Reference Tick(double r, double uu, bool horizontal)
             {
+                used.Add(At(r, uu));
                 Line ln = horizontal ? Line.CreateBound(At(r - tick, uu), At(r + tick, uu)) : Line.CreateBound(At(r, uu - tick), At(r, uu + tick));
                 return _doc.Create.NewDetailCurve(view, ln).GeometryCurve.Reference;
             }
@@ -672,12 +688,16 @@ namespace DEB.Revit.Presentation
             // etiqueta da posição embaixo
             FamilySymbol tag = RebarTagType(Std.Armadura.EtiquetaLongitudinal);
             XYZ at = At((rFace + rOut) / 2, zA - off * 1.5);
+            used.Add(at - up * off * 0.5);
+            used.Add(At(rSide - sg * off, zA));   // texto da cota da cadeia
+            used.Add(At(rFace, uTop + off));       // texto da cota de cima
             if (tag == null || TagRebar(tag, view, g.Bar, false, TagOrientation.Horizontal, at) == null)
             {
                 var row = new RebarRow(_doc, g.Bar);
                 Try(() => TextNote.Create(_doc, view.Id, at, Fill(Std.Armadura.RotuloBarra, row),
                     new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center }));
             }
+            return used;
         }
 
         // ------------------------------------------------------------------
@@ -754,7 +774,7 @@ namespace DEB.Revit.Presentation
             return marks;
         }
 
-        private void LevelMarks(View view, PieceInfo p, AnnotationStyles styles, bool labels, PieceLog log, List<XYZ> extra = null)
+        private XYZ LevelMarks(View view, PieceInfo p, AnnotationStyles styles, bool labels, PieceLog log, List<XYZ> extra = null)
         {
             XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
             double scale = view.Scale;
@@ -774,13 +794,16 @@ namespace DEB.Revit.Presentation
             double textX = x0 - tick;
             var opt = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Left };
 
-            var marks = new List<(string Name, double Z)> { ("TOPO PILAR\n(TOP COLUMN)", zTop) };
-            // com a legenda de níveis na folha, os nomes dos níveis do projeto ficam nela; na vista, só a linha
+            // com a legenda de níveis na folha, os nomes dos níveis do projeto ficam nela; na vista, só a linha. Topo/base
+            // do pilar num nível do projeto: o nome sai da legenda (sem rótulo repetido na vista)
             bool legend = Std.Folha.LegendaNiveis;
+            List<double> levelZ = new FilteredElementCollector(_doc).OfClass(typeof(Level)).Cast<Level>().Select(l => l.Elevation).ToList();
+            string OwnLabel(string n, double z) => legend && levelZ.Any(e => Math.Abs(e - z) < U.Mm(5)) ? null : n;
+            var marks = new List<(string Name, double Z)> { (OwnLabel("TOPO PILAR\n(TOP COLUMN)", zTop), zTop) };
             foreach (Level lv in new FilteredElementCollector(_doc).OfClass(typeof(Level)).Cast<Level>())
                 if (lv.Elevation > zBottom + U.Mm(5) && lv.Elevation < zTop - U.Mm(5))
                     marks.Add((legend ? null : lv.Name.ToUpperInvariant(), lv.Elevation));
-            marks.Add(("BASE PILAR\n(COLUMN BASE)", zBottom));
+            marks.Add((OwnLabel("BASE PILAR\n(COLUMN BASE)", zBottom), zBottom));
 
             foreach (var (name, z) in marks)
             {
@@ -803,12 +826,14 @@ namespace DEB.Revit.Presentation
                 Try(() => TextNote.Create(_doc, view.Id, At(textX, u + lineH * 1.0), elev, opt));
             }
 
-            if (!labels) return;
+            XYZ lineStart = At(minR - U.Mm(8) * scale, bottom);
+            if (!labels) return lineStart;
             // comprimento total (texto vertical à esquerda dos níveis, sem encostar nos nomes)
             double lenCm = Math.Round(U_ToCm(zTop - zBottom));
             var vert = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center, Rotation = Math.PI / 2 };
             Try(() => TextNote.Create(_doc, view.Id, At(textX - U.Mm(13) * scale, (bottom + top) / 2),
                 $"COMPRIMENTO TOTAL DO PILAR {lenCm:0}\n(TOTAL COLUMN LENGTH {lenCm:0})", vert));
+            return lineStart;
         }
 
         private static double U_ToCm(double feet) => UnitUtils.ConvertFromInternalUnits(feet, UnitTypeId.Centimeters);

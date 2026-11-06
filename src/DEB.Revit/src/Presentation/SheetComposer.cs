@@ -105,26 +105,9 @@ namespace DEB.Revit.Presentation
                 PutView(pv, new Item { Element = vp, Viewport = vp, LabelH = label, LabelW = labelW });
             }
 
-            // Legenda dos níveis da obra: item antes da 1ª elevação na região dela (fica à esquerda); a altura é acertada depois
+            // Legenda dos níveis da obra: fora do arranjo (não toma largura das vistas); vai para a folha depois do arranjo,
+            // na escala final das elevações, colada às linhas de nível da 1ª elevação
             PlacedView firstElev = views.FirstOrDefault(v => v.Anchor != null && byView.ContainsKey(v.View.Id));
-            Item levelsItem = null;
-            if (Std.Folha.LegendaNiveis && firstElev != null)
-            {
-                try
-                {
-                    View lv = new LegendFactory(_doc, _styles, _log, Std.Folha.ArquivoLegendaBase).LevelsLegend(firstElev.View.Scale);
-                    if (lv != null)
-                    {
-                        Viewport vp = Viewport.Create(_doc, sheet.Id, lv.Id, center);
-                        noLabel ??= ViewportTypeWithoutLabel(vp);
-                        if (noLabel != ElementId.InvalidElementId) vp.ChangeTypeId(noLabel);
-                        levelsItem = new Item { Element = vp, Viewport = vp };
-                        List<Item> reg = byRegion[firstElev.Spec.Regiao ?? ""];
-                        reg.Insert(reg.IndexOf(byView[firstElev.View.Id]), levelsItem);
-                    }
-                }
-                catch (Exception ex) { _log.Warn($"Legenda de níveis não criada: {ex.Message}"); _log.Trace("Legenda de níveis", ex); }
-            }
 
             // Tabelas de aço
             foreach (TableSpec ts in Std.Tabelas.Where(t => t.Ativa))
@@ -208,16 +191,19 @@ namespace DEB.Revit.Presentation
                 }
                 Apply(sheet, kv.Value);
             }
-            AlignElevations(views, byView, levelsItem, firstElev);
+            AlignElevations(views, byView);
+            if (Std.Folha.LegendaNiveis && firstElev?.LevelLineStart != null)
+                try { PlaceLevelsLegend(sheet, firstElev, byView[firstElev.View.Id].Viewport, center, ref noLabel); }
+                catch (Exception ex) { _log.Warn($"Legenda de níveis não criada: {ex.Message}"); _log.Trace("Legenda de níveis", ex); }
             return sheet;
         }
 
         /// <summary>
         /// Elevações (faces e armadura) com a base do pilar na mesma altura da folha: o arranjo alinha o topo das caixas,
         /// e a caixa de cada vista tem anotações diferentes (a 1ª vista, com os nomes dos níveis, descia o pilar). As vistas
-        /// só descem (os títulos ficam onde estão). A legenda de níveis vai para a altura dos níveis da 1ª elevação.
+        /// só descem (os títulos ficam onde estão).
         /// </summary>
-        private void AlignElevations(List<PlacedView> views, Dictionary<ElementId, Item> byView, Item levels, PlacedView first)
+        private void AlignElevations(List<PlacedView> views, Dictionary<ElementId, Item> byView)
         {
             _doc.Regenerate();
             var rows = new List<(Item It, double Y, int Scale)>();
@@ -242,29 +228,45 @@ namespace DEB.Revit.Presentation
                 _log.Warn("Elevações em escalas diferentes na folha: niveladas só as de mesma escala.");
             else if (moved > 0) _log.Info($"Elevações niveladas pela base do pilar (maior ajuste {U.ToMm(moved):0} mm na folha).");
 
-            if (levels == null || first == null) return;
-            _doc.Regenerate();
-            View lv = _doc.GetElement(levels.Viewport.ViewId) as View;
-            Level any = new FilteredElementCollector(_doc).OfClass(typeof(Level)).Cast<Level>().FirstOrDefault();
-            if (lv == null || any == null) return;
-            double? want = SheetY(byView[first.View.Id].Viewport, first.View, new XYZ(first.Anchor.X, first.Anchor.Y, any.Elevation));
-            double? have = SheetY(levels.Viewport, lv, new XYZ(0, any.Elevation, 0));
-            if (want == null || have == null) { _log.Warn("Legenda de níveis: altura na folha não calculada."); return; }
-            levels.Viewport.SetBoxCenter(levels.Viewport.GetBoxCenter() + new XYZ(0, want.Value - have.Value, 0));
         }
 
-        /// <summary>Altura na folha de um ponto do modelo (ou da legenda) visto no viewport.</summary>
-        private static double? SheetY(Viewport vp, View v, XYZ p)
+        /// <summary>
+        /// Legenda dos níveis da obra na escala final da 1ª elevação: o fim das linhas da legenda encosta no começo das
+        /// linhas de nível da vista (à esquerda do pilar), e a linha do nível mais baixo fica na altura dele.
+        /// </summary>
+        private void PlaceLevelsLegend(ViewSheet sheet, PlacedView first, Viewport fvp, XYZ center, ref ElementId noLabel)
+        {
+            _doc.Regenerate();
+            View lv = new LegendFactory(_doc, _styles, _log, Std.Folha.ArquivoLegendaBase).LevelsLegend(first.View.Scale);
+            Level low = new FilteredElementCollector(_doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).FirstOrDefault();
+            if (lv == null || low == null) return;
+            XYZ start = first.LevelLineStart;
+            XYZ want = SheetPoint(fvp, first.View, new XYZ(start.X, start.Y, low.Elevation));
+            if (want == null) { _log.Warn("Legenda de níveis: posição na folha não calculada."); return; }
+            Viewport vp = Viewport.Create(_doc, sheet.Id, lv.Id, center);
+            noLabel ??= ViewportTypeWithoutLabel(vp);
+            if (noLabel != ElementId.InvalidElementId) vp.ChangeTypeId(noLabel);
+            _doc.Regenerate();
+            // legenda não tem transformação de projeção: pela caixa do viewport — a linha do nível mais baixo é o pé da
+            // caixa (os textos ficam acima das linhas) e o fim das linhas é o lado direito (os textos começam no início)
+            Outline o = vp.GetBoxOutline();
+            vp.SetBoxCenter(vp.GetBoxCenter() + new XYZ(want.X - o.MaximumPoint.X, want.Y - o.MinimumPoint.Y, 0));
+        }
+
+        /// <summary>Ponto na folha de um ponto do modelo visto no viewport.</summary>
+        private static XYZ SheetPoint(Viewport vp, View v, XYZ p)
         {
             try
             {
                 IList<TransformWithBoundary> tw = v.GetModelToProjectionTransforms();
                 if (tw == null || tw.Count == 0) return null;
                 XYZ q = tw[0].GetModelToProjectionTransform().OfPoint(p);
-                return vp.GetProjectionToSheetTransform().OfPoint(q).Y;
+                return vp.GetProjectionToSheetTransform().OfPoint(q);
             }
             catch { return null; }
         }
+
+        private static double? SheetY(Viewport vp, View v, XYZ p) => SheetPoint(vp, v, p)?.Y;
 
         // ------------------------------------------------------------------
 

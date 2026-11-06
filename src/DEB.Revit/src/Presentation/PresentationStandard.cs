@@ -145,7 +145,7 @@ namespace DEB.Revit.Presentation
         /// </summary>
         public bool MarcasDeCorteSimples { get; set; } = true;
         /// <summary>
-        /// Legenda "PCEB - Níveis da obra 1:N" (todos os níveis do projeto: linha traço-ponto, nome e cota) na folha, à
+        /// Legenda "PCEB - Níveis da obra - escala 1-N" (todos os níveis do projeto: linha traço-ponto, nome e cota) na folha, à
         /// esquerda das elevações e na altura de cada nível. Uma legenda por escala, reaproveitada em todas as pranchas;
         /// refeita quando os níveis do projeto mudam. As elevações ficam niveladas entre si (base do pilar na mesma altura).
         /// </summary>
