@@ -15,6 +15,7 @@ Situação: a fazer · em andamento · aguardando usuário · pronto p/ merge ·
 | P2-5 | **Matriz de detalhamento**: como Tekla, CYPE, Eberick e IDEA tratam os 15 elementos da D19 | a fazer | `pc2/matriz-detalhamento` | `01_catalogo/matriz_detalhamento.md` (o PC1 preenche TQS e DEB) |
 | P2-6 | Testar o **DEB.Revit** no Revit do PC2 (versão?) com o AutoRun | a fazer | — | depende dos arquivos privados no Drive |
 | P2-7 | **Template de reservatório** com reconhecimento (pedido do usuário no PC2, 05/11) | pausado (decisão do usuário) | `pc2/template-reservatorio` | v1: `TemplateReservatorio` + `ReconhecedorReservatorio` (Core) + ARMRESERVATORIO; testado no AutoCAD 2026 com o DWG de teste (Eberick). Na `main` em 05/11. Ver `src/DEB.Cad/docs/TEMPLATES.md`. **Ordem decidida (05/11):** 1) template de LAJES, 2) template de PAREDES (como pilar e base de reservatório), com os esquemas de armação de cada um; 3) detalhe dos CANTOS e encontros; 4) juntar tudo no template de reservatório |
+| P2-8 | **Template de viga pré-moldada** (pedido do usuário no PC2, 06/11): levantar os requisitos, depois as informações do detalhamento; o usuário vai enviar o padrão | em andamento (aguardando o padrão) | `pc2/viga-premoldada` | `src/DEB.Cad/docs/VIGA_PREMOLDADA_REQUISITOS.md` (normas conferidas, categorias VP-1…VP-5, entrada, perguntas da seção 14). Padrão em `src/DEB.Cad/info_auxiliar/templates/viga_pre_moldada/` |
 
 ## PC1 — código
 | # | Tarefa | Situação | Branch | Entrega / observação |
