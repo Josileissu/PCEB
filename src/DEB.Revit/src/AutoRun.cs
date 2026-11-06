@@ -129,6 +129,23 @@ namespace DEB.Revit
                     int texts = new FilteredElementCollector(d, v.Id).OfClass(typeof(TextNote)).GetElementCount();
                     int lines = new FilteredElementCollector(d, v.Id).OfClass(typeof(CurveElement)).GetElementCount();
                     sb.AppendLine($"   {v.ViewType} \"{v.Name}\" 1:{v.Scale} | dobra {bend} | etiquetas {tags} | cotas {dims} | textos {texts} | linhas {lines}");
+                    // cada etiqueta de vergalhão: tipo, texto, orientação, chamada e posição (mm de papel, a partir do canto
+                    // inferior esquerdo do recorte) — para repetir no plugin o que o usuário ajustou à mão
+                    BoundingBoxXYZ cb = v.CropBoxActive ? v.CropBox : null;
+                    XYZ o = cb?.Transform.OfPoint(cb.Min);
+                    string Pos(XYZ q) => o == null || q == null ? "?" :
+                        $"({UnitUtils.ConvertFromInternalUnits((q - o).DotProduct(v.RightDirection), UnitTypeId.Millimeters) / v.Scale:0.0}; " +
+                        $"{UnitUtils.ConvertFromInternalUnits((q - o).DotProduct(v.UpDirection), UnitTypeId.Millimeters) / v.Scale:0.0})";
+                    foreach (IndependentTag tg in new FilteredElementCollector(d, v.Id).OfClass(typeof(IndependentTag)).Cast<IndependentTag>()
+                                 .Where(x => x.Category?.Id.Value == (long)BuiltInCategory.OST_RebarTags))
+                    {
+                        Element host = tg.GetTaggedLocalElements().FirstOrDefault();
+                        string role = host?.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString() ?? "";
+                        BoundingBoxXYZ hb = host?.get_BoundingBox(v);
+                        string leader = tg.HasLeader ? $" chamada {tg.LeaderEndCondition}" : "";
+                        sb.AppendLine($"      etiqueta {d.GetElement(tg.GetTypeId())?.Name} \"{tg.TagText}\" {tg.TagOrientation}{leader} cabeça {Pos(tg.TagHeadPosition)}" +
+                                      $" | barra [{role}] {(hb == null ? "" : Pos((hb.Min + hb.Max) / 2))}");
+                    }
                 }
                 foreach (ScheduleSheetInstance si in new FilteredElementCollector(d, s.Id).OfClass(typeof(ScheduleSheetInstance)).Cast<ScheduleSheetInstance>())
                     sb.AppendLine($"   tabela \"{si.Name}\"");
