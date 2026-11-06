@@ -154,7 +154,7 @@ namespace DEB.Revit.Core
                 List<(double T, Reference Ref)> along = GeometryHelper.RefsAlong(ks, u, vd);
                 bool elevation = InPlane(p.AxisZ);
                 XYZ side = elevation ? p.AxisZ : t;
-                double sSide = elevation ? Max(side) + gap : Math.Max(Max(side), p.MaxAlong(side)) + gap;
+                double sSide = elevation ? Max(side) + gap : detail ? Max(side) + 2 * gap : Math.Max(Max(side), p.MaxAlong(side)) + gap;
                 if (along.Count >= 2)
                     Add(plans, new List<(double, Reference)> { along[0], along[^1] }, u, side, sSide, vd, w);
             }
@@ -166,7 +166,7 @@ namespace DEB.Revit.Core
                 // (corte transversal do detalhe: o balanço é a direção da vista; a cota vai acima do consolo)
                 XYZ sideT = detail && !InPlane(u) ? p.AxisZ : u;
                 if (across.Count >= 2)
-                    Add(plans, new List<(double, Reference)> { across[0], across[^1] }, t, sideT, Max(sideT) + gap, vd, w);
+                    Add(plans, new List<(double, Reference)> { across[0], across[^1] }, t, sideT, Max(sideT) + (detail && !InPlane(p.AxisZ) ? 2 : 1) * gap, vd, w);
             }
 
             // 2º passo: cria as cotas.
@@ -218,6 +218,8 @@ namespace DEB.Revit.Core
                     refs.Add((tt, rt));
                 }
                 var kv = new List<XYZ>();
+                // consolos em corte por lado da vista (+1 direita, -1 esquerda): a cadeia vai do lado para onde eles apontam
+                var bySide = new Dictionary<int, List<(double T, Reference Ref)>>();
                 XYZ pc = p.Vertices.Aggregate(XYZ.Zero, (a, b) => a + b) / p.Vertices.Count;
                 foreach (FamilyInstance k in p.Attached)
                 {
@@ -230,16 +232,23 @@ namespace DEB.Revit.Core
                     XYZ d = kpts.Aggregate(XYZ.Zero, (a, b) => a + b) / kpts.Count - pc;
                     XYZ u = Math.Abs(d.DotProduct(p.AxisX)) >= Math.Abs(d.DotProduct(p.AxisY)) ? p.AxisX : p.AxisY;
                     if (Math.Abs(u.DotProduct(vd)) > 1e-3) continue;
+                    int side = d.DotProduct(right) >= 0 ? 1 : -1;
+                    if (!bySide.TryGetValue(side, out var sideRefs)) bySide[side] = sideRefs = new List<(double T, Reference Ref)>(refs);
                     // base e topo do consolo, sem os chanfros (arestas intermediárias)
                     List<(double T, Reference Ref)> zs = GeometryHelper.RefsAlong(ks, p.AxisZ, vd).OrderBy(r => r.T).ToList();
                     if (zs.Count == 0) continue;
                     foreach (var r in new[] { zs[0], zs[^1] })
-                        if (!refs.Any(x => Math.Abs(x.T - r.T) < U.Mm(1))) refs.Add(r);
+                        if (!sideRefs.Any(x => Math.Abs(x.T - r.T) < U.Mm(1))) sideRefs.Add(r);
                 }
+                if (bySide.Count == 0) bySide[1] = refs;   // sem consolo em corte: base e topo à direita
                 double gap = U.Mm(_cfg.DimensionOffsetMm) * view.Scale;
-                double s = Math.Max(p.MaxAlong(right), kv.Count > 0 ? kv.Max(v => v.DotProduct(right)) : double.MinValue) + gap;
                 var plans = new List<(Line, ReferenceArray)>();
-                Add(plans, refs, p.AxisZ, right, s, vd, view.Origin.DotProduct(vd));
+                foreach (var kvp in bySide)
+                {
+                    XYZ outDir = kvp.Key > 0 ? right : right.Negate();
+                    double s = Math.Max(p.MaxAlong(outDir), kv.Count > 0 ? kv.Max(v => v.DotProduct(outDir)) : double.MinValue) + gap;
+                    Add(plans, kvp.Value, p.AxisZ, outDir, s, vd, view.Origin.DotProduct(vd));
+                }
                 foreach (var (line, ra) in plans)
                 {
                     Dimension d = NewDimension(view, line, ra);

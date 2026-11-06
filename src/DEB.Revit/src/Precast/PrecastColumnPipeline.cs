@@ -253,7 +253,7 @@ namespace DEB.Revit.Precast
                     WarningSwallower.Attach(t);
                     action();
                     if (t.Commit() == TransactionStatus.Committed) return true;
-                    (critical ? (Action<string>)log.Error : log.Warn)($"{name}: transação não confirmada.");
+                    (critical ? (Action<string>)log.Error : log.Warn)($"{name}: transação não confirmada{WarningSwallower.TakeReason()}.");
                     return false;
                 }
                 catch (Exception ex)

@@ -215,10 +215,22 @@ namespace DEB.Revit
         /// Fluxo completo de pilares pré-moldados com a armadura padrão, sem janela.
         /// SD_SAVEAS = caminho de uma CÓPIA do modelo para gravar o resultado (o original nunca é salvo).
         /// Exporta as folhas e vistas 3D geradas como PNG para conferência visual.
+        /// SD_VARIAR = 1: pilares "50x50" ficam 1,50 m mais altos (comprimentos diferentes) e cada grupo recebe outra
+        /// armadura (bitolas e quantidades diferentes), para testar pranchas com barras e comprimentos variados.
         /// </summary>
         private static string PrecastAutoTest(UIDocument uidoc)
         {
             Document doc = uidoc.Document;
+            bool vary = Environment.GetEnvironmentVariable("SD_VARIAR") == "1";
+            if (vary)
+                using (var t = new Transaction(doc, "Teste: comprimentos diferentes"))
+                {
+                    t.Start();
+                    foreach (FamilyInstance c in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns)
+                                 .WhereElementIsNotElementType().OfType<FamilyInstance>().Where(c => c.Symbol.Name.Contains("50x50")))
+                        c.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM)?.Set(UnitUtils.ConvertToInternalUnits(1500, UnitTypeId.Millimeters));
+                    t.Commit();
+                }
             string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string dir = Path.Combine(DetailingReport.LogDir, "precast_" + stamp);
             Directory.CreateDirectory(dir);
@@ -226,6 +238,16 @@ namespace DEB.Revit
             List<ColumnGroup> groups = PrecastSurvey.Run(doc, out List<string> notes);
             var sb = new StringBuilder();
             foreach (string n in notes) sb.AppendLine("NOTA: " + n);
+            if (vary)
+                for (int i = 0; i < groups.Count; i++)
+                {
+                    ColumnRebarSpec sp = groups[i].Spec;
+                    switch (i % 3)
+                    {
+                        case 1: sp.LongDiameterMm = 16; sp.LongBarsAlongX = 3; sp.LongBarsAlongY = 3; sp.StirrupDiameterMm = 6.3; sp.TieDiameterMm = 16; break;
+                        case 2: sp.LongDiameterMm = 20; sp.LongBarsAlongX = 2; sp.LongBarsAlongY = 3; sp.StirrupDiameterMm = 8; sp.StirrupSpacingMm = 200; break;
+                    }
+                }
             foreach (ColumnGroup g in groups)
             {
                 sb.AppendLine($"{g.Mark}: {g.Members.Count} un. | {g.Signature}");

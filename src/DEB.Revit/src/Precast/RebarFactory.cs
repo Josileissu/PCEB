@@ -156,7 +156,9 @@ namespace DEB.Revit.Precast
                 XYZ d = Mid(g[1]) - Mid(first);
                 n = d - axis * d.DotProduct(axis);
                 if (n.GetLength() < 1e-6) throw new InvalidOperationException("posições coincidentes");
-                spacing = n.GetLength();
+                // espaçamento pequeno: com a distância até a 2ª barra, as últimas do conjunto (6 ø20 num 50x50) caíam fora
+                // do pilar antes de serem movidas e o Revit não as devolvia; cada barra vai depois para a sua posição
+                spacing = Math.Min(n.GetLength(), U.Mm(Math.Max(30, 2 * first.DiameterMm)));
                 n = n.Normalize();
             }
             else
@@ -171,14 +173,24 @@ namespace DEB.Revit.Precast
                 curves.Add(Line.CreateBound(f.ToWorld(first.Points[i]), f.ToWorld(first.Points[i + 1])));
             Rebar r = Rebar.CreateFromCurves(_doc, RebarStyle.Standard, BarType(first.DiameterMm), null, null, column, n, curves,
                 RebarHookOrientation.Right, RebarHookOrientation.Left, true, true);
-            r.GetShapeDrivenAccessor().SetLayoutAsNumberWithSpacing(g.Count, spacing, true, true, true);
-            _doc.Regenerate();
-            for (int i = 1; i < g.Count; i++)
+            try
             {
-                IList<Curve> c = r.GetTransformedCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i);
-                XYZ now = (c[0].GetEndPoint(0) + c[^1].GetEndPoint(1)) / 2;
-                XYZ move = Mid(g[i]) - now;
-                if (move.GetLength() > 1e-6) r.MoveBarInSet(i, Transform.CreateTranslation(move));
+                r.GetShapeDrivenAccessor().SetLayoutAsNumberWithSpacing(g.Count, spacing, true, true, true);
+                _doc.Regenerate();
+                for (int i = 1; i < g.Count; i++)
+                {
+                    IList<Curve> c = r.GetTransformedCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i);
+                    if (c.Count == 0) throw new InvalidOperationException($"barra {i + 1} do conjunto sem geometria");
+                    XYZ now = (c[0].GetEndPoint(0) + c[^1].GetEndPoint(1)) / 2;
+                    XYZ move = Mid(g[i]) - now;
+                    if (move.GetLength() > 1e-6) r.MoveBarInSet(i, Transform.CreateTranslation(move));
+                }
+            }
+            catch
+            {
+                // o conjunto incompleto não pode ficar no modelo (as barras são criadas uma a uma depois)
+                try { _doc.Delete(r.Id); } catch { /* já removido */ }
+                throw;
             }
             r.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.Set($"{Tag}|{mark}|{RoleLabel(first.Role)}");
             return r;

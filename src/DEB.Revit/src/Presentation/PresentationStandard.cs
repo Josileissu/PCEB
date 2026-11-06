@@ -272,7 +272,9 @@ namespace DEB.Revit.Presentation
         public string Template { get; set; } = "";
     }
 
-    public enum TableKind { RelacaoDoAco, ResumoDoAco }
+    /// <summary>RelacaoDoAco e ResumoDoAco (PP127); DobraDoAco = "bar bending schedule": por posição, forma do Revit
+    /// (código e imagem da forma, se o tipo de forma tiver imagem), trechos A–E e comprimento.</summary>
+    public enum TableKind { RelacaoDoAco, ResumoDoAco, DobraDoAco }
 
     public sealed class TableSpec
     {

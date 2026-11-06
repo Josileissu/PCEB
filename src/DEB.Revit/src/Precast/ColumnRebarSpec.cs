@@ -121,6 +121,16 @@ namespace DEB.Revit.Precast
             if (LongBarsAlongX > 1 && LongBarsAlongY > 1 && clear < Math.Max(20, LongDiameterMm))
                 w.Add($"Espaçamento livre entre barras {clear:0} mm < max(20 mm; Ø) (18.4.2.2).");
 
+            // alça: o vão interno (largura − Ø) tem de comportar o pino de dobramento (NBR 6118 tab. 9.1, CA-50: 5Ø se Ø < 20,
+            // 8Ø se Ø ≥ 20); senão o Revit não resolve a forma ("Não é possível solucionar o formato do vergalhão")
+            if (LiftLoops > 0)
+            {
+                double mandrel = (LiftDiameterMm >= 20 ? 8 : 5) * LiftDiameterMm;
+                if (LiftWidthMm - LiftDiameterMm < mandrel - 1e-6)
+                    w.Add($"Alça Ø{LiftDiameterMm:0.#}: largura {LiftWidthMm:0} mm não comporta o pino de dobramento ({mandrel:0} mm; " +
+                          $"largura mínima {mandrel + LiftDiameterMm:0} mm, NBR 6118 tab. 9.1).");
+            }
+
             double ac = bx * by;
             double asTot = LongBarCount * Math.PI * LongDiameterMm * LongDiameterMm / 4;
             double rho = asTot / ac * 100;
