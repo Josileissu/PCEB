@@ -134,6 +134,18 @@ namespace DEB.Revit
                     sb.AppendLine($"   tabela \"{si.Name}\"");
             }
             sb.AppendLine($"barras: {new FilteredElementCollector(d).OfClass(typeof(Autodesk.Revit.DB.Structure.Rebar)).GetElementCount()}");
+            // parâmetros dos vergalhões (os do escritório, como QTD, aparecem aqui)
+            foreach (Autodesk.Revit.DB.Structure.Rebar rb in new FilteredElementCollector(d).OfClass(typeof(Autodesk.Revit.DB.Structure.Rebar))
+                         .Cast<Autodesk.Revit.DB.Structure.Rebar>().Take(3))
+            {
+                sb.AppendLine($"vergalhão {rb.Id.Value}:");
+                foreach (Parameter prm in rb.Parameters.Cast<Parameter>().OrderBy(x => x.Definition.Name))
+                    sb.AppendLine($"   {prm.Definition.Name}{(prm.IsShared ? " [compartilhado]" : prm.Id.Value > 0 ? " [projeto]" : "")} = {prm.AsValueString() ?? prm.AsString()}");
+            }
+            foreach (IndependentTag tg in new FilteredElementCollector(d).OfClass(typeof(IndependentTag)).Cast<IndependentTag>()
+                         .Where(x => x.Category?.Id.Value == (long)BuiltInCategory.OST_RebarTags).Take(400)
+                         .GroupBy(x => x.GetTypeId()).Select(gr => gr.First()))
+                sb.AppendLine($"etiqueta usada: {(d.GetElement(tg.GetTypeId()) as FamilySymbol)?.FamilyName} : {d.GetElement(tg.GetTypeId())?.Name} → \"{tg.TagText}\"");
             sb.AppendLine($"detalhes de dobra: {new FilteredElementCollector(d).OfCategory(BuiltInCategory.OST_RebarBendingDetails).WhereElementIsNotElementType().GetElementCount()}");
             sb.AppendLine("legendas: " + string.Join(" | ", new FilteredElementCollector(d).OfClass(typeof(View)).Cast<View>()
                 .Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate).Select(v => v.Name)));

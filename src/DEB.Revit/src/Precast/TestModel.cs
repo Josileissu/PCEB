@@ -230,6 +230,10 @@ namespace DEB.Revit.Precast
                 sb.AppendLine($"{ind}  [{(p.IsInstance ? "inst" : "tipo")}] {p.Definition.Name} ({p.Definition.GetDataType()?.TypeId?.Split(':').Last().Split('-').First()}): {val}{formula}");
             }
 
+            // textos e rótulos (famílias de anotação: o texto do rótulo mostra o valor de exemplo de cada parâmetro)
+            foreach (TextElement te in new FilteredElementCollector(fam).WhereElementIsNotElementType().OfType<TextElement>())
+                sb.AppendLine($"{ind}  {te.GetType().Name}: \"{te.Text?.Replace("\r", " / ").Replace("\n", " / ")}\"");
+
             List<FamilyInstance> nested = new FilteredElementCollector(fam).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().ToList();
             foreach (FamilyInstance fi in nested)
             {
