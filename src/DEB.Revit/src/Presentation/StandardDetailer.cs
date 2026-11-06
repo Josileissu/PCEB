@@ -73,6 +73,22 @@ namespace DEB.Revit.Presentation
             List<PlacedView> views = null;
             if (!Tx("Criar vistas", log, () => views = CreateViews(asm, p, log)) || views == null) return null;
 
+            // Seções e cortes no trecho corrente: só o pilar (os consolos de outros níveis apareciam no fundo da vista)
+            List<PlacedView> plain = views.Where(v => v.Spec.Posicao == CutPosition.Corrente &&
+                                                     (v.Spec.Tipo == ViewKind.Corte || v.Spec.Tipo == ViewKind.SecaoArmadura)).ToList();
+            if (plain.Count > 0 && p.Attached.Count > 0)
+                Tx("Seções sem consolos", log, () =>
+                {
+                    List<ElementId> corbelBars = asm.GetMemberIds().Select(_doc.GetElement).OfType<Rebar>()
+                        .Where(r => IsCorbelRole(new RebarRow(_doc, r).Role)).Select(r => r.Id).ToList();
+                    foreach (PlacedView v in plain)
+                    {
+                        List<ElementId> h = p.Attached.Select(k => k.Id).Concat(corbelBars)
+                            .Where(id => _doc.GetElement(id)?.CanBeHidden(v.View) == true).ToList();
+                        if (h.Count > 0) v.View.HideElements(h);
+                    }
+                }, critical: false);
+
             int dims = 0;
             Tx("Cotar vistas", log, () =>
             {
@@ -89,6 +105,7 @@ namespace DEB.Revit.Presentation
                     // elevações: uma cota acumulada (base → consolos → topo) no lugar de uma cadeia por consolo
                     int chain = ds.AddLevelChain(dv, p);
                     dims += chain;
+                    if (plain.Contains(v)) continue;   // seção sem consolos: sem as cotas deles
                     foreach (FamilyInstance k in p.Attached)
                         dims += ds.AddAttachedDimensions(dv, p, k, skipLevels: chain > 0);
                 }
@@ -122,8 +139,17 @@ namespace DEB.Revit.Presentation
                     {
                         List<ElementId> col = rebars.Where(r => !IsCorbelRole(new RebarRow(_doc, r).Role) && r.CanBeHidden(v.View))
                             .Select(r => r.Id).ToList();
-                        if (col.Count > 0) Try(() => v.View.HideElements(col));
-                        if (v.Spec.Tipo == ViewKind.ConsoloPlanta) CorbelPlan(v, p, rebars, styles, log);
+                        // e os níveis do projeto (o recorte do corte B-B cresce até o pino e pegava a cabeça do nível)
+                        List<ElementId> lv = new FilteredElementCollector(_doc).OfClass(typeof(Level)).Where(l => l.CanBeHidden(v.View)).Select(l => l.Id).ToList();
+                        if (col.Count + lv.Count > 0) Try(() => v.View.HideElements(col.Concat(lv).ToList()));
+                        if (v.Spec.Tipo == ViewKind.ConsoloPlanta)
+                        {
+                            List<ElementId> nonPins = rebars.Where(r => new RebarRow(_doc, r).Role != "Pino do consolo" && r.CanBeHidden(v.View))
+                                .Select(r => r.Id).Where(id => !col.Contains(id)).ToList();
+                            if (nonPins.Count > 0) Try(() => v.View.HideElements(nonPins));
+                            CorbelPlan(v, p, rebars, styles, log);
+                        }
+                        if (v.Spec.Tipo == ViewKind.ConsoloCorte) CorbelPinHeight(v, p, rebars, styles);
                     }
                 }, critical: false);
 
@@ -841,7 +867,9 @@ namespace DEB.Revit.Presentation
             // comprimento total (texto vertical à esquerda dos níveis, sem encostar nos nomes)
             double lenCm = Math.Round(U_ToCm(zTop - zBottom));
             var vert = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center, Rotation = Math.PI / 2 };
-            Try(() => TextNote.Create(_doc, view.Id, At(textX - U.Mm(13) * scale, (bottom + top) / 2),
+            // com a legenda de níveis (32 mm de linha encostada a 8 mm da peça), o texto vai à esquerda dela
+            double lenX = legend ? minR - U.Mm(8 + 32 + 22) * scale : textX - U.Mm(13) * scale;
+            Try(() => TextNote.Create(_doc, view.Id, At(lenX, (bottom + top) / 2),
                 $"COMPRIMENTO TOTAL DO PILAR {lenCm:0}\n(TOTAL COLUMN LENGTH {lenCm:0})", vert));
             return lineStart;
         }
@@ -1593,11 +1621,11 @@ namespace DEB.Revit.Presentation
             if (pins.Count > 0)
             {
                 // ao longo do balanço: face do pilar → pinos → ponta, do lado de T0 (fora do consolo)
-                double tU = g.T0 - 2 * gap;
+                double tU = g.T1 + gap;
                 XYZ alongU = (right * g.T.DotProduct(right) + up * g.T.DotProduct(up)).Normalize();
                 Chain(new[] { g.U0, g.U1 }.Concat(pins.Select(q => q.U)).ToList(), u => M(u, tU), alongU, g.U);
                 // ao longo da largura: lado → pinos → lado, além da ponta
-                double uT = g.U1 + 2 * gap;
+                double uT = g.U1 + gap;
                 XYZ alongT = (right * g.U.DotProduct(right) + up * g.U.DotProduct(up)).Normalize();
                 Chain(new[] { g.T0, g.T1 }.Concat(pins.Select(q => q.T)).ToList(), t => M(uT, t), alongT, g.T);
             }
@@ -1633,6 +1661,47 @@ namespace DEB.Revit.Presentation
                 var keep = new[] { cb.Transform.OfPoint(cb.Min), cb.Transform.OfPoint(cb.Max) };
                 Try(() => ViewFactory.FitCrop(view, keep.Concat(used), U.Mm(3) * s));
             }
+        }
+
+        /// <summary>Corte B-B: altura do pino acima do consolo ("47" da PP127), na linha da cota da altura do consolo.</summary>
+        private void CorbelPinHeight(PlacedView pv, PieceInfo p, List<Rebar> rebars, AnnotationStyles styles)
+        {
+            if (!(pv.View is ViewSection view)) return;
+            CorbelGeo g = DistinctCorbels(p).FirstOrDefault(c => c.K.Id == pv.Corbel.Id);
+            if (g == null) return;
+            BoundingBoxXYZ kb = g.K.get_BoundingBox(null);
+            double tol = U.Mm(30), top = double.MinValue;
+            // só os pinos deste consolo: algum ponto da barra dentro do consolo (consolos da mesma face em outros níveis
+            // têm pinos na mesma prumada — pegar o mais alto deles esticava o corte por vários metros)
+            bool In(XYZ q) => q.X > kb.Min.X - tol && q.X < kb.Max.X + tol && q.Y > kb.Min.Y - tol && q.Y < kb.Max.Y + tol
+                              && q.Z > kb.Min.Z - tol && q.Z < kb.Max.Z + tol;
+            foreach (Rebar r in rebars.Where(r => new RebarRow(_doc, r).Role == "Pino do consolo"))
+                for (int i = 0; i < r.NumberOfBarPositions; i++)
+                    try
+                    {
+                        List<XYZ> qs = r.GetTransformedCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i)
+                            .SelectMany(c => Enumerable.Range(0, 11).Select(k => c.Evaluate(k / 10.0, true))).ToList();
+                        if (qs.Any(In)) top = Math.Max(top, qs.Max(q => q.DotProduct(g.Z)));
+                    }
+                    catch { /* posição sem curva */ }
+            if (top < g.Z1 + U.Mm(5)) return;
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            double s = view.Scale, d0 = view.Origin.DotProduct(vd), gap = U.Mm(Std.Unidades.AfastamentoCotaMm) * s, tick = U.Mm(1.2) * s;
+            XYZ V(XYZ q) => right * q.DotProduct(right) + up * q.DotProduct(up) + vd * d0;
+            double uLine = g.U1 + 2 * gap;   // mesma linha da cota da altura do consolo (DimensionService, detalhe)
+            XYZ horiz = (right * g.U.DotProduct(right)).Normalize();
+            var ra = new ReferenceArray();
+            var used = new List<XYZ>();
+            foreach (double z in new[] { g.Z1, top })
+            {
+                XYZ a = V(g.U * uLine + g.Z * z);
+                used.Add(a);
+                ra.Append(_doc.Create.NewDetailCurve(view, Line.CreateBound(a - horiz * tick, a + horiz * tick)).GeometryCurve.Reference);
+            }
+            Try(() => _doc.Create.NewDimension(view, Line.CreateBound(used[0], used[1]), ra, styles.Dimension));
+            BoundingBoxXYZ cb = view.CropBox;
+            var keep = new[] { cb.Transform.OfPoint(cb.Min), cb.Transform.OfPoint(cb.Max) };
+            Try(() => ViewFactory.FitCrop(view, keep.Concat(used.Select(q => q + up * U.Mm(4) * s)), 0));
         }
 
         private static bool IsCorbelRole(string role) =>
@@ -1815,7 +1884,7 @@ namespace DEB.Revit.Presentation
                     WarningSwallower.Attach(t);
                     action();
                     if (t.Commit() == TransactionStatus.Committed) return true;
-                    (critical ? (Action<string>)log.Error : log.Warn)($"{name}: transação não confirmada.");
+                    (critical ? (Action<string>)log.Error : log.Warn)($"{name}: transação não confirmada{WarningSwallower.TakeReason()}.");
                     return false;
                 }
                 catch (Exception ex)
