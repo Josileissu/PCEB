@@ -192,6 +192,14 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   (0.1.27 em 2026-11-06: reservatório e as novidades da main; 0.1.26 = instalador único com GstarCAD 2021-2027, AutoCAD e ZWCAD): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
+- **Release no GitHub** (pedido do usuário, 2026-11-06; 1ª = v0.1.27): os instaladores vão para as Releases do repositório
+  (não para o Git). Fluxo quando ele pedir o instalador: subir a versão → `gerar.bat` → commit → merge na `main` → push →
+  `gh release create v<ver> src/DEB.Cad/instalador/saida/DEB_Setup_<ver>.exe -R Josileissu/PCEB --target main
+  --title "DEB <ver>" --notes-file <notas.md>` (notas em PT: novidades e "feche os CADs e execute o Setup"); confira com
+  `gh release view v<ver> --json assets`. O gh precisa estar logado na conta Josileissu (`gh auth status`); o login é do
+  usuário (`gh auth login -w`, em janela NÃO administradora) — não use a credencial guardada do Git.
+  PC2: gh portátil em `%LocalAppData%\Programs\gh\bin\gh.exe` (o winget de lá está quebrado) e o firewall bloqueia toda
+  saída por padrão; o gh tem a regra "GitHub CLI (gh)". Programa novo que precise de rede no PC2 precisa de regra igual (UAC).
 - **Demonstração** (pedido do usuário, 2026-10-30): `instalador\gerar_demo.bat` → `instalador\saida\demo_<versão>.exe` (numerada pela versão do plugin, pedido de 2026-10-30) (build com
   `-p:Demo=true` → constante DEMO, saída `bin\demo\GstarCAD2021`; ISCC `/DDemo`). `Infra/Demo.cs`: 1 hora a partir da 1ª carga
   no computador (início em `HKCU\Software\ArmaduraBR\Demo` e `%AppData%\PCEB\DEB.Cad\demo.dat`, vale o mais antigo); depois,
