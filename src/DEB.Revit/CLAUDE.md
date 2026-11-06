@@ -44,6 +44,8 @@ $p.WaitForExit(540000)
 - Vigas pré-moldadas com consolos aninhados: a folga vem de `folga_esq`/`folga_dir` da família; **recuo da junta
   (START/END_JOIN_CUTBACK, ½" padrão) e extensões inicial/final da instância têm de ser 0**, senão os consolos se afastam
   do pilar e o levantamento não os encontra.
+- `criarmodelo` com `SD_NIVEIS` = "cota_mm:direções;..." (ex.: "3000:X;6000:XY;9000:Y") cria vigas/consolos em vários níveis
+  (modelo de teste do PC2: `Teste_PM_niveis.rvt`, pilar de 10 m com 4 consolos em 3 níveis).
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela.
 - Resultados em `%AppData%\PCEB\DEB.Revit\logs\` (`autorun.txt` aponta para o arquivo gerado).
