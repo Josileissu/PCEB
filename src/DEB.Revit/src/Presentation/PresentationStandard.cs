@@ -116,6 +116,9 @@ namespace DEB.Revit.Presentation
         public string Carimbo { get; set; } = "";
         /// <summary>.rfa carregado no projeto quando o carimbo não está lá.</summary>
         public string ArquivoCarimbo { get; set; } = "";
+        /// <summary>.rte/.rvt com pelo menos uma legenda: se o projeto não tiver nenhuma, uma é copiada de lá para servir
+        /// de base às legendas dos detalhes padrão (a API do Revit não cria legendas do zero).</summary>
+        public string ArquivoLegendaBase { get; set; } = "";
         public string NumeroFolha { get; set; } = "{Marca}";
         public string NomeFolha { get; set; } = "{Marca}";
         /// <summary>Parâmetros do carimbo (ou da folha) a preencher: nome do parâmetro → texto.</summary>
@@ -263,5 +266,11 @@ namespace DEB.Revit.Presentation
         /// <summary>Nome exato da legenda no projeto (Vistas → Legendas).</summary>
         public string Nome { get; set; } = "";
         public string Regiao { get; set; } = "Detalhes";
+        public bool Ativa { get; set; } = true;
+        /// <summary>DXF do detalhe (em cm, na escala da legenda), na pasta Padroes\Detalhes ou caminho completo. Se a legenda
+        /// não existe no projeto, ela é criada uma vez a partir dele (ver LegendFactory).</summary>
+        public string Arquivo { get; set; } = "";
+        /// <summary>Escala da legenda criada do DXF (0 = a da legenda duplicada).</summary>
+        public int Escala { get; set; }
     }
 }

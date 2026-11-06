@@ -30,13 +30,23 @@ namespace DEB.Revit
             if (string.IsNullOrWhiteSpace(_task)) return;
             _exit = Environment.GetEnvironmentVariable("SD_AUTOEXIT") == "1";
             app.Idling += OnIdling;
+            // instância de teste: janelas do Revit (avisos de atualização ao abrir arquivos antigos...) não podem parar o teste
+            app.DialogBoxShowing += (s, e) =>
+            {
+                Dialogs.Add(e.DialogId);
+                if (e is TaskDialogShowingEventArgs) e.OverrideResult((int)TaskDialogResult.Close);
+                else e.OverrideResult(1);   // IDOK
+            };
         }
+
+        /// <summary>Janelas do Revit fechadas sozinhas durante o AutoRun (vão para o resultado).</summary>
+        internal static readonly List<string> Dialogs = new List<string>();
 
         private static void OnIdling(object sender, IdlingEventArgs e)
         {
             var uiapp = (UIApplication)sender;
             string task = _task.Trim().ToLowerInvariant();
-            bool semProjeto = task == "familias" || task == "criarmodelo";   // tarefas que não precisam de projeto aberto
+            bool semProjeto = task == "familias" || task == "criarmodelo" || task == "contarlegendas";   // tarefas que não precisam de projeto aberto
             UIDocument uidoc = uiapp.ActiveUIDocument;
             if (!semProjeto && (uidoc == null || uidoc.Document.IsFamilyDocument)) return;   // ainda abrindo o projeto
 
@@ -61,6 +71,9 @@ namespace DEB.Revit
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
                         break;
+                    case "contarlegendas":
+                        status = "OK " + CountLegends(uiapp.Application);
+                        break;
                     case "ferramentas":
                         status = "OK " + Tools.ToolsAutoTest.Run(uiapp, uidoc);
                         break;
@@ -84,6 +97,29 @@ namespace DEB.Revit
 
             if (_exit)
                 uiapp.PostCommand(RevitCommandId.LookupPostableCommandId(PostableCommand.ExitRevit));
+        }
+
+        /// <summary>SD_AUTORUN = contarlegendas: legendas de cada arquivo de SD_FAMILIAS (.rte/.rvt separados por ";"),
+        /// para escolher o ArquivoLegendaBase do padrão.</summary>
+        private static string CountLegends(Autodesk.Revit.ApplicationServices.Application app)
+        {
+            var sb = new StringBuilder();
+            foreach (string f in (Environment.GetEnvironmentVariable("SD_FAMILIAS") ?? "").Split(';').Where(x => x.Trim() != ""))
+            {
+                try
+                {
+                    Document d = Presentation.LegendFactory.OpenQuietly(app, f.Trim());
+                    List<string> names = new FilteredElementCollector(d).OfClass(typeof(View)).Cast<View>()
+                        .Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate).Select(v => v.Name).ToList();
+                    sb.AppendLine($"{f}: {names.Count} legenda(s) {string.Join(" | ", names)}");
+                    d.Close(false);
+                }
+                catch (Exception ex) { sb.AppendLine($"{f}: ERRO {ex.Message}"); }
+            }
+            if (Dialogs.Count > 0) sb.AppendLine("janelas fechadas: " + string.Join(", ", Dialogs));
+            string log = Path.Combine(DetailingReport.LogDir, "legendas.txt");
+            File.WriteAllText(log, sb.ToString(), Encoding.UTF8);
+            return log;
         }
 
         /// <summary>

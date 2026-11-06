@@ -11,7 +11,7 @@ apresentação ficam guardados **no repositório PCEB** e evoluem junto com o c�
 | Cópia editável do usuário | `%AppData%\PCEB\DEB.Revit\Padroes\<código>.json` | criada na 1ª execução; se o padrão de fábrica tiver `Versao` maior, a cópia antiga vira `.vN.bak` |
 | Templates de vista | dentro do projeto Revit (`PCEB-…`) | criados pelo plugin se não existirem; o usuário pode editá-los no Revit e as próximas pranchas seguem a edição |
 | Carimbo | `S:\Meu Drive\Arquivos\Familias Revit\Carimbo e Folhas\Folhas Revit.rfa` (tipo A1) | fora do Git (padrão do escritório); carregado no projeto se faltar |
-| Legendas do escritório (raio de curvatura, emendas, comprimento, aterramento) | legendas do projeto Revit, pelo nome | ainda faltam no modelo de teste |
+| Legendas do escritório (raio de curvatura, emendas, comprimento, aterramento) | legendas do projeto Revit, pelo nome; se faltam, criadas do DXF do padrão (`Legendas[].Arquivo`, `LegendFactory`) | **feito** (06/11): DXFs extraídos do DWG do P56 |
 | Template do CAD (referência) | `%AppData%\PCEB\DEB.Cad\Templates\pilar-premoldado.csv` | mesma informação de peça (escalas, níveis, cobrimentos, zonas de estribos, consolos, alças…) |
 
 ## Convenção de nomes
@@ -96,5 +96,5 @@ resumo do aço, informações de produção e notas à direita; detalhes padrão
 | Cotas acumuladas à direita das vistas | **feito** para consolos: uma cadeia por vista de face (base → faces dos consolos → topo) e o total por fora (`DimensionService.AddLevelChain`); furos e alças ainda não entram (não estão no modelo) |
 | Marcas de corte nas vistas de face e na armadura | **feito** (`MarcasDeCorteSimples`): as marcas do Revit (círculo com nº/folha e traço grosso — eram as "marcas pretas" nas alturas dos consolos) ficam ocultas; o plugin desenha um traço grosso curto com a letra (cortes, nas faces) ou o número (seções, na armadura) dos dois lados |
 | Alça de içamento (lifting handle) | barra criada; detalhe falta |
-| Reforço nos furos, chaves de cisalhamento, aterramento (SPDA) | falta (legendas/detalhes padrão) |
-| Legendas padrão (raio, emendas, comprimento, aterramento) | **o usuário vai criar** as legendas do escritório (05/11/2026); o plugin já as coloca pelo nome quando existirem |
+| Reforço nos furos, chaves de cisalhamento, aterramento (SPDA) | **feito** como legendas criadas do DXF (chaves, espaçamento das barras e alça ativas; reforço de furos e aterramento desligados no padrão: o modelo não tem furos e o aterramento ocupa 136×180 mm) |
+| Legendas padrão (raio, emendas, comprimento, aterramento) | **feito** (06/11): a pedido do usuário, extraídas do DWG de referência para DXF (`src/DEB.Revit/tools/detalhes_dxf`), aplicadas no Revit uma vez (linhas, textos e regiões nativas) e salvas no projeto. A API não cria legenda do zero: duplica uma existente ou copia uma do `ArquivoLegendaBase` (template do escritório). Regiões novas `Padrao` (entre as vistas e as seções) e `Padrao2` (canto inferior direito). Hachuras com padrão não são convertidas |
