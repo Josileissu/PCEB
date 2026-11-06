@@ -33,8 +33,14 @@ public class PreviaTemplateTests
         if (string.IsNullOrEmpty(pasta)) return;
         var t = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
         var v = new ValoresTemplate(t.Parametros);
-        v["Pilares"] = "P1, P2, P3, P5, P6, P7, P8, P9, P11, P14, P16, P17, P18, P19, P20, P21, P26, P28 e P30";
+        v["Niveis"] = "P106|-11.43;P118|-11.43";
         Gravar(pasta, "previa_bloco.json", t.Gerar(v, new ConfiguracaoArmadura()));
+        var v15 = new ValoresTemplate(t.Parametros);
+        foreach (var (k, val) in new[] { ("Nome", "B15"), ("Arranjo", DEB.Core.Templates.Blocos.TemplateBlocoEstacas.Triangulo), ("EspX", "150"), ("DistFace", "40"),
+                     ("DiamEstaca", "50"), ("PilarBx", "40"), ("PilarBy", "40"), ("tParede", "25"), ("hBase", "105"), ("hColar", "30"), ("Lemb", "65"),
+                     ("PrincBitola", "12.5"), ("PrincEsp", "11") })
+            v15[k] = val;
+        Gravar(pasta, "previa_bloco_b15.json", t.Gerar(v15, new ConfiguracaoArmadura()));
     }
 
     private static void Gravar(string pasta, string arquivo, ResultadoTemplate r)

@@ -2348,25 +2348,38 @@ public sealed class AutoTeste
     {
         Rel.Clear(); _ok = _falhas = 0;
         var t = new Core.Templates.Blocos.TemplateBlocoEstacas();
-        var v = new Core.Templates.ValoresTemplate(t.Parametros);
-        v["Pilares"] = "P1, P2, P3, P5, P6, P7, P8, P9, P11, P14, P16, P17, P18, P19, P20, P21, P26, P28 e P30";
-        var r = t.Gerar(v, cfg);
-        using (var tr = db.TransactionManager.StartTransaction())
+        // B28 (2 estacas, cálice com colarinho: valores padrão) e B15 (triangular), como as folhas do escritório
+        var vB28 = new Core.Templates.ValoresTemplate(t.Parametros);
+        vB28["Niveis"] = "P106|-11.43;P118|-11.43";
+        var vB15 = new Core.Templates.ValoresTemplate(t.Parametros);
+        foreach (var (k, val) in new[] { ("Nome", "B15"), ("Arranjo", Core.Templates.Blocos.TemplateBlocoEstacas.Triangulo), ("EspX", "150"), ("DistFace", "40"),
+                     ("DiamEstaca", "50"), ("PilarBx", "40"), ("PilarBy", "40"), ("tParede", "25"), ("hBase", "105"), ("hColar", "30"), ("Lemb", "65"),
+                     ("PrincBitola", "12.5"), ("PrincEsp", "11"), ("Pilares", "P23/ P24/ P32/ P33/ P35/ P36") })
+            vB15[k] = val;
+        var casos = new[] { ("BLOCO B28", vB28, new Point3d(12000, -5000, 0)), ("BLOCO B15", vB15, new Point3d(12000, -12000, 0)) };
+        var janelas = new List<(string, double, double, double, double)>();
+        foreach (var (nome, v, origem) in casos)
         {
-            var ids = ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(12000, -5000, 0));
-            Checar(ids.Count == r.Barras.Count, $"bloco: {ids.Count} armaduras desenhadas ({r.Barras.Count} no template)");
-            var dados = ids.Select(i => XDataCad.LerBarra(tr.GetObject(i, OpenMode.ForRead))).ToList();
-            var n1 = dados[0];
-            Checar(n1 != null && n1.Bitola == 12.5 && n1.Quantidade == 4, $"bloco: principal 4 ø12.5 ({n1?.Quantidade} ø{n1?.Bitola})");
-            var h = dados[5];
-            Checar(h != null && h.Estribo && h.Quantidade == 3 && h.Espacamento == 15, $"bloco: estribo horizontal 3 c/15 ({h?.Quantidade} c/{h?.Espacamento})");
-            tr.Commit();
-        }
-        using (var tr = db.TransactionManager.StartTransaction())
-        {
-            var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-            Checar(bt.Has("BLOCO B3"), "bloco: detalhamento \"BLOCO B3\" criado");
-            tr.Commit();
+            var r = t.Gerar(v, cfg);
+            var xs = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.X)).Concat(r.Textos.Select(q => q.X)).ToList();
+            var ys = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.Y)).Concat(r.Textos.Select(q => q.Y)).ToList();
+            janelas.Add((nome, origem.X + xs.Min() - 50, origem.Y + ys.Min() - 50, origem.X + xs.Max() + 450, origem.Y + ys.Max() + 50));
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var ids = ComandosTemplate.Desenhar(tr, db, cfg, r, origem);
+                Checar(ids.Count == r.Barras.Count, $"{nome}: {ids.Count} armaduras desenhadas ({r.Barras.Count} no template)");
+                var dados = ids.Select(i => XDataCad.LerBarra(tr.GetObject(i, OpenMode.ForRead))).ToList();
+                Checar(dados.All(d => d != null), $"{nome}: todas as barras com dados do plugin");
+                int iCal = r.Barras.FindIndex(b => b.Nome == "cálice: horizontais do topo");
+                Checar(iCal >= 0 && dados[iCal].Estribo && dados[iCal].Quantidade == 3, $"{nome}: horizontais do topo do cálice ({(iCal >= 0 ? dados[iCal].Quantidade : -1)})");
+                tr.Commit();
+            }
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                Checar(bt.Has(nome), $"{nome}: detalhamento criado");
+                tr.Commit();
+            }
         }
         Gravar();
         Log.Info($"autoteste: ARMTESTEBLOCO fim ({_ok} ok, {_falhas} falha(s))");
@@ -2375,10 +2388,15 @@ public sealed class AutoTeste
         {
             try { db.SaveAs(Path.Combine(Path.GetDirectoryName(saida), "autoteste_bloco.dwg"), DwgVersion.Current); }
             catch (Exception ex) { Log.Erro("ARMTESTEBLOCO salvar", ex); }
-            doc.SendStringToExecute("_.ZOOM _E\n", true, false, true);
             _filedia = CadApp.GetSystemVariable("FILEDIA");
             CadApp.SetSystemVariable("FILEDIA", 0);
-            doc.SendStringToExecute($"_.PNGOUT {Path.Combine(Path.GetDirectoryName(saida), "autoteste_bloco.png")}\n\n", true, false, true);
+            string N(double x) => x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            foreach (var (nome, x0, y0, x1, y1) in janelas)
+            {
+                doc.SendStringToExecute($"_.ZOOM _W {N(x0)},{N(y0)} {N(x1)},{N(y1)}\n", true, false, true);
+                string png = Path.Combine(Path.GetDirectoryName(saida), "autoteste_" + nome.Replace(' ', '_').ToLowerInvariant() + ".png");
+                doc.SendStringToExecute($"_.PNGOUT {png}\n\n", true, false, true);
+            }
             doc.SendStringToExecute($"FILEDIA {Convert.ToInt32(_filedia ?? 1)}\n", true, false, true);
             doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
         }

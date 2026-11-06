@@ -171,28 +171,32 @@ Pedido do usuário: reconhecer a estrutura de um DWG de outro programa e gerar o
   Testado no AutoCAD 2026 com o DWG de teste do usuário (Eberick, 396 × 402, 1 interna): leitura correta, 13 posições.
 - Fora da v1 (avisos): furos/aberturas, mísulas, planta em L, paredes de espessuras diferentes, vistas por nível
   ("vista topo", "inferior à laje") e corte D-D do exemplo.
-### Bloco sobre estacas com arranque do pilar (Templates/Blocos/TemplateBlocoEstacas.cs, 2026-11-06, PC2)
-Pedido do usuário com o exemplo BLOCO B3 (2 estacas ø25 a 75, 110 × 50 × 45, lastro 5, 19 pilares): armadura + forma.
-Uma classe, dois registros: `bloco_1_estaca` (categoria Bloco1Estaca) e `bloco_estacas` (Bloco2Estacas, estacas em grade
-nx × ny: 2, 3 em linha, 4, 6…).
-- Apresentação do exemplo: "BLOCO B3" + lista dos pilares "(19x)"; planta com as barras no lugar e marcas A/B; estribo
-  horizontal ao lado; CORTE A-A (na linha de estacas) e CORTE B-B (na última coluna) com lastro hachurado, estacas
-  interrompidas, pilar interrompido, barras em ponto e chamadas (cada família é chamada no corte em que aparece em ponto);
-  estribo vertical ao lado do B-B; dobradas embaixo (superior sobre a principal, secundária superior sobre a inferior) com
-  ARMADURA PRINCIPAL/SUPERIOR/SECUNDÁRIA; arranque e estribo do pilar. Forma à esquerda: planta com cadeia face → estacas →
-  eixo do pilar → face, estacas com eixos e quadrantes hachurados, elevação com h, lastro e "LASTRO DE CONC. MAGRO".
-- Regras medidas no exemplo: estribo horizontal (L − 2c) × (B − 2c) = 104 × 44; longitudinais dentro dele, reto arredondado
-  ao cm (110 − 6 − 2·0,63 = 103); estribo vertical (B − 2c) × (h − c_sup − c_inf) = 44 × 35 (c_sup = c_inf = 5);
-  perna da inferior 15 (dado), da superior = altura do estribo (35); principal em faixa centrada em cada linha de estacas
-  (qtd e espaçamento dados); secundárias = 1 barra por canto. A direção com ≥ 2 estacas leva principal; 1 estaca = só
-  secundárias nas duas direções + estribos nas duas direções.
-- Detalhamento com repetições = nº de pilares da lista (`ResultadoTemplate.DadosDetalhamento`, novo; também grupo
-  Fundações, classe, volume e área de forma).
-- Arranque: Detalhar (N na RA) / Só desenhar / Sem; espera 0 = traspasse NBR 6118 (100 %, fck), pé para dentro/fora,
-  estribos do pilar no bloco. Avisos: estaca fora do bloco, pilar fora, bloco baixo, trecho reto do arranque < lb.
-- Autoteste: `tools\autoteste_autocad.ps1 -Comando ARMTESTEBLOCO` (AutoCAD 2026 do PC2: 4 ok; PNG `autoteste_bloco.png`).
-- [VALIDAR com o usuário] c_sup/c_inf = 5 e pé do arranque 10 (deduzidos/arbitrados); no exemplo N2 e N4 são posições
-  diferentes, mas o plugin junta barras iguais (ø6.3, 103/35) no mesmo N; a numeração do plugin (Global) segue a bitola,
-  não a ordem do exemplo; C= do plugin desconta as dobras (127 em vez de 133).
-- Fora da v1: 3 estacas em triângulo, 5 em quincôncio e blocos não retangulares; colarinho/cálice (pilar pré-moldado);
-  armadura de pele/suspensão; tabela de cargas.
+### Blocos sobre estacas (Templates/Blocos/TemplateBlocoEstacas.cs, 2026-11-06, PC2)
+Exemplos e regras medidas: `docs/BLOCOS_REQUISITOS.md` (B3 em imagem; B4, B15, B28, B31 e B3.1 em PDF/DWG). Decisões do
+usuário (2026-11-06): **padrão de folha BPM para todos**, **todos os tipos de uma vez**, **perna da principal pela altura do
+bloco** (topo da base − cobrimento; valor digitado manda).
+Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (Bloco2Estacas).
+- Formas: retangular em grade nx × ny (bloco = estacas ± "e", a distância eixo-face) ou triangular de 3 estacas (hexágono
+  com as 6 faces a "e": 3 nos lados e 3 nos cantos; recorte de semiplanos). Pilar no centro das estacas (+ deslocamento).
+- Ligação: cálice com colarinho (limitado à face do bloco, como o B28), cálice embutido ou arranque.
+- Armaduras: principal em faixas sobre as estacas (triangular: uma por lado; faixa larga demais é deslocada para dentro,
+  como o B31); malhas secundária (inferior) e superior nas duas direções (superior interrompida no colarinho/cálice;
+  comprimentos diferentes = grupo VAR com os "L" escritos na planta); lateral horizontal fechada no contorno − c (inclusive
+  o hexágono); estribos verticais (retangular); cálice: horizontais fechadas (topo concentrado + restante até a base do
+  pilar), grampos U por parede ("2x", perna t − c − c_cálice), verticais em grampo (2 por parede), suspensão (NBR 9062
+  7.7.3.7) e barras sob a base do pilar; arranque com pé e estribos do pilar.
+- Desenho (padrão BPM): FORMA (título "BLOCO B28 - 6x - 2 ø 40", pilares, PLANTA cotada com quadrantes hachurados, CORTE A-A
+  com regularização, concreto magro e NÍVEIS por pilar a partir do topo — tabela "Níveis"); ARMADURA (VISTA SUPERIOR da
+  inferior principal, inferior secundária e superior com as dobradas embaixo; CÁLICE; ARM. LATERAL HORIZONTAL; CORTES A-A e
+  B-B com barras em ponto e chamadas curtas; arranque); relação do aço; INFORMAÇÕES P/ PRODUÇÃO; detalhes padrão do pilar
+  (`TemplatePilarPreMoldado.DesenharDetalhesComuns`: DETALHE 01 chaves, raio de curvatura, emendas, comprimento das barras);
+  ANCORAGEM DAS ARMADURAS DAS ESTACAS; INDICAÇÃO BARRA VARIÁVEL; notas. Idioma PT, EN ou PT/EN.
+- Detalhamento com repetições = nº de pilares (`ResultadoTemplate.DadosDetalhamento`: grupo, classe, volume, área de forma).
+- Avisos: estaca/pilar fora, Lemb < 40 e < 1,2h/1,5h (NBR 9062 Tab. 15), parede < 15, fundo sob o cálice < 20, arranque < lb.
+- Testes: `BlocoEstacasTests` (B28, B15, B31, arranque, 1 estaca embutido); autoteste `toolsutoteste_autocad.ps1 -Comando
+  ARMTESTEBLOCO` desenha B28 e B15 (8 ok no AutoCAD 2026 do PC2; PNGs autoteste_bloco_b28/b15.png). Prévia sem CAD:
+  `GravarPreviaDoBloco` (ARM_PREVIA).
+- [VALIDAR com o usuário] perna da principal (regra × 68 do B31); forma das barras da principal no triangular (retas de
+  face a face; o B15 usa 106/15/117/56/117/15/106); pernas da secundária/superior (20 digitado); suspensão (perna externa
+  = interna − 6); posição das chamadas; o B3 (imagem) agora sai no padrão BPM.
+- Fora: 5 estacas em quincôncio e outros arranjos não em grade; colarinho excêntrico; chaves desenhadas nas paredes do cálice.
