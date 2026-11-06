@@ -11,7 +11,7 @@ de cada um começa quando ele enviar os PDFs/DWGs (pastas em `info_auxiliar/temp
 | Bloco de 1 estaca | com/sem colarinho ou cálice; embutimento para pilar pré-moldado |
 | Bloco de 2 estacas | idem |
 | Pilar pré-moldado | levantamento em `docs/PILAR_PREMOLDADO_REQUISITOS.md` (2026-10-29): categorias PP-1…PP-5, normas, padrão P61/PP127 |
-| Viga pré-moldada | protendida ou não |
+| Viga pré-moldada | protendida ou não; levantamento em `docs/VIGA_PREMOLDADA_REQUISITOS.md` (2026-11-06, PC2): categorias VP-1…VP-5, NBR 6118 18.3 e NBR 9062 (dente Gerber, apoio sem recorte, protensão) |
 | Pilar moldado in loco | |
 | Viga moldada in loco | |
 | Laje | |
@@ -153,7 +153,7 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
 ### Reservatório retangular (Templates/Reservatorio/, 2026-11-05, PC2, branch pc2/template-reservatorio)
 Pedido do usuário: reconhecer a estrutura de um DWG de outro programa e gerar o detalhamento no padrão do exemplo
 uxiliar_cad/reservatório (armadura.dwg + forma.dwg), usando só as bitolas e espaçamentos do desenho original.
-- TemplateReservatorio (id eservatorio, também no ARMTEMPLATE): retângulo externo Lx × Ly, paredes de espessura t,
+- TemplateReservatorio (id `reservatorio`, também no ARMTEMPLATE): retângulo externo Lx × Ly, paredes de espessura t,
   internas de face a face (eixos x/y), altura H acima do fundo, fundo hf com balanço, lajes superiores (tabela: nome,
   nível, espessura, células). Vistas: paredes em planta 1:25 (horizontais rebatidas em volta, L de canto externo e L nos
   cantos das células, verticais de canto com indicação), cortes A-A e B-B 1:25 (verticais rebatidas, arranques), fundo
