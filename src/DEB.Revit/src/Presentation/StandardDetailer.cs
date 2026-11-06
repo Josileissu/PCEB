@@ -27,9 +27,21 @@ namespace DEB.Revit.Presentation
         public FamilyInstance Corbel { get; set; }
         /// <summary>Cortes e seções transversais: altura do corte (ao longo do eixo da peça, coordenada do projeto) e "A"/"1".</summary>
         public double CutZ { get; set; } = double.NaN;
+        public string CutId { get; set; }
         /// <summary>Elevações da peça (faces e armadura): ponto da base do pilar, usado para nivelar as vistas na folha.</summary>
         public XYZ Anchor { get; set; }
-        public string CutId { get; set; }
+        /// <summary>Vista da alça de içamento: a alça detalhada.</summary>
+        internal LiftLoopGeo Loop { get; set; }
+    }
+
+    /// <summary>Alça de içamento de cima: a barra, a linha de centro dela (modelo), a direção para fora da face e a face.</summary>
+    internal sealed class LiftLoopGeo
+    {
+        public Rebar Bar;
+        public List<Curve> Curves;
+        public XYZ U;
+        public double Face;
+        public double DiameterMm;
     }
 
     /// <summary>
@@ -102,6 +114,9 @@ namespace DEB.Revit.Presentation
                             CorbelCallouts(v.View, v.Corbel, v.Spec.Tipo == ViewKind.ConsoloPlanta, rebars, styles, log);
                     }
                 }, critical: false);
+
+                foreach (PlacedView v in views.Where(v => v.Loop != null))
+                    Tx("Detalhe da alça", log, () => LiftDetail(v.View, v.Loop, styles), critical: false);
 
                 if (Std.Armadura.DesenhoDeDobramento)
                     Tx("Dobramento das barras", log, () =>
@@ -265,6 +280,17 @@ namespace DEB.Revit.Presentation
                             }
                             break;
                         }
+                        case ViewKind.AlcaIcamento:
+                        {
+                            LiftLoopGeo loop = LiftLoopOf(asm, p);
+                            if (loop == null) { log.Info($"{spec.Titulo.Split('\n')[0]}: peça sem alça de içamento."); break; }
+                            ViewSection v = CreateLiftView(loop, p);
+                            if (v == null) { log.Warn($"{spec.Titulo.Split('\n')[0]}: vista não criada."); break; }
+                            PlacedView pv = Setup(v, spec, Title(spec, "", ""), mark, names);
+                            pv.Loop = loop;
+                            result.Add(pv);
+                            break;
+                        }
                         case ViewKind.Vista3D:
                         {
                             View3D v3 = AssemblyViewUtils.Create3DOrthographic(_doc, asm.Id);
@@ -288,7 +314,7 @@ namespace DEB.Revit.Presentation
             foreach (FamilyInstance k in p.Attached) pts.AddRange(GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null)));
             foreach (PlacedView pv in result)
             {
-                if (pv.View is ViewSection vs && pv.Corbel == null)
+                if (pv.View is ViewSection vs && pv.Corbel == null && pv.Loop == null)
                 {
                     try
                     {
@@ -538,6 +564,120 @@ namespace DEB.Revit.Presentation
             v.CropBoxVisible = false;
             v.get_Parameter(BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE)?.Set(0);
             return v;
+        }
+
+        // ------------------------------------------------------------------
+        // Alça de içamento: corte no plano da alça de cima, cotas e etiqueta (no lugar da legenda fixa)
+
+        /// <summary>A alça mais alta da peça (posição de barra de maior cota). Null se a peça não tem alça.</summary>
+        private LiftLoopGeo LiftLoopOf(AssemblyInstance asm, PieceInfo p)
+        {
+            LiftLoopGeo best = null;
+            double bestZ = double.MinValue;
+            foreach (Rebar r in asm.GetMemberIds().Select(_doc.GetElement).OfType<Rebar>())
+            {
+                string[] c = (r.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString() ?? "").Split('|');
+                if (c.Length < 3 || c[2] != "Alça de içamento") continue;
+                for (int i = 0; i < r.NumberOfBarPositions; i++)
+                {
+                    List<Curve> cs;
+                    try { cs = r.GetTransformedCenterlineCurves(false, false, false, MultiplanarOption.IncludeOnlyPlanarCurves, i).ToList(); }
+                    catch { continue; }
+                    if (cs.Count == 0) continue;
+                    double z = cs.Average(q => q.Evaluate(0.5, true).DotProduct(p.AxisZ));
+                    if (z <= bestZ + U.Mm(1)) continue;
+                    bestZ = z;
+                    best = new LiftLoopGeo { Bar = r, Curves = cs, DiameterMm = U.ToMm((_doc.GetElement(r.GetTypeId()) as RebarBarType)?.BarNominalDiameter ?? 0) };
+                }
+            }
+            if (best == null) return null;
+            // para fora: o lado em que a alça passa da face do pilar
+            List<XYZ> pts = best.Curves.SelectMany(q => new[] { q.GetEndPoint(0), q.GetEndPoint(1) }).ToList();
+            best.U = new[] { p.AxisX, p.AxisX.Negate(), p.AxisY, p.AxisY.Negate() }
+                .OrderByDescending(d => pts.Max(q => q.DotProduct(d)) - p.MaxAlong(d)).First();
+            best.Face = p.MaxAlong(best.U);
+            return best;
+        }
+
+        /// <summary>Corte no plano da alça (olhando ao longo da face), recortado em volta da alça e do trecho de face.</summary>
+        private ViewSection CreateLiftView(LiftLoopGeo g, PieceInfo p)
+        {
+            ViewFamilyType vft = new FilteredElementCollector(_doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
+                .FirstOrDefault(t => t.ViewFamily == ViewFamily.Section);
+            if (vft == null) return null;
+            List<XYZ> pts = g.Curves.SelectMany(q => new[] { q.GetEndPoint(0), q.GetEndPoint(1), q.Evaluate(0.5, true) }).ToList();
+            XYZ z = p.AxisZ, u = g.U;
+            XYZ c = pts.Aggregate(XYZ.Zero, (a, b) => a + b) / pts.Count;
+            var tr = Transform.Identity;
+            tr.BasisX = u; tr.BasisY = z; tr.BasisZ = u.CrossProduct(z);
+            // plano 3 cm à frente da alça: a alça (e a outra do mesmo ponto, logo atrás) fica vista, não cortada
+            tr.Origin = c + tr.BasisZ * U.Mm(30);
+            double m = U.Mm(60);
+            double u0 = Math.Min(pts.Min(q => (q - c).DotProduct(u)), g.Face - c.DotProduct(u)), u1 = pts.Max(q => (q - c).DotProduct(u));
+            double z0 = pts.Min(q => (q - c).DotProduct(z)), z1 = pts.Max(q => (q - c).DotProduct(z));
+            var box = new BoundingBoxXYZ
+            {
+                Transform = tr,
+                Min = new XYZ(u0 - m, z0 - m, -U.Mm(200)),
+                Max = new XYZ(u1 + m, z1 + m, 0)
+            };
+            ViewSection v = ViewSection.CreateSection(_doc, vft.Id, box);
+            v.CropBoxActive = true;
+            v.CropBoxVisible = false;
+            v.get_Parameter(BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE)?.Set(0);
+            return v;
+        }
+
+        /// <summary>
+        /// Cotas da alça como o detalhe do escritório: saída da face até o lado de fora da alça (em cima), e ao lado a
+        /// cadeia perna embutida + largura + perna; embaixo a etiqueta da posição (quantidade, bitola e comprimento).
+        /// As cotas pegam traços curtos de linha de detalhe nos pontos medidos (a cota de vergalhão não tem referência).
+        /// </summary>
+        private void LiftDetail(View view, LiftLoopGeo g, AnnotationStyles styles)
+        {
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            double s = view.Scale, w = view.Origin.DotProduct(vd);
+            XYZ At(double r, double uu) => right * r + up * uu + vd * w;
+            double sg = g.U.DotProduct(right) >= 0 ? 1 : -1;      // a alça sai para a direita (+1) ou para a esquerda
+            List<XYZ> pts = g.Curves.SelectMany(q => new[] { q.GetEndPoint(0), q.GetEndPoint(1) }).ToList();
+            double rFace = g.Face * g.U.DotProduct(right);
+            double rad = U.Mm(g.DiameterMm / 2);
+            double rOut = pts.Select(q => q.DotProduct(right)).OrderBy(x => x * sg).Last() + sg * rad;
+            double rIn = pts.Select(q => q.DotProduct(right)).OrderBy(x => x * sg).First();
+            // braços (trechos retos para fora da face) e pontas das pernas
+            List<double> arms = g.Curves.OfType<Line>().Where(l => Math.Abs(l.Direction.DotProduct(right)) > 0.99)
+                .Select(l => l.GetEndPoint(0).DotProduct(up)).OrderBy(x => x).ToList();
+            double zA = pts.Min(q => q.DotProduct(up)), zD = pts.Max(q => q.DotProduct(up));
+            double tick = U.Mm(1.5) * s, off = U.Mm(8) * s;
+            Reference Tick(double r, double uu, bool horizontal)
+            {
+                Line ln = horizontal ? Line.CreateBound(At(r - tick, uu), At(r + tick, uu)) : Line.CreateBound(At(r, uu - tick), At(r, uu + tick));
+                return _doc.Create.NewDetailCurve(view, ln).GeometryCurve.Reference;
+            }
+            void Dim(Line line, params Reference[] refs)
+            {
+                var ra = new ReferenceArray();
+                foreach (Reference rf in refs) ra.Append(rf);
+                Try(() => _doc.Create.NewDimension(view, line, ra, styles.Dimension));
+            }
+            // saída da face: em cima da alça
+            double uTop = zD + off;
+            Dim(Line.CreateBound(At(rFace, uTop), At(rOut, uTop)), Tick(rFace, uTop, false), Tick(rOut, uTop, false));
+            // perna + largura + perna: do lado de dentro da peça
+            double rSide = (sg > 0 ? Math.Min(rIn, rFace) : Math.Max(rIn, rFace)) - sg * off;
+            var zs = new List<double> { zA };
+            if (arms.Count >= 2) { zs.Add(arms[0]); zs.Add(arms[^1]); }
+            zs.Add(zD);
+            Dim(Line.CreateBound(At(rSide, zA), At(rSide, zD)), zs.Select(zz => Tick(rSide, zz, true)).ToArray());
+            // etiqueta da posição embaixo
+            FamilySymbol tag = RebarTagType(Std.Armadura.EtiquetaLongitudinal);
+            XYZ at = At((rFace + rOut) / 2, zA - off * 1.5);
+            if (tag == null || TagRebar(tag, view, g.Bar, false, TagOrientation.Horizontal, at) == null)
+            {
+                var row = new RebarRow(_doc, g.Bar);
+                Try(() => TextNote.Create(_doc, view.Id, at, Fill(Std.Armadura.RotuloBarra, row),
+                    new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center }));
+            }
         }
 
         // ------------------------------------------------------------------

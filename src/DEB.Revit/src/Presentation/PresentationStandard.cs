@@ -235,7 +235,10 @@ namespace DEB.Revit.Presentation
         /// <summary>Planta de cada tipo de consolo, logo abaixo do topo. Título aceita {Consolo} e {Qtd} (consolos iguais).</summary>
         ConsoloPlanta,
         /// <summary>Corte transversal no meio do balanço de cada tipo de consolo, olhando para a face (CORTE A-A). Título aceita {Consolo}.</summary>
-        ConsoloCorteTransversal
+        ConsoloCorteTransversal,
+        /// <summary>Corte pela alça de içamento de cima (plano da alça), com a saída, a largura e as pernas cotadas e a
+        /// etiqueta da posição: o detalhe "ALÇA DE IÇAMENTO" da peça, no lugar da legenda fixa.</summary>
+        AlcaIcamento
     }
 
     /// <summary>Onde passa um corte transversal.</summary>
@@ -295,5 +298,8 @@ namespace DEB.Revit.Presentation
         public string Arquivo { get; set; } = "";
         /// <summary>Escala da legenda criada do DXF (0 = a da legenda duplicada).</summary>
         public int Escala { get; set; }
+        /// <summary>Tipo de vista (ex.: "AlcaIcamento") que ocupa este lugar no lugar da legenda: a vista da peça vai para a
+        /// posição da legenda na região, e a legenda não entra.</summary>
+        public string Vista { get; set; } = "";
     }
 }
