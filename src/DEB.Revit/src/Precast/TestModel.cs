@@ -55,7 +55,9 @@ namespace DEB.Revit.Precast
         ///   SD_PILAR     = família .rfa do pilar (tipos "40x40 - docas" nos cantos e "50x50 - internos" no meio)
         ///   SD_VIGA      = família .rfa da viga (consolos aninhados nas pontas)
         ///   SD_SAVEAS    = onde gravar o .rvt
-        /// Grade 3 × 2 pilares com vãos de 6 m; vigas nas duas direções, do centro de um pilar ao do outro, no topo (6 m).
+        ///   SD_NIVEIS    = níveis das vigas, "cota_mm:direções" separados por ";" (ex.: "3000:X;6000:XY;9000:Y");
+        ///                  padrão "6000:XY". O pilar vai até o nível mais alto. Direções: X (2 linhas), Y (3 linhas).
+        /// Grade 3 × 2 pilares com vãos de 6 m; vigas do centro de um pilar ao do outro, em cada nível pedido.
         /// </summary>
         public static string BuildPrecastModel(Application app)
         {
@@ -64,7 +66,15 @@ namespace DEB.Revit.Precast
 
             Document doc = app.NewProjectDocument(template);
             double mm(double v) => UnitUtils.ConvertToInternalUnits(v, UnitTypeId.Millimeters);
-            const double vao = 6000, altura = 6000;
+            const double vao = 6000;
+            var niveis = new List<(double Cota, string Dirs)>();
+            foreach (string item in (Environment.GetEnvironmentVariable("SD_NIVEIS") ?? "6000:XY").Split(';').Where(x => x.Trim() != ""))
+            {
+                string[] kv = item.Split(':');
+                niveis.Add((double.Parse(kv[0].Trim(), CultureInfo.InvariantCulture), kv.Length > 1 ? kv[1].Trim().ToUpperInvariant() : "XY"));
+            }
+            niveis = niveis.OrderBy(n => n.Cota).ToList();
+            double altura = niveis[^1].Cota;
             double embutimento = double.TryParse(Environment.GetEnvironmentVariable("SD_EMBUTIMENTO_MM"), NumberStyles.Float,
                 CultureInfo.InvariantCulture, out double e) ? e : 1000;
 
@@ -72,12 +82,18 @@ namespace DEB.Revit.Precast
             {
                 t.Start();
 
-                // Níveis: o mais baixo existente vira o 0; cria o topo a 6 m.
+                // Níveis: o mais baixo existente vira o 0; um nível por cota de viga (o mais alto = topo dos pilares).
                 List<Level> levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
                 Level baseLv = levels.First();
                 baseLv.Elevation = 0;
-                Level topLv = levels.FirstOrDefault(l => l.Id != baseLv.Id && Math.Abs(l.Elevation - mm(altura)) < mm(1))
-                              ?? Level.Create(doc, mm(altura));
+                Level LevelAt(double cota)
+                {
+                    Level lv = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                                   .FirstOrDefault(l => l.Id != baseLv.Id && Math.Abs(l.Elevation - mm(cota)) < mm(1))
+                               ?? Level.Create(doc, mm(cota));
+                    return lv;
+                }
+                Level topLv = LevelAt(altura);
                 try { topLv.Name = "Topo pilares"; } catch { /* nome já existe */ }
 
                 if (!doc.LoadFamily(pilarRfa, out Family pilarFam)) throw new InvalidOperationException("não carregou " + pilarRfa);
@@ -106,11 +122,11 @@ namespace DEB.Revit.Precast
                         sb.AppendLine($"pilar ({i},{j}) {c.Symbol.Name} id {c.Id.Value}");
                     }
 
-                // Vigas: ao longo de X (2 linhas) e de Y (3 linhas), na cota do topo.
-                void Beam(XYZ a, XYZ b)
+                // Vigas: ao longo de X (2 linhas) e/ou de Y (3 linhas), em cada nível pedido.
+                void Beam(XYZ a, XYZ b, Level lv)
                 {
-                    XYZ za = new XYZ(a.X, a.Y, topLv.Elevation), zb = new XYZ(b.X, b.Y, topLv.Elevation);
-                    FamilyInstance v = doc.Create.NewFamilyInstance(Line.CreateBound(za, zb), viga, topLv, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                    XYZ za = new XYZ(a.X, a.Y, lv.Elevation), zb = new XYZ(b.X, b.Y, lv.Elevation);
+                    FamilyInstance v = doc.Create.NewFamilyInstance(Line.CreateBound(za, zb), viga, lv, Autodesk.Revit.DB.Structure.StructuralType.Beam);
                     // A folga da peça vem dos parâmetros folga_esq/folga_dir da família; o recuo (½" padrão do Revit)
                     // e as extensões da instância precisam ser 0, senão os consolos aninhados se afastam da face do pilar.
                     foreach (BuiltInParameter bip in new[] { BuiltInParameter.START_JOIN_CUTBACK, BuiltInParameter.END_JOIN_CUTBACK,
@@ -121,10 +137,14 @@ namespace DEB.Revit.Precast
                         if (p.IsReadOnly) sb.AppendLine($"   {p.Definition.Name}: só leitura, não zerado");
                         else p.Set(0.0);
                     }
-                    sb.AppendLine($"viga {v.Id.Value}");
+                    sb.AppendLine($"viga {v.Id.Value} nível {lv.Name}");
                 }
-                for (int j = 0; j < 2; j++) for (int i = 0; i < 2; i++) Beam(pos[(i, j)], pos[(i + 1, j)]);
-                for (int i = 0; i < 3; i++) Beam(pos[(i, 0)], pos[(i, 1)]);
+                foreach (var (cota, dirs) in niveis)
+                {
+                    Level lv = LevelAt(cota);
+                    if (dirs.Contains('X')) for (int j = 0; j < 2; j++) for (int i = 0; i < 2; i++) Beam(pos[(i, j)], pos[(i + 1, j)], lv);
+                    if (dirs.Contains('Y')) for (int i = 0; i < 3; i++) Beam(pos[(i, 0)], pos[(i, 1)], lv);
+                }
 
                 t.Commit();
             }

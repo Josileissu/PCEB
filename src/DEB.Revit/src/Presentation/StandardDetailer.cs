@@ -256,7 +256,13 @@ namespace DEB.Revit.Presentation
             {
                 if (pv.View is ViewSection vs && pv.Corbel == null)
                 {
-                    try { ViewFactory.FitCrop(vs, pts, U.Mm(_cfg.CropMarginMm)); }
+                    try
+                    {
+                        // cortes/seções: só o que está na profundidade da vista, com folga pequena (cada corte ocupava
+                        // ~65 mm de largura em 1:25 com todos os consolos + 300 mm e não cabia na coluna)
+                        if (!double.IsNaN(pv.CutZ)) FitSectionCrop(vs, p);
+                        else ViewFactory.FitCrop(vs, pts, U.Mm(_cfg.CropMarginMm));
+                    }
                     catch (Exception ex) { log.Warn($"{pv.Title.Split('\n')[0]}: recorte não ajustado ({ex.Message})."); }
                 }
             }
@@ -309,6 +315,16 @@ namespace DEB.Revit.Presentation
             if (!(v is View3D)) Try(() => v.DisplayStyle = DisplayStyle.HLR);
             if (!spec.MostrarArmadura) Try(() => v.SetCategoryHidden(new ElementId(BuiltInCategory.OST_Rebar), true));
             ApplyTemplate(v, spec.Template);
+            // folga do recorte de anotação (padrão do Revit: 1" de papel por lado = a vista ocupa ~50 mm a mais na prancha)
+            if (!(v is View3D) && Std.Folha.FolgaAnotacaoMm > 0)
+                Try(() =>
+                {
+                    ViewCropRegionShapeManager m = v.GetCropRegionShapeManager();
+                    if (m == null || !m.CanHaveAnnotationCrop) return;
+                    double o = U.Mm(Math.Max(3.2, Std.Folha.FolgaAnotacaoMm));
+                    m.TopAnnotationCropOffset = o; m.BottomAnnotationCropOffset = o;
+                    m.LeftAnnotationCropOffset = o; m.RightAnnotationCropOffset = o;
+                });
             v.get_Parameter(BuiltInParameter.VIEW_DESCRIPTION)?.Set(title.Replace("\n", " "));
             return new PlacedView { View = v, Spec = spec, Title = title };
         }
@@ -1051,6 +1067,37 @@ namespace DEB.Revit.Presentation
             role.IndexOf("consolo", StringComparison.OrdinalIgnoreCase) >= 0 || role.IndexOf("soldada", StringComparison.OrdinalIgnoreCase) >= 0;
 
         private static bool IsStirrupRole(string role) => role == "Estribo" || role == "Grampo";
+
+        /// <summary>
+        /// Recorte do corte/seção = pilar + consolos dentro da profundidade + 5 cm. O da vista de montagem é um quadrado
+        /// de 1,25 m, que fazia cada corte ocupar ~65 mm de largura na prancha em 1:25 (e não caber na coluna).
+        /// </summary>
+        private static void FitSectionCrop(View v, PieceInfo p)
+        {
+            if (v is ViewSection vs) DEB.Revit.Core.ViewFactory.FitCrop(vs, SectionPoints(v, p), U.Mm(50));
+        }
+
+        /// <summary>Pontos do pilar e dos consolos que estão dentro da profundidade da vista.</summary>
+        private static List<XYZ> SectionPoints(View view, PieceInfo p)
+        {
+            XYZ vd = view.ViewDirection;
+            double d = view.Origin.DotProduct(vd);
+            double far = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR)?.AsDouble() ?? U.Mm(1000);
+            var pts = new List<XYZ>(p.Vertices);
+            foreach (FamilyInstance k in p.Attached)
+            {
+                BoundingBoxXYZ bb = k.get_BoundingBox(null);
+                if (bb == null) continue;
+                var c = new List<XYZ>();
+                foreach (double x in new[] { bb.Min.X, bb.Max.X })
+                    foreach (double y in new[] { bb.Min.Y, bb.Max.Y })
+                        foreach (double z in new[] { bb.Min.Z, bb.Max.Z })
+                            c.Add(bb.Transform.OfPoint(new XYZ(x, y, z)));
+                if (c.Max(q => q.DotProduct(vd)) < d - far || c.Min(q => q.DotProduct(vd)) > d + U.Mm(5)) continue;
+                pts.AddRange(c);
+            }
+            return pts;
+        }
 
         /// <summary>Extensão da seção na vista: pilar + consolos dentro da profundidade da vista.</summary>
         private static (double MinR, double MaxR, double MinU, double MaxU) SectionExtents(View view, PieceInfo p)

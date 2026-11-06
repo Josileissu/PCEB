@@ -144,6 +144,8 @@ namespace DEB.Revit.Presentation
         /// no lugar das marcas do Revit (cabeça com nº do detalhe e folha).
         /// </summary>
         public bool MarcasDeCorteSimples { get; set; } = true;
+        /// <summary>Folga (mm de papel) do recorte de anotação de cada vista; 0 = a do Revit (1"). Define quanto a vista ocupa na prancha.</summary>
+        public double FolgaAnotacaoMm { get; set; } = 12;
         /// <summary>Escalas tentadas, em ordem, quando as vistas de uma região não cabem.</summary>
         public int[] EscalasAlternativas { get; set; } = { 20, 25, 50, 75, 100 };
     }

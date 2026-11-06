@@ -73,9 +73,13 @@ namespace DEB.Revit.Presentation
                     var opt = new TextNoteOptions(_styles.ViewTitle.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
                     // largura da caixa = linha mais longa (sem largura, a caixa do texto fica bem maior que o texto e
                     // o arranjo acha que a vista não cabe)
-                    int chars = pv.Title.Split('\n').Concat(new[] { Std.Folha.TituloEscala ?? "" }).Max(l => l.Length) + 2;
-                    double hw = chars * U.Mm(Std.Textos.AlturaTituloVistaMm * 0.8);
-                    TextNote h = TextNote.Create(_doc, sheet.Id, center, hw, pv.Title, opt);
+                    // largura média medida na prancha (Arial): ~0,78 × altura por caractere na 1ª linha (negrito, maiúsculas)
+                    // e ~0,62 nas outras; + 2 caracteres de folga
+                    string[] tl = pv.Title.Split('\n').Concat(new[] { Std.Folha.TituloEscala ?? "" }).ToArray();
+                    double em = Std.Textos.AlturaTituloVistaMm;
+                    double hw = U.Mm(Math.Max(tl[0].Length * 0.78 * em, tl.Skip(1).DefaultIfEmpty("").Max(l => l.Length) * 0.62 * em) + 2 * 0.62 * em);
+                    // caixa 40% mais larga que a estimativa (centrada): o Revit nunca quebra a linha; o arranjo usa a estimativa
+                    TextNote h = TextNote.Create(_doc, sheet.Id, center, hw * 1.4, pv.Title, opt);
                     Put(pv.Spec.Regiao, new Item { Element = vp, Viewport = vp, Heading = h, HeadingText = pv.Title, LabelW = hw });
                     continue;
                 }
