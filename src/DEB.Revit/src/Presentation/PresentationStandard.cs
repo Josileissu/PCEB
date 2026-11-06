@@ -136,6 +136,11 @@ namespace DEB.Revit.Presentation
         public bool TituloAcima { get; set; }
         /// <summary>Linha da escala no título acima ({Escala} = denominador). Vazio = sem linha de escala.</summary>
         public string TituloEscala { get; set; } = "Esc. 1:{Escala}";
+        /// <summary>
+        /// Marcas de corte das elevações como no pilar padrão do CAD (traço grosso curto + letra/número, dos dois lados),
+        /// no lugar das marcas do Revit (cabeça com nº do detalhe e folha).
+        /// </summary>
+        public bool MarcasDeCorteSimples { get; set; } = true;
         /// <summary>Escalas tentadas, em ordem, quando as vistas de uma região não cabem.</summary>
         public int[] EscalasAlternativas { get; set; } = { 20, 25, 50, 75, 100 };
     }

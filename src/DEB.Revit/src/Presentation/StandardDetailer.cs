@@ -25,6 +25,9 @@ namespace DEB.Revit.Presentation
         public string Title { get; set; }
         /// <summary>Consolo detalhado nesta vista (vistas de consolo); null nas demais.</summary>
         public FamilyInstance Corbel { get; set; }
+        /// <summary>Cortes e seções transversais: altura do corte (ao longo do eixo da peça, coordenada do projeto) e "A"/"1".</summary>
+        public double CutZ { get; set; } = double.NaN;
+        public string CutId { get; set; }
     }
 
     /// <summary>
@@ -145,6 +148,23 @@ namespace DEB.Revit.Presentation
                             schematic.TryGetValue(v.View.Id, out List<XYZ> sp) ? sp : null);
                 }, critical: false);
 
+            // Marcas de corte como no pilar padrão do CAD (traço + letra/número dos dois lados), no lugar das do Revit
+            if (Std.Folha.MarcasDeCorteSimples)
+                Tx("Marcas de corte", log, () =>
+                {
+                    var names = new HashSet<string>(views.Select(v => v.View.Name));
+                    List<ElementId> revitMarks = new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_Viewers)
+                        .WhereElementIsNotElementType().Where(e => names.Contains(e.Name)).Select(e => e.Id).ToList();
+                    foreach (PlacedView v in views.Where(v => v.Corbel == null && (v.Spec.Tipo == ViewKind.Face || v.Spec.Tipo == ViewKind.Armadura)))
+                    {
+                        ViewKind cutKind = v.Spec.Tipo == ViewKind.Face ? ViewKind.Corte : ViewKind.SecaoArmadura;
+                        List<PlacedView> cuts = views.Where(c => c.Spec.Tipo == cutKind && !double.IsNaN(c.CutZ)).ToList();
+                        List<ElementId> h = revitMarks.Where(id => _doc.GetElement(id)?.CanBeHidden(v.View) == true).ToList();
+                        if (h.Count > 0) Try(() => v.View.HideElements(h));
+                        CutMarks(v.View, p, cuts, styles, schematic.TryGetValue(v.View.Id, out List<XYZ> sp) ? sp : null);
+                    }
+                }, critical: false);
+
             ViewSheet sheet = null;
             if (!Tx("Montar prancha", log, () => sheet = new SheetComposer(_doc, _ctx, styles, log).Compose(asm, views)))
                 return null;
@@ -193,6 +213,8 @@ namespace DEB.Revit.Presentation
                                 PlacedView pv = Setup(v, spec, title, mark, names);   // nome antes de mover (marcador = nome)
                                 if (!vf.MoveSection(v, p.AxisZ, p.Origin.DotProduct(p.AxisZ) + z))
                                     log.Warn($"{title.Split('\n')[0]}: posição não ajustada.");
+                                pv.CutZ = p.Origin.DotProduct(p.AxisZ) + z;
+                                pv.CutId = id;
                                 result.Add(pv);
                             }
                             break;
@@ -468,6 +490,41 @@ namespace DEB.Revit.Presentation
                 log?.Info($"Linhas de nível: estilo \"{_levelLineStyle?.Name ?? "(padrão)"}\" (disponíveis: {string.Join(", ", all.Select(g => g.Name))}).");
             }
             return _levelLineStyle;
+        }
+
+        /// <summary>
+        /// Marcas de corte simples: dos dois lados da vista, na altura de cada corte, um traço grosso curto (5 mm no papel)
+        /// com a letra/número em cima. Os lados são os da peça com os consolos (e o desenho esquemático, se houver).
+        /// </summary>
+        private void CutMarks(View view, PieceInfo p, List<PlacedView> cuts, AnnotationStyles styles, List<XYZ> extra)
+        {
+            if (cuts.Count == 0) return;
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            if (Math.Abs(p.AxisZ.DotProduct(up)) < 0.99) return;   // só elevações
+            double s = view.Scale, d = view.Origin.DotProduct(vd);
+            XYZ At(double r, double u) => right * r + up * u + vd * d;
+            var pts = new List<XYZ>(p.Vertices);
+            foreach (FamilyInstance k in p.Attached) pts.AddRange(GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null)));
+            if (extra != null) pts.AddRange(extra);
+            double minR = pts.Min(q => q.DotProduct(right)), maxR = pts.Max(q => q.DotProduct(right));
+            double len = U.Mm(5) * s, gap = U.Mm(2) * s, textH = U.Mm(Std.Textos.AlturaTextoMm) * s;
+            var center = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
+            GraphicsStyle thick = null;
+            foreach (PlacedView c in cuts)
+            {
+                double u = (p.AxisZ * c.CutZ).DotProduct(up);
+                foreach (double r0 in new[] { minR - gap - len, maxR + gap })
+                {
+                    Try(() =>
+                    {
+                        DetailCurve dc = _doc.Create.NewDetailCurve(view, Line.CreateBound(At(r0, u), At(r0 + len, u)));
+                        thick ??= dc.GetLineStyleIds().Select(id => _doc.GetElement(id)).OfType<GraphicsStyle>()
+                            .FirstOrDefault(g => g.Name.IndexOf("grossa", StringComparison.OrdinalIgnoreCase) >= 0 || g.Name.IndexOf("Wide", StringComparison.OrdinalIgnoreCase) >= 0);
+                        if (thick != null) dc.LineStyle = thick;
+                        TextNote.Create(_doc, view.Id, At(r0 + len / 2, u + textH * 1.6), c.CutId, center);
+                    });
+                }
+            }
         }
 
         private void LevelMarks(View view, PieceInfo p, AnnotationStyles styles, bool labels, PieceLog log, List<XYZ> extra = null)
