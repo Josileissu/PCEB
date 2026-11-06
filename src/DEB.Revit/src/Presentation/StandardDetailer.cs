@@ -62,7 +62,7 @@ namespace DEB.Revit.Presentation
                 {
                     if (v.Corbel != null)
                     {
-                        dims += ds.AddAttachedDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p, v.Corbel);
+                        dims += ds.AddAttachedDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p, v.Corbel, detail: true);
                         continue;
                     }
                     dims += ds.AddOverallDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p);
@@ -192,10 +192,11 @@ namespace DEB.Revit.Presentation
                         }
                         case ViewKind.ConsoloCorte:
                         case ViewKind.ConsoloPlanta:
+                        case ViewKind.ConsoloCorteTransversal:
                         {
                             foreach (CorbelGeo cg in DistinctCorbels(p))
                             {
-                                ViewSection v = CreateCorbelView(cg, spec.Tipo == ViewKind.ConsoloPlanta);
+                                ViewSection v = CreateCorbelView(cg, spec.Tipo);
                                 if (v == null) { log.Warn($"{spec.Titulo.Split('\n')[0]}: vista do consolo não criada."); break; }
                                 PlacedView pv = Setup(v, spec, Title(spec, "", "").Replace("{Consolo}", cg.Label)
                                     .Replace("{Qtd}", cg.Count.ToString(CultureInfo.InvariantCulture)), mark, names);
@@ -394,9 +395,13 @@ namespace DEB.Revit.Presentation
             return result;
         }
 
-        /// <summary>Corte vertical pelo meio do consolo (olhando ao longo da face) ou planta logo abaixo do topo.</summary>
-        private ViewSection CreateCorbelView(CorbelGeo g, bool plan)
+        /// <summary>
+        /// Corte vertical pelo meio do consolo (olhando ao longo da face), planta logo abaixo do topo ou corte transversal
+        /// no meio do balanço (olhando para a face; a profundidade vai só até a face, o pilar não aparece).
+        /// </summary>
+        private ViewSection CreateCorbelView(CorbelGeo g, ViewKind kind)
         {
+            bool plan = kind == ViewKind.ConsoloPlanta;
             ViewFamilyType vft = new FilteredElementCollector(_doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Section);
             if (vft == null) return null;
@@ -405,7 +410,14 @@ namespace DEB.Revit.Presentation
             double back = Math.Min(g.U0 - g.ColU0, U.Mm(150));   // só um trecho do pilar atrás do consolo (como a PP127)
             var box = new BoundingBoxXYZ();
             Transform tr = Transform.Identity;
-            if (!plan)
+            if (kind == ViewKind.ConsoloCorteTransversal)
+            {
+                tr.Origin = g.U * (g.U0 + c / 2) + g.T * tMid + g.Z * ((g.Z0 + g.Z1) / 2);
+                tr.BasisX = g.T; tr.BasisY = g.Z; tr.BasisZ = g.T.CrossProduct(g.Z);   // = U: olha para a face
+                box.Min = new XYZ(-(w / 2 + m), -h / 2 - m, -(c / 2 - U.Mm(2)));
+                box.Max = new XYZ(w / 2 + m, h / 2 + m, 0);
+            }
+            else if (!plan)
             {
                 tr.Origin = g.U * g.U0 + g.T * tMid + g.Z * ((g.Z0 + g.Z1) / 2);
                 tr.BasisX = g.U; tr.BasisY = g.Z; tr.BasisZ = g.U.CrossProduct(g.Z);

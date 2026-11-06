@@ -204,7 +204,9 @@ namespace DEB.Revit.Presentation
         /// <summary>Corte vertical pelo meio de cada tipo de consolo (tirante e costura). Título aceita {Consolo}.</summary>
         ConsoloCorte,
         /// <summary>Planta de cada tipo de consolo, logo abaixo do topo. Título aceita {Consolo} e {Qtd} (consolos iguais).</summary>
-        ConsoloPlanta
+        ConsoloPlanta,
+        /// <summary>Corte transversal no meio do balanço de cada tipo de consolo, olhando para a face (CORTE A-A). Título aceita {Consolo}.</summary>
+        ConsoloCorteTransversal
     }
 
     /// <summary>Onde passa um corte transversal.</summary>
