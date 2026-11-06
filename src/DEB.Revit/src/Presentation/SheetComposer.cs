@@ -108,14 +108,21 @@ namespace DEB.Revit.Presentation
             }
 
             // Legendas (detalhes padrão do escritório)
-            foreach (LegendSpec ls in Std.Legendas)
+            LegendFactory legends = null;
+            foreach (LegendSpec ls in Std.Legendas.Where(l => l.Ativa))
             {
-                View legend = new FilteredElementCollector(_doc).OfClass(typeof(View)).Cast<View>()
-                    .FirstOrDefault(v => v.ViewType == ViewType.Legend && !v.IsTemplate &&
-                                         string.Equals(v.Name, ls.Nome, StringComparison.OrdinalIgnoreCase));
-                if (legend == null) { _log.Warn($"Legenda \"{ls.Nome}\" não existe no projeto (crie-a em Vistas → Legendas para ela entrar na prancha)."); continue; }
+                View legend = LegendFactory.Find(_doc, ls.Nome)
+                              ?? (legends ??= new LegendFactory(_doc, _styles, _log, Std.Folha.ArquivoLegendaBase)).Create(ls);
+                if (legend == null) continue;
                 Viewport vp = Viewport.Create(_doc, sheet.Id, legend.Id, center);
-                Put(ls.Regiao, new Item { Element = vp, Viewport = vp, LabelH = label });
+                // detalhe vindo do DXF já traz o título desenhado: viewport sem a etiqueta do Revit
+                bool ownTitle = LegendFactory.PathOf(ls) != null;
+                if (ownTitle)
+                {
+                    noLabel ??= ViewportTypeWithoutLabel(vp);
+                    if (noLabel != ElementId.InvalidElementId) vp.ChangeTypeId(noLabel);
+                }
+                Put(ls.Regiao, new Item { Element = vp, Viewport = vp, LabelH = ownTitle ? 0 : label });
             }
 
             // Arranjo por região, com aumento de escala das vistas quando não couber.
