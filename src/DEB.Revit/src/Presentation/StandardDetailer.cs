@@ -91,6 +91,7 @@ namespace DEB.Revit.Presentation
                         if (v.Spec.Esquematica) schematic[v.View.Id] = SchematicElevation(v.View, p, rebars, styles);
                         else LabelRebar(v.View, p, rebars, styles);
                     }
+                    if (_tagWarn != null) { log.Warn(_tagWarn); _tagWarn = null; }
                     if (Std.Armadura.ChamadasNasSecoes)
                     {
                         foreach (PlacedView v in views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura))
@@ -128,9 +129,19 @@ namespace DEB.Revit.Presentation
                         white.SetCutLineColor(new Color(255, 255, 255));
                         foreach (PlacedView v in views.Where(v => schematic.ContainsKey(v.View.Id)))
                         {
-                            List<ElementId> h = hide.Where(id => _doc.GetElement(id).CanBeHidden(v.View)).ToList();
+                            // com as longitudinais em detalhe de curvatura (jeito Revit, como a folha 301 do escritório): a
+                            // elevação mostra o pilar e os vergalhões reais; o detalhe em escala herdaria o branco do vergalhão
+                            bool real = Std.Armadura.LongitudinaisComoDetalhe && _realistic != null;
+                            List<ElementId> h = real ? new List<ElementId>() : hide.Where(id => _doc.GetElement(id).CanBeHidden(v.View)).ToList();
                             if (h.Count > 0) v.View.HideElements(h);
-                            foreach (Rebar r in rebars) Try(() => v.View.SetElementOverrides(r.Id, white));
+                            if (!real) foreach (Rebar r in rebars) Try(() => v.View.SetElementOverrides(r.Id, white));
+                            // detalhes de curvatura em escala herdam o branco do vergalhão: voltam ao preto
+                            var black = new OverrideGraphicSettings();
+                            black.SetProjectionLineColor(new Color(0, 0, 0));
+                            List<Element> details = new FilteredElementCollector(_doc, v.View.Id).OfCategory(BuiltInCategory.OST_RebarBendingDetails)
+                                .WhereElementIsNotElementType().ToList();
+                            foreach (Element d in details) Try(() => v.View.SetElementOverrides(d.Id, black));
+                            log.Info($"{v.View.Name}: {details.Count} detalhes de curvatura.");
                             if (v.View is ViewSection vs)
                                 ViewFactory.FitCrop(vs, p.Vertices.Concat(schematic[v.View.Id]), U.Mm(_cfg.CropMarginMm));
                         }
@@ -161,7 +172,19 @@ namespace DEB.Revit.Presentation
                         List<PlacedView> cuts = views.Where(c => c.Spec.Tipo == cutKind && !double.IsNaN(c.CutZ)).ToList();
                         List<ElementId> h = revitMarks.Where(id => _doc.GetElement(id)?.CanBeHidden(v.View) == true).ToList();
                         if (h.Count > 0) Try(() => v.View.HideElements(h));
-                        CutMarks(v.View, p, cuts, styles, schematic.TryGetValue(v.View.Id, out List<XYZ> sp) ? sp : null);
+                        bool sch = schematic.TryGetValue(v.View.Id, out List<XYZ> sp);
+                        List<XYZ> mk = CutMarks(v.View, p, cuts, styles, sch ? sp : null);
+                        // elevação da armadura: o recorte justo cortava o traço da marca da esquerda; passa a abranger as marcas
+                        if (sch && mk.Count > 0 && v.View is ViewSection vs)
+                            Try(() => ViewFactory.FitCrop(vs, p.Vertices.Concat(sp).Concat(mk), U.Mm(_cfg.CropMarginMm)));
+                        else if (mk.Count > 0 && v.View is ViewSection fs)
+                            // vistas de face: o traço da marca (fora das cotas) ficava fora do recorte; o recorte cresce até ele
+                            Try(() =>
+                            {
+                                BoundingBoxXYZ cb = fs.CropBox;
+                                var keep = new[] { cb.Transform.OfPoint(cb.Min), cb.Transform.OfPoint(cb.Max) };
+                                ViewFactory.FitCrop(fs, keep.Concat(mk), 0);
+                            });
                     }
                 }, critical: false);
 
@@ -237,6 +260,9 @@ namespace DEB.Revit.Presentation
                         case ViewKind.Vista3D:
                         {
                             View3D v3 = AssemblyViewUtils.Create3DOrthographic(_doc, asm.Id);
+                            // filtros de bitola (cores do escritório) antes do template: um template novo nasce com eles
+                            int nf = RebarFilters.Apply(_doc, v3, log);
+                            if (nf > 0) log.Info($"{nf} filtros de bitola na vista 3D.");
                             result.Add(Setup(v3, spec, Title(spec, "", ""), mark, names));
                             break;
                         }
@@ -464,9 +490,10 @@ namespace DEB.Revit.Presentation
             }
             else if (!plan)
             {
-                tr.Origin = g.U * g.U0 + g.T * tMid + g.Z * ((g.Z0 + g.Z1) / 2);
+                // plano do corte 3 cm à frente do meio do consolo: o pino central (no meio) fica visto, não "no plano"
                 tr.BasisX = g.U; tr.BasisY = g.Z; tr.BasisZ = g.U.CrossProduct(g.Z);
-                box.Min = new XYZ(-back - m, -h / 2 - m, -(w / 2 + m));
+                tr.Origin = g.U * g.U0 + g.T * tMid + g.Z * ((g.Z0 + g.Z1) / 2) + tr.BasisZ * U.Mm(30);
+                box.Min = new XYZ(-back - m, -h / 2 - m, -(w / 2 + m + U.Mm(30)));
                 box.Max = new XYZ(c + m, h / 2 + m, 0);
             }
             else
@@ -512,17 +539,30 @@ namespace DEB.Revit.Presentation
         /// Marcas de corte simples: dos dois lados da vista, na altura de cada corte, um traço grosso curto (5 mm no papel)
         /// com a letra/número em cima. Os lados são os da peça com os consolos (e o desenho esquemático, se houver).
         /// </summary>
-        private void CutMarks(View view, PieceInfo p, List<PlacedView> cuts, AnnotationStyles styles, List<XYZ> extra)
+        private List<XYZ> CutMarks(View view, PieceInfo p, List<PlacedView> cuts, AnnotationStyles styles, List<XYZ> extra)
         {
-            if (cuts.Count == 0) return;
+            var marks = new List<XYZ>();
+            if (cuts.Count == 0) return marks;
             XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
-            if (Math.Abs(p.AxisZ.DotProduct(up)) < 0.99) return;   // só elevações
+            if (Math.Abs(p.AxisZ.DotProduct(up)) < 0.99) return marks;   // só elevações
             double s = view.Scale, d = view.Origin.DotProduct(vd);
             XYZ At(double r, double u) => right * r + up * u + vd * d;
             var pts = new List<XYZ>(p.Vertices);
             foreach (FamilyInstance k in p.Attached) pts.AddRange(GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null)));
             if (extra != null) pts.AddRange(extra);
             double minR = pts.Min(q => q.DotProduct(right)), maxR = pts.Max(q => q.DotProduct(right));
+            // a marca fica para trás das cotas (fora delas), não em cima dos textos: cotas que encostam na peça
+            foreach (Dimension dm in new FilteredElementCollector(_doc, view.Id).OfClass(typeof(Dimension)).Cast<Dimension>())
+            {
+                BoundingBoxXYZ bb = dm.get_BoundingBox(view);
+                if (bb == null) continue;
+                List<XYZ> c = Corners(bb);
+                double lo = c.Min(q => q.DotProduct(right)), hi = c.Max(q => q.DotProduct(right));
+                double tall = c.Max(q => q.DotProduct(up)) - c.Min(q => q.DotProduct(up));
+                bool vertical = tall > hi - lo;   // cota vertical (os textos com chamada avançam sobre a peça)
+                if (vertical && hi > maxR && hi < maxR + U.Mm(40) * s) maxR = Math.Max(maxR, hi);
+                if (vertical && lo < minR && lo > minR - U.Mm(12) * s) minR = Math.Min(minR, lo);
+            }
             double len = U.Mm(5) * s, gap = U.Mm(2) * s, textH = U.Mm(Std.Textos.AlturaTextoMm) * s;
             var center = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
             GraphicsStyle thick = null;
@@ -539,8 +579,10 @@ namespace DEB.Revit.Presentation
                         if (thick != null) dc.LineStyle = thick;
                         TextNote.Create(_doc, view.Id, At(r0 + len / 2, u + textH * 1.6), c.CutId, center);
                     });
+                    marks.Add(At(r0 - gap, u)); marks.Add(At(r0 + len + gap, u + textH * 2.4));
                 }
             }
+            return marks;
         }
 
         private void LevelMarks(View view, PieceInfo p, AnnotationStyles styles, bool labels, PieceLog log, List<XYZ> extra = null)
@@ -699,23 +741,97 @@ namespace DEB.Revit.Presentation
 
             var rows = rebars.Select(r => new RebarRow(_doc, r)).Where(r => r.Number != "").ToList();
 
-            // Longitudinais: uma linha por posição
+            // Longitudinais: detalhe de curvatura em escala, na altura real, com a etiqueta do escritório (recurso do Revit);
+            // sem a família de etiqueta, ou com a opção desligada, a linha esquemática + texto de antes.
             double pitch = U.Mm(11) * s;
             double x = minR + pitch;
+            RebarBendingDetailType full = Std.Armadura.LongitudinaisComoDetalhe ? RealisticType(styles) : null;
             foreach (var g in rows.Where(r => r.Role == "Longitudinal").GroupBy(r => r.Number).OrderBy(g => NumberKey(g.Key)))
             {
                 var (lo, hi) = Span(g.Select(r => r.Rebar));
                 if (lo >= hi) continue;
+                if (full != null && BendingDetailAlong(view, g.OrderByDescending(r => r.Quantity).First().Rebar, full, x, (lo + hi) / 2, pts, out double dw))
+                {
+                    x += Math.Max(pitch, dw + U.Mm(6) * s);
+                    continue;
+                }
                 Line_(x, lo, x, hi, heavy: true);
                 // texto vertical: o texto cresce para a direita do ponto (uma linha de texto)
                 VText(x - U.Mm(3) * s - textLine, (lo + hi) / 2, Fill(Std.Armadura.RotuloBarra, new RebarRow(g.First(), g.Sum(r => r.Quantity))));
                 x += pitch;
             }
 
-            // Estribos: linha de cota com os trechos
+            // Alças de içamento: etiqueta do escritório com linha de chamada, à esquerda da peça, na altura da alça
+            // (a forma está na legenda "ALÇA DE IÇAMENTO"; o detalhe de dobra ao lado da elevação saiu).
+            FamilySymbol barTag = full != null ? RebarTagType(Std.Armadura.EtiquetaLongitudinal) : null;
+            if (barTag != null)
+                foreach (var g in rows.Where(r => r.Role == "Alça de içamento").GroupBy(r => r.Number))
+                {
+                    RebarRow lr = g.OrderBy(r => r.Center.DotProduct(up)).Last();
+                    // altura da alça de cima do conjunto (o centro do conjunto fica entre as alças)
+                    double lu = lr.Center.DotProduct(up);
+                    Try(() =>
+                    {
+                        lu = Enumerable.Range(0, lr.Rebar.NumberOfBarPositions).Max(i =>
+                        {
+                            IList<Curve> cv = lr.Rebar.GetTransformedCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i);
+                            return cv.Average(c => c.Evaluate(0.5, true).DotProduct(up));
+                        });
+                    });
+                    // vertical, encostada na face esquerda, na altura da alça de cima (não alarga a vista)
+                    XYZ head = At(minR - U.Mm(3) * s - textLine * 0.5, lu);
+                    TagRebar(barTag, view, lr.Rebar, false, TagOrientation.Vertical, head);
+                    pts.Add(head - right * textLine);
+                }
+
+            // Estribos: cota dos trechos (uma cadeia) e, encostada nela, a etiqueta do conjunto de estribos (e a dos grampos)
+            // — recurso do Revit, a quantidade e o espaçamento vêm do conjunto. Sem a família de etiqueta: o texto de antes.
             var runs = rows.Where(r => r.Role == "Estribo").Select(r => (Row: r, Span: Span(new[] { r.Rebar })))
                 .Where(t => t.Span.Lo < t.Span.Hi).OrderBy(t => t.Span.Lo).ToList();
-            if (runs.Count > 0)
+            FamilySymbol stirrupTag = full != null ? RebarTagType(Std.Armadura.EtiquetaEstribo) : null;
+            if (runs.Count > 0 && stirrupTag != null)
+            {
+                double xs = x + U.Mm(6) * s, tick = U.Mm(1.5) * s;
+                double charW = U.Mm(Std.Textos.AlturaTextoMm * 0.8) * s;
+                // divisas: meio do vão entre o último estribo de um trecho e o primeiro do seguinte
+                var cuts = new List<double> { runs[0].Span.Lo };
+                for (int i = 0; i < runs.Count - 1; i++) cuts.Add((runs[i].Span.Hi + runs[i + 1].Span.Lo) / 2);
+                cuts.Add(runs[^1].Span.Hi);
+                var refs = new ReferenceArray();
+                foreach (double cu in cuts)
+                {
+                    DetailCurve dc = Line_(xs - tick, cu, xs + tick, cu, heavy: false);
+                    refs.Append(dc.GeometryCurve.Reference);
+                }
+                Try(() => _doc.Create.NewDimension(view, Line.CreateBound(At(xs, cuts[0]), At(xs, cuts[^1])), refs, styles.Dimension));
+                double nextTop = double.MaxValue;
+                foreach (var (row, (lo, hi)) in runs.OrderByDescending(t => t.Span.Hi))
+                {
+                    double mid = (lo + hi) / 2;
+                    List<RebarRow> ties = rows.Where(t => t.Role == "Grampo" && Math.Abs(t.Center.DotProduct(up) - row.Center.DotProduct(up)) < U.Mm(20)).ToList();
+                    var tagged = new List<Rebar> { row.Rebar };
+                    if (ties.Count > 0) tagged.Add(ties[0].Rebar);
+                    // "x 16 N2 c/15.00" ~ 16 caracteres; cabe no trecho: vertical, colado na cota; senão horizontal, à direita
+                    double len = 16 * charW;
+                    bool vert = len < (hi - lo) * 0.9;   // vertical, colada na cota (estribo e grampo lado a lado)
+                    for (int k = 0; k < tagged.Count; k++)
+                    {
+                        Rebar rb = tagged[k];
+                        XYZ at;
+                        if (vert)
+                            at = At(xs + U.Mm(3) * s + textLine * (0.5 + 1.3 * k), mid);
+                        else
+                        {
+                            double top = Math.Min(mid + textLine / 2, nextTop);
+                            at = At(xs + U.Mm(4) * s + len / 2, top - textLine / 2);
+                            nextTop = top - textLine * 1.25;
+                        }
+                        TagRebar(stirrupTag, view, rb, false, vert ? TagOrientation.Vertical : TagOrientation.Horizontal, at);
+                        pts.Add(at); pts.Add(at + right * (vert ? textLine : len / 2 + U.Mm(2) * s));
+                    }
+                }
+            }
+            else if (runs.Count > 0)
             {
                 double xs = x + U.Mm(6) * s, tick = U.Mm(1.5) * s;
                 double charW = U.Mm(Std.Textos.AlturaTextoMm * 0.8) * s;   // largura média de um caractere
@@ -726,15 +842,13 @@ namespace DEB.Revit.Presentation
                 {
                     Line_(xs - tick, lo, xs + tick, lo, heavy: false);
                     Line_(xs - tick, hi, xs + tick, hi, heavy: false);
-                    // uma barra só: sem espaçamento ("1 N2", não "1 N2 c/0")
                     string text = row.Quantity <= 1 ? $"{row.Quantity} N{row.Number}" : Fill(Std.Armadura.RotuloEstribos, row);
                     List<RebarRow> ties = rows.Where(t => t.Role == "Grampo" && Math.Abs(t.Center.DotProduct(up) - row.Center.DotProduct(up)) < U.Mm(20)).ToList();
                     if (ties.Count > 0) text += $" + {ties.Count}x{ties[0].Quantity} N{ties[0].Number}";
                     if (text.Length * charW < (hi - lo) * 0.9)
-                        VText(xs + U.Mm(1.5) * s + textLine, (lo + hi) / 2, text);   // cabe no trecho: vertical
+                        VText(xs + U.Mm(1.5) * s + textLine, (lo + hi) / 2, text);
                     else
                     {
-                        // trecho curto: horizontal à direita, na altura do trecho (ou logo abaixo do rótulo anterior)
                         double top = Math.Min((lo + hi) / 2 + textLine / 2, nextTop);
                         double r0 = xs + U.Mm(2.5) * s;
                         Try(() => TextNote.Create(_doc, view.Id, At(r0, top), text, horiz));
@@ -776,7 +890,7 @@ namespace DEB.Revit.Presentation
                 for (int i = 0; i < r.NumberOfBarPositions; i++)
                 {
                     IList<Curve> cs;
-                    try { cs = r.GetCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i); }
+                    try { cs = r.GetTransformedCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i); }
                     catch { continue; }
                     foreach (Line ln in cs.OfType<Line>())
                     {
@@ -921,13 +1035,8 @@ namespace DEB.Revit.Presentation
                     IList<Curve> cs;
                     try
                     {
-                        // as curvas vêm na posição da 1ª barra: a transformação leva para a posição i do conjunto
-                        cs = r.GetCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i);
-                        if (i > 0 && r.IsRebarShapeDriven())
-                        {
-                            Transform tf = r.GetShapeDrivenAccessor().GetBarPositionTransform(i);
-                            cs = cs.Select(c => c.CreateTransformed(tf)).ToList();
-                        }
+                        // curvas da barra i já na posição dela (conjunto com forma ou de forma livre)
+                        cs = r.GetTransformedCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i);
                     }
                     catch { continue; }
                     XYZ best = null; double bestL = 0;
@@ -1062,6 +1171,142 @@ namespace DEB.Revit.Presentation
             return t;
         }
 
+        private const string RealisticTypeName = "PCEB - Barra em escala";
+        private RebarBendingDetailType _realistic;
+        private bool _realisticTried;
+
+        /// <summary>
+        /// Tipo de detalhe de curvatura em escala (realista) com a etiqueta de vergalhão do escritório. Null (com aviso) se a
+        /// família de etiqueta não estiver no projeto nem no caminho do padrão — aí a armadura volta ao desenho esquemático.
+        /// </summary>
+        private RebarBendingDetailType RealisticType(AnnotationStyles styles)
+        {
+            if (_realisticTried) return _realistic;
+            _realisticTried = true;
+            FamilySymbol tag = RebarTagType(Std.Armadura.EtiquetaLongitudinal);
+            if (tag == null) return null;
+            RebarBendingDetailType t = new FilteredElementCollector(_doc).OfClass(typeof(RebarBendingDetailType))
+                .Cast<RebarBendingDetailType>().FirstOrDefault(x => x.Name == RealisticTypeName);
+            if (t == null)
+            {
+                t = RebarBendingDetailType.CreateRealistic(_doc);
+                Try(() => t.Name = RealisticTypeName);
+                Try(() => t.SegmentLengthDimensionsEnabled = false);   // o comprimento vai na etiqueta (C=...)
+                Try(() => t.BendDiameterDimensionsEnabled = false);
+                Try(() => t.AngularDimensionsEnabled = false);
+                Try(() => t.OrthogonalAndOverallDimesionsEnabled = false);
+            }
+            Try(() => t.TagTypeId = tag.Id);
+            return _realistic = t;
+        }
+
+        /// <summary>Tipo de etiqueta de vergalhão do escritório (família do padrão); carrega a família se faltar.</summary>
+        private FamilySymbol RebarTagType(string typeName)
+        {
+            string fam = Std.Armadura.FamiliaEtiqueta?.Trim() ?? "", file = Std.Armadura.ArquivoEtiqueta?.Trim() ?? "";
+            if (fam == "" || string.IsNullOrWhiteSpace(typeName)) return null;
+            FamilySymbol Find() => new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_RebarTags).WhereElementIsElementType()
+                .OfType<FamilySymbol>().FirstOrDefault(x => string.Equals(x.FamilyName, fam, StringComparison.OrdinalIgnoreCase) &&
+                                                            string.Equals(x.Name, typeName, StringComparison.OrdinalIgnoreCase));
+            FamilySymbol s = Find();
+            if (s == null && file != "" && System.IO.File.Exists(file))
+            {
+                try { _doc.LoadFamily(file, out Family _); } catch { /* aviso abaixo */ }
+                s = Find();
+            }
+            if (s == null) { _tagWarn ??= $"Etiqueta de vergalhão \"{fam} : {typeName}\" não encontrada (nem em {file}): armadura no desenho esquemático."; return null; }
+            if (!s.IsActive) s.Activate();
+            return s;
+        }
+        private string _tagWarn;
+
+        /// <summary>Etiqueta de vergalhão; a 1ª falha vai para o log da peça (o motivo aparece no relatório).</summary>
+        private IndependentTag TagRebar(FamilySymbol type, View view, Rebar bar, bool leader, TagOrientation o, XYZ at)
+        {
+            // 1º o elemento; o Revit recusa ("can not be tagged") em alguns conjuntos: aí a referência de uma barra
+            // desenhada na vista (como o clique do usuário numa barra)
+            var refs = new List<Reference> { new Reference(bar) };
+            try
+            {
+                var opt = new Options { View = view, ComputeReferences = true };
+                GeometryElement ge = bar.get_Geometry(opt);
+                if (ge != null)
+                    foreach (GeometryObject go in ge)
+                    {
+                        if (go is Curve c && c.Reference != null) refs.Add(c.Reference);
+                        else if (go is Solid so) foreach (Edge e in so.Edges) { if (e.Reference != null) refs.Add(e.Reference); break; }
+                    }
+            }
+            catch { /* sem geometria na vista */ }
+            string err = "";
+            foreach (Reference rf in refs.Take(12))
+            {
+                using (var st = new SubTransaction(_doc))
+                {
+                    st.Start();
+                    try
+                    {
+                        IndependentTag t = IndependentTag.Create(_doc, type.Id, view.Id, rf, leader, o, at);
+                        st.Commit();
+                        return t;
+                    }
+                    catch (Exception ex) { err = ex.Message; st.RollBack(); }
+                }
+            }
+            _tagWarn ??= $"Etiqueta \"{type.FamilyName} : {type.Name}\" não criada em {view.Name}: {err} ({refs.Count} referências tentadas)";
+            return null;
+        }
+
+        /// <summary>
+        /// Detalhe de curvatura de uma posição na vista de armadura: em escala, centrado na altura real da barra (u) e com a
+        /// borda esquerda em r. Fica de pé (barra longitudinal): se sair deitado, é refeito girado. Devolve a largura.
+        /// </summary>
+        private bool BendingDetailAlong(View view, Rebar bar, RebarBendingDetailType type, double r, double u, List<XYZ> pts, out double width)
+        {
+            width = 0;
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            XYZ at = right * r + up * u + vd * view.Origin.DotProduct(vd);
+            foreach (double rot in new[] { 0.0, Math.PI / 2 })
+            {
+                using (var st = new SubTransaction(_doc))
+                {
+                    st.Start();
+                    try
+                    {
+                        Element d = RebarBendingDetail.Create(_doc, view.Id, bar.Id, 0, type, at, rot);
+                        _doc.Regenerate();
+                        BoundingBoxXYZ bb = d.get_BoundingBox(view);
+                        if (bb == null) { st.RollBack(); continue; }
+                        var c = Corners(bb);
+                        double w = c.Max(q => q.DotProduct(right)) - c.Min(q => q.DotProduct(right));
+                        double h = c.Max(q => q.DotProduct(up)) - c.Min(q => q.DotProduct(up));
+                        if (w > h && rot == 0) { st.RollBack(); continue; }   // deitado: tenta girado
+                        // encosta a borda esquerda em r e centra na altura da barra
+                        XYZ move = right * (r - c.Min(q => q.DotProduct(right))) + up * (u - (c.Max(q => q.DotProduct(up)) + c.Min(q => q.DotProduct(up))) / 2);
+                        XYZ p0 = RebarBendingDetail.GetPosition(d);
+                        RebarBendingDetail.SetPosition(d, p0 + move);
+                        _doc.Regenerate();
+                        foreach (XYZ q in c) pts.Add(q + move);
+                        st.Commit();
+                        width = w;
+                        return true;
+                    }
+                    catch { if (st.HasStarted() && !st.HasEnded()) st.RollBack(); }
+                }
+            }
+            return false;
+        }
+
+        private static List<XYZ> Corners(BoundingBoxXYZ bb)
+        {
+            var c = new List<XYZ>();
+            foreach (double x in new[] { bb.Min.X, bb.Max.X })
+                foreach (double y in new[] { bb.Min.Y, bb.Max.Y })
+                    foreach (double z in new[] { bb.Min.Z, bb.Max.Z })
+                        c.Add(bb.Transform.OfPoint(new XYZ(x, y, z)));
+            return c;
+        }
+
         /// <summary>Barras do consolo (tirante, barra soldada, costura, estribos verticais, inferior, pinos).</summary>
         private static bool IsCorbelRole(string role) =>
             role.IndexOf("consolo", StringComparison.OrdinalIgnoreCase) >= 0 || role.IndexOf("soldada", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -1134,19 +1379,26 @@ namespace DEB.Revit.Presentation
             // uma forma por posição (N), na ordem da numeração; quantidade = soma dos conjuntos da posição
             var byNumber = rebars
                 .Select(r => new RebarRow(_doc, r))
-                .Where(r => r.Role != "Longitudinal" && r.Number != "")
+                .Where(r => r.Role != "Longitudinal" && r.Role != "Alça de içamento" && r.Number != "")
                 .GroupBy(r => r.Number).OrderBy(g => NumberKey(g.Key));
 
+            var placedRoles = new HashSet<(string, double)>();
+            var missing = new List<(string N, string Role, double D)>();
             foreach (var g in byNumber)
             {
                 RebarRow first = g.First();
                 string label = Fill(Std.Armadura.RotuloBarra, new RebarRow(first, g.Sum(x => x.Quantity)));
                 bool ok = false;
-                IEnumerable<View> order = IsCorbelRole(first.Role) ? corbelTargets.Concat(targets)
+                // peças do consolo (pinos, tirante...) só no quadro do consolo, junto do consolo: não vão para a elevação
+                IEnumerable<View> order = IsCorbelRole(first.Role) ? corbelTargets
                     : IsStirrupRole(first.Role) ? stirrupTargets.Concat(targets)
                     : targets;
+                // a barra do grupo que aparece na vista (o quadro mostra um consolo; a 1ª barra pode ser de outro)
+                List<Rebar> candidates = g.Select(x => x.Rebar).ToList();
                 foreach (View view in order)
+                foreach (Rebar cand in candidates)
                 {
+                    if (ok) break;
                     XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
                     double s = view.Scale;
                     double minU = p.Vertices.Min(v => v.DotProduct(up)), maxU = p.Vertices.Max(v => v.DotProduct(up));
@@ -1193,12 +1445,11 @@ namespace DEB.Revit.Presentation
                         st.Start();
                         try
                         {
-                            RebarBendingDetail.Create(_doc, view.Id, first.Rebar.Id, 0, type, pos, 0);
+                            RebarBendingDetail.Create(_doc, view.Id, cand.Id, 0, type, pos, 0);
                             TextNote.Create(_doc, view.Id, pos - up * (U.Mm(ShapeHmm / 2 + 6) * s), label, center);
                             st.Commit();
                             placedPerView[view.Id] = i + 1;
                             ok = true;
-                            break;
                         }
                         catch
                         {
@@ -1206,8 +1457,14 @@ namespace DEB.Revit.Presentation
                         }
                     }
                 }
-                if (!ok) log.Warn($"Forma da posição N{g.Key} não criada (a barra não aparece nas vistas de armadura).");
+                if (ok) placedRoles.Add((first.Role, first.DiameterMm));
+                else missing.Add((g.Key, first.Role, first.DiameterMm));
             }
+            foreach (var (n, role, d) in missing)
+                if (placedRoles.Contains((role, d)))
+                    log.Info($"N{n} ({role}): forma igual à de outro consolo já desenhada no quadro do consolo.");
+                else
+                    log.Warn($"Forma da posição N{n} ({role}) não criada (a barra não aparece nas vistas {(IsCorbelRole(role) ? "do consolo" : "de armadura")}).");
         }
 
         // ------------------------------------------------------------------

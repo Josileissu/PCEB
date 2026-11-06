@@ -78,6 +78,23 @@ namespace DEB.Revit.Presentation
                 double kg = totalM * SharedRules.KgPerMeter(dMm, SharedRules.SteelFor(dMm));
                 r.LookupParameter(WeightParam)?.Set(Math.Round(kg, 2));
             }
+            SyncScheduleMarks(doc, rebarIds);
+        }
+
+        /// <summary>
+        /// "Marca da tabela" = número do vergalhão (N) da partição. A etiqueta do escritório (Identificador Vergalhão) lê a
+        /// marca da tabela; o Revit a cria "única no hospedeiro" (1, 2…), que não bate com o N: estribo saía "N1" como a
+        /// longitudinal. A numeração só existe depois de regenerar. Precisa de transação.
+        /// </summary>
+        public static void SyncScheduleMarks(Document doc, IEnumerable<ElementId> rebarIds)
+        {
+            doc.Regenerate();
+            foreach (Rebar r in rebarIds.Select(doc.GetElement).OfType<Rebar>())
+            {
+                string n = r.get_Parameter(BuiltInParameter.REBAR_NUMBER)?.AsString();
+                if (!string.IsNullOrEmpty(n) && r.ScheduleMark != n)
+                    try { r.ScheduleMark = n; } catch { /* conjunto travado em grupo: fica a marca do Revit */ }
+            }
         }
 
         /// <summary>"CA50"/"CA60": do nome do tipo de barra; sem indicação, Ø &lt; 6,3 mm é CA60.</summary>

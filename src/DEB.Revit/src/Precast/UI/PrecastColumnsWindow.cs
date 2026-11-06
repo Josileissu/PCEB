@@ -247,7 +247,7 @@ namespace DEB.Revit.Precast.UI
             Num("Pinos: pé (mm)", () => s.CorbelPinFootMm, v => s.CorbelPinFootMm = v);
 
             Section("Içamento / insertos");
-            Int("Alças de içamento (0, 1 ou 2)", () => s.LiftLoops, v => s.LiftLoops = Math.Max(0, Math.Min(2, v)));
+            Int("Alças por ponto de içamento (0, 1 ou 2; pontos a 20% das pontas)", () => s.LiftLoops, v => s.LiftLoops = Math.Max(0, Math.Min(2, v)));
             Dia("Alça: bitola", () => s.LiftDiameterMm, v => s.LiftDiameterMm = v);
             Num("Alça: comprimento embutido (mm)", () => s.LiftEmbedMm, v => s.LiftEmbedMm = v);
             Num("Alça: saliência acima do topo (mm)", () => s.LiftProtrusionMm, v => s.LiftProtrusionMm = v);

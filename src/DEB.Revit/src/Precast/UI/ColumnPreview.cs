@@ -60,7 +60,7 @@ namespace DEB.Revit.Precast.UI
             // Espaço: 2 elevações (largas o bastante para os consolos) + coluna de seções.
             double maxProj = rep.Corbels.Select(k => k.Projection).DefaultIfEmpty(0).Max();
             double lift = _group.Spec.LiftLoops > 0 ? U_.Mm(_group.Spec.LiftProtrusionMm) : 0;
-            double elevW = Math.Max(f.Bx, f.By) + 2 * maxProj;
+            double elevW = Math.Max(f.Bx, f.By) + 2 * Math.Max(maxProj, lift);   // alças saem de uma face
             double elevH = f.H + lift;
             double pad = 34;
             double sectionsW = ActualWidth * 0.32;
