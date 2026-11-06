@@ -985,6 +985,8 @@ namespace DEB.Revit.Presentation
             var runs = rows.Where(r => r.Role == "Estribo").Select(r => (Row: r, Span: Span(new[] { r.Rebar })))
                 .Where(t => t.Span.Lo < t.Span.Hi).OrderBy(t => t.Span.Lo).ToList();
             FamilySymbol stirrupTag = full != null ? RebarTagType(Std.Armadura.EtiquetaEstribo) : null;
+            FamilySymbol breakTag = stirrupTag != null && !string.IsNullOrWhiteSpace(Std.Armadura.EtiquetaEstriboQuebra)
+                ? RebarTagType(Std.Armadura.EtiquetaEstriboQuebra) : null;
             if (runs.Count > 0 && stirrupTag != null)
             {
                 double xs = x + U.Mm(6) * s, tick = U.Mm(1.5) * s;
@@ -1010,20 +1012,25 @@ namespace DEB.Revit.Presentation
                     // "x 16 N2 c/15.00" ~ 16 caracteres; cabe no trecho: vertical, colado na cota; senão horizontal, à direita
                     double len = 16 * charW;
                     bool vert = len < (hi - lo) * 0.9;   // vertical, colada na cota (estribo e grampo lado a lado)
+                    // trecho curto: etiqueta em duas linhas ("x 9 N3" / "c/7.50"), também vertical e lado a lado — como o
+                    // escritório ajustou na prancha; um estribo só (sem espaçamento) fica na horizontal
+                    bool brk = !vert && breakTag != null && row.Quantity > 1 && 8 * charW < (hi - lo) * 0.9;
                     for (int k = 0; k < tagged.Count; k++)
                     {
                         Rebar rb = tagged[k];
                         XYZ at;
                         if (vert)
                             at = At(xs + U.Mm(3) * s + textLine * (0.5 + 1.3 * k), mid);
+                        else if (brk)
+                            at = At(xs + U.Mm(3) * s + textLine * (1.0 + 1.9 * k), mid);
                         else
                         {
                             double top = Math.Min(mid + textLine / 2, nextTop);
                             at = At(xs + U.Mm(4) * s + len / 2, top - textLine / 2);
                             nextTop = top - textLine * 1.25;
                         }
-                        TagRebar(stirrupTag, view, rb, false, vert ? TagOrientation.Vertical : TagOrientation.Horizontal, at);
-                        pts.Add(at); pts.Add(at + right * (vert ? textLine : len / 2 + U.Mm(2) * s));
+                        TagRebar(brk ? breakTag : stirrupTag, view, rb, false, vert || brk ? TagOrientation.Vertical : TagOrientation.Horizontal, at);
+                        pts.Add(at); pts.Add(at + right * (vert ? textLine : brk ? textLine * 1.2 : len / 2 + U.Mm(2) * s));
                     }
                 }
             }

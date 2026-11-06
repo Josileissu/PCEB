@@ -201,6 +201,9 @@ namespace DEB.Revit.Presentation
         public string EtiquetaLongitudinal { get; set; } = "";
         /// <summary>Tipo da etiqueta dos estribos/grampos na cota dos trechos (ex.: "1 N1 c/" → "16 N2 c/15").</summary>
         public string EtiquetaEstribo { get; set; } = "";
+        /// <summary>Tipo da etiqueta em duas linhas ("x 9 N3" / "c/7.50", sem bitola) para os trechos curtos de estribos,
+        /// onde a de uma linha não cabe na vertical (ex.: "1 N1 c/ - Quebra"), como o escritório ajustou na prancha.</summary>
+        public string EtiquetaEstriboQuebra { get; set; } = "";
         /// <summary>
         /// Longitudinais na vista de armadura como detalhes de curvatura (em escala, na altura real, ao lado da elevação,
         /// com a etiqueta do escritório) no lugar das linhas esquemáticas. Decisão do usuário em 06/11/2026.
