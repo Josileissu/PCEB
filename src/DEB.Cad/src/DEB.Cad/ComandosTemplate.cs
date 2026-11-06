@@ -387,8 +387,10 @@ public sealed class ComandosTemplate
         foreach (var id in ids) todos.AddRange(PartesDaBarra(tr, db, (Polyline)tr.GetObject(id, OpenMode.ForRead)));
         string nome = r.Detalhamento.Trim();
         for (int k = 2; Relacao.ServicoDetalhamento.ValidarNome(db, tr, nome) != null && k < 1000; k++) nome = $"{r.Detalhamento.Trim()} ({k})";
-        Relacao.ServicoDetalhamento.Criar(db, tr, todos.Distinct().Where(i => !i.IsErased).ToArray(), nome,
-            new DadosDetalhamento { Grupo = Relacao.ServicoDetalhamento.GrupoSugerido(nome), Comentarios = "Gerado pelo template." });
+        var dadosDet = r.DadosDetalhamento ?? new DadosDetalhamento();
+        if (string.IsNullOrWhiteSpace(dadosDet.Grupo)) dadosDet.Grupo = Relacao.ServicoDetalhamento.GrupoSugerido(nome);
+        if (string.IsNullOrWhiteSpace(dadosDet.Comentarios)) dadosDet.Comentarios = "Gerado pelo template.";
+        Relacao.ServicoDetalhamento.Criar(db, tr, todos.Distinct().Where(i => !i.IsErased).ToArray(), nome, dadosDet);
         r.Detalhamento = nome;
         if (r.PosicaoRA.HasValue)
         {
