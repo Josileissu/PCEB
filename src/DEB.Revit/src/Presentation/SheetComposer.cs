@@ -63,6 +63,21 @@ namespace DEB.Revit.Presentation
             double label = U.Mm(Std.Folha.TituloVistaMm);
             ElementId noLabel = null;
             var byView = new Dictionary<ElementId, Item>();
+            // vistas que ocupam o lugar de uma legenda (ex.: detalhe da alça no lugar da legenda fixa da alça)
+            var slotKinds = new HashSet<string>(Std.Legendas.Where(l => l.Ativa && !string.IsNullOrWhiteSpace(l.Vista))
+                .Select(l => l.Vista.Trim()), StringComparer.OrdinalIgnoreCase);
+            var slotItems = new Dictionary<string, List<Item>>(StringComparer.OrdinalIgnoreCase);
+            void PutView(PlacedView pv, Item it)
+            {
+                byView[pv.View.Id] = it;
+                string k = pv.Spec.Tipo.ToString();
+                if (slotKinds.Contains(k))
+                {
+                    if (!slotItems.TryGetValue(k, out var l)) slotItems[k] = l = new List<Item>();
+                    l.Add(it);
+                }
+                else Put(pv.Spec.Regiao, it);
+            }
             foreach (PlacedView pv in views)
             {
                 if (!Viewport.CanAddViewToSheet(_doc, sheet.Id, pv.View.Id)) { _log.Warn($"{pv.Title.Split('\n')[0]}: não pôde ir para a prancha."); continue; }
@@ -81,13 +96,13 @@ namespace DEB.Revit.Presentation
                     double hw = U.Mm(Math.Max(tl[0].Length * 0.78 * em, tl.Skip(1).DefaultIfEmpty("").Max(l => l.Length) * 0.62 * em) + 2 * 0.62 * em);
                     // caixa 40% mais larga que a estimativa (centrada): o Revit nunca quebra a linha; o arranjo usa a estimativa
                     TextNote h = TextNote.Create(_doc, sheet.Id, center, hw * 1.4, pv.Title, opt);
-                    Put(pv.Spec.Regiao, byView[pv.View.Id] = new Item { Element = vp, Viewport = vp, Heading = h, HeadingText = pv.Title, LabelW = hw });
+                    PutView(pv, new Item { Element = vp, Viewport = vp, Heading = h, HeadingText = pv.Title, LabelW = hw });
                     continue;
                 }
                 // o Revit quebra o título na largura da linha: conta a linha mais longa (PT ou EN), não o título inteiro
                 double labelW = pv.Title.Split('\n').Max(l => l.Length) * U.Mm(Std.Folha.LarguraCaractereTituloMm);
                 try { vp.LabelLineLength = labelW; } catch { /* tipo de viewport sem linha de título */ }
-                Put(pv.Spec.Regiao, byView[pv.View.Id] = new Item { Element = vp, Viewport = vp, LabelH = label, LabelW = labelW });
+                PutView(pv, new Item { Element = vp, Viewport = vp, LabelH = label, LabelW = labelW });
             }
 
             // Legenda dos níveis da obra: item antes da 1ª elevação na região dela (fica à esquerda); a altura é acertada depois
@@ -137,6 +152,12 @@ namespace DEB.Revit.Presentation
             LegendFactory legends = null;
             foreach (LegendSpec ls in Std.Legendas.Where(l => l.Ativa))
             {
+                if (!string.IsNullOrWhiteSpace(ls.Vista))
+                {
+                    // a vista da peça no lugar da legenda; sem a vista (peça sem alça...), o lugar fica vazio
+                    if (slotItems.TryGetValue(ls.Vista.Trim(), out var its)) foreach (Item it in its) Put(ls.Regiao, it);
+                    continue;
+                }
                 View legend = LegendFactory.Find(_doc, ls.Nome)
                               ?? (legends ??= new LegendFactory(_doc, _styles, _log, Std.Folha.ArquivoLegendaBase)).Create(ls);
                 if (legend == null) continue;

@@ -1,6 +1,6 @@
 {
   "Codigo": "PCEB-PPM-A1",
-  "Versao": 32,
+  "Versao": 33,
   "Nome": "Pilar pré-moldado – prancha A1 (padrão PP127)",
   "Elemento": "PilarPreMoldado",
   "Descricao": "Prancha A1 como a PP127 e o template pilar-premoldado do DEB.Cad: vistas das 4 faces e elevação da armadura (1:50) à esquerda; seções com armadura e cortes (1:25) no alto, ao centro; relação/resumo do aço, informações de produção e notas à direita; detalhes padrão embaixo; carimbo no canto inferior direito.",
@@ -72,6 +72,7 @@
     { "Tipo": "SecaoArmadura", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "SEÇÃO {Numero}-{Numero}\n(SECTION {Numero}-{Numero})", "Escala": 25, "Regiao": "Secoes", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-SECAO" },
     { "Tipo": "Corte", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "CORTE {Letra}-{Letra}\n(SECTION {Letra}-{Letra})", "Escala": 25, "Regiao": "Cortes", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-CORTE" },
     { "Tipo": "Corte", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "CORTE {Letra}-{Letra}\n(SECTION {Letra}-{Letra})", "Escala": 25, "Regiao": "Cortes", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-CORTE" },
+    { "Tipo": "AlcaIcamento", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "ALÇA DE IÇAMENTO\n(LIFTING HANDLE)", "Escala": 20, "Regiao": "Padrao", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-DETALHE" },
     { "Tipo": "Vista3D", "Ativa": false, "Face": 1, "Posicao": "Corrente", "Titulo": "VISTA 3D", "Escala": 50, "Regiao": "Detalhes", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-3D" },
     { "Tipo": "ConsoloPlanta", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "ARMADURAS CONSOLE {Consolo} - {Qtd} UN.\nPLANTA (PLAN)", "Escala": 10, "Regiao": "Detalhes", "Cotas": true, "MostrarArmadura": true, "Template": "PCEB-PPM-DETALHE" },
     { "Tipo": "ConsoloCorte", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "CONSOLE {Consolo} - CORTE B-B\n(CORBEL - SECTION B-B)", "Escala": 10, "Regiao": "Detalhes", "Cotas": true, "MostrarArmadura": true, "Template": "PCEB-PPM-DETALHE" },
@@ -102,7 +103,7 @@
     { "Nome": "EMENDAS POR SOLDA POR TRASPASSE", "Regiao": "Padrao2", "Arquivo": "emendas_solda.dxf", "Escala": 10 },
     { "Nome": "CHAVES DE CISALHAMENTO", "Regiao": "Padrao", "Arquivo": "chaves_cisalhamento.dxf", "Escala": 10 },
     { "Nome": "ESPAÇAMENTO DAS BARRAS", "Regiao": "Padrao", "Arquivo": "espacamento_barras.dxf", "Escala": 5 },
-    { "Nome": "ALÇA DE IÇAMENTO", "Regiao": "Padrao", "Arquivo": "alca_icamento.dxf", "Escala": 20 },
+    { "Nome": "ALÇA DE IÇAMENTO", "Regiao": "Padrao", "Arquivo": "alca_icamento.dxf", "Escala": 20, "Vista": "AlcaIcamento" },
     { "Nome": "REFORÇO NOS FUROS DOS PILARES", "Regiao": "Padrao", "Arquivo": "reforco_furos.dxf", "Escala": 50, "Ativa": false },
     { "Nome": "ATERRAMENTO ESTRUTURAL PILARES", "Regiao": "Padrao", "Arquivo": "aterramento.dxf", "Escala": 10, "Ativa": false }
   ],
