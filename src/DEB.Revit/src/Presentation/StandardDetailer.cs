@@ -65,9 +65,13 @@ namespace DEB.Revit.Presentation
                         dims += ds.AddAttachedDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p, v.Corbel, detail: true);
                         continue;
                     }
-                    dims += ds.AddOverallDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p);
+                    var dv = new DetailView(v.View, ViewRole.Elevation, v.Title);
+                    dims += ds.AddOverallDimensions(dv, p);
+                    // elevações: uma cota acumulada (base → consolos → topo) no lugar de uma cadeia por consolo
+                    int chain = ds.AddLevelChain(dv, p);
+                    dims += chain;
                     foreach (FamilyInstance k in p.Attached)
-                        dims += ds.AddAttachedDimensions(new DetailView(v.View, ViewRole.Elevation, v.Title), p, k);
+                        dims += ds.AddAttachedDimensions(dv, p, k, skipLevels: chain > 0);
                 }
             }, critical: false);
 
