@@ -69,7 +69,7 @@ namespace DEB.Revit.Presentation
                         continue;
                     }
                     var dv = new DetailView(v.View, ViewRole.Elevation, v.Title);
-                    dims += ds.AddOverallDimensions(dv, p);
+                    dims += ds.AddOverallDimensions(dv, p, vertical: v.Spec.CotaTotal);
                     // elevações: uma cota acumulada (base → consolos → topo) no lugar de uma cadeia por consolo
                     int chain = ds.AddLevelChain(dv, p);
                     dims += chain;

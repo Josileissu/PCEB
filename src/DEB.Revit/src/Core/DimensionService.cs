@@ -23,21 +23,51 @@ namespace DEB.Revit.Core
         /// <summary>Tipo de cota a usar (null = padrão do projeto).</summary>
         public DimensionType DimensionType { get; set; }
 
-        private void NewDimension(View view, Line line, ReferenceArray refs)
+        private Dimension NewDimension(View view, Line line, ReferenceArray refs)
         {
-            if (DimensionType != null) _doc.Create.NewDimension(view, line, refs, DimensionType);
-            else _doc.Create.NewDimension(view, line, refs);
+            return DimensionType != null ? _doc.Create.NewDimension(view, line, refs, DimensionType)
+                                         : _doc.Create.NewDimension(view, line, refs);
+        }
+
+        /// <summary>
+        /// Cadeia com trechos curtos (21,5 / 23,5 dos consolos): o texto que não cabe entre as linhas de chamada vai para o
+        /// lado do vizinho comprido, com a linha de chamada do Revit (como o escritório faz à mão).
+        /// </summary>
+        private static void MoveSmallTexts(Dimension d, View view)
+        {
+            if (d == null || d.NumberOfSegments < 2 || !(d.Curve is Line ln)) return;
+            XYZ dir = ln.Direction;
+            double th = d.DimensionType?.get_Parameter(BuiltInParameter.TEXT_SIZE)?.AsDouble() ?? U.Mm(2.5);
+            double k = th * view.Scale;   // altura do texto em unidades do modelo
+            List<DimensionSegment> segs = d.Segments.Cast<DimensionSegment>().OrderBy(s => s.Origin.DotProduct(dir)).ToList();
+            double TextLen(DimensionSegment s) => ((s.ValueString ?? "000").Length * 0.7 + 1.0) * k;
+            bool Small(DimensionSegment s) => (s.Value ?? 0) < TextLen(s);
+            for (int i = 0; i < segs.Count; i++)
+            {
+                DimensionSegment s = segs[i];
+                if (!Small(s)) continue;
+                int sign;
+                if (i == 0 || !Small(segs[i - 1])) sign = -1;                  // vai para o vizinho de baixo
+                else if (i == segs.Count - 1 || !Small(segs[i + 1])) sign = 1;  // ou para o de cima
+                else continue;
+                XYZ tp;
+                try { tp = s.TextPosition; } catch { continue; }
+                if (tp == null) continue;
+                double shift = (s.Value ?? 0) / 2 + TextLen(s) / 2 + 0.3 * k;
+                try { s.TextPosition = tp + dir * (sign * shift); } catch { /* posição não aplicável */ }
+            }
         }
 
         /// <summary>
         /// Cota uma vista. Uma falha aqui vira aviso da vista: não deve desfazer o detalhamento
         /// (assembly, vistas e folha) da peça inteira.
         /// </summary>
-        public int AddOverallDimensions(DetailView dv, PieceInfo p)
+        /// <param name="vertical">Com a cota do comprimento total (ao longo do eixo da peça).</param>
+        public int AddOverallDimensions(DetailView dv, PieceInfo p, bool vertical = true)
         {
             try
             {
-                return AddOverallDimensionsCore(dv, p);
+                return AddOverallDimensionsCore(dv, p, vertical);
             }
             catch (Exception ex)
             {
@@ -199,7 +229,12 @@ namespace DEB.Revit.Core
                 double s = Math.Max(p.MaxAlong(right), kv.Count > 0 ? kv.Max(v => v.DotProduct(right)) : double.MinValue) + gap;
                 var plans = new List<(Line, ReferenceArray)>();
                 Add(plans, refs, p.AxisZ, right, s, vd, view.Origin.DotProduct(vd));
-                foreach (var (line, ra) in plans) NewDimension(view, line, ra);
+                foreach (var (line, ra) in plans)
+                {
+                    Dimension d = NewDimension(view, line, ra);
+                    _doc.Regenerate();
+                    MoveSmallTexts(d, view);
+                }
                 return plans.Count;
             }
             catch (Exception ex)
@@ -210,7 +245,7 @@ namespace DEB.Revit.Core
             }
         }
 
-        private int AddOverallDimensionsCore(DetailView dv, PieceInfo p)
+        private int AddOverallDimensionsCore(DetailView dv, PieceInfo p, bool vertical)
         {
             View view = dv.View;
             if (view is View3D) return 0;
@@ -230,6 +265,7 @@ namespace DEB.Revit.Core
             foreach (XYZ axis in new[] { p.AxisX, p.AxisY, p.AxisZ })
             {
                 if (Math.Abs(axis.DotProduct(vd)) > 1e-3) continue;   // eixo fora do plano da vista
+                if (!vertical && axis.IsAlmostEqualTo(p.AxisZ)) continue;
 
                 XYZ outDir;
                 if (Math.Abs(axis.DotProduct(right)) > 0.999) outDir = up.Negate();   // cota horizontal → abaixo
