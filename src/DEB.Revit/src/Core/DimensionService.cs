@@ -51,11 +51,12 @@ namespace DEB.Revit.Core
         /// Cotas de um elemento anexado à peça (consolo): níveis em relação à base do pilar,
         /// balanço e largura. Cada cota só é feita quando o eixo correspondente está no plano da vista.
         /// </summary>
-        public int AddAttachedDimensions(DetailView dv, PieceInfo p, FamilyInstance k)
+        /// <param name="detail">Vista de detalhe do consolo: só as medidas dele (sem a cadeia até a base do pilar).</param>
+        public int AddAttachedDimensions(DetailView dv, PieceInfo p, FamilyInstance k, bool detail = false)
         {
             try
             {
-                return AddAttachedDimensionsCore(dv, p, k);
+                return AddAttachedDimensionsCore(dv, p, k, detail);
             }
             catch (Exception ex)
             {
@@ -65,7 +66,7 @@ namespace DEB.Revit.Core
             }
         }
 
-        private int AddAttachedDimensionsCore(DetailView dv, PieceInfo p, FamilyInstance k)
+        private int AddAttachedDimensionsCore(DetailView dv, PieceInfo p, FamilyInstance k, bool detail)
         {
             View view = dv.View;
             if (view is View3D) return 0;
@@ -99,12 +100,22 @@ namespace DEB.Revit.Core
             {
                 // Base do pilar + níveis do consolo, em cadeia, ao lado da ponta do consolo.
                 var refs = new List<(double T, Reference Ref)>();
-                if (GeometryHelper.TryGetExtremeFaces(cs, p.AxisZ, out Reference rb, out double tb, out _, out _))
+                if (!detail && GeometryHelper.TryGetExtremeFaces(cs, p.AxisZ, out Reference rb, out double tb, out _, out _))
                     refs.Add((tb, rb));
                 refs.AddRange(GeometryHelper.RefsAlong(ks, p.AxisZ, vd));
-                XYZ outDir = InPlane(u) ? u : view.RightDirection;
-                double s = Math.Max(Max(outDir), p.MaxAlong(outDir)) + 2 * gap;
-                Add(plans, refs, p.AxisZ, outDir, s, vd, w);
+                if (detail)
+                {
+                    // detalhe: altura do consolo ao lado da ponta (ou à esquerda no corte transversal)
+                    XYZ od = InPlane(u) ? u : view.RightDirection.Negate();
+                    var zs = refs.OrderBy(r => r.T).ToList();
+                    if (zs.Count >= 2) Add(plans, new List<(double, Reference)> { zs[0], zs[^1] }, p.AxisZ, od, Max(od) + 2 * gap, vd, w);
+                }
+                else
+                {
+                    XYZ outDir = InPlane(u) ? u : view.RightDirection;
+                    double s = Math.Max(Max(outDir), p.MaxAlong(outDir)) + 2 * gap;
+                    Add(plans, refs, p.AxisZ, outDir, s, vd, w);
+                }
             }
             if (InPlane(u))
             {
@@ -120,8 +131,10 @@ namespace DEB.Revit.Core
             {
                 // Largura do consolo, além da ponta.
                 List<(double T, Reference Ref)> across = GeometryHelper.RefsAlong(ks, t, vd);
+                // (corte transversal do detalhe: o balanço é a direção da vista; a cota vai acima do consolo)
+                XYZ sideT = detail && !InPlane(u) ? p.AxisZ : u;
                 if (across.Count >= 2)
-                    Add(plans, new List<(double, Reference)> { across[0], across[^1] }, t, u, Max(u) + gap, vd, w);
+                    Add(plans, new List<(double, Reference)> { across[0], across[^1] }, t, sideT, Max(sideT) + gap, vd, w);
             }
 
             // 2º passo: cria as cotas.
