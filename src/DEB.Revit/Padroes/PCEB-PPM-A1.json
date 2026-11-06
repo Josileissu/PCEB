@@ -1,6 +1,6 @@
 {
   "Codigo": "PCEB-PPM-A1",
-  "Versao": 30,
+  "Versao": 32,
   "Nome": "Pilar pré-moldado – prancha A1 (padrão PP127)",
   "Elemento": "PilarPreMoldado",
   "Descricao": "Prancha A1 como a PP127 e o template pilar-premoldado do DEB.Cad: vistas das 4 faces e elevação da armadura (1:50) à esquerda; seções com armadura e cortes (1:25) no alto, ao centro; relação/resumo do aço, informações de produção e notas à direita; detalhes padrão embaixo; carimbo no canto inferior direito.",
@@ -42,7 +42,12 @@
     "RotuloBarra": "{Qtd} N{N} ø{Diam} C={Comp}",
     "RotuloEstribos": "{Qtd} N{N} c/{Espacamento}",
     "DesenhoDeDobramento": true,
-    "DensidadeAco": 7850
+    "DensidadeAco": 7850,
+    "ArquivoEtiqueta": "S:\\Meu Drive\\Arquivos\\Familias Revit\\Anotação\\Identificador Vergalhão.rfa",
+    "FamiliaEtiqueta": "Identificador Vergalhão",
+    "EtiquetaLongitudinal": "1 N1 Ø C",
+    "EtiquetaEstribo": "1 N1 c/",
+    "LongitudinaisComoDetalhe": true
   },
   "Regioes": {
     "Titulo":   { "X": 0.00,  "Y": 0.94, "L": 0.12,  "A": 0.06 },

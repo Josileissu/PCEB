@@ -187,6 +187,19 @@ namespace DEB.Revit.Presentation
         public bool ChamadasNasSecoes { get; set; } = true;
         /// <summary>Densidade do aço para o peso (kg/m³).</summary>
         public double DensidadeAco { get; set; } = 7850;
+        /// <summary>Família de etiqueta de vergalhão do escritório (.rfa), carregada se não estiver no projeto.</summary>
+        public string ArquivoEtiqueta { get; set; } = "";
+        /// <summary>Nome da família de etiqueta de vergalhão (no projeto).</summary>
+        public string FamiliaEtiqueta { get; set; } = "";
+        /// <summary>Tipo da etiqueta das barras longitudinais (ex.: "1 N1 Ø C" → "8 N1 ø12.5 C=995").</summary>
+        public string EtiquetaLongitudinal { get; set; } = "";
+        /// <summary>Tipo da etiqueta dos estribos/grampos na cota dos trechos (ex.: "1 N1 c/" → "16 N2 c/15").</summary>
+        public string EtiquetaEstribo { get; set; } = "";
+        /// <summary>
+        /// Longitudinais na vista de armadura como detalhes de curvatura (em escala, na altura real, ao lado da elevação,
+        /// com a etiqueta do escritório) no lugar das linhas esquemáticas. Decisão do usuário em 06/11/2026.
+        /// </summary>
+        public bool LongitudinaisComoDetalhe { get; set; } = true;
     }
 
     public sealed class Region

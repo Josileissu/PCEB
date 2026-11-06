@@ -24,8 +24,8 @@ A API não cria rótulos dentro de famílias: novas etiquetas/títulos saem do e
 
 | Item da prancha | Hoje | Recurso do Revit | Etapa |
 |---|---|---|---|
-| Barras longitudinais na ARMADURA | linhas grossas esquemáticas + texto | **detalhe de curvatura** (`RebarBendingDetail`) de cada N, na altura real, ao lado da elevação + **etiqueta** "Identificador Vergalhão" (1 N1 Ø C) | R1 |
-| Faixas de estribos ("16 N2 c/15") | texto | **anotação de múltiplos vergalhões** (`MultiReferenceAnnotation`: cota da faixa + etiqueta "1 N1 Ø c/") | R2 |
+| Barras longitudinais na ARMADURA | **feito (06/11)**: um conjunto do Revit por N com as barras movidas ("Modificar barras") → "8 N1 ø12.5 C=995" | **detalhe de curvatura** (`RebarBendingDetail`) de cada N, na altura real, ao lado da elevação + **etiqueta** "Identificador Vergalhão" (1 N1 Ø C) | R1 |
+| Faixas de estribos ("16 N2 c/15") | **feito (06/11)**: cota em cadeia dos trechos + etiqueta "1 N1 c/" do conjunto encostada na cota (vertical; horizontal à direita no trecho curto) | (a `MultiReferenceAnnotation` fica como alternativa) | R2 |
 | Chamadas N nas seções e no consolo | textos "N1" + linhas | **etiquetas de vergalhão** com linha de chamada (tipo "N1"), uma por conjunto/posição | R3 |
 | Formas dos estribos e barras avulsas | detalhe de curvatura + texto do rótulo | detalhe de curvatura + **etiqueta no detalhe** (no lugar do texto) | R3 |
 | Níveis (TOPO / NÍVEL / BASE) | linhas + textos | **níveis do projeto** visíveis na vista (cabeça "Marca de Nível -Triângulo") ou **cota de elevação** (spot) no topo/base | R4 |
@@ -43,3 +43,20 @@ A API não cria rótulos dentro de famílias: novas etiquetas/títulos saem do e
 
 Cada etapa: teste no Revit 2026 (AutoRun), PNG comparado com a PP127, sem regressão de escala nas regiões. Onde uma família do
 escritório faltar no projeto, o plugin a carrega do caminho do padrão; se não achar, avisa e usa o recurso anterior.
+
+## Barras por face, cantos e feixes (06/11/2026)
+Jeito Revit (sugestão do usuário): cria-se o vergalhão **com quantidade** (layout de número fixo) e cada barra do conjunto é
+levada à sua posição com **"Modificar barras"** (`Rebar.MoveBarInSet`). Um conjunto = uma posição (N): a quantidade sai
+do próprio Revit na etiqueta, na tabela e no detalhe de curvatura (forma livre não desenha detalhe em escala). Feito para
+as longitudinais iguais e para as alças de içamento. Esquemas (4 cantos, faces, feixe) = conjuntos separados.
+
+**Falta (próximo passo)**: quando o usuário muda a bitola (à mão ou pelo plugin), as barras movidas têm de ser
+reposicionadas — atualizador (`IUpdater`) na troca do tipo de barra que recalcula as posições pelo `ColumnRebarLayout`
+(cobrimento + estribo + Ø/2). O parâmetro de instância de quantidade sugerido pelo usuário só é preciso para barras
+avulsas fora de conjunto; com o conjunto, a quantidade é a do Revit.
+
+## Vistas e template
+- A visibilidade da armadura é do **template da vista** (`PCEB-PPM-*`); o plugin não sobrepõe cor por elemento na ARMADURA.
+- Vista 3D (quando entrar na folha): filtros por bitola com as cores do escritório (ø5.0 laranja … ø32.0 roxo,
+  `Presentation/RebarFilters.cs`), aplicados antes do template. Os filtros "Armadura_Elemento_Pilar/Bloco/Viga/Escada"
+  do escritório dependem de um parâmetro que ainda não conhecemos (perguntar).
