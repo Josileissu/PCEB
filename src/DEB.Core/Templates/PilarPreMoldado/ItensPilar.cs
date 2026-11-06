@@ -403,69 +403,7 @@ public sealed partial class TemplatePilarPreMoldado
 
         // ---- chaves de cisalhamento, 1:10 (como o detalhe 01 do P61) ----
         if (v["Interface"] == Chaves)
-        {
-            double esc = 10, ht = Ht(c, esc);
-            double passo = v.Numero("ChavePasso"), dente = v.Numero("ChaveDente"), prof = v.Numero("ChaveProf");
-            fimTitulo = Titulo("DETALHE 01 - CHAVES DE CISALHAMENTO", "DETAIL 01 - SHEAR KEYS", x, yTopo, esc, "ESC 1:10");
-            // círculo de ~5 passos de raio; a face do pilar um pouco à esquerda do centro; o pilar termina embaixo
-            double raio = 5 * passo;
-            double cx = x + raio + 14 * ht, cy = yTopo - 9 * ht - raio;
-            double fx = cx - 0.16 * raio, yFim = cy - 0.55 * raio;
-            int n = (int)Math.Ceiling((cy + raio - yFim) / passo) + 1;
-            var (perfil, arestas) = PerfilChaves(passo, dente, prof, n);
-            // perfil (x = 0 na face) recortado pelo círculo
-            for (int k = 0; k + 1 < perfil.Count; k++)
-            {
-                var seg = DentroDoCirculo((fx + perfil[k].X, yFim + perfil[k].Y), (fx + perfil[k + 1].X, yFim + perfil[k + 1].Y), cx, cy, raio);
-                if (seg is { } sg) c.Linha(sg.a.X, sg.a.Y, sg.b.X, sg.b.Y, "ARM-CHAVE");
-            }
-            // arestas (as duas bordas de cada chanfro) e o fim do pilar, do círculo até o perfil
-            double XCirculo(double yy) => cx - Math.Sqrt(Math.Max(0, raio * raio - (yy - cy) * (yy - cy)));
-            foreach (var (xa, ya) in arestas.Prepend((perfil[0].X, 0.0)))
-            {
-                double yy = yFim + ya;
-                if (Math.Abs(yy - cy) >= raio - 1e-6) continue;
-                c.Linha(XCirculo(yy), yy, fx + xa, yy, "ARM-CHAVE");
-            }
-            r.Circulos.Add(new CirculoTemplate { X = cx, Y = cy, Raio = raio, Layer = "ARM-DETALHE" });
-            // cotas: dente / transição alternados (4 | 1) e o passo (5), nos trechos inteiros dentro do círculo
-            double xc1 = fx + 0.32 * raio, xc2 = fx + 0.62 * raio, yMax = cy + 0.62 * raio;
-            for (int k = 0; k < n; k++)
-            {
-                double y0 = yFim + k * passo;
-                if (y0 + passo > yMax) break;
-                if (k > 0 || y0 + dente < yMax) c.Cota(fx, y0, fx, y0 + dente, xc1, y0 + dente / 2, Math.PI / 2, esc);
-                c.Cota(fx, y0 + dente, fx, y0 + passo, xc1, y0 + dente + (passo - dente) / 2, Math.PI / 2, esc);
-                if (y0 + dente + passo <= yMax) c.Cota(fx, y0 + dente, fx, y0 + dente + passo, xc2, y0 + dente + passo / 2, Math.PI / 2, esc);
-            }
-            // chamadas com seta: "CHAVES DE CISALHAMENTO" para um trecho recuado e um na face; "PILAR" para a borda do círculo
-            double txC = cx - raio - 1.5 * ht, tyC = cy + 0.5 * raio;
-            var linhasC = c.Linhas("CHAVES DE CISALHAMENTO", "SHEAR KEY");
-            double larg = linhasC.Max(t => t.Length) * 0.75 * 0.9 * ht;
-            double yt2 = tyC;
-            foreach (var t in linhasC) { c.Texto(t, txC, yt2, 0.9 * ht, 2); yt2 -= 1.4 * ht; }
-            double ySub = tyC - 0.35 * ht;
-            c.Linha(txC - larg, ySub, txC + 0.5 * ht, ySub, "ARM-DETALHE");
-            int kr = Math.Max(1, (int)Math.Floor((cy - yFim) / passo));       // recuado (passo par) perto do centro
-            int kf = kr % 2 == 0 ? kr + 1 : kr - 1;                             // na face
-            foreach (int k in new[] { kr, kf })
-            {
-                double xr = k % 2 == 0 ? -prof : 0;
-                Seta(c, (txC + 0.5 * ht, ySub), (fx + xr, yFim + k * passo + dente / 2), ht, "ARM-DETALHE");
-            }
-            double ang = 1.25 * Math.PI, pxP = cx + raio * Math.Cos(ang), pyP = cy + raio * Math.Sin(ang);
-            double txP = pxP - 4 * ht, tyP = pyP - 3 * ht;
-            var linhasP = c.Linhas("PILAR", "COLUMN");
-            double yp = tyP;
-            foreach (var t in linhasP) { c.Texto(t, txP, yp, 0.9 * ht, 1); yp -= 1.4 * ht; }
-            double largP = linhasP.Max(t => t.Length) * 0.75 * 0.9 * ht;
-            c.Linha(txP - largP / 2 - 0.5 * ht, tyP - 0.35 * ht, txP + largP / 2 + 0.5 * ht, tyP - 0.35 * ht, "ARM-DETALHE");
-            Seta(c, (txP + largP / 2 + 0.5 * ht, tyP - 0.35 * ht), (pxP, pyP), ht, "ARM-DETALHE");
-            tyP = yp;
-            x = Math.Max(cx + raio + 6 * ht, xc2 + 4 * ht);
-            x = Math.Max(x, fimTitulo + 4 * hv);
-            yBaixo = Math.Min(yBaixo, tyP - 3 * ht);
-        }
+            x = DetalheChaves(c, x, yTopo, v.Numero("ChavePasso"), v.Numero("ChaveDente"), v.Numero("ChaveProf"), ref yBaixo);
 
         // ---- espaçamento das barras no canto, 1:5 ----
         {
@@ -507,6 +445,100 @@ public sealed partial class TemplatePilarPreMoldado
             c.Retangulo(x, yy, x + 42 * hv, yTopo + hv, "ARM-TEXTO-FORMA");
         }
         return yBaixo - 10 * hv;
+    }
+
+    /// <summary>DETALHE 01 - CHAVES DE CISALHAMENTO (1:10, como o P61); devolve o x do próximo detalhe.</summary>
+    private static double DetalheChaves(Ctx c, double x, double yTopo, double passo, double dente, double prof, ref double yBaixo)
+    {
+        var r = c.R;
+        double hv = c.hV;
+        double Titulo(string pt, string en, double xt, double yt, double esc, string escala)
+        {
+            double ht = Ht(c, esc);
+            var linhas = c.Linhas(pt, en);
+            foreach (var t in linhas) { c.Texto(t, xt, yt, 1.3 * ht); yt -= 2 * ht; }
+            c.Texto(escala, xt, yt, 0.8 * ht);
+            return xt + linhas.Max(l => l.Length) * 0.75 * 1.3 * ht + 0.5 * hv;
+        }
+        double fimTitulo;
+        double esc = 10, ht = Ht(c, esc);
+        fimTitulo = Titulo("DETALHE 01 - CHAVES DE CISALHAMENTO", "DETAIL 01 - SHEAR KEYS", x, yTopo, esc, "ESC 1:10");
+        // círculo de ~5 passos de raio; a face do pilar um pouco à esquerda do centro; o pilar termina embaixo
+        double raio = 5 * passo;
+        double cx = x + raio + 14 * ht, cy = yTopo - 9 * ht - raio;
+        double fx = cx - 0.16 * raio, yFim = cy - 0.55 * raio;
+        int n = (int)Math.Ceiling((cy + raio - yFim) / passo) + 1;
+        var (perfil, arestas) = PerfilChaves(passo, dente, prof, n);
+        // perfil (x = 0 na face) recortado pelo círculo
+        for (int k = 0; k + 1 < perfil.Count; k++)
+        {
+            var seg = DentroDoCirculo((fx + perfil[k].X, yFim + perfil[k].Y), (fx + perfil[k + 1].X, yFim + perfil[k + 1].Y), cx, cy, raio);
+            if (seg is { } sg) c.Linha(sg.a.X, sg.a.Y, sg.b.X, sg.b.Y, "ARM-CHAVE");
+        }
+        // arestas (as duas bordas de cada chanfro) e o fim do pilar, do círculo até o perfil
+        double XCirculo(double yy) => cx - Math.Sqrt(Math.Max(0, raio * raio - (yy - cy) * (yy - cy)));
+        foreach (var (xa, ya) in arestas.Prepend((perfil[0].X, 0.0)))
+        {
+            double yy = yFim + ya;
+            if (Math.Abs(yy - cy) >= raio - 1e-6) continue;
+            c.Linha(XCirculo(yy), yy, fx + xa, yy, "ARM-CHAVE");
+        }
+        r.Circulos.Add(new CirculoTemplate { X = cx, Y = cy, Raio = raio, Layer = "ARM-DETALHE" });
+        // cotas: dente / transição alternados (4 | 1) e o passo (5), nos trechos inteiros dentro do círculo
+        double xc1 = fx + 0.32 * raio, xc2 = fx + 0.62 * raio, yMax = cy + 0.62 * raio;
+        for (int k = 0; k < n; k++)
+        {
+            double y0 = yFim + k * passo;
+            if (y0 + passo > yMax) break;
+            if (k > 0 || y0 + dente < yMax) c.Cota(fx, y0, fx, y0 + dente, xc1, y0 + dente / 2, Math.PI / 2, esc);
+            c.Cota(fx, y0 + dente, fx, y0 + passo, xc1, y0 + dente + (passo - dente) / 2, Math.PI / 2, esc);
+            if (y0 + dente + passo <= yMax) c.Cota(fx, y0 + dente, fx, y0 + dente + passo, xc2, y0 + dente + passo / 2, Math.PI / 2, esc);
+        }
+        // chamadas com seta: "CHAVES DE CISALHAMENTO" para um trecho recuado e um na face; "PILAR" para a borda do círculo
+        double txC = cx - raio - 1.5 * ht, tyC = cy + 0.5 * raio;
+        var linhasC = c.Linhas("CHAVES DE CISALHAMENTO", "SHEAR KEY");
+        double larg = linhasC.Max(t => t.Length) * 0.75 * 0.9 * ht;
+        double yt2 = tyC;
+        foreach (var t in linhasC) { c.Texto(t, txC, yt2, 0.9 * ht, 2); yt2 -= 1.4 * ht; }
+        double ySub = tyC - 0.35 * ht;
+        c.Linha(txC - larg, ySub, txC + 0.5 * ht, ySub, "ARM-DETALHE");
+        int kr = Math.Max(1, (int)Math.Floor((cy - yFim) / passo));       // recuado (passo par) perto do centro
+        int kf = kr % 2 == 0 ? kr + 1 : kr - 1;                             // na face
+        foreach (int k in new[] { kr, kf })
+        {
+            double xr = k % 2 == 0 ? -prof : 0;
+            Seta(c, (txC + 0.5 * ht, ySub), (fx + xr, yFim + k * passo + dente / 2), ht, "ARM-DETALHE");
+        }
+        double ang = 1.25 * Math.PI, pxP = cx + raio * Math.Cos(ang), pyP = cy + raio * Math.Sin(ang);
+        double txP = pxP - 4 * ht, tyP = pyP - 3 * ht;
+        var linhasP = c.Linhas("PILAR", "COLUMN");
+        double yp = tyP;
+        foreach (var t in linhasP) { c.Texto(t, txP, yp, 0.9 * ht, 1); yp -= 1.4 * ht; }
+        double largP = linhasP.Max(t => t.Length) * 0.75 * 0.9 * ht;
+        c.Linha(txP - largP / 2 - 0.5 * ht, tyP - 0.35 * ht, txP + largP / 2 + 0.5 * ht, tyP - 0.35 * ht, "ARM-DETALHE");
+        Seta(c, (txP + largP / 2 + 0.5 * ht, tyP - 0.35 * ht), (pxP, pyP), ht, "ARM-DETALHE");
+        tyP = yp;
+        x = Math.Max(cx + raio + 6 * ht, xc2 + 4 * ht);
+        x = Math.Max(x, fimTitulo + 4 * hv);
+        yBaixo = Math.Min(yBaixo, tyP - 3 * ht);
+        return x;
+    }
+
+    /// <summary>
+    /// Detalhes padrão da prancha do escritório para outros templates (blocos, 2026-11-06): DETALHE 01 - CHAVES DE
+    /// CISALHAMENTO (opcional) e o detalhe típico (raio de curvatura, emendas por traspasse e por solda, comprimento das
+    /// barras). Devolve o x depois do último detalhe; <paramref name="yBaixo"/> = y abaixo de tudo.
+    /// </summary>
+    public static double DesenharDetalhesComuns(ResultadoTemplate r, IdiomaDesenho idioma, double escala, double alturaTextoMm,
+        double x0, double yTopo, bool chaves, double passo, double dente, double prof, out double yBaixo)
+    {
+        double mm = alturaTextoMm > 0 ? alturaTextoMm : 2;
+        var c = new Ctx { R = r, Idioma = idioma, escV = escala, escC = escala, hV = mm / 10 * escala, hC = mm / 10 * escala };
+        double yb = yTopo, x = x0;
+        if (chaves) x = DetalheChaves(c, x, yTopo, passo, dente, prof, ref yb);
+        x = new TemplatePilarPreMoldado().DetalheTipico(c, x, yTopo, ref yb);
+        yBaixo = yb;
+        return x;
     }
 
     /// <summary>
