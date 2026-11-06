@@ -158,7 +158,8 @@ namespace DEB.Revit.Core
                 if (along.Count >= 2)
                     Add(plans, new List<(double, Reference)> { along[0], along[^1] }, u, side, sSide, vd, w);
             }
-            if (InPlane(t))
+            // consolo visto de frente na elevação: sem cotas (só os consolos em corte são cotados, pedido do usuário)
+            if (InPlane(t) && (detail || !InPlane(p.AxisZ)))
             {
                 // Largura do consolo, além da ponta.
                 List<(double T, Reference Ref)> across = GeometryHelper.RefsAlong(ks, t, vd);
@@ -217,12 +218,22 @@ namespace DEB.Revit.Core
                     refs.Add((tt, rt));
                 }
                 var kv = new List<XYZ>();
+                XYZ pc = p.Vertices.Aggregate(XYZ.Zero, (a, b) => a + b) / p.Vertices.Count;
                 foreach (FamilyInstance k in p.Attached)
                 {
                     List<SolidRef> ks = GeometryHelper.GetSolids(k, view);
                     if (ks.Count == 0) ks = GeometryHelper.GetSolids(k, null);
-                    kv.AddRange(GeometryHelper.GetVertices(ks));
-                    foreach (var r in GeometryHelper.RefsAlong(ks, p.AxisZ, vd))
+                    List<XYZ> kpts = GeometryHelper.GetVertices(ks);
+                    if (kpts.Count == 0) continue;
+                    kv.AddRange(kpts);
+                    // só os consolos em corte (balanço no plano da vista); os vistos de frente não entram na cadeia
+                    XYZ d = kpts.Aggregate(XYZ.Zero, (a, b) => a + b) / kpts.Count - pc;
+                    XYZ u = Math.Abs(d.DotProduct(p.AxisX)) >= Math.Abs(d.DotProduct(p.AxisY)) ? p.AxisX : p.AxisY;
+                    if (Math.Abs(u.DotProduct(vd)) > 1e-3) continue;
+                    // base e topo do consolo, sem os chanfros (arestas intermediárias)
+                    List<(double T, Reference Ref)> zs = GeometryHelper.RefsAlong(ks, p.AxisZ, vd).OrderBy(r => r.T).ToList();
+                    if (zs.Count == 0) continue;
+                    foreach (var r in new[] { zs[0], zs[^1] })
                         if (!refs.Any(x => Math.Abs(x.T - r.T) < U.Mm(1))) refs.Add(r);
                 }
                 double gap = U.Mm(_cfg.DimensionOffsetMm) * view.Scale;
