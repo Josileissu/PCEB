@@ -85,8 +85,12 @@ namespace DEB.Revit.Presentation
                         else LabelRebar(v.View, p, rebars, styles);
                     }
                     if (Std.Armadura.ChamadasNasSecoes)
+                    {
                         foreach (PlacedView v in views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura))
                             SectionCallouts(v.View, p, rebars, styles, log);
+                        foreach (PlacedView v in views.Where(v => v.Corbel != null && v.Spec.MostrarArmadura))
+                            CorbelCallouts(v.View, v.Corbel, v.Spec.Tipo == ViewKind.ConsoloPlanta, rebars, styles, log);
+                    }
                 }, critical: false);
 
                 if (Std.Armadura.DesenhoDeDobramento)
@@ -193,7 +197,8 @@ namespace DEB.Revit.Presentation
                             {
                                 ViewSection v = CreateCorbelView(cg, spec.Tipo == ViewKind.ConsoloPlanta);
                                 if (v == null) { log.Warn($"{spec.Titulo.Split('\n')[0]}: vista do consolo não criada."); break; }
-                                PlacedView pv = Setup(v, spec, Title(spec, "", "").Replace("{Consolo}", cg.Label), mark, names);
+                                PlacedView pv = Setup(v, spec, Title(spec, "", "").Replace("{Consolo}", cg.Label)
+                                    .Replace("{Qtd}", cg.Count.ToString(CultureInfo.InvariantCulture)), mark, names);
                                 pv.Corbel = cg.K;
                                 result.Add(pv);
                             }
@@ -356,6 +361,7 @@ namespace DEB.Revit.Presentation
             public double U0, U1, T0, T1, Z0, Z1;    // face do pilar / ponta, lados, base / topo
             public double ColU0;                     // face oposta do pilar na direção U
             public string Label;                     // largura × altura × balanço (cm)
+            public int Count = 1;                    // consolos iguais na peça
         }
 
         private static List<CorbelGeo> DistinctCorbels(PieceInfo p)
@@ -383,6 +389,7 @@ namespace DEB.Revit.Presentation
                 };
                 g.Label = $"{Cm(g.T1 - g.T0)}x{Cm(g.Z1 - g.Z0)}x{Cm(g.U1 - g.U0)}";
                 if (keys.Add(g.Label)) result.Add(g);
+                else result.First(x => x.Label == g.Label).Count++;
             }
             return result;
         }
@@ -765,6 +772,136 @@ namespace DEB.Revit.Presentation
                     case "C": Callout(At(Free(side, mr, tw), maxU + off * 1.6 + textH), centerOpt, text, pts); break;
                     default: Callout(At(Free(side, mr, tw), minU - off * 1.6), centerOpt, text, pts); break;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Chamadas N no quadro do consolo (como o "ARMADURAS console"): no corte, todas as barras do consolo (e "Solda"
+        /// na barra soldada); na planta, só os pinos. Texto fora do recorte, do lado mais próximo, com uma linha de chamada
+        /// para cada barra visível do conjunto (até 6).
+        /// </summary>
+        private void CorbelCallouts(View view, FamilyInstance corbel, bool plan, List<Rebar> rebars, AnnotationStyles styles, PieceLog log)
+        {
+            if (!(view is ViewSection vs)) return;
+            // só as barras deste consolo (o recorte pega também um trecho do pilar, onde passam as dos outros)
+            BoundingBoxXYZ kb = corbel.get_BoundingBox(null);
+            if (kb == null) return;
+            double tol = U.Mm(30);
+            bool InCorbel(XYZ q) => q.X > kb.Min.X - tol && q.X < kb.Max.X + tol && q.Y > kb.Min.Y - tol && q.Y < kb.Max.Y + tol
+                                    && q.Z > kb.Min.Z - tol && q.Z < kb.Max.Z + tol;
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            double s = view.Scale;
+            BoundingBoxXYZ cb = vs.CropBox;
+            var corners = new List<XYZ>();
+            foreach (double x in new[] { cb.Min.X, cb.Max.X })
+                foreach (double y in new[] { cb.Min.Y, cb.Max.Y })
+                    foreach (double z in new[] { cb.Min.Z, cb.Max.Z })
+                        corners.Add(cb.Transform.OfPoint(new XYZ(x, y, z)));
+            double minR = corners.Min(c => c.DotProduct(right)), maxR = corners.Max(c => c.DotProduct(right));
+            double minU = corners.Min(c => c.DotProduct(up)), maxU = corners.Max(c => c.DotProduct(up));
+            double minD = corners.Min(c => c.DotProduct(vd)), maxD = corners.Max(c => c.DotProduct(vd));
+            double d0 = view.Origin.DotProduct(vd);
+            XYZ At(double r, double u) => right * r + up * u + vd * d0;
+            bool Inside(XYZ q)
+            {
+                double r = q.DotProduct(right), u = q.DotProduct(up), dd = q.DotProduct(vd);
+                return r > minR && r < maxR && u > minU && u < maxU && dd > minD - U.Mm(15) && dd < maxD + U.Mm(15);   // barra no plano de corte
+            }
+
+            // por N: pontos de chamada (um por posição visível, no meio do trecho reto visível mais longo)
+            var groups = new List<(string N, string Role, List<(double R, double U)> Pts)>();
+            foreach (Rebar r in rebars)
+            {
+                var row = new RebarRow(_doc, r);
+                if (row.Number == "" || !IsCorbelRole(row.Role)) continue;
+                if (plan && row.Role.IndexOf("Pino", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                bool mine = false;
+                try
+                {
+                    mine = r.GetCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, 0)
+                        .Any(c => Enumerable.Range(0, 11).Any(k => InCorbel(c.Evaluate(k / 10.0, true))));
+                }
+                catch { }
+                if (!mine) continue;
+                var pts = new List<(double, double)>();
+                for (int i = 0; i < r.NumberOfBarPositions && pts.Count < 6; i++)
+                {
+                    IList<Curve> cs;
+                    try
+                    {
+                        // as curvas vêm na posição da 1ª barra: a transformação leva para a posição i do conjunto
+                        cs = r.GetCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i);
+                        if (i > 0 && r.IsRebarShapeDriven())
+                        {
+                            Transform tf = r.GetShapeDrivenAccessor().GetBarPositionTransform(i);
+                            cs = cs.Select(c => c.CreateTransformed(tf)).ToList();
+                        }
+                    }
+                    catch { continue; }
+                    XYZ best = null; double bestL = 0;
+                    foreach (Line ln in cs.OfType<Line>())
+                    {
+                        XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
+                        // comprimento projetado no plano da vista: linha "de ponta" não serve de alvo
+                        XYZ ab = b - a; double lp = (ab - vd * ab.DotProduct(vd)).GetLength();
+                        if (lp < U.Mm(20) || lp <= bestL) continue;
+                        // trecho dentro do recorte (amostragem): o ponto do meio dele
+                        List<XYZ> ins = Enumerable.Range(1, 9).Select(k => a + ab * (k / 10.0)).Where(Inside).ToList();
+                        if (ins.Count == 0) continue;
+                        best = ins[ins.Count / 2]; bestL = lp;
+                    }
+                    if (best == null)   // barra vista "de ponta" (pino na planta): o ponto dela
+                        foreach (Line ln in cs.OfType<Line>())
+                        {
+                            XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
+                            double da = a.DotProduct(vd), db = b.DotProduct(vd);
+                            if (Math.Abs(db - da) < 1e-9) continue;
+                            XYZ q = a + (b - a) * Math.Max(0, Math.Min(1, (maxD - da) / (db - da)));   // no plano de corte
+                            if (Inside(q)) { best = q; break; }
+                        }
+                    // barras uma atrás da outra na vista: um alvo só
+                    if (best != null && !pts.Any(t => Math.Abs(t.Item1 - best.DotProduct(right)) < U.Mm(5) && Math.Abs(t.Item2 - best.DotProduct(up)) < U.Mm(5)))
+                        pts.Add((best.DotProduct(right), best.DotProduct(up)));
+                }
+                if (pts.Count == 0) { log.Info($"{view.Name}: N{row.Number} ({row.Role}) não visível no recorte (sem chamada)."); continue; }
+                var gExisting = groups.FindIndex(g => g.N == row.Number);
+                if (gExisting >= 0) groups[gExisting].Pts.AddRange(pts.Take(Math.Max(0, 6 - groups[gExisting].Pts.Count)));
+                else groups.Add((row.Number, row.Role, pts));
+            }
+            if (groups.Count == 0) { log.Info($"{view.Name}: nenhuma barra do consolo visível (sem chamadas)."); return; }
+
+            double off = U.Mm(5) * s, lineH = U.Mm(Std.Textos.AlturaTextoMm * 1.6) * s;
+            var leftOpt = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Right };
+            var rightOpt = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Left };
+            var usedL = new List<double>(); var usedR = new List<double>();
+            double Free(List<double> used, double v)
+            {
+                while (used.Any(x => Math.Abs(x - v) < lineH * 1.1)) v -= lineH * 1.2;
+                used.Add(v);
+                return v;
+            }
+            void Callout(bool left, double u, string text, IEnumerable<(double R, double U)> targets)
+            {
+                Try(() =>
+                {
+                    double v = Free(left ? usedL : usedR, u + lineH / 2);
+                    // à esquerda ficam as cotas do consolo: o texto vai além delas
+                    TextNote tn = TextNote.Create(_doc, view.Id, At(left ? minR - off * 3 : maxR + off, v), text, left ? leftOpt : rightOpt);
+                    foreach (var (r, uu) in targets)
+                    {
+                        Leader l = tn.AddLeader(TextNoteLeaderTypes.TNLT_STRAIGHT_L);
+                        l.End = At(r, uu);
+                    }
+                });
+            }
+            double cr = (minR + maxR) / 2;
+            foreach (var g in groups.OrderByDescending(g => g.Pts.Average(t => t.U)))
+            {
+                double mr = g.Pts.Average(t => t.R), mu = g.Pts.Average(t => t.U);
+                bool left = mr < cr;
+                Callout(left, mu, "N" + g.N, g.Pts);
+                if (!plan && g.Role.IndexOf("soldada", StringComparison.OrdinalIgnoreCase) >= 0)
+                    Callout(left, mu, "Solda", g.Pts.Take(1));
             }
         }
 

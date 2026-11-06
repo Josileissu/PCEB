@@ -203,7 +203,7 @@ namespace DEB.Revit.Presentation
         Vista3D,
         /// <summary>Corte vertical pelo meio de cada tipo de consolo (tirante e costura). Título aceita {Consolo}.</summary>
         ConsoloCorte,
-        /// <summary>Planta de cada tipo de consolo, logo abaixo do topo. Título aceita {Consolo}.</summary>
+        /// <summary>Planta de cada tipo de consolo, logo abaixo do topo. Título aceita {Consolo} e {Qtd} (consolos iguais).</summary>
         ConsoloPlanta
     }
 
