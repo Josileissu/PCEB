@@ -104,7 +104,10 @@ namespace DEB.Revit.Presentation
                         // Barras do consolo: no quadro do consolo (embaixo do corte do consolo), como o "ARMADURAS console".
                         List<View> corbelTargets = views.Where(v => v.Spec.Tipo == ViewKind.ConsoloCorte)
                             .Concat(views.Where(v => v.Spec.Tipo == ViewKind.ConsoloPlanta)).Select(v => v.View).ToList();
-                        if (targets.Count > 0) BendingDetails(targets, corbelTargets, p, rebars, styles, log);
+                        // Estribos e grampos: embaixo da última seção com armadura (como no pilar padrão do CAD).
+                        List<View> stirrupTargets = views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura).Select(v => v.View)
+                            .Reverse().Take(1).ToList();
+                        if (targets.Count > 0) BendingDetails(targets, corbelTargets, stirrupTargets, p, rebars, styles, log);
                     }, critical: false);
 
                 // Esquemática: o concreto some; a armadura 3D fica em BRANCO (oculta, as formas das barras somem junto);
@@ -986,11 +989,38 @@ namespace DEB.Revit.Presentation
         private static bool IsCorbelRole(string role) =>
             role.IndexOf("consolo", StringComparison.OrdinalIgnoreCase) >= 0 || role.IndexOf("soldada", StringComparison.OrdinalIgnoreCase) >= 0;
 
-        private void BendingDetails(List<View> targets, List<View> corbelTargets, PieceInfo p, List<Rebar> rebars, AnnotationStyles styles, PieceLog log)
+        private static bool IsStirrupRole(string role) => role == "Estribo" || role == "Grampo";
+
+        /// <summary>Extensão da seção na vista: pilar + consolos dentro da profundidade da vista.</summary>
+        private static (double MinR, double MaxR, double MinU, double MaxU) SectionExtents(View view, PieceInfo p)
+        {
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            double d = view.Origin.DotProduct(vd);
+            double far = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR)?.AsDouble() ?? U.Mm(1000);
+            var pts = new List<XYZ>(p.Vertices);
+            foreach (FamilyInstance k in p.Attached)
+            {
+                BoundingBoxXYZ bb = k.get_BoundingBox(null);
+                if (bb == null) continue;
+                var c = new List<XYZ>();
+                foreach (double x in new[] { bb.Min.X, bb.Max.X })
+                    foreach (double y in new[] { bb.Min.Y, bb.Max.Y })
+                        foreach (double z in new[] { bb.Min.Z, bb.Max.Z })
+                            c.Add(bb.Transform.OfPoint(new XYZ(x, y, z)));
+                if (c.Max(q => q.DotProduct(vd)) < d - far || c.Min(q => q.DotProduct(vd)) > d + U.Mm(5)) continue;
+                pts.AddRange(c);
+            }
+            return (pts.Min(q => q.DotProduct(right)), pts.Max(q => q.DotProduct(right)),
+                    pts.Min(q => q.DotProduct(up)), pts.Max(q => q.DotProduct(up)));
+        }
+
+        private void BendingDetails(List<View> targets, List<View> corbelTargets, List<View> stirrupTargets, PieceInfo p,
+            List<Rebar> rebars, AnnotationStyles styles, PieceLog log)
         {
             RebarBendingDetailType type = BendingType(styles);
-            var placedPerView = targets.Concat(corbelTargets).GroupBy(v => v.Id).ToDictionary(g => g.Key, g => 0);
+            var placedPerView = targets.Concat(corbelTargets).Concat(stirrupTargets).GroupBy(v => v.Id).ToDictionary(g => g.Key, g => 0);
             var corbelIds = new HashSet<ElementId>(corbelTargets.Select(v => v.Id));
+            var stirrupIds = new HashSet<ElementId>(stirrupTargets.Select(v => v.Id));
             var center = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
 
             // uma forma por posição (N), na ordem da numeração; quantidade = soma dos conjuntos da posição
@@ -1004,7 +1034,9 @@ namespace DEB.Revit.Presentation
                 RebarRow first = g.First();
                 string label = Fill(Std.Armadura.RotuloBarra, new RebarRow(first, g.Sum(x => x.Quantity)));
                 bool ok = false;
-                IEnumerable<View> order = IsCorbelRole(first.Role) ? corbelTargets.Concat(targets) : targets;
+                IEnumerable<View> order = IsCorbelRole(first.Role) ? corbelTargets.Concat(targets)
+                    : IsStirrupRole(first.Role) ? stirrupTargets.Concat(targets)
+                    : targets;
                 foreach (View view in order)
                 {
                     XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
@@ -1026,7 +1058,14 @@ namespace DEB.Revit.Presentation
                     int i = placedPerView[view.Id];
                     double pitch = U.Mm(ShapeHmm + 11) * s, colW = U.Mm(ShapeWmm + 12) * s;
                     XYZ pos;
-                    if (maxU - minU > 2 * (maxR - minR))
+                    if (stirrupIds.Contains(view.Id))
+                    {
+                        // seção: 2 formas por linha, centradas no pilar, abaixo das chamadas N
+                        var (sr0, sr1, su0, _) = SectionExtents(view, p);
+                        double cr = (sr0 + sr1) / 2, top = su0 - U.Mm(16) * s;
+                        pos = right * (cr + colW * ((i % 2) - 0.5)) + up * (top - pitch * (0.5 + i / 2));
+                    }
+                    else if (maxU - minU > 2 * (maxR - minR))
                     {
                         // elevação alta: colunas à direita, depois dos rótulos dos estribos
                         int perCol = Math.Max(1, (int)((maxU - minU) / pitch));
