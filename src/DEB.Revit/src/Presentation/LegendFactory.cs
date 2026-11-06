@@ -152,7 +152,7 @@ namespace DEB.Revit.Presentation
         // ------------------------------------------------------------------ níveis da obra
 
         /// <summary>
-        /// Legenda "PCEB - Níveis da obra 1:N": para cada nível do projeto, linha traço-ponto com o nome e a cota em cima,
+        /// Legenda "PCEB - Níveis da obra - escala 1-N": para cada nível do projeto, linha traço-ponto com o nome e a cota em cima,
         /// em y = cota do nível (na escala da legenda), para a folha alinhar com as elevações. Uma por escala; refeita quando
         /// os níveis mudam (assinatura na descrição da vista). Precisa de transação. Null (com aviso) sem legenda base.
         /// </summary>
@@ -168,7 +168,7 @@ namespace DEB.Revit.Presentation
                 return m == 0 ? "0,00" : m.ToString("+0.00;-0.00", pt);
             }
             string sign = string.Join(";", levels.Select(l => l.Name + "=" + Elev(l.Elevation)));
-            string name = $"PCEB - Níveis da obra 1:{scale}";
+            string name = $"PCEB - Níveis da obra - escala 1-{scale}";   // ":" não é aceito em nome de vista
             View view = Find(_doc, name);
             if (view != null)
             {
