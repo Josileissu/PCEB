@@ -102,9 +102,10 @@ namespace DEB.Revit.Precast
         }
 
         /// <summary>
-        /// Face das alças. Com consolos em até 3 faces: a face com mais consolos (desempate: consolos maiores, depois o
-        /// lado maior), para os consolos ficarem para cima no transporte. Com consolos nas 4 faces: a face oposta ao
-        /// consolo mais armado (maior), e no empate o lado maior (maior inércia no sentido do maior momento).
+        /// Face das alças. Com consolos em até 3 faces: a face com mais consolos (desempate: consolos maiores, depois a
+        /// face mais estreita), para os consolos ficarem para cima no transporte. Com consolos nas 4 faces: a face oposta
+        /// ao consolo mais armado (maior), e no empate a face mais estreita. "Alça no maior lado" = alça na face menor:
+        /// o pilar deitado fica com o lado maior na vertical (maior inércia no sentido do maior momento do transporte).
         /// Regra combinada com o usuário em 06/11/2026 (ver docs/notas/pc2_pendencias.md).
         /// </summary>
         public static ColumnFace LiftFace(ColumnFrame f, IList<Corbel> corbels)
@@ -122,14 +123,14 @@ namespace DEB.Revit.Precast
             {
                 Corbel big = corbels.OrderByDescending(Size).First();
                 double max = Size(big);
-                // consolos "mais armados" empatados: entre as faces opostas a eles, a de lado maior
+                // consolos "mais armados" empatados: entre as faces opostas a eles, a mais estreita
                 return corbels.Where(k => Size(k) > max * 0.999).Select(k => Opposite(k.Face)).Distinct()
-                    .OrderByDescending(Width).First();
+                    .OrderBy(Width).First();
             }
-            if (used.Count == 0) return faces.OrderByDescending(Width).First();
+            if (used.Count == 0) return faces.OrderBy(Width).First();
             return used.OrderByDescending(fc => corbels.Count(k => k.Face == fc))
                 .ThenByDescending(fc => corbels.Where(k => k.Face == fc).Sum(Size))
-                .ThenByDescending(Width).First();
+                .ThenBy(Width).First();
         }
 
         /// <summary>
