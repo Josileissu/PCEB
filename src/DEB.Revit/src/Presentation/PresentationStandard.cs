@@ -233,6 +233,8 @@ namespace DEB.Revit.Presentation
         public int Escala { get; set; } = 50;
         public string Regiao { get; set; } = "Vistas";
         public bool Cotas { get; set; } = true;
+        /// <summary>Cota do comprimento total da peça nesta vista (o escritório põe só na VISTA 1).</summary>
+        public bool CotaTotal { get; set; } = true;
         public bool MostrarArmadura { get; set; }
         /// <summary>Só elevação da armadura: desenho esquemático ("explodido") como o template do CAD — cada posição
         /// longitudinal numa linha com rótulo vertical e as zonas de estribos numa linha de cota; a armadura 3D e o

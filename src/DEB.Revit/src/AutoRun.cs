@@ -46,7 +46,7 @@ namespace DEB.Revit
         {
             var uiapp = (UIApplication)sender;
             string task = _task.Trim().ToLowerInvariant();
-            bool semProjeto = task == "familias" || task == "criarmodelo" || task == "contarlegendas";   // tarefas que não precisam de projeto aberto
+            bool semProjeto = task == "familias" || task == "criarmodelo" || task == "contarlegendas" || task == "exportar";   // tarefas que não precisam de projeto aberto
             UIDocument uidoc = uiapp.ActiveUIDocument;
             if (!semProjeto && (uidoc == null || uidoc.Document.IsFamilyDocument)) return;   // ainda abrindo o projeto
 
@@ -70,6 +70,9 @@ namespace DEB.Revit
                         break;
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
+                        break;
+                    case "exportar":
+                        status = "OK " + ExportFile(uiapp.Application);
                         break;
                     case "contarlegendas":
                         status = "OK " + CountLegends(uiapp.Application);
@@ -97,6 +100,63 @@ namespace DEB.Revit
 
             if (_exit)
                 uiapp.PostCommand(RevitCommandId.LookupPostableCommandId(PostableCommand.ExitRevit));
+        }
+
+        /// <summary>
+        /// SD_AUTORUN = exportar: abre SD_ARQUIVO (uma CÓPIA de um projeto de referência; nunca é salvo) e grava PNG de todas as
+        /// folhas + um inventário (folhas e suas vistas, legendas, tabelas, barras, detalhes de dobra) em logs\exportar_*.
+        /// </summary>
+        private static string ExportFile(Autodesk.Revit.ApplicationServices.Application app)
+        {
+            string file = Environment.GetEnvironmentVariable("SD_ARQUIVO")?.Trim();
+            string dir = Path.Combine(DetailingReport.LogDir, "exportar_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            Document d = Presentation.LegendFactory.OpenQuietly(app, file);
+            var sb = new StringBuilder();
+            sb.AppendLine(file);
+            List<ViewSheet> sheets = new FilteredElementCollector(d).OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder).OrderBy(s => s.SheetNumber).ToList();
+            foreach (ViewSheet s in sheets)
+            {
+                sb.AppendLine($"FOLHA {s.SheetNumber} - {s.Name}" + (s.AssociatedAssemblyInstanceId != ElementId.InvalidElementId ? " (montagem)" : ""));
+                foreach (ElementId vid in s.GetAllPlacedViews())
+                {
+                    View v = d.GetElement(vid) as View;
+                    if (v == null) continue;
+                    int bend = new FilteredElementCollector(d, v.Id).OfCategory(BuiltInCategory.OST_RebarBendingDetails).GetElementCount();
+                    int tags = new FilteredElementCollector(d, v.Id).OfCategory(BuiltInCategory.OST_RebarTags).GetElementCount();
+                    int dims = new FilteredElementCollector(d, v.Id).OfClass(typeof(Dimension)).GetElementCount();
+                    int texts = new FilteredElementCollector(d, v.Id).OfClass(typeof(TextNote)).GetElementCount();
+                    int lines = new FilteredElementCollector(d, v.Id).OfClass(typeof(CurveElement)).GetElementCount();
+                    sb.AppendLine($"   {v.ViewType} \"{v.Name}\" 1:{v.Scale} | dobra {bend} | etiquetas {tags} | cotas {dims} | textos {texts} | linhas {lines}");
+                }
+                foreach (ScheduleSheetInstance si in new FilteredElementCollector(d, s.Id).OfClass(typeof(ScheduleSheetInstance)).Cast<ScheduleSheetInstance>())
+                    sb.AppendLine($"   tabela \"{si.Name}\"");
+            }
+            sb.AppendLine($"barras: {new FilteredElementCollector(d).OfClass(typeof(Autodesk.Revit.DB.Structure.Rebar)).GetElementCount()}");
+            sb.AppendLine($"detalhes de dobra: {new FilteredElementCollector(d).OfCategory(BuiltInCategory.OST_RebarBendingDetails).WhereElementIsNotElementType().GetElementCount()}");
+            sb.AppendLine("legendas: " + string.Join(" | ", new FilteredElementCollector(d).OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate).Select(v => v.Name)));
+            if (sheets.Count > 0)
+            {
+                var ieo = new ImageExportOptions
+                {
+                    ExportRange = ExportRange.SetOfViews,
+                    FilePath = Path.Combine(dir, "folha"),
+                    FitDirection = FitDirectionType.Horizontal,
+                    HLRandWFViewsFileType = ImageFileType.PNG,
+                    ShadowViewsFileType = ImageFileType.PNG,
+                    ImageResolution = ImageResolution.DPI_150,
+                    PixelSize = 3000,
+                    ZoomType = ZoomFitType.FitToPage
+                };
+                ieo.SetViewsAndSheets(sheets.Select(s => s.Id).ToList());
+                d.ExportImage(ieo);
+            }
+            string log = Path.Combine(dir, "inventario.txt");
+            File.WriteAllText(log, sb.ToString(), Encoding.UTF8);
+            d.Close(false);
+            return log;
         }
 
         /// <summary>SD_AUTORUN = contarlegendas: legendas de cada arquivo de SD_FAMILIAS (.rte/.rvt separados por ";"),

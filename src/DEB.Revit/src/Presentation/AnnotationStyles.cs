@@ -43,6 +43,8 @@ namespace DEB.Revit.Presentation
             ForgeTypeId unit = u.Cotas == "mm" ? UnitTypeId.Millimeters : UnitTypeId.Centimeters;
             var fo = new FormatOptions(unit) { UseDefault = false, Accuracy = u.Precisao, SuppressTrailingZeros = true };
             dt.SetUnitsFormatOptions(fo);
+            // texto movido para fora das linhas de chamada (trechos curtos da cota acumulada) ganha linha de chamada
+            try { dt.get_Parameter(BuiltInParameter.DIM_LEADER)?.Set(1); } catch { /* tipo sem o parâmetro */ }
             return dt;
         }
 
