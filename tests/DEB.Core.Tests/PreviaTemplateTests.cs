@@ -23,8 +23,22 @@ public class PreviaTemplateTests
         var pasta = Environment.GetEnvironmentVariable("ARM_PREVIA");
         if (string.IsNullOrEmpty(pasta)) return;
         var t = new TemplatePilarPreMoldado();
+        Gravar(pasta, "previa_pilar.json", t.Gerar(new ValoresTemplate(t.Parametros), new ConfiguracaoArmadura()));
+    }
+
+    [Fact]
+    public void GravarPreviaDoBloco()
+    {
+        var pasta = Environment.GetEnvironmentVariable("ARM_PREVIA");
+        if (string.IsNullOrEmpty(pasta)) return;
+        var t = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
         var v = new ValoresTemplate(t.Parametros);
-        var r = t.Gerar(v, new ConfiguracaoArmadura());
+        v["Pilares"] = "P1, P2, P3, P5, P6, P7, P8, P9, P11, P14, P16, P17, P18, P19, P20, P21, P26, P28 e P30";
+        Gravar(pasta, "previa_bloco.json", t.Gerar(v, new ConfiguracaoArmadura()));
+    }
+
+    private static void Gravar(string pasta, string arquivo, ResultadoTemplate r)
+    {
         string P((double X, double Y) p) => FormattableString.Invariant($"[{p.X:0.###},{p.Y:0.###}]");
         string Ps(System.Collections.Generic.IEnumerable<(double X, double Y)> ps) => "[" + string.Join(",", ps.Select(P)) + "]";
         string S(string s) => "\"" + (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ") + "\"";
@@ -41,6 +55,6 @@ public class PreviaTemplateTests
         sb.Append("\"ra\":" + (r.PosicaoRA is { } ra ? P(ra) : "null"));
         sb.Append("}");
         Directory.CreateDirectory(pasta);
-        File.WriteAllText(Path.Combine(pasta, "previa_pilar.json"), sb.ToString(), new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(pasta, arquivo), sb.ToString(), new UTF8Encoding(false));
     }
 }

@@ -171,3 +171,28 @@ Pedido do usuário: reconhecer a estrutura de um DWG de outro programa e gerar o
   Testado no AutoCAD 2026 com o DWG de teste do usuário (Eberick, 396 × 402, 1 interna): leitura correta, 13 posições.
 - Fora da v1 (avisos): furos/aberturas, mísulas, planta em L, paredes de espessuras diferentes, vistas por nível
   ("vista topo", "inferior à laje") e corte D-D do exemplo.
+### Bloco sobre estacas com arranque do pilar (Templates/Blocos/TemplateBlocoEstacas.cs, 2026-11-06, PC2)
+Pedido do usuário com o exemplo BLOCO B3 (2 estacas ø25 a 75, 110 × 50 × 45, lastro 5, 19 pilares): armadura + forma.
+Uma classe, dois registros: `bloco_1_estaca` (categoria Bloco1Estaca) e `bloco_estacas` (Bloco2Estacas, estacas em grade
+nx × ny: 2, 3 em linha, 4, 6…).
+- Apresentação do exemplo: "BLOCO B3" + lista dos pilares "(19x)"; planta com as barras no lugar e marcas A/B; estribo
+  horizontal ao lado; CORTE A-A (na linha de estacas) e CORTE B-B (na última coluna) com lastro hachurado, estacas
+  interrompidas, pilar interrompido, barras em ponto e chamadas (cada família é chamada no corte em que aparece em ponto);
+  estribo vertical ao lado do B-B; dobradas embaixo (superior sobre a principal, secundária superior sobre a inferior) com
+  ARMADURA PRINCIPAL/SUPERIOR/SECUNDÁRIA; arranque e estribo do pilar. Forma à esquerda: planta com cadeia face → estacas →
+  eixo do pilar → face, estacas com eixos e quadrantes hachurados, elevação com h, lastro e "LASTRO DE CONC. MAGRO".
+- Regras medidas no exemplo: estribo horizontal (L − 2c) × (B − 2c) = 104 × 44; longitudinais dentro dele, reto arredondado
+  ao cm (110 − 6 − 2·0,63 = 103); estribo vertical (B − 2c) × (h − c_sup − c_inf) = 44 × 35 (c_sup = c_inf = 5);
+  perna da inferior 15 (dado), da superior = altura do estribo (35); principal em faixa centrada em cada linha de estacas
+  (qtd e espaçamento dados); secundárias = 1 barra por canto. A direção com ≥ 2 estacas leva principal; 1 estaca = só
+  secundárias nas duas direções + estribos nas duas direções.
+- Detalhamento com repetições = nº de pilares da lista (`ResultadoTemplate.DadosDetalhamento`, novo; também grupo
+  Fundações, classe, volume e área de forma).
+- Arranque: Detalhar (N na RA) / Só desenhar / Sem; espera 0 = traspasse NBR 6118 (100 %, fck), pé para dentro/fora,
+  estribos do pilar no bloco. Avisos: estaca fora do bloco, pilar fora, bloco baixo, trecho reto do arranque < lb.
+- Autoteste: `tools\autoteste_autocad.ps1 -Comando ARMTESTEBLOCO` (AutoCAD 2026 do PC2: 4 ok; PNG `autoteste_bloco.png`).
+- [VALIDAR com o usuário] c_sup/c_inf = 5 e pé do arranque 10 (deduzidos/arbitrados); no exemplo N2 e N4 são posições
+  diferentes, mas o plugin junta barras iguais (ø6.3, 103/35) no mesmo N; a numeração do plugin (Global) segue a bitola,
+  não a ordem do exemplo; C= do plugin desconta as dobras (127 em vez de 133).
+- Fora da v1: 3 estacas em triângulo, 5 em quincôncio e blocos não retangulares; colarinho/cálice (pilar pré-moldado);
+  armadura de pele/suspensão; tabela de cargas.

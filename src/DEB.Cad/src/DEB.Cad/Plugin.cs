@@ -30,6 +30,8 @@ public sealed class Plugin : Rt.IExtensionApplication
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.BaseReservatorio.TemplateBaseReservatorio());
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado());
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.Reservatorio.TemplateReservatorio());
+            Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.Blocos.TemplateBlocoEstacas(umaEstaca: true));
+            Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.Blocos.TemplateBlocoEstacas());
             // modelos dos templates (PADRÃO + elementos salvos): carregados a cada abertura do GstarCAD
             try { ModelosTemplates.Carregar(); } catch (Exception ex) { Log.Erro("Modelos dos templates", ex); }
             DesenhoArmadura.Registrar();

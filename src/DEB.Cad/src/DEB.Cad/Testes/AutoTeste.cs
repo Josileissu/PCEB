@@ -2339,6 +2339,51 @@ public sealed class AutoTeste
             doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
     }, suspender: false);
 
+    /// <summary>
+    /// Template de bloco sobre estacas (BLOCO B3 do exemplo do usuário, 2026-11-06): desenha como detalhamento com 19
+    /// repetições, confere as barras e grava um PNG. Uso: tools\autoteste_autocad.ps1 -Comando ARMTESTEBLOCO.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEBLOCO")]
+    public void Bloco() => Comandos.Executar("ARMTESTEBLOCO", (doc, ed, db, cfg) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0;
+        var t = new Core.Templates.Blocos.TemplateBlocoEstacas();
+        var v = new Core.Templates.ValoresTemplate(t.Parametros);
+        v["Pilares"] = "P1, P2, P3, P5, P6, P7, P8, P9, P11, P14, P16, P17, P18, P19, P20, P21, P26, P28 e P30";
+        var r = t.Gerar(v, cfg);
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var ids = ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(12000, -5000, 0));
+            Checar(ids.Count == r.Barras.Count, $"bloco: {ids.Count} armaduras desenhadas ({r.Barras.Count} no template)");
+            var dados = ids.Select(i => XDataCad.LerBarra(tr.GetObject(i, OpenMode.ForRead))).ToList();
+            var n1 = dados[0];
+            Checar(n1 != null && n1.Bitola == 12.5 && n1.Quantidade == 4, $"bloco: principal 4 ø12.5 ({n1?.Quantidade} ø{n1?.Bitola})");
+            var h = dados[5];
+            Checar(h != null && h.Estribo && h.Quantidade == 3 && h.Espacamento == 15, $"bloco: estribo horizontal 3 c/15 ({h?.Quantidade} c/{h?.Espacamento})");
+            tr.Commit();
+        }
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+            Checar(bt.Has("BLOCO B3"), "bloco: detalhamento \"BLOCO B3\" criado");
+            tr.Commit();
+        }
+        Gravar();
+        Log.Info($"autoteste: ARMTESTEBLOCO fim ({_ok} ok, {_falhas} falha(s))");
+        var saida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+        if (!string.IsNullOrEmpty(saida))
+        {
+            try { db.SaveAs(Path.Combine(Path.GetDirectoryName(saida), "autoteste_bloco.dwg"), DwgVersion.Current); }
+            catch (Exception ex) { Log.Erro("ARMTESTEBLOCO salvar", ex); }
+            doc.SendStringToExecute("_.ZOOM _E\n", true, false, true);
+            _filedia = CadApp.GetSystemVariable("FILEDIA");
+            CadApp.SetSystemVariable("FILEDIA", 0);
+            doc.SendStringToExecute($"_.PNGOUT {Path.Combine(Path.GetDirectoryName(saida), "autoteste_bloco.png")}\n\n", true, false, true);
+            doc.SendStringToExecute($"FILEDIA {Convert.ToInt32(_filedia ?? 1)}\n", true, false, true);
+            doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
+        }
+    }, suspender: false);
+
     [Rt.CommandMethod("ARMTESTEMARCA")]
     public void Marca() => Log.Info($"autoteste: marca {++_marca}");
 
