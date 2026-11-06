@@ -108,12 +108,22 @@ namespace DEB.Revit.Presentation
                         else LabelRebar(v.View, p, rebars, styles);
                     }
                     if (_tagWarn != null) { log.Warn(_tagWarn); _tagWarn = null; }
+                    if (_tagNote != null) { log.Info(_tagNote); _tagNote = null; }
                     if (Std.Armadura.ChamadasNasSecoes)
                     {
                         foreach (PlacedView v in views.Where(v => v.Spec.Tipo == ViewKind.SecaoArmadura))
                             SectionCallouts(v.View, p, rebars, styles, log);
                         foreach (PlacedView v in views.Where(v => v.Corbel != null && v.Spec.MostrarArmadura))
                             CorbelCallouts(v.View, v.Corbel, v.Spec.Tipo == ViewKind.ConsoloPlanta, rebars, styles, log);
+                    }
+                    // quadro do consolo como o "ARMADURAS console" da PP127: só a armadura do consolo (as barras do pilar
+                    // ficavam por cima do desenho); na planta, a posição dos pinos cotada e as marcas dos cortes A-A e B-B
+                    foreach (PlacedView v in views.Where(v => v.Corbel != null && v.Spec.MostrarArmadura))
+                    {
+                        List<ElementId> col = rebars.Where(r => !IsCorbelRole(new RebarRow(_doc, r).Role) && r.CanBeHidden(v.View))
+                            .Select(r => r.Id).ToList();
+                        if (col.Count > 0) Try(() => v.View.HideElements(col));
+                        if (v.Spec.Tipo == ViewKind.ConsoloPlanta) CorbelPlan(v, p, rebars, styles, log);
                     }
                 }, critical: false);
 
@@ -986,7 +996,7 @@ namespace DEB.Revit.Presentation
                 .Where(t => t.Span.Lo < t.Span.Hi).OrderBy(t => t.Span.Lo).ToList();
             FamilySymbol stirrupTag = full != null ? RebarTagType(Std.Armadura.EtiquetaEstribo) : null;
             FamilySymbol breakTag = stirrupTag != null && !string.IsNullOrWhiteSpace(Std.Armadura.EtiquetaEstriboQuebra)
-                ? RebarTagType(Std.Armadura.EtiquetaEstriboQuebra) : null;
+                ? RebarTagType(Std.Armadura.EtiquetaEstriboQuebra, optional: true) : null;
             if (runs.Count > 0 && stirrupTag != null)
             {
                 double xs = x + U.Mm(6) * s, tick = U.Mm(1.5) * s;
@@ -1404,7 +1414,7 @@ namespace DEB.Revit.Presentation
         }
 
         /// <summary>Tipo de etiqueta de vergalhão do escritório (família do padrão); carrega a família se faltar.</summary>
-        private FamilySymbol RebarTagType(string typeName)
+        private FamilySymbol RebarTagType(string typeName, bool optional = false)
         {
             string fam = Std.Armadura.FamiliaEtiqueta?.Trim() ?? "", file = Std.Armadura.ArquivoEtiqueta?.Trim() ?? "";
             if (fam == "" || string.IsNullOrWhiteSpace(typeName)) return null;
@@ -1417,11 +1427,17 @@ namespace DEB.Revit.Presentation
                 try { _doc.LoadFamily(file, out Family _); } catch { /* aviso abaixo */ }
                 s = Find();
             }
+            if (s == null && optional)
+            {
+                _tagNote ??= $"Tipo de etiqueta \"{fam} : {typeName}\" não existe neste projeto nem em {file}: trechos curtos de estribos " +
+                             "com a etiqueta de uma linha. Para usar a de duas linhas, salve esse tipo na família do escritório.";
+                return null;
+            }
             if (s == null) { _tagWarn ??= $"Etiqueta de vergalhão \"{fam} : {typeName}\" não encontrada (nem em {file}): armadura no desenho esquemático."; return null; }
             if (!s.IsActive) s.Activate();
             return s;
         }
-        private string _tagWarn;
+        private string _tagWarn, _tagNote;
 
         /// <summary>Etiqueta de vergalhão; a 1ª falha vai para o log da peça (o motivo aparece no relatório).</summary>
         private IndependentTag TagRebar(FamilySymbol type, View view, Rebar bar, bool leader, TagOrientation o, XYZ at)
@@ -1511,6 +1527,114 @@ namespace DEB.Revit.Presentation
         }
 
         /// <summary>Barras do consolo (tirante, barra soldada, costura, estribos verticais, inferior, pinos).</summary>
+        /// <summary>Nome da peça do consolo embaixo da forma, como na PP127 (PT e EN).</summary>
+        private static string CorbelPartName(string role) => role switch
+        {
+            "Tirante do consolo" => "Tirante\n(Tie)",
+            "Costura do consolo" => "Estribo horizontal\n(Horizontal stirrup)",
+            "Estribo vertical do consolo" => "Estribo vertical\n(Vertical stirrup)",
+            "Armadura inferior do consolo" => "Arm. inferior\n(Bottom bars)",
+            "Pino do consolo" => "Pinos\n(Pins)",
+            "Barra soldada do tirante" => "Barra soldada\n(Welded bar)",
+            _ => null
+        };
+
+        /// <summary>
+        /// Planta do consolo como a PP127: cadeia da face do pilar → pinos → ponta (abaixo da planta) e lado → pinos → lado
+        /// (além da ponta), com traços curtos de linha de detalhe nos pinos e nas faces; marcas dos cortes A-A (atravessa o
+        /// balanço, em cima e embaixo) e B-B (ao longo do balanço, nas duas pontas). O recorte cresce até as anotações.
+        /// </summary>
+        private void CorbelPlan(PlacedView pv, PieceInfo p, List<Rebar> rebars, AnnotationStyles styles, PieceLog log)
+        {
+            if (!(pv.View is ViewSection view)) return;
+            CorbelGeo g = DistinctCorbels(p).FirstOrDefault(c => c.K.Id == pv.Corbel.Id);
+            if (g == null) return;
+            XYZ right = view.RightDirection, up = view.UpDirection, vd = view.ViewDirection;
+            double s = view.Scale, d0 = view.Origin.DotProduct(vd);
+            XYZ M(double u, double t) => g.U * u + g.T * t;                       // ponto da planta (sem a altura)
+            XYZ V(XYZ q) => right * q.DotProduct(right) + up * q.DotProduct(up) + vd * d0;   // no plano da vista
+            // pinos deste consolo: perna vertical (o trecho mais longo ao longo do eixo da peça)
+            BoundingBoxXYZ kb = g.K.get_BoundingBox(null);
+            double tol = U.Mm(30);
+            var pins = new List<(double U, double T)>();
+            foreach (Rebar r in rebars.Where(r => new RebarRow(_doc, r).Role == "Pino do consolo"))
+                for (int i = 0; i < r.NumberOfBarPositions; i++)
+                {
+                    Line leg;
+                    try
+                    {
+                        leg = r.GetTransformedCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, i).OfType<Line>()
+                            .Where(l => Math.Abs(l.Direction.DotProduct(g.Z)) > 0.99).OrderByDescending(l => l.Length).FirstOrDefault();
+                    }
+                    catch { continue; }
+                    if (leg == null) continue;
+                    XYZ q = leg.Evaluate(0.5, true);
+                    if (q.X < kb.Min.X - tol || q.X > kb.Max.X + tol || q.Y < kb.Min.Y - tol || q.Y > kb.Max.Y + tol) continue;
+                    pins.Add((q.DotProduct(g.U), q.DotProduct(g.T)));
+                }
+            double gap = U.Mm(Std.Unidades.AfastamentoCotaMm) * s, tick = U.Mm(1.2) * s;
+            var used = new List<XYZ>();
+            Reference Tick(XYZ at, XYZ along)
+            {
+                XYZ a = V(at);
+                used.Add(a);
+                return _doc.Create.NewDetailCurve(view, Line.CreateBound(a - along * tick, a + along * tick)).GeometryCurve.Reference;
+            }
+            void Chain(List<double> vals, Func<double, XYZ> pt, XYZ along, XYZ dimDir)
+            {
+                vals = vals.Distinct().OrderBy(x => x).ToList();
+                var clean = new List<double>();
+                foreach (double x in vals) if (clean.Count == 0 || x - clean[^1] > U.Mm(5)) clean.Add(x);
+                if (clean.Count < 3) return;   // sem pino entre as faces: a cota total já existe
+                var ra = new ReferenceArray();
+                foreach (double x in clean) ra.Append(Tick(pt(x), along));
+                Try(() => _doc.Create.NewDimension(view, Line.CreateBound(V(pt(clean[0])), V(pt(clean[^1]))), ra, styles.Dimension));
+            }
+            if (pins.Count > 0)
+            {
+                // ao longo do balanço: face do pilar → pinos → ponta, do lado de T0 (fora do consolo)
+                double tU = g.T0 - 2 * gap;
+                XYZ alongU = (right * g.T.DotProduct(right) + up * g.T.DotProduct(up)).Normalize();
+                Chain(new[] { g.U0, g.U1 }.Concat(pins.Select(q => q.U)).ToList(), u => M(u, tU), alongU, g.U);
+                // ao longo da largura: lado → pinos → lado, além da ponta
+                double uT = g.U1 + 2 * gap;
+                XYZ alongT = (right * g.U.DotProduct(right) + up * g.U.DotProduct(up)).Normalize();
+                Chain(new[] { g.T0, g.T1 }.Concat(pins.Select(q => q.T)).ToList(), t => M(uT, t), alongT, g.T);
+            }
+            else log.Info($"{pv.Title.Split('\n')[0]}: pinos não encontrados na planta (sem cota de posição).");
+
+            // marcas dos cortes: traço grosso + letra, dos dois lados (A-A atravessa o balanço; B-B vai ao longo dele)
+            double len = U.Mm(5) * s, textH = U.Mm(Std.Textos.AlturaTextoMm) * s;
+            var center = new TextNoteOptions(styles.Text.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
+            GraphicsStyle thick = null;
+            void Mark(XYZ at, XYZ dir, string letter)
+            {
+                Try(() =>
+                {
+                    XYZ a = V(at), b = V(at + dir * len);
+                    DetailCurve dc = _doc.Create.NewDetailCurve(view, Line.CreateBound(a, b));
+                    thick ??= dc.GetLineStyleIds().Select(id => _doc.GetElement(id)).OfType<GraphicsStyle>()
+                        .FirstOrDefault(x => x.Name.IndexOf("grossa", StringComparison.OrdinalIgnoreCase) >= 0 || x.Name.IndexOf("Wide", StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (thick != null) dc.LineStyle = thick;
+                    XYZ mid = (a + b) / 2 + up * textH * 1.4;
+                    TextNote.Create(_doc, view.Id, mid, letter, center);
+                    used.Add(a); used.Add(b); used.Add(mid + up * textH);
+                });
+            }
+            double uMid = (g.U0 + g.U1) / 2, tMid = (g.T0 + g.T1) / 2;
+            Mark(M(uMid - len / 2, g.T0 - 4 * gap), g.U, "A");
+            Mark(M(uMid - len / 2, g.T1 + 4 * gap), g.U, "A");
+            Mark(M(g.U1 + 4 * gap, tMid), g.U, "B");
+            Mark(M(g.U0 - 2 * gap - len, tMid), g.U, "B");
+
+            if (used.Count > 0)
+            {
+                BoundingBoxXYZ cb = view.CropBox;
+                var keep = new[] { cb.Transform.OfPoint(cb.Min), cb.Transform.OfPoint(cb.Max) };
+                Try(() => ViewFactory.FitCrop(view, keep.Concat(used), U.Mm(3) * s));
+            }
+        }
+
         private static bool IsCorbelRole(string role) =>
             role.IndexOf("consolo", StringComparison.OrdinalIgnoreCase) >= 0 || role.IndexOf("soldada", StringComparison.OrdinalIgnoreCase) >= 0;
 
@@ -1638,7 +1762,8 @@ namespace DEB.Revit.Presentation
                     {
                         // quadro do consolo: 3 formas por linha, embaixo do corte
                         const int perRow = 3;
-                        pos = right * (minR + colW * (0.5 + i % perRow)) + up * (minU - pitch * (0.8 + i / perRow));
+                        double cp = pitch + U.Mm(9) * s;   // + as duas linhas da descrição
+                        pos = right * (minR + colW * (0.5 + i % perRow)) + up * (minU - cp * 0.8 - cp * (i / perRow));
                     }
                     else
                         pos = right * (minR + colW * (0.5 + i)) + up * (minU - pitch * 0.8);
@@ -1650,6 +1775,9 @@ namespace DEB.Revit.Presentation
                         {
                             RebarBendingDetail.Create(_doc, view.Id, cand.Id, 0, type, pos, 0);
                             TextNote.Create(_doc, view.Id, pos - up * (U.Mm(ShapeHmm / 2 + 6) * s), label, center);
+                            string what = corbelIds.Contains(view.Id) ? CorbelPartName(first.Role) : null;
+                            if (what != null)
+                                TextNote.Create(_doc, view.Id, pos - up * (U.Mm(ShapeHmm / 2 + 10.5) * s), what, center);
                             st.Commit();
                             placedPerView[view.Id] = i + 1;
                             ok = true;
