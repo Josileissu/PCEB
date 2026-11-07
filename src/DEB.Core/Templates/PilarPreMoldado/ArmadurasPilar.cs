@@ -477,10 +477,7 @@ public sealed partial class TemplatePilarPreMoldado
     private static BarraTemplate Estribo(ConfiguracaoArmadura cfg, string nome, double x, double y, double w, double h, double phi, string aco, double escala)
     {
         var poligono = new List<(double X, double Y)> { (x, y), (x + w, y), (x + w, y + h), (x, y + h) };
-        int canto = GeradorEstribo.Canto(poligono, PosicaoGanchos.SuperiorEsquerdo);
-        double lg = cfg.Dobramento.ComprimentoGancho(FormatoSegmento.Gancho90, phi, aco, estribo: true);
-        double passagem = cfg.Dobramento.DiametroPino(phi, aco, estribo: true) + 2 * phi / 10;
-        var f = GeradorEstribo.FechadoPoligono(poligono, canto, FormatoSegmento.Gancho90, lg, passagem);
+        var f = GeradorEstribo.FechadoPadrao(poligono, phi, aco, cfg.Dobramento);
         var bt = new BarraTemplate { Nome = nome, Bitola = phi, Aco = aco, Estribo = true, Escala = escala, Quantidade = 1 };
         bt.Vertices.AddRange(f.Vertices.Select(p => (p.X, p.Y)));
         bt.Formatos.AddRange(f.Formatos);

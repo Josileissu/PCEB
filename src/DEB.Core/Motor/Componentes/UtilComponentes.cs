@@ -175,11 +175,9 @@ internal static class BarrasUtil
     /// superior esquerdo); cada mapa leva uma cópia a 3D. Grava o parâmetro "gancho" (aceita sobrescrita).</summary>
     public static void Estribo(ContextoMotor ctx, PosicaoArmadura p, List<(double X, double Y)> pol, double phi, IEnumerable<Func<double, double, P3>> mapas)
     {
-        int canto = GeradorEstribo.Canto(pol, PosicaoGanchos.SuperiorEsquerdo);
         double lg = ctx.Par(p, "gancho", ctx.Cfg.Dobramento.ComprimentoGancho(FormatoSegmento.Gancho90, phi, ctx.Aco, estribo: true),
             "gancho 90° (NBR 6118 tab. 9.2)");
-        double passagem = ctx.Cfg.Dobramento.DiametroPino(phi, ctx.Aco, estribo: true) + 2 * phi / 10;
-        var fo = GeradorEstribo.FechadoPoligono(pol, canto, FormatoSegmento.Gancho90, lg, passagem);
+        var fo = GeradorEstribo.FechadoPadrao(pol, phi, ctx.Aco, ctx.Cfg.Dobramento, FormatoSegmento.Gancho90, lg);
         foreach (var mapa in mapas) p.Barras.Add(fo.Vertices.Select(v => mapa(v.X, v.Y)).ToList());
         p.Formatos.AddRange(fo.Formatos);
         foreach (var s in fo.Sobrepostos) p.Sobrepostos.Add(s);
