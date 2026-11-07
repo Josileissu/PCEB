@@ -119,7 +119,7 @@ public static class Funcoes
     public const string Principal = "principal", Secundaria = "secundaria", Superior = "superior", Lateral = "lateral",
         EstriboVertical = "estribo_vertical", CaliceTopo = "calice_topo", Calice = "calice", CaliceVertical = "calice_vertical",
         Suspensao = "suspensao", FundoCalice = "fundo_calice", Arranque = "arranque", ArranqueEstribo = "arranque_estribo",
-        Longitudinal = "longitudinal";
+        Longitudinal = "longitudinal", Grampo = "grampo";
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

@@ -186,4 +186,21 @@ internal static class BarrasUtil
     }
 
     public static Func<double, double, P3> Horizontal(double z) => (x, y) => new P3(x, y, z);
+
+    /// <summary>
+    /// Grampo de <paramref name="a"/> a <paramref name="b"/> com as duas pontas dobradas para o lado <paramref name="lado"/>
+    /// (vetor unitário perpendicular a a→b): com <paramref name="gancho45"/>, ganchos de 135° (ponta a 45°, comprimento
+    /// <paramref name="ponta"/>, para trás ao longo da barra); sem, pernas em U de <paramref name="ponta"/> (90°). Usado pelos
+    /// grampos suplementares da seção e pelos grampos das paredes do cálice.
+    /// </summary>
+    public static List<P3> Grampo(P3 a, P3 b, P3 lado, double ponta, bool gancho45)
+    {
+        var ab = b - a;
+        double L = ab.Comprimento;
+        var u = L > 1e-12 ? ab * (1 / L) : new P3(1, 0, 0);
+        if (ponta <= 0) return new List<P3> { a, b };
+        if (!gancho45) return new List<P3> { a + lado * ponta, a, b, b + lado * ponta };
+        double d = ponta * Math.Sqrt(0.5);
+        return new List<P3> { a + u * d + lado * d, a, b, b - u * d + lado * d };
+    }
 }
