@@ -267,6 +267,12 @@ public sealed class FolhaPerfil
     public bool InformacoesProducao { get; set; } = true;
     /// <summary>Notas gerais (uma por item).</summary>
     public List<string> Notas { get; set; } = new List<string>();
+    /// <summary>Textos da prancha que dependem do elemento/escritório, "PT|EN" (opcional, frente C, 2026-11-07). Chaves:
+    /// "nivel.&lt;nível&gt;" (rótulo do nível no corte da forma; só aparecem os níveis com rótulo), "papel.&lt;papel&gt;" (texto
+    /// do corpo no corte, aceita {e} = espessura), "peca" ("BLOCO|PILE CAP"), "grupo" (DadosDetalhamento.Grupo),
+    /// "nivel_referencia" (nível a que <see cref="ElementoEstrutural.Niveis"/> se refere; padrão "topo"). Faltando, valem os
+    /// padrões de <c>DEB.Core.Motor.Prancha.VocabularioPrancha</c>.</summary>
+    public Dictionary<string, string> Rotulos { get; set; } = new Dictionary<string, string>();
 }
 
 public sealed class PerfilDetalhamento
