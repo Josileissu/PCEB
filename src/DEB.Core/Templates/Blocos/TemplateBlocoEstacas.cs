@@ -218,7 +218,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
     }
 
     private static string Num(double x) => CalculoComprimento.NumeroCompacto(x);
-    private static string NumV(double x) => x.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+    private static string NumV(double x) => CalculoComprimento.NumeroVirgula(x);
 
     public static List<string> LerPilares(string s) =>
         (s ?? "").Replace(" e ", ",").Replace(" E ", ",").Split(new[] { ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries)

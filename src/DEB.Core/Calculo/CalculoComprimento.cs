@@ -108,4 +108,7 @@ public static class CalculoComprimento
     /// <summary>Número sem zeros à direita ("15", "12.5").</summary>
     public static string NumeroCompacto(double valor) =>
         Math.Round(valor, 2).ToString("0.##", CultureInfo.InvariantCulture);
+
+    /// <summary>Número sem zeros à direita com vírgula decimal, para textos de desenho ("15", "12,5").</summary>
+    public static string NumeroVirgula(double valor) => NumeroCompacto(valor).Replace('.', ',');
 }

@@ -144,5 +144,5 @@ public sealed class CatalogoComponentes
 public static class FormatoMotor
 {
     public static string Num(double x) => CalculoComprimento.NumeroCompacto(x);
-    public static string NumV(double x) => x.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+    public static string NumV(double x) => CalculoComprimento.NumeroVirgula(x);
 }
