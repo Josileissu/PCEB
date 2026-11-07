@@ -42,12 +42,15 @@ public sealed class SecaoLongitudinal : ComponenteBase
         ("comercial", "cm; 0 = o da tabela de bitolas (limitado a 1200). Padrão 0."),
         ("fck", "MPa (traspasse). Padrão = fck do elemento."),
         ("nome", "texto: nome legível (prefixo). Padrão \"longitudinal\"."),
+        ("feixe", "barras por feixe nos cantos (1, 2 ou 3; NBR 6118 17.3.5.2.3). Padrão 1."),
+        ("feixe_vizinha", "barras por feixe nas vizinhas. Padrão 1."), ("feixe_face", "barras por feixe nas faces. Padrão 1."),
     };
 
     private sealed class Grupo
     {
         public string Nome, Funcao, Chave;
         public double Bitola;
+        public int Feixe = 1;
         public List<(double X, double Y)> Pontos = new List<(double X, double Y)>();
     }
 
@@ -83,23 +86,27 @@ public sealed class SecaoLongitudinal : ComponenteBase
         double phiV = porCanto == 3 ? Bitola("vizinha", fViz) : phiC;
         double phiFx = nFx > 0 ? Bitola("face_x", fFace) : phiC, phiFy = nFy > 0 ? Bitola("face_y", fFace) : phiC;
         if (phiC <= 0) return;
+        int F(string nomeArg) => Math.Max(1, Math.Min(3, a.Int(nomeArg, 1)));
+        int fxC = F("feixe"), fxV = F("feixe_vizinha"), fxF = F("feixe_face");
+        // feixe: posicionado pelo círculo que o envolve (o "diâmetro" passado é 2 × esse raio)
+        double D(double phi, int fx) => 20 * SecaoBarras.RaioFeixe(phi, fx);
         // as faces x e y podem ter bitolas diferentes (sobrescrita): cada uma sai da sua chamada
-        var secao = SecaoBarras.Posicoes(bx, by, cob, phiT, phiC, porCanto, sCanto, phiV, nFx, 0, phiFx)
-            .Concat(SecaoBarras.Posicoes(bx, by, cob, phiT, phiC, porCanto, sCanto, phiV, 0, nFy, phiFy).Where(s => s.Grupo == "faceH"))
+        var secao = SecaoBarras.Posicoes(bx, by, cob, phiT, D(phiC, fxC), porCanto, sCanto, D(phiV, fxV), nFx, 0, D(phiFx, fxF))
+            .Concat(SecaoBarras.Posicoes(bx, by, cob, phiT, D(phiC, fxC), porCanto, sCanto, D(phiV, fxV), 0, nFy, D(phiFy, fxF)).Where(s => s.Grupo == "faceH"))
             .ToList();
 
         var grupos = new List<Grupo>();
-        foreach (var (g, sufixo, f, nomeG) in new[]
+        foreach (var (g, sufixo, f, nomeG, phiG, fxG) in new[]
                  {
-                     ("canto", "canto", funcao, "cantos"), ("vizinha", "vizinha", fViz, "vizinhas do canto"),
-                     ("faceB", "face_x", fFace, "faces x"), ("faceH", "face_y", fFace, "faces y"),
+                     ("canto", "canto", funcao, "cantos", phiC, fxC), ("vizinha", "vizinha", fViz, "vizinhas do canto", phiV, fxV),
+                     ("faceB", "face_x", fFace, "faces x", phiFx, fxF), ("faceH", "face_y", fFace, "faces y", phiFy, fxF),
                  })
         {
             var bs = secao.Where(s => s.Grupo == g).ToList();
             if (bs.Count == 0) continue;
             grupos.Add(new Grupo
             {
-                Nome = $"{nome} ({nomeG})", Funcao = f, Chave = $"{chave}_{sufixo}", Bitola = bs[0].Bitola,
+                Nome = $"{nome} ({nomeG})", Funcao = f, Chave = $"{chave}_{sufixo}", Bitola = phiG, Feixe = fxG,
                 Pontos = bs.Select(s => (cx - bx / 2 + s.X, cy - by / 2 + s.Y)).ToList(),
             });
         }
@@ -147,16 +154,21 @@ public sealed class SecaoLongitudinal : ComponenteBase
                 }
                 if (b) kB++; else kA++;
                 p.Bitola = g.Bitola;
-                p.Parametros["quantidade"] = pts.Count; p.Regras["quantidade"] = "barras do grupo na seção" + (pecas.Count > 1 && !mesma ? " (metade alternada)" : "");
+                p.Parametros["quantidade"] = pts.Count * g.Feixe;
+                p.Regras["quantidade"] = "barras do grupo na seção" + (g.Feixe > 1 ? " × barras por feixe" : "") + (pecas.Count > 1 && !mesma ? " (metade alternada)" : "");
+                if (g.Feixe > 1) p.Parametros["feixe"] = g.Feixe;
                 p.Parametros["comprimento"] = pe.Peca.Comprimento;
                 p.Regras["comprimento"] = pecas.Count > 1 ? "peça emendada (comprimento comercial e traspasse)" : "z_fim − z_inicio";
                 p.Parametros["comercial"] = comercial;
-                foreach (var (x, y) in pts) p.Barras.Add(new List<P3> { new P3(x, y, pe.Peca.Ini), new P3(x, y, pe.Peca.Fim) });
+                var offs = SecaoBarras.CentrosFeixe(g.Bitola, g.Feixe);
+                foreach (var (x, y) in pts)
+                    foreach (var (dx, dy) in offs)
+                        p.Barras.Add(new List<P3> { new P3(x + dx, y + dy, pe.Peca.Ini), new P3(x + dx, y + dy, pe.Peca.Fim) });
                 p.Formatos.Add(FormatoSegmento.Linha);
                 p.Distribuicao = new Distribuicao
                 {
                     Inicio = new P3(pts[0].X, pts[0].Y, pe.Peca.Ini), Fim = new P3(pts[pts.Count - 1].X, pts[pts.Count - 1].Y, pe.Peca.Ini),
-                    Quantidade = pts.Count,
+                    Quantidade = pts.Count * g.Feixe,
                 };
                 ctx.Adicionar(p);
             }
