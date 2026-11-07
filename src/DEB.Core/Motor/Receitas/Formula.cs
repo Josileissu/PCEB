@@ -109,7 +109,7 @@ public sealed class Formula
     public static readonly IReadOnlyDictionary<string, (int Min, int Max)> Funcoes = new Dictionary<string, (int, int)>(StringComparer.Ordinal)
     {
         ["min"] = (1, -1), ["max"] = (1, -1), ["abs"] = (1, 1), ["floor"] = (1, 1), ["ceil"] = (1, 1), ["sqrt"] = (1, 1),
-        ["round"] = (1, 2), ["se"] = (3, 3), ["regra"] = (1, 2), ["padrao"] = (2, 2),
+        ["round"] = (1, 2), ["se"] = (3, 3), ["regra"] = (1, 2), ["padrao"] = (2, 2), ["var"] = (2, 2), ["tem"] = (1, 1),
     };
 
     /// <summary>Compila; lança <see cref="ErroFormula"/> se a sintaxe estiver errada.</summary>
@@ -299,6 +299,20 @@ public sealed class Formula
                         padrao = p.EhTexto ? p.Texto : throw x.Erro(Args[1].Pos, "o 2º argumento de regra() é o texto usado se a regra faltar");
                     }
                     return ValorFormula.De(x.Vars.Regra(k.Texto) ?? padrao);
+                }
+                case "var":
+                {
+                    // var('nome', padrão): variável publicada por um componente anterior, ou o padrão se ainda não existe
+                    var k = Args[0].Av(x);
+                    if (!k.EhTexto) throw x.Erro(Args[0].Pos, "var() precisa do nome como texto: var('z_topo_inferior', 4)");
+                    return x.Vars.Tentar(k.Texto, out var vv) ? vv : Args[1].Av(x);
+                }
+                case "tem":
+                {
+                    // tem('funcao'): 1 se o elemento tem a armadura da função (bitola > 0)
+                    var k = Args[0].Av(x);
+                    if (!k.EhTexto) throw x.Erro(Args[0].Pos, "tem() precisa da função como texto: tem('estribo_vertical')");
+                    return ValorFormula.De(x.Vars.Tentar("arm." + k.Texto + ".bitola", out var b) && !b.EhTexto && b.Numero > 0 ? 1 : 0);
                 }
                 case "padrao":
                 {

@@ -14,7 +14,7 @@ namespace DEB.Core.Motor.Receitas;
 /// </summary>
 public interface IComponenteComSaidas : IComponente
 {
-    IReadOnlyList<string> VariaveisPublicadas { get; }
+    IReadOnlyCollection<string> VariaveisPublicadas { get; }
 }
 
 /// <summary>
