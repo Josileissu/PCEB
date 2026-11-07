@@ -90,6 +90,19 @@ public static class SecaoBarras
         return r;
     }
 
+    /// <summary>Raio do círculo que envolve o feixe (1: φ/2; 2: φ; 3: φ/2·(1 + 2/√3)), em cm.</summary>
+    public static double RaioFeixe(double bitola, int feixe) =>
+        bitola / 20 * (feixe >= 3 ? 1 + 2 / Math.Sqrt(3) : feixe == 2 ? 2 : 1);
+
+    /// <summary>Centros das barras de um feixe em torno do centro do feixe (cm): 2 lado a lado em x, 3 em triângulo.</summary>
+    public static List<(double X, double Y)> CentrosFeixe(double bitola, int feixe)
+    {
+        double r = bitola / 20;
+        if (feixe >= 3) return new List<(double, double)> { (-r, -r / Math.Sqrt(3)), (r, -r / Math.Sqrt(3)), (0, 2 * r / Math.Sqrt(3)) };
+        if (feixe == 2) return new List<(double, double)> { (-r, 0), (r, 0) };
+        return new List<(double, double)> { (0, 0) };
+    }
+
     /// <summary>Traspasse do escritório: o da NBR 6118 (fck e % emendada na mesma seção), nunca menor que 45φ, arredondado a 5 cm.</summary>
     public static double Traspasse(double bitola, string aco, double fck, bool mesmaSecao, TabelaBarras barras)
     {

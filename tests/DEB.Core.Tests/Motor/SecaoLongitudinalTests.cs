@@ -152,6 +152,25 @@ public class SecaoLongitudinalTests
     }
 
     [Fact]
+    public void FeixesComoNoPilar()
+    {
+        var ctx = Ctx(null, A("longitudinal", 20), A("estribo", 8));
+        ComponentesPadrao.SecaoLongitudinal.Aplicar(ctx, Pilar50(600).Com("feixe", 2).Com("n_face_x", 1).Com("feixe_face", 3));
+        var m = ctx.Concluir();
+        var canto = m.Posicao("longitudinal_canto");
+        Assert.Equal(8, canto.Parametros["quantidade"]);
+        Assert.Equal(8, canto.Barras.Count);
+        Assert.Equal(2, canto.Parametros["feixe"]);
+        // centro do feixe do canto: cobrimento + estribo + raio do feixe (= φ para 2 barras); barras a ±φ/2 dele
+        double c0 = 100 - 25 + 3 + 0.8 + SecaoBarras.RaioFeixe(20, 2);
+        Assert.Equal(c0 - 1, canto.Barras[0][0].X, 6);
+        Assert.Equal(c0 + 1, canto.Barras[1][0].X, 6);
+        // mesmas posições da seção do pilar (PosicoesLinhas usa o mesmo raio de feixe)
+        Assert.Equal(TemplatePilarPreMoldado.RaioFeixe(16, 3), SecaoBarras.RaioFeixe(16, 3));
+        Assert.Equal(6, m.Posicao("longitudinal_face_x").Barras.Count);   // 1 por face × 2 faces × 3
+    }
+
+    [Fact]
     public void SemEmendaAvisaQuandoPassaDoComercial()
     {
         var ctx = Ctx(null, A("longitudinal", 20));
