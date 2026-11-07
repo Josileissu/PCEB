@@ -42,3 +42,15 @@ superior y → 14. `contorno_lateral` → 15. `estribos_verticais` (ativo = !tri
 A ordem das posições no modelo é a mesma do motor antigo (a numeração da prancha depende dela).
 Paridade (2026-11-07): 14 casos gravados em JSON antes/depois são idênticos byte a byte, exceto o aviso de sobrescrita de
 posição inexistente, que agora vem do `ContextoMotor.Concluir` ("neste bloco estacas" em vez de "neste bloco").
+
+## Receita do bloco (2026-11-07)
+O bloco agora é montado pela receita JSON de fábrica `src/DEB.Core/Motor/Receitas/Fabrica/bloco_estacas.json` (recurso
+embutido `DEB.Receitas.bloco_estacas.json`, registrado por `ReceitasFabrica.Garantir()`); o `MotorBlocoEstacas` só roda
+o `MotorReceita` com ela. A sequência em C# (`ReceitaPadrao`) foi removida depois de conferida idêntica em 8 casos
+(B28, B15, B31, arranque, embutido, 1 estaca, excêntrico, sem lastro) × 2 perfis × sobrescrita.
+- Variáveis da receita: `c`, `cc`, `emb_est`, `lastro_ef`, `tri`, `calice`, `colar`, `h_colar`, `h_total`, `emb_pilar`,
+  `reg`, `z_inferior`, `perna_por_valor`, `pe_dentro` (mais as do elemento em snake_case e as publicadas pelos componentes).
+- O usuário pode substituir a receita inteira em `%AppData%/PCEB/Receitas/bloco_estacas.json` (exportar a de fábrica com
+  `RepositorioReceitas.ExportarFabrica`); arquivo inválido → fábrica + aviso. O `ValidadorReceita` confere sem executar.
+- `calice_forma` publica também `calice_colarinho_x0/x1/y0/y1` (trecho sem estribos verticais).
+- Fórmulas: além do pedido da frente R, `var('nome', padrão)` (variável de um componente anterior) e `tem('funcao')`.

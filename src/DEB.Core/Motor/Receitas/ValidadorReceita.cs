@@ -104,7 +104,8 @@ public static class ValidadorReceita
             foreach (var kv in p.Argumentos)
             {
                 string la = $"{loc}, argumento \"{kv.Key}\"";
-                if (doc != null && !doc.ContainsKey(kv.Key))
+                // "<nome>" na documentação = o componente aceita argumentos de nome livre (ex.: niveis)
+                if (doc != null && !doc.ContainsKey(kv.Key) && !doc.ContainsKey("<nome>"))
                 {
                     var sug = Semelhanca.MaisParecido(kv.Key, doc.Keys);
                     Erro(r, la, $"o componente \"{comp.Tipo}\" não tem este argumento" + (sug != null ? $" — você quis dizer \"{sug}\"?" : "") +
@@ -113,7 +114,18 @@ public static class ValidadorReceita
                 var f = Compilar(r, la, kv.Value);
                 if (f != null) Referencias(r, la, f, conhecidas, varsEx, perfil, publicacaoIncerta);
             }
-            if (comp is IComponenteComSaidas cs) { foreach (var n in cs.VariaveisPublicadas ?? Array.Empty<string>()) conhecidas.Add(n); }
+            if (comp is IComponenteComSaidas cs)
+            {
+                // o nome publicado pode depender de um argumento-texto literal (ex.: bitola_efetiva "variavel": "'bitola_lateral'")
+                var lit = new ArgumentosComponente();
+                foreach (var kv in p.Argumentos)
+                {
+                    string t = (kv.Value ?? "").Trim();
+                    if (t.Length >= 2 && t[0] == '\'' && t[t.Length - 1] == '\'' && t.IndexOf('\'', 1) == t.Length - 1) lit.Com(kv.Key, t.Substring(1, t.Length - 2));
+                }
+                foreach (var n in cs.VariaveisPublicadas ?? Array.Empty<string>()) conhecidas.Add(n);
+                foreach (var n in cs.VariaveisPublicadasCom(lit) ?? Array.Empty<string>()) conhecidas.Add(n);
+            }
             else if (comp != null) publicacaoIncerta = true;
         }
 

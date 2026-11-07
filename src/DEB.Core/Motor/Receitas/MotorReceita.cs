@@ -15,6 +15,8 @@ namespace DEB.Core.Motor.Receitas;
 public interface IComponenteComSaidas : IComponente
 {
     IReadOnlyCollection<string> VariaveisPublicadas { get; }
+    /// <summary>Variáveis publicadas com estes argumentos (só os textos literais vêm preenchidos), quando o nome depende deles.</summary>
+    IReadOnlyCollection<string> VariaveisPublicadasCom(ArgumentosComponente args);
 }
 
 /// <summary>
