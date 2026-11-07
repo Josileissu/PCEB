@@ -350,10 +350,7 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
         {
             try
             {
-                int canto = GeradorEstribo.Canto(pts, PosicaoGanchos.SuperiorEsquerdo);
-                double lg = c.Cfg.Dobramento.ComprimentoGancho(FormatoSegmento.Gancho90, p.Bitola, b.Aco, estribo: true);
-                double passagem = c.Cfg.Dobramento.DiametroPino(p.Bitola, b.Aco, estribo: true) + 2 * p.Bitola / 10;
-                var fo = GeradorEstribo.FechadoPoligono(pts, canto, FormatoSegmento.Gancho90, lg, passagem);
+                var fo = GeradorEstribo.FechadoPadrao(pts, p.Bitola, b.Aco, c.Cfg.Dobramento);
                 b.Vertices.AddRange(fo.Vertices.Select(v => (v.X, v.Y)));
                 b.Formatos.AddRange(fo.Formatos);
                 foreach (var s in fo.Sobrepostos) b.Sobrepostos.Add(s);

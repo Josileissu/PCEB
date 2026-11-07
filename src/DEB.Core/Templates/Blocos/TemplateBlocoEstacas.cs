@@ -566,10 +566,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
     {
         double mx = pol.Min(p => p.X), my = pol.Min(p => p.Y);
         var p0 = pol.Select(p => (p.X - mx, p.Y - my)).ToList();
-        int canto = GeradorEstribo.Canto(p0, PosicaoGanchos.SuperiorEsquerdo);
-        double lg = c.Cfg.Dobramento.ComprimentoGancho(FormatoSegmento.Gancho90, phi, c.Aco, estribo: true);
-        double passagem = c.Cfg.Dobramento.DiametroPino(phi, c.Aco, estribo: true) + 2 * phi / 10;
-        var fo = GeradorEstribo.FechadoPoligono(p0, canto, FormatoSegmento.Gancho90, lg, passagem);
+        var fo = GeradorEstribo.FechadoPadrao(p0, phi, c.Aco, c.Cfg.Dobramento);
         var b = new BarraTemplate { Nome = nome, Bitola = phi, Aco = c.Aco, Estribo = true, Escala = c.esc, Quantidade = Math.Max(1, qtd), Espacamento = esp };
         b.Vertices.AddRange(fo.Vertices.Select(p => (p.X, p.Y)));
         b.Formatos.AddRange(fo.Formatos);
