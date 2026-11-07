@@ -60,7 +60,7 @@ public static class VocabularioPrancha
         };
 
     /// <summary>Número com vírgula e sem zeros à direita ("12,5").</summary>
-    public static string Num(double x) => Math.Round(x, 2).ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+    public static string Num(double x) => Calculo.CalculoComprimento.NumeroVirgula(x);
 
     /// <summary>Rótulo do perfil, senão o padrão do tipo, senão o geral, senão <paramref name="seFaltar"/>.</summary>
     public static string Rotulo(PerfilDetalhamento perfil, string tipo, string chave, string seFaltar = "")
