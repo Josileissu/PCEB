@@ -124,7 +124,15 @@ public class MotorBlocoTests
             Assert.True(p != null, "falta " + chave);
             Assert.Equal(b.Bitola, p.Bitola);
             Assert.Equal(b.Quantidade * Math.Max(1, b.Repeticoes), p.Barras.Count);
-            Assert.Equal(b.ComprimentosVar, p.ComprimentosVar);
+            if (!tri) Assert.Equal(b.ComprimentosVar, p.ComprimentosVar);
+            else
+            {
+                // triangular: o motor mede o cobrimento das pontas na perpendicular da face oblíqua (decisão do usuário,
+                // 07/11); o template antigo media ao longo da barra → no motor as VAR ficam iguais ou mais curtas
+                Assert.Equal(b.ComprimentosVar.Count, p.ComprimentosVar.Count);
+                for (int k = 0; k < b.ComprimentosVar.Count; k++)
+                    Assert.InRange(b.ComprimentosVar[k] - p.ComprimentosVar[k], -0.5, 15);
+            }
         }
         Assert.Equal(r.Barras.Count, m.Posicoes.Count);
         // avisos do template (sem desenho) também no motor
