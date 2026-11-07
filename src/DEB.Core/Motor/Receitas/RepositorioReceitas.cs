@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using DEB.Core.Motor.Perfis;
+using DEB.Core.Persistencia;
 // "Json" sozinho aqui resolveria para o namespace DEB.Core.Motor.Json: use o apelido.
 using TextoJson = DEB.Core.Persistencia.Json;
 
@@ -57,11 +57,9 @@ public sealed class RepositorioReceitas
     public RepositorioReceitas(string pasta) { Pasta = string.IsNullOrWhiteSpace(pasta) ? null : pasta; }
 
     /// <summary>%AppData%/PCEB/Receitas.</summary>
-    public static string PastaPadrao() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PCEB", "Receitas");
+    public static string PastaPadrao() => ArquivosUsuarioJson.PastaPadrao("Receitas");
 
-    public string CaminhoArquivo(string tipo) =>
-        Pasta == null || !RepositorioPerfis.IdValido(tipo) ? null : Path.Combine(Pasta, tipo + ".json");
+    public string CaminhoArquivo(string tipo) => ArquivosUsuarioJson.Caminho(Pasta, tipo);
 
     /// <summary>Receita do tipo: arquivo do usuário (se válido) ou fábrica. Nunca lança exceção.</summary>
     public ResultadoReceita Obter(string tipo)
@@ -77,16 +75,7 @@ public sealed class RepositorioReceitas
                 r.Avisos.Add($"Tipo \"{tipo}\" inválido como nome de arquivo; usada só a receita de fábrica.");
             else if (arq != null && File.Exists(arq))
             {
-                string motivo = null;
-                Receita doArquivo = null;
-                try
-                {
-                    doArquivo = Ler(File.ReadAllText(arq, System.Text.Encoding.UTF8), tipo, r.Avisos);
-                }
-                catch (Exception e) when (e is FormatException || e is IOException || e is UnauthorizedAccessException)
-                {
-                    motivo = e.Message;
-                }
+                var doArquivo = ArquivosUsuarioJson.TentarLer(arq, t => Ler(t, tipo, r.Avisos), out var motivo);
                 if (doArquivo != null)
                 {
                     r.Receita = doArquivo;
@@ -136,16 +125,6 @@ public sealed class RepositorioReceitas
         catch (Exception e) { erro = $"Receita de fábrica \"{tipo}\" com erro: {e.Message}"; return false; }
         if (rec == null) { erro = $"Não há receita de fábrica \"{tipo}\"."; return false; }
         if (caminho == null) { erro = Pasta == null ? "Pasta de receitas não definida." : $"Tipo \"{tipo}\" inválido como nome de arquivo."; return false; }
-        try
-        {
-            if (File.Exists(caminho) && !sobrescrever) { erro = $"O arquivo {caminho} já existe (não foi sobrescrito)."; return false; }
-            TextoJson.GravarArquivo(caminho, SerializacaoReceita.ParaJson(rec));
-            return true;
-        }
-        catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is NotSupportedException || e is ArgumentException)
-        {
-            erro = $"Não foi possível gravar {caminho}: {e.Message}";
-            return false;
-        }
+        return ArquivosUsuarioJson.Gravar(caminho, () => SerializacaoReceita.ParaJson(rec), sobrescrever, out erro);
     }
 }
