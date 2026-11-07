@@ -196,7 +196,7 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
 - Testes: `BlocoEstacasTests` (B28, B15, B31, arranque, 1 estaca embutido); autoteste `toolsutoteste_autocad.ps1 -Comando
   ARMTESTEBLOCO` desenha B28 e B15 (8 ok no AutoCAD 2026 do PC2; PNGs autoteste_bloco_b28/b15.png). Prévia sem CAD:
   `GravarPreviaDoBloco` (ARM_PREVIA).
-- [VALIDAR com o usuário] perna da principal (regra × 68 do B31); forma das barras da principal no triangular (retas de
-  face a face; o B15 usa 106/15/117/56/117/15/106); pernas da secundária/superior (20 digitado); suspensão (perna externa
-  = interna − 6); posição das chamadas; o B3 (imagem) agora sai no padrão BPM.
-- Fora: 5 estacas em quincôncio e outros arranjos não em grade; colarinho excêntrico; chaves desenhadas nas paredes do cálice.
+- Decidido pelo usuário (2026-11-07): perna da principal = topo da base − c (diferenças como o 68 do B31 se ajustam na
+  edição do bloco); principal no triangular reta de face a face; pernas da secundária/superior = valor padrão do template
+  (20); suspensão com perna externa = interna − 6. [VALIDAR no uso] posição das chamadas; o B3 agora sai no padrão BPM.
+- Depois (não são comuns, decisão de 2026-11-07): 5 estacas em quincôncio e outros arranjos não em grade; colarinho excêntrico; chaves desenhadas nas paredes do cálice.

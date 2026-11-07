@@ -112,15 +112,15 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
         P(G6, "PrincBitola", "Bitola", "16", "mm", min: 0, max: 40, descricao: "0 = sem. Bloco de 1 estaca: não há faixa principal."),
         P(G6, "PrincQtd", "Barras por faixa (sobre cada linha de estacas)", "5", tipo: TipoParametro.Inteiro, min: 0),
         P(G6, "PrincEsp", "Espaçamento na faixa", "5", "cm", min: 2),
-        P(G6, "PrincPerna", "Perna", "0", "cm", min: 0, descricao: "0 = até o topo da base menos o cobrimento (regra do usuário)."),
+        P(G6, "PrincPerna", "Perna", "0", "cm", min: 0, descricao: "0 = até o topo da base menos o cobrimento (regra do usuário; ajustável depois na edição do bloco)."),
 
         P(G7, "SecBitola", "Bitola (malha nas duas direções)", "10", "mm", min: 0, max: 40, descricao: "0 = sem."),
         P(G7, "SecEsp", "Espaçamento", "15", "cm", min: 5),
-        P(G7, "SecPerna", "Perna", "20", "cm", min: 0),
+        P(G7, "SecPerna", "Perna", "20", "cm", min: 0, descricao: "Valor padrão do template (não vem do cálculo)."),
 
         P(G8, "SupBitola", "Bitola (malha nas duas direções)", "8", "mm", min: 0, max: 40, descricao: "0 = sem. Interrompida no colarinho/cálice."),
         P(G8, "SupEsp", "Espaçamento", "12", "cm", min: 5),
-        P(G8, "SupPerna", "Perna", "20", "cm", min: 0),
+        P(G8, "SupPerna", "Perna", "20", "cm", min: 0, descricao: "Valor padrão do template (não vem do cálculo)."),
 
         P(G9, "LatBitola", "Lateral horizontal (em volta): bitola", "8", "mm", min: 0, max: 25, descricao: "0 = sem."),
         P(G9, "LatEsp", "Lateral horizontal: espaçamento", "15", "cm", min: 5),
@@ -1307,8 +1307,6 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
             if (c.Colar && (c.Ox0 - c.t < -1e-6 || c.Ox1 + c.t > c.W + 1e-6 || c.Oy0 - c.t < -1e-6 || c.Oy1 + c.t > c.H + 1e-6))
                 avisos.Add("Colarinho maior que o bloco numa direção: limitado à face do bloco (como no B28).");
         }
-        if (v.Numero("PrincPerna") <= 0 && c.Fam.Any(f => f.Vista == "P"))
-            avisos.Add("Perna da principal pela regra (topo da base − cobrimento) [VALIDAR: no B31 o escritório usa 68 com base de 110].");
         if (c.Arr != null)
         {
             var tr = new RegrasTraspasse { Fck = v.Numero("Fck"), PercentualEmendado = 100 };

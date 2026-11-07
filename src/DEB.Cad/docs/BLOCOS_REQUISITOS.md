@@ -47,7 +47,7 @@ sem ezdxf). O que está marcado **[CONFIRMAR]** é interpretação minha.
 Medidas do B28 (cálice 80 × 70, c = 4) e conferidas nos outros:
 | Função | B28 | Outros | Regra |
 |---|---|---|---|
-| Principal inferior (faixa sobre as estacas) | 5 ø16 U 45/179/44 | B31 4×7 ø20 c/14 68/219/68; B15/B4 faixas nos 3 lados do triângulo | reto = L − 2c − …; pernas dadas **[CONFIRMAR regra das pernas]** |
+| Principal inferior (faixa sobre as estacas) | 5 ø16 U 45/179/44 | B31 4×7 ø20 c/14 68/219/68; B15/B4 faixas nos 3 lados do triângulo | reto = L − 2c − …; pernas = topo da base − c (decidido) |
 | Secundária inferior (malha) | 4 ø10 20/179/20, 4 ø10 30/179/29 | B31 24 ø10 c/10 25/219/25 nas 2 direções; triangular: barras VAR | triangular = grupo VAR com "L" |
 | Superior | 3 ø8 c/12 20/67/20 (ao lado do colarinho) | B31 ø12.5 c/12 141/19/147/78/147/19/141 **[CONFIRMAR forma]** | |
 | Lateral (pele) | 4 ø8 c/15 (N1/N2) | B31 2×34 ø8 c/14 20/100/20; triangular: polígono fechado em volta | |
@@ -71,10 +71,13 @@ Medidas do B28 (cálice 80 × 70, c = 4) e conferidas nos outros:
 ## 6. Decisões do usuário (2026-11-06)
 - Apresentação: **padrão BPM para todos** (inclusive o bloco com arranque).
 - Ordem: **todos os tipos de uma vez** (feito: grade, triangular, colarinho, embutido, arranque).
-- Pernas da principal: **regra pela altura do bloco** (topo da base − cobrimento). [VALIDAR: o B31 usa 68 com base 110.]
+- Pernas da principal: **regra pela altura do bloco** (topo da base − cobrimento). Diferenças como o B31 (68 com base 110)
+  são ajustadas depois, na produção/edição do bloco (2026-11-07).
+- Principal no triangular: **barras retas de face a face com pernas** (aprovado em 2026-11-07).
+- Pernas da secundária e da superior: **valor padrão do template** (20), não vem do cálculo; suspensão com perna
+  externa 6 menor que a interna (aprovado em 2026-11-07).
+- 5 estacas e arranjos fora de grade: **depois** (não são comuns).
 
 ## 7. Perguntas ainda abertas
-- Perna da secundária (20–30) e da superior: digitadas (padrão 20) ou regra?
-- Forma da principal no triangular (o B15 tem 106/15/117/56/117/15/106 — dobrada em planta?).
 - Quantidades e bitolas do cálice (concentradas no topo e restante) são sempre digitadas (vêm do cálculo)?
 - O B3.1 (Schreiber/DIASE, bilíngue) é outro padrão de cliente ou o mesmo escritório?
