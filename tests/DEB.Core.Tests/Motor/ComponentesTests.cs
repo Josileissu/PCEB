@@ -257,7 +257,7 @@ public class ComponentesTests
     public void CatalogoDocumentaArgumentosEVariaveis()
     {
         var cat = ComponentesPadrao.Catalogo();
-        Assert.Equal(17, cat.Tipos.Count);
+        Assert.Equal(19, cat.Tipos.Count);
         foreach (var t in cat.Tipos)
         {
             var c = cat.Obter(t);

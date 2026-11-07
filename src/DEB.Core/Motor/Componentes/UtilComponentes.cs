@@ -97,6 +97,8 @@ internal sealed class FamiliaRetas
     public bool Superior;
     /// <summary>Distribuição com o passo real entre as duas primeiras retas (faixa) em vez do espaçamento pedido (malha).</summary>
     public bool PassoReal;
+    /// <summary>Cobrimento medido na normal da face (corda do contorno encolhido), em vez de ao longo da barra.</summary>
+    public bool CobrimentoNormal;
     public List<LinhaReta> Linhas = new List<LinhaReta>();
     public int Faixas = 1, PorFaixa;
     public (double X, double Y) U => (Math.Cos(Ang), Math.Sin(Ang));
@@ -112,6 +114,13 @@ internal sealed class FamiliaRetas
         if (cd == null) return;
         if (Corda(Encolher(contorno, cob + 0.5), o, U) == null) return;   // a reta fica fora do cobrimento
         double a = cd.Value.A + cob + recuo, b = cd.Value.B - cob - recuo;
+        if (CobrimentoNormal)
+        {
+            // pontas a cobrimento + recuo da face medido na normal (face curva ou oblíqua)
+            var cn = Corda(Encolher(contorno, cob + recuo), o, U);
+            if (cn == null) return;
+            a = cn.Value.A; b = cn.Value.B;
+        }
         if (b - a > 5) Linhas.Add(new LinhaReta { T = t, A = a, B = b });
     }
 

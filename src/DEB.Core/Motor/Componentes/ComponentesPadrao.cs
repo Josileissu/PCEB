@@ -18,6 +18,8 @@ public static class ComponentesPadrao
     public static readonly IComponente Arranque = new Arranque();
     public static readonly IComponente SecaoLongitudinal = new SecaoLongitudinal();
     public static readonly IComponente GramposSecao = new GramposSecao();
+    public static readonly IComponente BordaU = new BordaU();
+    public static readonly IComponente BarrasBorda = new BarrasBorda();
     public static readonly IComponente VerificacoesGeometria = new VerificacoesGeometria();
     public static readonly IComponente VerificacoesCalice = new VerificacoesCalice();
 
@@ -26,5 +28,5 @@ public static class ComponentesPadrao
         .Registrar(ApoiosEstacas).Registrar(CorpoPrismatico).Registrar(CorposCirculares).Registrar(Niveis)
         .Registrar(BitolaEfetiva).Registrar(Aviso).Registrar(FaixaSobreApoios).Registrar(MalhaFace)
         .Registrar(ContornoLateral).Registrar(EstribosVerticais).Registrar(CaliceForma).Registrar(CaliceArmaduras)
-        .Registrar(Arranque).Registrar(SecaoLongitudinal).Registrar(GramposSecao).Registrar(VerificacoesGeometria).Registrar(VerificacoesCalice);
+        .Registrar(Arranque).Registrar(SecaoLongitudinal).Registrar(GramposSecao).Registrar(BordaU).Registrar(BarrasBorda).Registrar(VerificacoesGeometria).Registrar(VerificacoesCalice);
 }

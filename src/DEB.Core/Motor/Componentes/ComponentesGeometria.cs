@@ -21,7 +21,7 @@ public sealed class ApoiosEstacas : ComponenteBase
 {
     public override string Tipo => "apoios_estacas";
     public override IReadOnlyCollection<string> VariaveisPublicadas { get; } =
-        new[] { "largura_x", "largura_y", "centro_apoios_x", "centro_apoios_y", "triangular", "n_apoios" };
+        new[] { "largura_x", "largura_y", "centro_apoios_x", "centro_apoios_y", "triangular", "n_apoios", "circular", "raio" };
     protected override IEnumerable<(string, string)> Docs => new[]
     {
         ("arranjo", "texto: \"grade\" (nx × ny) ou \"triangulo\" (3 apoios). Padrão \"grade\"."),
@@ -30,10 +30,19 @@ public sealed class ApoiosEstacas : ComponenteBase
         ("esp_x", "cm, entre eixos em x (triângulo: lado). Padrão 120."),
         ("esp_y", "cm, entre eixos em y. Padrão 120."),
         ("dist_face", "cm, eixo do apoio → face (triângulo: as 6 faces). Padrão 35."),
+        ("forma", "texto: \"\" = contorno pelos apoios (acima); \"circular\" (diametro) ou \"retangular\" (lx, ly) = contorno dado, " +
+                  "apoios centrados nele (grade ou anéis). Padrão \"\"."),
+        ("diametro", "cm (forma circular)."), ("lx", "cm (forma retangular)."), ("ly", "cm (forma retangular)."),
+        ("lados", "lados do polígono que representa o círculo (recorte das malhas). Padrão 360."),
+        ("anel1_n", "arranjo \"aneis\": apoios no anel 1. Padrão 0."), ("anel1_raio", "cm."), ("anel1_angulo", "graus do 1º apoio. Padrão 0."),
+        ("anel2_n", "apoios no anel 2. Padrão 0."), ("anel2_raio", "cm."), ("anel2_angulo", "graus. Padrão 0."),
+        ("central", "1 = apoio no centro (anéis). Padrão 0."),
     };
 
     protected override void Executar(ContextoMotor ctx, ArgumentosComponente a)
     {
+        string forma = a.Txt("forma", "");
+        if (forma.Length > 0) { ComFormaDada(ctx, a, forma); return; }
         bool tri = a.Txt("arranjo", "grade") == "triangulo";
         double e = a.Num("dist_face", 35);
         List<(double X, double Y)> cont, est;
@@ -55,6 +64,72 @@ public sealed class ApoiosEstacas : ComponenteBase
         ctx.Variaveis["centro_apoios_x"] = est.Average(p => p.X);
         ctx.Variaveis["centro_apoios_y"] = est.Average(p => p.Y);
         ctx.Variaveis["triangular"] = tri ? 1 : 0;
+        ctx.Variaveis["n_apoios"] = est.Count;
+        ctx.Variaveis["circular"] = 0;
+        ctx.Variaveis["raio"] = 0;
+    }
+
+    /// <summary>
+    /// Contorno dado (base de reservatório, sapata circular): círculo (polígono de <c>lados</c> lados inscrito) ou retângulo,
+    /// com a origem no canto inferior esquerdo da caixa; apoios centrados — grade nx × ny a esp_x/esp_y, ou anéis
+    /// (até 2, com ângulo do 1º) e o central. Publica também Dados "forma" e Variaveis "circular", "raio" (circular).
+    /// </summary>
+    private static void ComFormaDada(ContextoMotor ctx, ArgumentosComponente a, string forma)
+    {
+        bool circ = forma == "circular";
+        if (!circ && forma != "retangular") throw new ArgumentException($"apoios_estacas: forma \"{forma}\" desconhecida (circular | retangular).");
+        double W, H;
+        List<(double X, double Y)> cont;
+        if (circ)
+        {
+            double R = a.Num("diametro", 0) / 2;
+            if (R <= 0) throw new ArgumentException("apoios_estacas: forma circular sem diametro.");
+            int n = Math.Max(16, a.Int("lados", 360));
+            cont = Enumerable.Range(0, n).Select(k => (R + R * Math.Cos(2 * Math.PI * k / n), R + R * Math.Sin(2 * Math.PI * k / n))).ToList();
+            W = H = 2 * R;
+            ctx.Variaveis["raio"] = R;
+        }
+        else
+        {
+            W = a.Num("lx", 0); H = a.Num("ly", 0);
+            ctx.Variaveis["raio"] = 0;
+            if (W <= 0 || H <= 0) throw new ArgumentException("apoios_estacas: forma retangular sem lx/ly.");
+            cont = new List<(double, double)> { (0, 0), (W, 0), (W, H), (0, H) };
+        }
+        double cx = W / 2, cy = H / 2;
+        var est = new List<(double X, double Y)>();
+        string arr = a.Txt("arranjo", "grade");
+        if (arr == "aneis")
+        {
+            foreach (int k in new[] { 1, 2 })
+            {
+                int n = Math.Max(0, a.Int($"anel{k}_n", 0));
+                double r = a.Num($"anel{k}_raio", 0), ang = a.Num($"anel{k}_angulo", 0);
+                for (int i = 0; i < n; i++)
+                {
+                    double t = (ang + 360.0 * i / n) * Math.PI / 180;
+                    est.Add((cx + r * Math.Cos(t), cy + r * Math.Sin(t)));
+                }
+            }
+            if (a.Bool("central", false)) est.Add((cx, cy));
+        }
+        else if (arr == "grade")
+        {
+            int nx = Math.Max(1, a.Int("nx", 2)), ny = Math.Max(1, a.Int("ny", 1));
+            double ex = a.Num("esp_x", 120), ey = a.Num("esp_y", 120);
+            for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) est.Add((cx + (i - (nx - 1) / 2.0) * ex, cy + (j - (ny - 1) / 2.0) * ey));
+        }
+        else if (arr != "nenhum") throw new ArgumentException($"apoios_estacas: arranjo \"{arr}\" não serve com forma dada (grade | aneis | nenhum).");
+        ctx.Dados["contorno"] = cont;
+        ctx.Dados["estacas"] = est;
+        ctx.Dados["arranjo"] = arr;
+        ctx.Dados["forma"] = forma;
+        ctx.Variaveis["largura_x"] = W;
+        ctx.Variaveis["largura_y"] = H;
+        ctx.Variaveis["centro_apoios_x"] = est.Count > 0 ? est.Average(p => p.X) : cx;
+        ctx.Variaveis["centro_apoios_y"] = est.Count > 0 ? est.Average(p => p.Y) : cy;
+        ctx.Variaveis["triangular"] = 0;
+        ctx.Variaveis["circular"] = circ ? 1 : 0;
         ctx.Variaveis["n_apoios"] = est.Count;
     }
 }
