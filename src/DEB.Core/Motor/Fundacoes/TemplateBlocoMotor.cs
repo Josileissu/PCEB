@@ -59,26 +59,37 @@ public sealed class TemplateBlocoMotor : ITemplateArmadura
         return Gerar(new OrigemDetalhamento { Perfil = PerfilPadrao, Elemento = e, SobreposicoesPerfil = sob }, cfg);
     }
 
+    /// <summary>Só o modelo (sem prancha): perfil do usuário ou de fábrica + sobreposições da janela, receita do tipo.
+    /// Avisos dos repositórios vão para <paramref name="avisos"/>. Lança se o motor falhar.</summary>
+    public ModeloArmadura GerarModelo(OrigemDetalhamento origem, ConfiguracaoArmadura cfg, List<string> avisos, out PerfilDetalhamento perfil)
+    {
+        if (origem?.Elemento == null) throw new ArgumentNullException(nameof(origem));
+        if (!(origem.Elemento is ElementoBloco bloco))
+            throw new ArgumentException($"O detalhamento é de \"{origem.Elemento.Tipo}\", não de bloco sobre estacas.", nameof(origem));
+        cfg ??= new ConfiguracaoArmadura();
+        avisos ??= new List<string>();
+        string idPerfil = string.IsNullOrWhiteSpace(origem.Perfil) ? PerfilPadrao : origem.Perfil;
+        var rp = new RepositorioPerfis(_pastaPerfis).Obter(idPerfil);
+        avisos.AddRange(rp.Avisos);
+        perfil = rp.Perfil ?? PerfisFabrica.Obter(PerfilPadrao);
+        origem.SobreposicoesPerfil?.AplicarEm(perfil);
+
+        ReceitasFabrica.Garantir();
+        var rr = new RepositorioReceitas(_pastaReceitas).Obter(bloco.Tipo);
+        avisos.AddRange(rr.Avisos);
+        return new MotorBlocoEstacas(cfg, rr.Receita).Gerar(bloco, perfil, origem.Sobrescritas);
+    }
+
     /// <summary>Gera (ou regenera) a partir da origem gravada no detalhamento: elemento + perfil + sobrescritas.</summary>
     public ResultadoTemplate Gerar(OrigemDetalhamento origem, ConfiguracaoArmadura cfg)
     {
         if (origem?.Elemento == null) throw new ArgumentNullException(nameof(origem));
         cfg ??= new ConfiguracaoArmadura();
         var avisos = new List<string>();
-        string idPerfil = string.IsNullOrWhiteSpace(origem.Perfil) ? PerfilPadrao : origem.Perfil;
-        var rp = new RepositorioPerfis(_pastaPerfis).Obter(idPerfil);
-        avisos.AddRange(rp.Avisos);
-        var perfil = rp.Perfil ?? PerfisFabrica.Obter(PerfilPadrao);
-        origem.SobreposicoesPerfil?.AplicarEm(perfil);
-
-        ReceitasFabrica.Garantir();
-        var rr = new RepositorioReceitas(_pastaReceitas).Obter(origem.Elemento.Tipo);
-        avisos.AddRange(rr.Avisos);
-
         ResultadoTemplate r;
         try
         {
-            var modelo = new MotorBlocoEstacas(cfg, rr.Receita).Gerar((ElementoBloco)origem.Elemento, perfil, origem.Sobrescritas);
+            var modelo = GerarModelo(origem, cfg, avisos, out var perfil);
             r = new GeradorPrancha(cfg).Gerar(origem.Elemento, modelo, perfil);
             foreach (var a in modelo.Avisos) if (!r.Avisos.Contains(a)) r.Avisos.Add(a);
         }

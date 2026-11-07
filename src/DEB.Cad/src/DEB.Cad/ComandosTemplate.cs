@@ -244,11 +244,18 @@ public sealed class ComandosTemplate
     /// faixas e indicações, textos, cotas e tabelas; com <see cref="ResultadoTemplate.Detalhamento"/>, tudo
     /// vira um bloco e a relação do aço parcial dele é inserida. Retorna as armaduras criadas (antes do bloco).
     /// </summary>
-    internal static List<ObjectId> Desenhar(Transaction tr, Database db, ConfiguracaoArmadura cfg, ResultadoTemplate r, Point3d origem)
+    internal static List<ObjectId> Desenhar(Transaction tr, Database db, ConfiguracaoArmadura cfg, ResultadoTemplate r, Point3d origem) =>
+        Desenhar(tr, db, cfg, r, origem, out _);
+
+    /// <param name="entidades">tudo o que foi desenhado (armaduras com descrições, cotas e faixas, forma, textos, tabelas);
+    /// com detalhamento, já apagado (foi para o bloco)</param>
+    internal static List<ObjectId> Desenhar(Transaction tr, Database db, ConfiguracaoArmadura cfg, ResultadoTemplate r, Point3d origem,
+        out List<ObjectId> entidades)
     {
         double cpu = Desenho.CmPorUnidade(db, cfg);
         var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
         var todos = new List<ObjectId>();
+        entidades = todos;
         Point2d P(double x, double y) => new Point2d(origem.X + x / cpu, origem.Y + y / cpu);
         Point3d P3(double x, double y) { var q = P(x, y); return new Point3d(q.X, q.Y, origem.Z); }
         ObjectId Layer(string nome, short cor) => Desenho.GarantirLayer(db, tr, nome, cor);
@@ -381,10 +388,13 @@ public sealed class ComandosTemplate
             ServicoFaixa.Criar(tr, (Polyline)tr.GetObject(bid, OpenMode.ForWrite), dados, P3(f.Posicao.X, f.Posicao.Y), cfg);
         }
 
+        foreach (var id in ids) todos.AddRange(PartesDaBarra(tr, db, (Polyline)tr.GetObject(id, OpenMode.ForRead)));
+        var unicos = todos.Distinct().Where(i => !i.IsErased).ToList();
+        todos.Clear();
+        todos.AddRange(unicos);
         if (string.IsNullOrWhiteSpace(r.Detalhamento)) return ids;
 
         // ---- detalhamento (bloco) com tudo, e a relação do aço parcial dele ----
-        foreach (var id in ids) todos.AddRange(PartesDaBarra(tr, db, (Polyline)tr.GetObject(id, OpenMode.ForRead)));
         string nome = r.Detalhamento.Trim();
         for (int k = 2; Relacao.ServicoDetalhamento.ValidarNome(db, tr, nome) != null && k < 1000; k++) nome = $"{r.Detalhamento.Trim()} ({k})";
         var dadosDet = r.DadosDetalhamento ?? new DadosDetalhamento();
