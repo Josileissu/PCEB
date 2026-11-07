@@ -92,6 +92,28 @@ public class IntegracaoPranchaTests
             bs.Sum(b => b.Bitola * b.Bitola * b.Quantidade * Math.Max(1, b.Repeticoes));
         Assert.Equal(Peso(antigo.Barras), Peso(r.Barras), 0);
     }
+
+    [Fact]
+    public void PesoDaProducaoUsaAsRegrasDaRA()
+    {
+        var cfg = new DEB.Core.Configuracao.ConfiguracaoArmadura();
+        var b28 = DEB.Core.Motor.Entrada.ImportadorBlocos.ExemploB28();
+        var perfil = DEB.Core.Motor.Perfis.PerfisFabrica.Obter("bpm_bloco");
+        var modelo = new DEB.Core.Motor.Fundacoes.MotorBlocoEstacas().Gerar(b28, perfil, new System.Collections.Generic.List<Sobrescrita>());
+        var r = new DEB.Core.Motor.Prancha.GeradorPrancha(cfg).Gerar(b28, modelo, perfil);
+        double esperado = r.Barras.Sum(b => DEB.Core.Templates.MedidaBarra.Peso(b, cfg));
+        Assert.Contains(r.Tabelas.SelectMany(t => t.Linhas), l => l.Length > 1 && l[1] == FormatoMotor_NumV(Math.Round(esperado, 1)) + " kg");
+
+        // o template antigo mostra o mesmo peso (mesmas barras, mesmas regras)
+        var t0 = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
+        var v = new DEB.Core.Templates.ValoresTemplate(t0.Parametros);
+        DEB.Core.Motor.Entrada.ConversorBloco.ParaValores(b28, v);
+        var antigo = t0.Gerar(v, cfg);
+        double pesoAntigo = antigo.Barras.Sum(b => DEB.Core.Templates.MedidaBarra.Peso(b, cfg));
+        Assert.Contains(antigo.Tabelas.SelectMany(t => t.Linhas), l => l.Length > 1 && l[1] == FormatoMotor_NumV(Math.Round(pesoAntigo, 1)) + " kg");
+    }
+
+    private static string FormatoMotor_NumV(double x) => DEB.Core.Motor.Componentes.FormatoMotor.NumV(x);
 }
 
 [Collection("Pilar")]

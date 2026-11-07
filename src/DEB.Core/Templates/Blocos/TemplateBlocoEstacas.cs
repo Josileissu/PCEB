@@ -1210,20 +1210,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
 
     private static void Producao(Ctx c, double x, double y)
     {
-        double peso = 0;
-        foreach (var b in c.R.Barras)
-        {
-            double comp;
-            if (b.ComprimentosVar.Count > 0) comp = b.ComprimentosVar.Sum();
-            else
-            {
-                double s = 0;
-                for (int i = 0; i + 1 < b.Vertices.Count; i++)
-                    s += Math.Sqrt(Math.Pow(b.Vertices[i + 1].X - b.Vertices[i].X, 2) + Math.Pow(b.Vertices[i + 1].Y - b.Vertices[i].Y, 2));
-                comp = s * b.Quantidade;
-            }
-            peso += comp / 100 * Math.Max(1, b.Repeticoes) * TabelaBarras.MassaTeorica(b.Bitola);
-        }
+        double peso = c.R.Barras.Sum(b => MedidaBarra.Peso(b, c.Cfg));   // mesmas regras da RA do CAD
         double vol = c.R.DadosDetalhamento.Volume;
         var t = new TabelaTemplate { Titulo = c.L("INFORMAÇÕES P/ PRODUÇÃO", "MANUFACTURING INFORMATION")[0], X = x, Y = y, Escala = c.esc };
         t.Larguras.AddRange(new[] { 24.0, 11.0 });

@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using DEB.Core.Calculo;
 using DEB.Core.Configuracao;
 using DEB.Core.Estribos;
 using DEB.Core.Modelo;
@@ -523,33 +524,25 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
     private static double AreaForma(Ctx c) =>
         c.M.Corpos.Where(cp => !Externo(cp)).Sum(cp => PerimetroPlanta(cp) * Math.Abs(cp.Z1 - cp.Z0)) / 1e4;
 
-    /// <summary>Comprimento total de aço de uma posição (cm), pela barra desenhada (com ganchos) ou pela geometria 3D.</summary>
-    private static double ComprimentoTotal(Info i)
+    /// <summary>Peso de aço de uma posição (kg, 1 peça), pelas regras do CAD/RA sobre a barra desenhada
+    /// (<see cref="MedidaBarra"/>); sem barra desenhada, pelo eixo 3D (<see cref="ComprimentoPorEixo"/>).</summary>
+    private static double PesoPosicao(Info i, ConfiguracaoArmadura cfg)
     {
         var p = i.P;
+        if (i.Barra != null && i.Barra.Vertices.Count >= 2) return MedidaBarra.Peso(i.Barra, cfg);
         int rep = Math.Max(1, p.Distribuicao?.Repeticoes ?? 1);
-        if (i.Var) return p.ComprimentosVar.Sum() * rep;
         double l;
-        if (i.Barra != null && i.Barra.Vertices.Count >= 2) l = Geo.Perimetro(i.Barra.Vertices, i.Barra.Fechada);
-        else
-        {
-            l = 0;
-            var v = p.Vertices;
-            for (int k = 0; k + 1 < v.Count; k++) l += (v[k + 1] - v[k]).Comprimento;
-            if (p.Fechada && v.Count > 2) l += (v[0] - v[v.Count - 1]).Comprimento;
-        }
-        return l * Math.Max(1, p.Distribuicao?.Quantidade ?? 1) * rep;
+        if (i.Var) l = p.ComprimentosVar.Sum();
+        else if (p.Vertices.Count >= 2)
+            l = ComprimentoPorEixo.Calcular(p.Vertices.Select(v => (v.X, v.Y, v.Z)).ToList(), p.Fechada, p.Bitola, p.Aco ?? "CA-50",
+                    p.Forma == FormaBarra.Estribo, false, cfg) * Math.Max(1, p.Distribuicao?.Quantidade ?? 1);
+        else l = 0;
+        return l * rep / 100 * MedidaBarra.MassaLinear(p.Bitola, p.Aco, cfg);
     }
 
     private void Producao(Ctx c, double x, double y, double vol, double area)
     {
-        double peso = 0;
-        foreach (var i in c.Pos)
-        {
-            string aco = string.IsNullOrWhiteSpace(i.P.Aco) ? "CA-50" : i.P.Aco;
-            double massa = c.Cfg.Barras != null ? c.Cfg.Barras.MassaLinear(i.P.Bitola, aco) : Tabelas.TabelaBarras.MassaTeorica(i.P.Bitola);
-            peso += ComprimentoTotal(i) / 100 * massa;
-        }
+        double peso = c.Pos.Sum(i => PesoPosicao(i, c.Cfg));
         double volR = Math.Round(vol, 3);
         var t = new TabelaTemplate { Titulo = c.Celula(c.Rot("producao")), X = x, Y = y, Escala = c.esc };
         t.Larguras.AddRange(new[] { 24.0, 11.0 });
