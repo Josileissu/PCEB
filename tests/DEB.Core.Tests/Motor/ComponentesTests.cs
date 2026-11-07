@@ -26,7 +26,7 @@ public class ComponentesTests
     }
 
     private static ArgumentosComponente Args() => new ArgumentosComponente();
-    private static List<(double X, double Y)> Ret(double w, double h) => GeometriaPlanta.Ret(0, 0, w, h);
+    private static List<(double X, double Y)> Ret(double w, double h) => DEB.Core.Motor.Geometria2D.Ret(0, 0, w, h);
     /// <summary>Ponto dentro do polígono convexo anti-horário (tolerância 1e-3 cm).</summary>
     private static bool Dentro(List<(double X, double Y)> pol, double x, double y)
     {
@@ -132,7 +132,7 @@ public class ComponentesTests
         var p = ctx.Concluir().Posicao("lateral");
         Assert.Equal(FormaBarra.Estribo, p.Forma);
         Assert.Equal(ctx.Quantidade(97, 15), p.Barras.Count);
-        var dentro = GeometriaPlanta.Encolher(cont, 4);
+        var dentro = DEB.Core.Motor.Geometria2D.Encolher(cont, 4);
         foreach (var b in p.Barras)
         {
             Assert.All(b, q => Assert.Equal(b[0].Z, q.Z, 9));

@@ -1,74 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using static DEB.Core.Motor.Geometria2D;
 
 namespace DEB.Core.Motor.Componentes;
 
 /// <summary>
-/// Geometria em planta comum aos componentes (polígonos convexos anti-horários): recorte, corda, offset, área e o
-/// hexágono do arranjo triangular de 3 apoios. Veio da frente B (cópia das funções privadas de
-/// <c>Templates/Blocos/TemplateBlocoEstacas.cs</c>); o template antigo ainda tem a sua cópia — unificar quando ele sair.
+/// Geometria em planta própria dos apoios: o hexágono do arranjo triangular de 3 estacas. As funções gerais
+/// (recorte, corda, offset, área) estão em <see cref="Geometria2D"/>; o template antigo do bloco ainda tem a sua cópia
+/// (sai junto com ele).
 /// </summary>
 public static class GeometriaPlanta
 {
-    public static (double X, double Y) Unit((double X, double Y) a) { double n = Math.Sqrt(a.X * a.X + a.Y * a.Y); return (a.X / n, a.Y / n); }
-    public static double Dot((double X, double Y) a, (double X, double Y) b) => a.X * b.X + a.Y * b.Y;
-
-    /// <summary>Sutherland–Hodgman: mantém n·p ≤ d.</summary>
-    public static List<(double X, double Y)> Recortar(List<(double X, double Y)> poly, (double X, double Y) n, double d)
-    {
-        var r = new List<(double X, double Y)>();
-        for (int i = 0; i < poly.Count; i++)
-        {
-            var a = poly[i]; var b = poly[(i + 1) % poly.Count];
-            double fa = Dot(n, a) - d, fb = Dot(n, b) - d;
-            if (fa <= 0) r.Add(a);
-            if (fa * fb < 0) { double t = fa / (fa - fb); r.Add((a.X + t * (b.X - a.X), a.Y + t * (b.Y - a.Y))); }
-        }
-        return r;
-    }
-
-    /// <summary>Trecho [a, b] da reta p(s) = o + s·u dentro do contorno (convexo, anti-horário); null = fora.</summary>
-    public static (double A, double B)? Corda(List<(double X, double Y)> poly, (double X, double Y) o, (double X, double Y) u)
-    {
-        double a = double.NegativeInfinity, b = double.PositiveInfinity;
-        for (int i = 0; i < poly.Count; i++)
-        {
-            var p = poly[i]; var q = poly[(i + 1) % poly.Count];
-            var ed = (X: q.X - p.X, Y: q.Y - p.Y);
-            double f0 = ed.X * (o.Y - p.Y) - ed.Y * (o.X - p.X);   // cross(ed, o − p) ≥ 0 dentro
-            double f1 = ed.X * u.Y - ed.Y * u.X;
-            if (Math.Abs(f1) < 1e-12) { if (f0 < 0) return null; continue; }
-            double s = -f0 / f1;
-            if (f1 > 0) a = Math.Max(a, s); else b = Math.Min(b, s);
-        }
-        return b > a ? (a, b) : ((double, double)?)null;
-    }
-
-    /// <summary>Contorno convexo recuado de d (offset para dentro).</summary>
-    public static List<(double X, double Y)> Encolher(List<(double X, double Y)> p, double d)
-    {
-        var poly = new List<(double X, double Y)> { (-1e4, -1e4), (1e4, -1e4), (1e4, 1e4), (-1e4, 1e4) };
-        for (int i = 0; i < p.Count; i++)
-        {
-            var a = p[i]; var b = p[(i + 1) % p.Count];
-            var n = Unit((b.Y - a.Y, -(b.X - a.X)));   // anti-horário: normal externa = direita da aresta
-            poly = Recortar(poly, n, Dot(n, a) - d);
-        }
-        return poly;
-    }
-
-    /// <summary>Retângulo anti-horário (x0, y0) → (x1, y1).</summary>
-    public static List<(double X, double Y)> Ret(double x0, double y0, double x1, double y1) =>
-        new List<(double X, double Y)> { (x0, y0), (x1, y0), (x1, y1), (x0, y1) };
-
-    public static double Area(List<(double X, double Y)> p)
-    {
-        double s = 0;
-        for (int i = 0; i < p.Count; i++) { var a = p[i]; var b = p[(i + 1) % p.Count]; s += a.X * b.Y - b.X * a.Y; }
-        return Math.Abs(s) / 2;
-    }
-
     /// <summary>Bloco triangular: estacas num triângulo equilátero de lado s e o hexágono com as 6 faces a e dos eixos
     /// (3 paralelas aos lados, 3 nos cantos). Origem no canto inferior esquerdo da caixa envolvente.</summary>
     public static (List<(double X, double Y)> Contorno, List<(double X, double Y)> Estacas) Triangular(double s, double e)

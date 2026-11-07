@@ -359,27 +359,27 @@ public sealed partial class GeradorPrancha
         foreach (var i in infos)
         {
             bool casa = i.Casa == v.Id && !i.Dobrada;
-            var proj = i.Inst.Select(inst => Geo.SemRepetidos(inst.Select(p => (p.X, p.Y)))).ToList();
-            var rep = Geo.SemRepetidos(i.P.Vertices.Select(p => (p.X, p.Y)));
-            if (proj.All(pp => Geo.Extensao(pp) < 0.5))
+            var proj = i.Inst.Select(inst => Geometria2D.SemRepetidos(inst.Select(p => (p.X, p.Y)))).ToList();
+            var rep = Geometria2D.SemRepetidos(i.P.Vertices.Select(p => (p.X, p.Y)));
+            if (proj.All(pp => Geometria2D.Extensao(pp) < 0.5))
             {
                 foreach (var pp in proj) Ponto(r, pp[0].X, pp[0].Y, i.P.Bitola);
                 pend.Add((i, proj.Select(pp => pp[0]).Take(3).ToList()));
                 continue;
             }
             var desenhados = new List<(double X, double Y)>();
-            if (casa) { r.Barras.Add(CriarBarra(c, i, i.P.Vertices.Select(p => (p.X, p.Y)).ToList())); desenhados.Add(Geo.Centro(rep)); }
+            if (casa) { r.Barras.Add(CriarBarra(c, i, i.P.Vertices.Select(p => (p.X, p.Y)).ToList())); desenhados.Add(Geometria2D.Centro(rep)); }
             foreach (var pp in proj)
             {
-                var cen = Geo.Centro(pp);
-                if (desenhados.Any(d => Geo.Dist(d, cen) < 0.5)) continue;
+                var cen = Geometria2D.Centro(pp);
+                if (desenhados.Any(d => Geometria2D.Dist(d, cen) < 0.5)) continue;
                 desenhados.Add(cen);
                 Polilinha(r, "ARM-BARRA-DETALHE", i.P.Fechada, pp);
             }
             if (i.Var) TextosVar(c, r, i, p => (p.X, p.Y));
             var d = i.P.Distribuicao;
             var dp = (X: d.Fim.X - d.Inicio.X, Y: d.Fim.Y - d.Inicio.Y);
-            var ms = Geo.MaiorSegmento(rep);
+            var ms = Geometria2D.MaiorSegmento(rep);
             if (d.Quantidade > 1 && Math.Sqrt(dp.X * dp.X + dp.Y * dp.Y) > 0.5 && ms != null)
             {
                 var (a, b, u) = ms.Value;
@@ -417,7 +417,7 @@ public sealed partial class GeradorPrancha
             if (k < 0 || k + 1 >= inst.Count) continue;
             double L = (inst[k + 1] - inst[k]).Comprimento;
             var a = proj(inst[k]); var b = proj(inst[k + 1]);
-            double dl = Geo.Dist(a, b);
+            double dl = Geometria2D.Dist(a, b);
             if (dl < 1e-6) continue;
             var u = ((b.X - a.X) / dl, (b.Y - a.Y) / dl);
             double ang = Math.Atan2(u.Item2, u.Item1);
@@ -473,7 +473,7 @@ public sealed partial class GeradorPrancha
                 if (casa) r.Barras.Add(CriarBarra(c, i, pts));
                 else
                 {
-                    var pp = Geo.SemRepetidos(pts);
+                    var pp = Geometria2D.SemRepetidos(pts);
                     Polilinha(r, "ARM-BARRA-DETALHE", i.P.Fechada, pp);
                     // referência no trecho mais à direita (a chamada fica à direita do corte)
                     int nseg = i.P.Fechada && pp.Count > 2 ? pp.Count : pp.Count - 1;
@@ -490,7 +490,7 @@ public sealed partial class GeradorPrancha
                 {
                     var pp = inst.Select(p => (X: k.S(p), Y: p.Z)).OrderBy(q => q.X).ThenBy(q => q.Y).ToList();
                     var a = pp.First(); var b = pp.Last();
-                    if (Geo.Dist(a, b) < 1e-6) continue;
+                    if (Geometria2D.Dist(a, b) < 1e-6) continue;
                     Linha(r, "ARM-ESTRIBO-SECAO", a, b);
                     primeiro ??= (a.X + 0.7 * (b.X - a.X), a.Y + 0.7 * (b.Y - a.Y));
                 }
@@ -513,7 +513,7 @@ public sealed partial class GeradorPrancha
                             double t = na / (na - nb);
                             var q = a + (b - a) * t;
                             var p2 = (k.S(q), q.Z);
-                            if (!pts.Any(o => Geo.Dist(o, p2) < 0.05)) pts.Add(p2);
+                            if (!pts.Any(o => Geometria2D.Dist(o, p2) < 0.05)) pts.Add(p2);
                         }
                     }
                 }

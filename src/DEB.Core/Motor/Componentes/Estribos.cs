@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using static DEB.Core.Motor.Componentes.GeometriaPlanta;
+using static DEB.Core.Motor.Geometria2D;
 
 namespace DEB.Core.Motor.Componentes;
 
