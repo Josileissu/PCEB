@@ -36,8 +36,8 @@ public sealed class InfoPerfil
 
 /// <summary>
 /// Perfis = fábrica (<see cref="PerfisFabrica"/>) + sobreposição pelo arquivo &lt;pasta&gt;/&lt;id&gt;.json.
-/// Mesclagem: cada chave de "padroes" e "regras" do arquivo substitui a da fábrica (as demais ficam); "folha", se
-/// presente, substitui a folha inteira; "nome" substitui o nome. Arquivo inválido → fábrica + aviso.
+/// Mesclagem: cada chave de "padroes" e "regras" do arquivo substitui a da fábrica (as demais ficam); "folha" é
+/// mesclada campo a campo (a lista "vistas", se vier, substitui a de fábrica); "nome" substitui o nome. Arquivo inválido → fábrica + aviso.
 /// Um arquivo sem perfil de fábrica com o mesmo Id vale sozinho (perfil do usuário).
 /// </summary>
 public sealed class RepositorioPerfis
@@ -130,7 +130,9 @@ public sealed class RepositorioPerfis
             foreach (var kv in doArquivo.Padroes) r.Padroes[kv.Key] = kv.Value;
         if (documento.Tem("regras") && !documento["regras"].EhNulo)
             foreach (var kv in doArquivo.Regras) r.Regras[kv.Key] = kv.Value;
-        if (documento.Tem("folha") && !documento["folha"].EhNulo) r.Folha = doArquivo.Folha;
+        // folha campo a campo (decisão de 2026-11-07: mudar só a escala sem copiar a folha inteira); "vistas", se vier, substitui a lista
+        if (documento.Tem("folha") && !documento["folha"].EhNulo)
+            r.Folha = DEB.Core.Motor.Json.SerializacaoMotor.FolhaDeJson(documento["folha"], "folha", fabrica.Folha);
         return r;
     }
 
