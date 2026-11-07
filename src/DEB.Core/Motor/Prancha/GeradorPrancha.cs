@@ -386,7 +386,7 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
     /// <summary>Forma dobrada (verdadeira grandeza no plano da barra) com o canto superior esquerdo em (x, yTopo).</summary>
     private static BarraTemplate Dobrada(Ctx c, Info i, double x, double yTopo)
     {
-        var pts = i.P.Vertices.Select(q => i.Plano.Em2D(q)).ToList();
+        var pts = Geo.Desenvolver(i.P.Vertices, i.Plano);
         var b = CriarBarra(c, i, pts);
         if (b.Vertices.Count == 0) return b;
         double mx = b.Vertices.Min(q => q.X), my = b.Vertices.Max(q => q.Y);

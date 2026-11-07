@@ -2343,11 +2343,13 @@ public sealed class AutoTeste
     /// Template de bloco sobre estacas (BLOCO B3 do exemplo do usuário, 2026-11-06): desenha como detalhamento com 19
     /// repetições, confere as barras e grava um PNG. Uso: tools\autoteste_autocad.ps1 -Comando ARMTESTEBLOCO.
     /// </summary>
+    // Desde 2026-11-07 pelo motor (TemplateBlocoMotor só com a fábrica: não lê perfis/receitas do usuário); confere também
+    // a origem do motor gravada no detalhamento.
     [Rt.CommandMethod("ARMTESTEBLOCO")]
     public void Bloco() => Comandos.Executar("ARMTESTEBLOCO", (doc, ed, db, cfg) =>
     {
         Rel.Clear(); _ok = _falhas = 0;
-        var t = new Core.Templates.Blocos.TemplateBlocoEstacas();
+        var t = new Core.Motor.Fundacoes.TemplateBlocoMotor();
         // B28 (2 estacas, cálice com colarinho: valores padrão) e B15 (triangular), como as folhas do escritório
         var vB28 = new Core.Templates.ValoresTemplate(t.Parametros);
         vB28["Niveis"] = "P106|-11.43;P118|-11.43";
@@ -2370,7 +2372,7 @@ public sealed class AutoTeste
                 Checar(ids.Count == r.Barras.Count, $"{nome}: {ids.Count} armaduras desenhadas ({r.Barras.Count} no template)");
                 var dados = ids.Select(i => XDataCad.LerBarra(tr.GetObject(i, OpenMode.ForRead))).ToList();
                 Checar(dados.All(d => d != null), $"{nome}: todas as barras com dados do plugin");
-                int iCal = r.Barras.FindIndex(b => b.Nome == "cálice: horizontais do topo");
+                int iCal = r.Barras.FindIndex(b => b.Nome == "calice_topo");
                 Checar(iCal >= 0 && dados[iCal].Estribo && dados[iCal].Quantidade == 3, $"{nome}: horizontais do topo do cálice ({(iCal >= 0 ? dados[iCal].Quantidade : -1)})");
                 tr.Commit();
             }
@@ -2378,6 +2380,13 @@ public sealed class AutoTeste
             {
                 var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
                 Checar(bt.Has(nome), $"{nome}: detalhamento criado");
+                if (bt.Has(nome))
+                {
+                    var det = ServicoDetalhamento.Ler((BlockTableRecord)tr.GetObject(bt[nome], OpenMode.ForRead));
+                    var om = Core.Motor.Entrada.OrigemDetalhamento.TentarLer(det?.Motor, out var erroOrigem);
+                    Checar(om != null && om.Elemento?.Nome == v["Nome"].Trim(),
+                        $"{nome}: origem do motor gravada no detalhamento ({erroOrigem ?? om?.Elemento?.Nome})");
+                }
                 tr.Commit();
             }
         }
