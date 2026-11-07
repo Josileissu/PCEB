@@ -2,14 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DEB.Core.Motor.Fundacoes;
+namespace DEB.Core.Motor.Componentes;
 
 /// <summary>
-/// Geometria em planta do bloco (polígonos convexos anti-horários).
-/// CÓPIA das funções privadas de <c>Templates/Blocos/TemplateBlocoEstacas.cs</c> (Unit, Dot, Recortar, Corda, Encolher,
-/// Area e o hexágono do bloco triangular) — duplicação temporária da frente B; remover na integração, deixando uma só.
+/// Geometria em planta comum aos componentes (polígonos convexos anti-horários): recorte, corda, offset, área e o
+/// hexágono do arranjo triangular de 3 apoios. Veio da frente B (cópia das funções privadas de
+/// <c>Templates/Blocos/TemplateBlocoEstacas.cs</c>); o template antigo ainda tem a sua cópia — unificar quando ele sair.
 /// </summary>
-internal static class GeometriaPlanta
+public static class GeometriaPlanta
 {
     public static (double X, double Y) Unit((double X, double Y) a) { double n = Math.Sqrt(a.X * a.X + a.Y * a.Y); return (a.X / n, a.Y / n); }
     public static double Dot((double X, double Y) a, (double X, double Y) b) => a.X * b.X + a.Y * b.Y;
@@ -57,6 +57,10 @@ internal static class GeometriaPlanta
         }
         return poly;
     }
+
+    /// <summary>Retângulo anti-horário (x0, y0) → (x1, y1).</summary>
+    public static List<(double X, double Y)> Ret(double x0, double y0, double x1, double y1) =>
+        new List<(double X, double Y)> { (x0, y0), (x1, y0), (x1, y1), (x0, y1) };
 
     public static double Area(List<(double X, double Y)> p)
     {
