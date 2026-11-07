@@ -443,7 +443,7 @@ public static class SerializacaoMotor
             .Definir("idioma", f.Idioma).Definir("escala", f.Escala).Definir("titulo", f.Titulo)
             .Definir("vistas", vistas).Definir("detalhes", Textos(f.Detalhes))
             .Definir("relacaoAco", f.RelacaoAco).Definir("informacoesProducao", f.InformacoesProducao)
-            .Definir("notas", Textos(f.Notas));
+            .Definir("notas", Textos(f.Notas)).Definir("rotulos", Textos(f.Rotulos ?? new Dictionary<string, string>()));
     }
 
     /// <param name="base">Folha de partida (mesclagem campo a campo: o que faltar no JSON fica como na base).</param>
@@ -465,6 +465,13 @@ public static class SerializacaoMotor
         f.RelacaoAco = Bool(o, "relacaoAco", f.RelacaoAco, caminho);
         f.InformacoesProducao = Bool(o, "informacoesProducao", f.InformacoesProducao, caminho);
         f.Notas = ListaTxt(o, "notas", f.Notas, caminho);
+        if (Presente(o, "rotulos"))
+        {
+            var rot = DicTxt(o, "rotulos", new Dictionary<string, string>(), caminho);
+            if (@base == null) f.Rotulos = rot;
+            else { f.Rotulos = new Dictionary<string, string>(@base.Rotulos ?? new Dictionary<string, string>()); foreach (var kv in rot) f.Rotulos[kv.Key] = kv.Value; }
+        }
+        else if (@base != null) f.Rotulos = new Dictionary<string, string>(@base.Rotulos ?? new Dictionary<string, string>());
         return f;
     }
 

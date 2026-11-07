@@ -63,3 +63,50 @@ public class IntegracaoMotorTests
         finally { Directory.Delete(pasta, true); }
     }
 }
+
+/// <summary>Ponta a ponta até a prancha: planilha → motor → prancha (perfil de fábrica BPM), comparado com o template atual.</summary>
+[Collection("Pilar")]
+public class IntegracaoPranchaTests
+{
+    [Fact]
+    public void B28PeloMotorTemAsMesmasBarrasDoTemplate()
+    {
+        var b28 = DEB.Core.Motor.Entrada.ImportadorBlocos.ExemploB28();
+        var perfil = DEB.Core.Motor.Perfis.PerfisFabrica.Obter("bpm_bloco");
+        var modelo = new DEB.Core.Motor.Fundacoes.MotorBlocoEstacas().Gerar(b28, perfil, new System.Collections.Generic.List<Sobrescrita>());
+        var r = new DEB.Core.Motor.Prancha.GeradorPrancha().Gerar(b28, modelo, perfil);
+
+        Assert.Equal(modelo.Posicoes.Count, r.Barras.Count);
+        Assert.Equal(r.Barras.Count, r.Barras.Select(b => b.Nome).Distinct().Count());
+        Assert.All(r.Faixas, f => Assert.Contains(r.Barras, b => b.Nome == f.Barra));
+        Assert.Contains(r.Textos, t => t.Texto == "BLOCO B28 - 6x - 2 ø 40");
+        Assert.Contains(r.Cotas, k => Math.Abs(Math.Abs(k.P2.X - k.P1.X) - 190) < 1e-6);
+        Assert.Contains(r.Tabelas, t => t.Titulo.StartsWith("INFORMAÇÕES"));
+
+        // aço total igual ao do template atual (mesmas entradas)
+        var t0 = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
+        var v = new DEB.Core.Templates.ValoresTemplate(t0.Parametros);
+        DEB.Core.Motor.Entrada.ConversorBloco.ParaValores(b28, v);
+        var antigo = t0.Gerar(v, new DEB.Core.Configuracao.ConfiguracaoArmadura());
+        double Peso(System.Collections.Generic.IEnumerable<DEB.Core.Templates.BarraTemplate> bs) =>
+            bs.Sum(b => b.Bitola * b.Bitola * b.Quantidade * Math.Max(1, b.Repeticoes));
+        Assert.Equal(Peso(antigo.Barras), Peso(r.Barras), 0);
+    }
+}
+
+[Collection("Pilar")]
+public class PreviaPranchaMotorB28
+{
+    /// <summary>Com ARM_PREVIA definida, grava a prancha do B28 gerada pelo motor (para conferência visual).</summary>
+    [Fact]
+    public void Gravar()
+    {
+        var pasta = Environment.GetEnvironmentVariable("ARM_PREVIA");
+        if (string.IsNullOrEmpty(pasta)) return;
+        var b28 = DEB.Core.Motor.Entrada.ImportadorBlocos.ExemploB28();
+        var perfil = DEB.Core.Motor.Perfis.PerfisFabrica.Obter("bpm_bloco");
+        var modelo = new DEB.Core.Motor.Fundacoes.MotorBlocoEstacas().Gerar(b28, perfil, new System.Collections.Generic.List<Sobrescrita>());
+        var r = new DEB.Core.Motor.Prancha.GeradorPrancha().Gerar(b28, modelo, perfil);
+        GeradorPranchaTests.Gravar(pasta, "previa_motor_b28.json", r);
+    }
+}
