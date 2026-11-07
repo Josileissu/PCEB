@@ -386,3 +386,114 @@ public static class Json
         sb.Append('"');
     }
 }
+
+/// <summary>
+/// Leitura tipada de campos com o caminho do campo nas mensagens ("perfil.padroes.cobrimento: esperado um número…").
+/// Campo ausente ou null → padrão; tipo errado → <see cref="FormatException"/> com o caminho.
+/// </summary>
+public static class LeitorJson
+{
+    /// <summary>O próprio valor, se for objeto; senão FormatException.</summary>
+    public static ValorJson Objeto(ValorJson o, string caminho)
+    {
+        if (o == null || !o.EhObjeto) throw new FormatException($"{caminho}: esperado um objeto {{ … }}.");
+        return o;
+    }
+
+    /// <summary>Campo existe e não é null.</summary>
+    public static bool Presente(ValorJson o, string k) { var v = o[k]; return v != null && !v.EhNulo; }
+
+    /// <summary>Campo lista; null se ausente ou null.</summary>
+    public static ValorJson Lista(ValorJson o, string k, string caminho)
+    {
+        var v = o[k];
+        if (v == null || v.EhNulo) return null;
+        if (!v.EhLista) throw new FormatException($"{caminho}.{k}: esperado uma lista [ … ].");
+        return v;
+    }
+
+    public static double NumDeValor(ValorJson v, string caminho)
+    {
+        if (v == null || v.Tipo != TipoJson.Numero) throw new FormatException($"{caminho}: esperado um número (com ponto decimal, ex.: 2.5).");
+        return v.Numero;
+    }
+
+    public static int IntDeValor(ValorJson v, string caminho)
+    {
+        double d = NumDeValor(v, caminho);
+        if (d != Math.Floor(d) || d > int.MaxValue || d < int.MinValue) throw new FormatException($"{caminho}: esperado um número inteiro.");
+        return (int)d;
+    }
+
+    public static double Num(ValorJson o, string k, double padrao, string caminho) =>
+        Presente(o, k) ? NumDeValor(o[k], $"{caminho}.{k}") : padrao;
+
+    public static int Int(ValorJson o, string k, int padrao, string caminho) =>
+        Presente(o, k) ? IntDeValor(o[k], $"{caminho}.{k}") : padrao;
+
+    public static bool Bool(ValorJson o, string k, bool padrao, string caminho)
+    {
+        if (!Presente(o, k)) return padrao;
+        var v = o[k];
+        if (v.Tipo != TipoJson.Booleano) throw new FormatException($"{caminho}.{k}: esperado true ou false.");
+        return v.Booleano;
+    }
+
+    public static string Txt(ValorJson o, string k, string padrao, string caminho)
+    {
+        if (!Presente(o, k)) return padrao;
+        var v = o[k];
+        if (v.Tipo != TipoJson.Texto) throw new FormatException($"{caminho}.{k}: esperado um texto entre aspas.");
+        return v.Texto;
+    }
+
+    public static List<string> ListaTxt(ValorJson o, string k, List<string> padrao, string caminho)
+    {
+        var l = Lista(o, k, caminho);
+        if (l == null) return padrao;
+        var r = new List<string>();
+        for (int i = 0; i < l.Quantidade; i++)
+        {
+            if (l[i].Tipo != TipoJson.Texto) throw new FormatException($"{caminho}.{k}[{i}]: esperado um texto entre aspas.");
+            r.Add(l[i].Texto);
+        }
+        return r;
+    }
+
+    public static Dictionary<string, double> DicNum(ValorJson o, string k, Dictionary<string, double> padrao, string caminho)
+    {
+        if (!Presente(o, k)) return padrao;
+        var v = Objeto(o[k], $"{caminho}.{k}");
+        var r = new Dictionary<string, double>();
+        foreach (var kv in v.Campos) r[kv.Key] = NumDeValor(kv.Value, $"{caminho}.{k}.{kv.Key}");
+        return r;
+    }
+
+    public static Dictionary<string, string> DicTxt(ValorJson o, string k, Dictionary<string, string> padrao, string caminho)
+    {
+        if (!Presente(o, k)) return padrao;
+        var v = Objeto(o[k], $"{caminho}.{k}");
+        var r = new Dictionary<string, string>();
+        foreach (var kv in v.Campos)
+        {
+            if (kv.Value.Tipo != TipoJson.Texto) throw new FormatException($"{caminho}.{k}.{kv.Key}: esperado um texto entre aspas.");
+            r[kv.Key] = kv.Value.Texto;
+        }
+        return r;
+    }
+
+    /// <summary>Enum pelo nome (sem diferenciar maiúsculas). Números não são aceitos (o arquivo fica legível).</summary>
+    public static T EnumDeValor<T>(ValorJson v, string caminho) where T : struct
+    {
+        if (v == null || v.Tipo != TipoJson.Texto)
+            throw new FormatException($"{caminho}: esperado um texto, um de: {string.Join(", ", Enum.GetNames(typeof(T)))}.");
+        var s = v.Texto.Trim();
+        foreach (var nome in Enum.GetNames(typeof(T)))
+            if (string.Equals(nome, s, StringComparison.OrdinalIgnoreCase)) return (T)Enum.Parse(typeof(T), nome);
+        throw new FormatException($"{caminho}: valor \"{v.Texto}\" desconhecido; use um de: {string.Join(", ", Enum.GetNames(typeof(T)))}.");
+    }
+
+    /// <summary>Campo enum (ver <see cref="EnumDeValor{T}"/>).</summary>
+    public static T EnumCampo<T>(ValorJson o, string k, T padrao, string caminho) where T : struct =>
+        Presente(o, k) ? EnumDeValor<T>(o[k], $"{caminho}.{k}") : padrao;
+}
