@@ -36,3 +36,15 @@
 ## A confirmar
 - Interpretação jurídica da mistura GPL-3 + aviso OpenSees (uso interno no escritório parece permitido; distribuir junto, não).
 - Funciona no Windows sem Docker?
+
+## Raio-X do código-fonte (05/11/2026) ✓
+Lido direto do pacote em `programas/*/download` com `docs/notas/ferramentas/raiox_fonte.py` (sem compilar nem rodar).
+- 7.390 arquivos: C++ ~690 mil linhas (núcleo derivado do OpenSees), **Python ~350 mil** (`python_modules`).
+- Dependências: CGAL, Boost, Eigen, VTK/OpenGL (pós), SQLite, MUMPS, UMFPACK, ARPACK, MPI, OpenMP; Gmsh opcional.
+- **Normas em `python_modules/materials`**: ACI, AISC, AISI, API, AWC NDS, CEB, MC10, **EC2**, EC3, EC5, **EHE**, EAE,
+  SIA 262/263, EN 1337 (aparelhos de apoio), EOTA, protensão, **bielas e tirantes** (`strut_and_tie`), `tie_bars`.
+  **Nenhuma NBR** ✓.
+- Armadura em seções de fibras (`ReinfLayer`, `ReinfBar`, `column_main_reinforcement.py`) e um esquema de armadura
+  de parede em **TikZ/LaTeX** (`draw_wall_reinforcement_scheme.py`) — para relatório, **não é detalhamento de prancha**.
+- Ligações metálicas em `python_modules/connections/steel_connections`. 86 MB de testes de verificação (`verif/tests`).
+- Estrutura de normas em módulos Python separados é um bom modelo para a nossa NBR 6118/9062 no núcleo.
