@@ -84,6 +84,52 @@ internal static class ServicoDetalhamento
         return br.ObjectId;
     }
 
+    /// <summary>
+    /// Troca o conteúdo do detalhamento pelas entidades <paramref name="ids"/> (desenhadas soltas, num mesmo espaço), que
+    /// são levadas para o bloco e apagadas de onde estavam. O canto inferior esquerdo delas (medido como no
+    /// <see cref="Criar"/>, logo depois de desenhadas) vai para a origem do bloco, como na criação: as inserções não andam.
+    /// Nome, dados e inserções do bloco continuam os mesmos.
+    /// </summary>
+    public static void Substituir(Database db, Transaction tr, BlockTableRecord btr, ObjectId[] ids)
+    {
+        if (ids.Length == 0) throw new ArgumentException("Nada para pôr no detalhamento.");
+        Extents3d? Extensao(IEnumerable<ObjectId> lista)
+        {
+            Extents3d? ext = null;
+            foreach (var id in lista)
+            {
+                if (id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Entity e)) continue;
+                try { var x = e.GeometricExtents; if (ext == null) ext = x; else { var v = ext.Value; v.AddExtents(x); ext = v; } }
+                catch { /* entidade sem extensão */ }
+            }
+            return ext;
+        }
+        var antigos = btr.Cast<ObjectId>().ToList();
+        var baseNova = Extensao(ids)?.MinPoint ?? Point3d.Origin;
+
+        if (!btr.IsWriteEnabled) btr.UpgradeOpen();
+        foreach (var id in antigos)
+            if (!id.IsErased) tr.GetObject(id, OpenMode.ForWrite).Erase();
+
+        var dono = ((Entity)tr.GetObject(ids[0], OpenMode.ForRead)).OwnerId;
+        using (var col = new ObjectIdCollection(ids.Where(i => !i.IsErased && ((Entity)tr.GetObject(i, OpenMode.ForRead)).OwnerId == dono).ToArray()))
+        using (var mapa = new IdMapping())
+        {
+            db.DeepCloneObjects(col, btr.ObjectId, mapa, false);
+            var desloc = Matrix3d.Displacement(Point3d.Origin - baseNova);
+            foreach (IdPair par in mapa)
+            {
+                if (!par.IsCloned || !par.IsPrimary) continue;
+                if (!(tr.GetObject(par.Value, OpenMode.ForWrite) is Entity clone)) continue;
+                clone.TransformBy(desloc);
+                if (XDataCad.Tipo(clone) == TipoParte.Faixa) Barra.ServicoFaixa.Transformar(clone, desloc);
+            }
+            foreach (ObjectId id in col) tr.GetObject(id, OpenMode.ForWrite).Erase();
+        }
+        foreach (ObjectId rid in btr.GetBlockReferenceIds(true, false))
+            if (!rid.IsErased) ((BlockReference)tr.GetObject(rid, OpenMode.ForWrite)).RecordGraphicsModified(true);
+    }
+
     /// <summary>Inserções do bloco nos layouts (diretas e de versões anônimas de blocos dinâmicos).</summary>
     public static int Insercoes(Transaction tr, BlockTableRecord btr)
     {
