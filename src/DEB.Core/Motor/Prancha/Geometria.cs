@@ -104,48 +104,6 @@ internal static class Geo
     public static bool VerdadeiraGrandeza(PlanoBarra p, P3 vn) =>
         p != null && (p.Reta ? Math.Abs(Dot(p.D, vn)) < 1e-3 : Cross(p.N, vn).Comprimento < 1e-3);
 
-    // ---------------- 2D ----------------
-
-    public static List<(double X, double Y)> SemRepetidos(IEnumerable<(double X, double Y)> pts, double tol = 1e-4)
-    {
-        var r = new List<(double X, double Y)>();
-        foreach (var p in pts)
-            if (r.Count == 0 || Math.Abs(r[r.Count - 1].X - p.X) > tol || Math.Abs(r[r.Count - 1].Y - p.Y) > tol) r.Add(p);
-        return r;
-    }
-
-    public static double Area(IReadOnlyList<(double X, double Y)> p)
-    {
-        double s = 0;
-        for (int i = 0; i < p.Count; i++) { var a = p[i]; var b = p[(i + 1) % p.Count]; s += a.X * b.Y - b.X * a.Y; }
-        return Math.Abs(s) / 2;
-    }
-
-    public static double Perimetro(IReadOnlyList<(double X, double Y)> p, bool fechado = true)
-    {
-        double s = 0;
-        int n = fechado ? p.Count : p.Count - 1;
-        for (int i = 0; i < n; i++) { var a = p[i]; var b = p[(i + 1) % p.Count]; s += Dist(a, b); }
-        return s;
-    }
-
-    public static double Dist((double X, double Y) a, (double X, double Y) b) => Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
-
-    /// <summary>Maior segmento da polilinha: início, fim e direção unitária; null = um ponto só.</summary>
-    public static ((double X, double Y) A, (double X, double Y) B, (double X, double Y) U)? MaiorSegmento(IReadOnlyList<(double X, double Y)> p)
-    {
-        double melhor = 1e-6; int k = -1;
-        for (int i = 0; i + 1 < p.Count; i++) { double d = Dist(p[i], p[i + 1]); if (d > melhor) { melhor = d; k = i; } }
-        if (k < 0) return null;
-        var a = p[k]; var b = p[k + 1];
-        return (a, b, ((b.X - a.X) / melhor, (b.Y - a.Y) / melhor));
-    }
-
-    public static (double X, double Y) Centro(IReadOnlyList<(double X, double Y)> p) => (p.Average(q => q.X), p.Average(q => q.Y));
-
-    public static double Extensao(IReadOnlyList<(double X, double Y)> p) =>
-        p.Count == 0 ? 0 : Math.Max(p.Max(q => q.X) - p.Min(q => q.X), p.Max(q => q.Y) - p.Min(q => q.Y));
-
     /// <summary>
     /// Contorno da união dos retângulos cheios menos os vazios (s × z), como laços fechados anti-horários. Serve para o corte
     /// de corpos extrudados: cada corpo cortado vira um retângulo; o contorno sai sem as linhas internas entre corpos.

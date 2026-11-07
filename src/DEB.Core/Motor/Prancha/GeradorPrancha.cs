@@ -129,8 +129,8 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
     private static bool Papel(CorpoConcreto cp, string p) => string.Equals(cp.Papel, p, StringComparison.OrdinalIgnoreCase);
     private static bool Circular(CorpoConcreto cp) => (cp.Planta == null || cp.Planta.Count < 3) && cp.Raio > 0;
 
-    private static double AreaPlanta(CorpoConcreto cp) => Circular(cp) ? Math.PI * cp.Raio * cp.Raio : cp.Planta?.Count >= 3 ? Geo.Area(cp.Planta) : 0;
-    private static double PerimetroPlanta(CorpoConcreto cp) => Circular(cp) ? 2 * Math.PI * cp.Raio : cp.Planta?.Count >= 3 ? Geo.Perimetro(cp.Planta) : 0;
+    private static double AreaPlanta(CorpoConcreto cp) => Circular(cp) ? Math.PI * cp.Raio * cp.Raio : cp.Planta?.Count >= 3 ? Geometria2D.Area(cp.Planta) : 0;
+    private static double PerimetroPlanta(CorpoConcreto cp) => Circular(cp) ? 2 * Math.PI * cp.Raio : cp.Planta?.Count >= 3 ? Geometria2D.Perimetro(cp.Planta) : 0;
 
     private static Retangulo CaixaPlanta(CorpoConcreto cp)
     {
@@ -343,8 +343,8 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
         };
         if (i.Var) b.ComprimentosVar.AddRange(p.ComprimentosVar);
         foreach (var s in p.SegmentosVar ?? new HashSet<int>()) b.SegmentosVar.Add(s);
-        pts = Geo.SemRepetidos(pts);
-        if (p.Fechada && pts.Count > 2 && Geo.Dist(pts[0], pts[pts.Count - 1]) < 1e-4) pts.RemoveAt(pts.Count - 1);
+        pts = Geometria2D.SemRepetidos(pts);
+        if (p.Fechada && pts.Count > 2 && Geometria2D.Dist(pts[0], pts[pts.Count - 1]) < 1e-4) pts.RemoveAt(pts.Count - 1);
         bool feito = false;
         if (p.Forma == FormaBarra.Estribo && p.Fechada && (p.Formatos == null || p.Formatos.Count == 0) && pts.Count >= 3)
         {

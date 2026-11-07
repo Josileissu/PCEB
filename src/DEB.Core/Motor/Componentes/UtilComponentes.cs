@@ -4,6 +4,7 @@ using System.Linq;
 using DEB.Core.Estribos;
 using DEB.Core.Modelo;
 using static DEB.Core.Motor.Componentes.GeometriaPlanta;
+using static DEB.Core.Motor.Geometria2D;
 
 namespace DEB.Core.Motor.Componentes;
 
