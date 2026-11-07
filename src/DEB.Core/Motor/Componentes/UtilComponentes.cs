@@ -23,7 +23,7 @@ public sealed class Retangulo
 /// Base dos componentes: o argumento comum <c>ativo</c> (0 = não faz nada; padrão 1) permite à receita ligar/desligar um
 /// passo por fórmula (ex.: "ativo": "calice"). A documentação de cada componente acrescenta esse argumento.
 /// </summary>
-public abstract class ComponenteBase : IComponente
+public abstract class ComponenteBase : DEB.Core.Motor.Receitas.IComponenteComSaidas
 {
     public abstract string Tipo { get; }
     protected abstract IEnumerable<(string Nome, string Descricao)> Docs { get; }
