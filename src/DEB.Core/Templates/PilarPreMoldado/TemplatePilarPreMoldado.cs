@@ -6,8 +6,6 @@ using DEB.Core.Configuracao;
 
 namespace DEB.Core.Templates.PilarPreMoldado;
 
-/// <summary>Idioma dos textos do detalhamento (pedido do usuário, 2026-10-29: PT, EN ou bilíngue).</summary>
-public enum IdiomaDesenho { PT, EN, PTEN }
 
 /// <summary>Nível marcado nas vistas (cota em metros).</summary>
 public sealed class NivelPilar

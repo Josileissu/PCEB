@@ -1228,7 +1228,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
     {
         double ht = c.ht;
         bool chaves = c.Calice && c.V["Interface"] == Chaves;
-        double x = TemplatePilarPreMoldado.DesenharDetalhesComuns(c.R, c.Idioma, c.esc, c.Cfg.AlturaTextoMm, x0, yTopo, chaves, 5, 4, 1, out _);
+        double x = DetalhesTipicos.Desenhar(c.R, c.Idioma, c.esc, c.Cfg.AlturaTextoMm, x0, yTopo, chaves, 5, 4, 1, out _);
         // ancoragem das armaduras das estacas (esquemático)
         x += 6 * ht;
         double y = Linhas(c, "ANCORAGEM DAS ARMADURAS DAS ESTACAS", "ANCHORAGE OF PILE REINFORCEMENT", x, yTopo, 1.1 * ht);
