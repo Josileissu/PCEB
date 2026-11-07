@@ -55,12 +55,23 @@ public sealed class Arranque : ComponenteBase
         double cp = a.Num("cobrimento_pilar", 3);
         double d = cp + phiE / 10 + phiA / 20;
         int ax = Math.Max(1, a.Int("nx", 2)), ay = Math.Max(1, a.Int("ny", 2));
-        var xs = new List<double>(); var ys = new List<double>();
-        for (int i = 0; i < ax; i++) xs.Add(ax == 1 ? Px : Px - Bx / 2 + d + i * (Bx - 2 * d) / (ax - 1));
-        for (int j = 0; j < ay; j++) ys.Add(ay == 1 ? Py : Py - By / 2 + d + j * (By - 2 * d) / (ay - 1));
         var pontos = new List<(double X, double Y)>();
-        for (int i = 0; i < ax; i++) for (int j = 0; j < ay; j++)
-            if (i == 0 || j == 0 || i == ax - 1 || j == ay - 1) pontos.Add((xs[i], ys[j]));
+        if (ax >= 2 && ay >= 2)
+        {
+            // contorno da seção pelo cálculo comum (o do pilar e do barras_secao_longitudinal), em ordem x, depois y
+            var cobP = new[] { cp, cp, cp, cp };
+            pontos = SecaoBarras.Posicoes(Bx, By, cobP, phiE, phiA, 1, 0, phiA, ax - 2, ay - 2, phiA)
+                .Select(s => (X: Px - Bx / 2 + s.X, Y: Py - By / 2 + s.Y))
+                .OrderBy(q => Math.Round(q.X, 6)).ThenBy(q => Math.Round(q.Y, 6)).ToList();
+        }
+        else
+        {
+            // uma fila só (pilar-parede estreito ou barra central): pontos ao longo do eixo
+            var xs = new List<double>(); var ys = new List<double>();
+            for (int i = 0; i < ax; i++) xs.Add(ax == 1 ? Px : Px - Bx / 2 + d + i * (Bx - 2 * d) / (ax - 1));
+            for (int j = 0; j < ay; j++) ys.Add(ay == 1 ? Py : Py - By / 2 + d + j * (By - 2 * d) / (ay - 1));
+            for (int i = 0; i < ax; i++) for (int j = 0; j < ay; j++) pontos.Add((xs[i], ys[j]));
+        }
         var tr = new RegrasTraspasse { Fck = a.Num("fck", ctx.Elemento.Fck), PercentualEmendado = 100 };
         double interno = ctx.Par(p, "comprimento_interno", Math.Round(hT - a.Num("z_topo_inferior", c)), a.Txt("regra_comprimento_interno", "topo − topo da armadura inferior"));
         double esperaArg = a.Num("espera", 0);
