@@ -104,6 +104,7 @@ public sealed class FaixaSobreApoios : ComponenteBase
             var f = new FamiliaRetas
             {
                 Ang = grupo.Key, Bitola = phi, Esp = esp, Perna = perna, PorFaixa = q, Superior = sup, PassoReal = true,
+                CobrimentoNormal = a.Bool("cobrimento_normal", true),
                 Z = sup ? zFace0 - phi / 20 - pilha : zFace0 + phi / 20 + pilha,
             };
             // faixa centrada na linha de apoios; se passar da face, desloca para dentro (como o B31: 7 c/14 com face a 40)
