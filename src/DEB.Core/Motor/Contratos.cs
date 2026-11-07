@@ -180,6 +180,13 @@ public sealed class PosicaoArmadura
     public HashSet<int> SegmentosVar { get; set; } = new HashSet<int>();
     /// <summary>Geometria de cada barra do grupo VAR (opcional; a prancha usa para desenhar a malha completa).</summary>
     public List<List<P3>> VerticesVar { get; set; } = new List<List<P3>>();
+    /// <summary>Segmentos desenhados sobre outro (passagem dos ganchos do estribo pelo canto, como em BarraTemplate):
+    /// contam como aço, não são cotados. (Acrescentado pela frente B, 2026-11-07.)</summary>
+    public HashSet<int> Sobrepostos { get; set; } = new HashSet<int>();
+    /// <summary>Geometria de TODAS as barras da posição (todas as faixas/repetições), opcional; quando preenchida,
+    /// Barras.Count = Quantidade × Repeticoes e a prancha desenha estas barras em vez de repetir a representativa ao longo
+    /// da distribuição (malha interrompida no cálice, faixas da principal, grampos em paredes opostas…). (Frente B.)</summary>
+    public List<List<P3>> Barras { get; set; } = new List<List<P3>>();
 }
 
 /// <summary>Corpo de concreto (ou vazio) para a forma e para os cortes: polígono em planta extrudado em z.</summary>
