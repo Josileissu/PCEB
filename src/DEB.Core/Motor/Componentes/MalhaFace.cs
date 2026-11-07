@@ -39,6 +39,8 @@ public sealed class MalhaFace : ComponenteBase
         ("folga_abertura", "cm entre a abertura e a ponta da barra interrompida. Padrão = cobrimento."),
         ("trecho_minimo", "cm: trechos interrompidos até este comprimento são descartados. Padrão 10."),
         ("regra_quantidade", "texto: regra gravada para a quantidade. Padrão \"vão (face a face − 2·cobrimento) / espaçamento\"."),
+        ("cobrimento_normal", "1 = cobrimento das pontas medido na normal da face (corda do contorno encolhido: face curva ou oblíqua); " +
+                              "0 = ao longo da barra (corda − 2·cobrimento). Padrão 0."),
         ("publicar_topo", "texto: variável com o z da face interna da camada (inferior: máx.; superior: mín.). Padrão \"z_topo_inferior\" (inferior) ou \"\"."),
     };
 
@@ -60,6 +62,7 @@ public sealed class MalhaFace : ComponenteBase
             Ang = Graus(a.Num("angulo", 0)), Superior = sup, Bitola = phi, Esp = ctx.Par(p, "espacamento", arm.Espacamento, "cálculo (elemento)"),
             Z = sup ? zFace - phi / 20 - (camadas > 0 ? camadas * phi / 10 : 0) : zFace + phi / 20 + (camadas > 0 ? camadas * phi / 10 : 0),
         };
+        f.CobrimentoNormal = a.Bool("cobrimento_normal", false);
         f.Perna = ctx.Par(p, "perna", a.Num("perna", 0), a.Txt("regra_perna", "argumento da receita"));
 
         double t0 = contorno.Min(pt => Dot(f.N, pt)), t1 = contorno.Max(pt => Dot(f.N, pt));
