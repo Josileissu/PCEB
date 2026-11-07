@@ -338,6 +338,12 @@ public static class SerializacaoMotor
         foreach (var i in p.Sobrepostos.OrderBy(i => i)) so.Adicionar(ValorJson.De(i));
         var bs = ValorJson.NovaLista();
         foreach (var l in p.Barras) bs.Adicionar(Pontos(l));
+        if (p.TemArcos)
+        {
+            var bg = ValorJson.NovaLista();
+            foreach (var b in p.Bulges) bg.Adicionar(ValorJson.De(b));
+            o.Definir("bulges", bg).Definir("normalArcos", Pontos(new List<P3> { p.NormalArcos }));
+        }
         return o.Definir("comprimentosVar", cv).Definir("segmentosVar", sv).Definir("verticesVar", vv)
                 .Definir("sobrepostos", so).Definir("barras", bs);
     }
@@ -387,6 +393,17 @@ public static class SerializacaoMotor
         {
             p.Sobrepostos = new HashSet<int>();
             for (int i = 0; i < so.Quantidade; i++) p.Sobrepostos.Add(IntDeValor(so[i], $"{caminho}.sobrepostos[{i}]"));
+        }
+        var bg = Lista(o, "bulges", caminho);
+        if (bg != null)
+        {
+            p.Bulges = new List<double>();
+            for (int i = 0; i < bg.Quantidade; i++) p.Bulges.Add(NumDeValor(bg[i], $"{caminho}.bulges[{i}]"));
+            if (Presente(o, "normalArcos"))
+            {
+                var na = PontosDeJson(o["normalArcos"], $"{caminho}.normalArcos");
+                if (na.Count == 1) p.NormalArcos = na[0];
+            }
         }
         var bs = Lista(o, "barras", caminho);
         if (bs != null)

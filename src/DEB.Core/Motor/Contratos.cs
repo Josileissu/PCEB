@@ -173,6 +173,13 @@ public sealed class PosicaoArmadura
     // Camada 2 — geometria calculada (nunca digitada): barra representativa em 3D, eixo da barra.
     public List<P3> Vertices { get; set; } = new List<P3>();
     public bool Fechada { get; set; }
+    /// <summary>Arcos (2026-11-07, pedido do usuário): bulge de cada segmento (vértice k → k+1; fechada: o último volta ao
+    /// 1º), como na polilinha do CAD — tan(ângulo/4), positivo = anti-horário visto do lado de <see cref="NormalArcos"/>.
+    /// Vazio (ou 0) = segmento reto. Vale para todas as barras de <see cref="Barras"/> (mesma forma).</summary>
+    public List<double> Bulges { get; set; } = new List<double>();
+    /// <summary>Normal do plano dos arcos (padrão +z: arco horizontal, visto de cima).</summary>
+    public P3 NormalArcos { get; set; } = new P3(0, 0, 1);
+    public bool TemArcos => Bulges != null && Bulges.Exists(b => Math.Abs(b) > 1e-12);
     /// <summary>Formato de cada segmento (gancho, sobreposto…), como em BarraTemplate. Vazio = todos retos.</summary>
     public List<DEB.Core.Modelo.FormatoSegmento> Formatos { get; set; } = new List<DEB.Core.Modelo.FormatoSegmento>();
     public Distribuicao Distribuicao { get; set; } = new Distribuicao();

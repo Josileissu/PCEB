@@ -100,9 +100,9 @@ public sealed class BordaU : ComponenteBase
 /// <summary>
 /// <c>barras_borda</c>: barras corridas ao longo das faces, dentro dos U de borda (base retangular): <c>por_face</c>
 /// barras retas por lado, de canto a canto a cobrimento, distribuídas na altura entre as abas do U. Contorno circular
-/// precisa de barra curva (anel), que o modelo ainda não tem (só trechos retos): o componente avisa e não gera.
-/// <para>Consome Dados "contorno" (Var "circular"). Chaves: <c>{chave}_x</c> (lados em x), <c>{chave}_y</c>, ou
-/// <c>{chave}_{k}</c> por lado de outro polígono. Parâmetros (aceitam sobrescrita): bitola, por_lado. Informativos: quantidade (total), comprimento_reto.</para>
+/// (Var "circular" = 1): anéis fechados (dois arcos de 180°) por dentro dos U, como o template da base.
+/// <para>Consome Dados "contorno" (Var "circular", "raio"). Chaves: <c>{chave}_x</c> (lados em x), <c>{chave}_y</c>, ou
+/// <c>{chave}_{k}</c> por lado de outro polígono; circular: <c>{chave}_anel</c> (parâmetro informativo "emenda"). Parâmetros (aceitam sobrescrita): bitola, por_lado. Informativos: quantidade (total), comprimento_reto.</para>
 /// </summary>
 public sealed class BarrasBorda : ComponenteBase
 {
@@ -115,7 +115,8 @@ public sealed class BarrasBorda : ComponenteBase
         ("cobrimento", "cm na face lateral. Padrão 4."),
         ("bitola_u", "mm do U de borda (as barras ficam por dentro dele). Padrão 0."),
         ("z_inferior", "cm: face externa de baixo do U. Obrigatório."), ("z_superior", "cm: face externa de cima do U. Obrigatório."),
-        ("por_face", "barras por lado; 0 = quantidade da função. Padrão 0."),
+        ("por_face", "barras por lado (circular: anéis); 0 = quantidade da função. Padrão 0."),
+        ("emenda", "cm: traspasse das emendas alternadas do anel (só informativo, para a nota). Padrão 0."),
     };
 
     protected override void Executar(ContextoMotor ctx, ArgumentosComponente a)
@@ -124,14 +125,14 @@ public sealed class BarrasBorda : ComponenteBase
         var arm = ctx.Armadura(funcao);
         if (arm == null) return;
         string chave = a.Txt("chave", funcao);
-        if (ctx.Var("circular", 0) > 0.5)
-        {
-            ctx.Aviso($"{chave}: o anel de borda da base circular precisa de barra curva, que o modelo do motor ainda não tem — não gerado.");
-            return;
-        }
         var cont = Poligono(ctx, a);
         double c = a.Num("cobrimento", 4), phiU = a.Num("bitola_u", 0), zi = a.Num("z_inferior", 0), zs = a.Num("z_superior", 0);
         int porFaceArg = a.Int("por_face", 0);
+        if (ctx.Var("circular", 0) > 0.5 && ctx.Var("raio", 0) > 0)
+        {
+            Aneis(ctx, a, arm, chave, Centro(cont), ctx.Var("raio", 0), c, phiU, zi, zs, porFaceArg);
+            return;
+        }
         var face = Encolher(cont, c);
         bool ret = face.Count == 4 && Enumerable.Range(0, 4).All(k =>
         {
@@ -172,7 +173,7 @@ public sealed class BarrasBorda : ComponenteBase
                 });
             }
         }
-        foreach (var p in grupos.Values.Where(x => x.Barras.Count > 0))
+        foreach (var p in grupos.Values.Where(x => x.Barras.Count > 0).ToList())
         {
             p.Formatos.Add(FormatoSegmento.Linha);
             p.Parametros["quantidade"] = p.Barras.Count;
@@ -180,5 +181,31 @@ public sealed class BarrasBorda : ComponenteBase
             p.Distribuicao = new Distribuicao { Inicio = p.Barras[0][0], Fim = p.Barras[p.Barras.Count - 1][0], Quantidade = p.Barras.Count };
             ctx.Adicionar(p);
         }
+    }
+    /// <summary>Base circular: anéis (dois arcos de 180°) de raio = R − cobrimento − φU − φ/2, na altura entre as abas do U.</summary>
+    private static void Aneis(ContextoMotor ctx, ArgumentosComponente a, ArmaduraCalculada arm, string chave, (double X, double Y) ctr,
+        double R, double c, double phiU, double zi, double zs, int porFaceArg)
+    {
+        var p = ctx.NovaPosicao($"{chave}_anel", arm.Funcao, a.Txt("nome", "anel de borda"), FormaBarra.Generica);
+        double phi = ctx.Par(p, "bitola", arm.Bitola, "cálculo (elemento)");
+        int q = ctx.ParInt(p, "quantidade", porFaceArg > 0 ? porFaceArg : arm.Quantidade, porFaceArg > 0 ? "argumento da receita" : "cálculo (elemento)");
+        if (phi <= 0 || q <= 0) return;
+        double ra = R - c - phiU / 10 - phi / 20;
+        p.Parametros["raio"] = ra; p.Regras["raio"] = "raio − cobrimento − φ do U − φ/2 (eixo)";
+        double emenda = a.Num("emenda", 0);
+        if (emenda > 0) { p.Parametros["emenda"] = emenda; p.Regras["emenda"] = "traspasse das emendas alternadas (nota)"; }
+        double z0 = zi + phiU / 10 + phi / 20, z1 = zs - phiU / 10 - phi / 20;
+        for (int j = 0; j < q; j++)
+        {
+            double z = q == 1 ? (z0 + z1) / 2 : z0 + j * (z1 - z0) / (q - 1);
+            p.Barras.Add(new List<P3> { new P3(ctr.X + ra, ctr.Y, z), new P3(ctr.X - ra, ctr.Y, z) });
+        }
+        p.Bitola = phi;
+        p.Fechada = true;
+        p.Bulges.AddRange(new[] { 1.0, 1.0 });
+        p.NormalArcos = new P3(0, 0, 1);
+        p.Formatos.AddRange(new[] { FormatoSegmento.Curva, FormatoSegmento.Curva });
+        p.Distribuicao = new Distribuicao { Inicio = p.Barras[0][0], Fim = p.Barras[p.Barras.Count - 1][0], Quantidade = q };
+        ctx.Adicionar(p);
     }
 }
