@@ -368,7 +368,11 @@ public sealed partial class GeradorPrancha
                 continue;
             }
             var desenhados = new List<(double X, double Y)>();
-            if (casa) { r.Barras.Add(CriarBarra(c, i, i.P.Vertices.Select(p => (p.X, p.Y)).ToList())); desenhados.Add(Geometria2D.Centro(rep)); }
+            if (casa)
+            {
+                r.Barras.Add(CriarBarraNaVista(c, i, i.P.Vertices, p => (p.X, p.Y), Geo.Ex, Geo.Ey));
+                desenhados.Add(Geometria2D.Centro(i.P.TemArcos ? Geometria2D.SemRepetidos(proj[0]) : rep));
+            }
             foreach (var pp in proj)
             {
                 var cen = Geometria2D.Centro(pp);
@@ -468,9 +472,12 @@ public sealed partial class GeradorPrancha
             if (Geo.VerdadeiraGrandeza(i.Plano, k.Normal))
             {
                 // no plano: a barra mais perto do corte em verdadeira grandeza
-                var inst = i.Inst.OrderBy(q => Math.Abs(q.Average(p => k.N(p)) - k.C)).First();
+                int iInst = Enumerable.Range(0, i.Inst.Count).OrderBy(j => Math.Abs(i.Inst[j].Average(p => k.N(p)) - k.C)).First();
+                var inst = i.Inst[iInst];
                 var pts = inst.Select(p => (k.S(p), p.Z)).ToList();
-                if (casa) r.Barras.Add(CriarBarra(c, i, pts));
+                if (casa && i.P.TemArcos && iInst < i.InstBruta.Count)
+                    r.Barras.Add(CriarBarraNaVista(c, i, i.InstBruta[iInst], p => (k.S(p), p.Z), k.EmX ? Geo.Ex : Geo.Ey, Geo.Ez));
+                else if (casa) r.Barras.Add(CriarBarra(c, i, pts));
                 else
                 {
                     var pp = Geometria2D.SemRepetidos(pts);

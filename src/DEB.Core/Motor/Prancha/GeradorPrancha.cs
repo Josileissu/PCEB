@@ -73,6 +73,8 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
         public int Indice;
         public PlanoBarra Plano;
         public List<List<P3>> Inst = new List<List<P3>>();
+        /// <summary>Barras com arcos: os vértices de cada instância antes de discretizar (Inst tem os arcos em trechos).</summary>
+        public List<List<P3>> InstBruta = new List<List<P3>>();
         public BarraTemplate Barra;
         /// <summary>Vista onde a barra é desenhada; Dobrada = forma dobrada (vista de barras ou "barras abaixo").</summary>
         public string Casa = "";
@@ -282,7 +284,7 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
             i.Nome = nome;
             p.Distribuicao ??= new Distribuicao();
             var vs = p.Vertices ?? new List<P3>();
-            i.Plano = vs.Count >= 2 ? Geo.Plano(vs) : null;
+            i.Plano = vs.Count >= 2 ? Geo.Plano(p) : null;
             if (i.Plano == null)
             {
                 c.Aviso($"Prancha: posição \"{nome}\" sem geometria (menos de 2 vértices distintos); não desenhada.");
@@ -297,6 +299,12 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
                 int n = Math.Max(1, p.Distribuicao.Quantidade);
                 var delta = n > 1 ? (p.Distribuicao.Fim - p.Distribuicao.Inicio) * (1.0 / (n - 1)) : new P3(0, 0, 0);
                 for (int j = 0; j < n; j++) i.Inst.Add(vs.Select(q => q + delta * j).ToList());
+            }
+            if (p.TemArcos)
+            {
+                // as vistas em projeção usam os arcos em trechos; a barra "da casa" em verdadeira grandeza usa os arcos
+                i.InstBruta = i.Inst;
+                i.Inst = i.InstBruta.Select(l => Geo.Amostrar(l, p.Bulges, p.NormalArcos, p.Fechada)).ToList();
             }
             c.Pos.Add(i);
         }
@@ -331,7 +339,19 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
     // ======================== barras ========================
 
     /// <summary>A barra da posição com a forma em 2D (já nas coordenadas da vista).</summary>
-    private static BarraTemplate CriarBarra(Ctx c, Info i, List<(double X, double Y)> pts)
+    /// <summary>
+    /// Barra de uma instância numa vista de eixos (<paramref name="u"/>, <paramref name="v"/>): com os arcos se a vista os
+    /// mostra em verdadeira grandeza; senão, com os arcos em trechos.
+    /// </summary>
+    private static BarraTemplate CriarBarraNaVista(Ctx c, Info i, IReadOnlyList<P3> bruta, Func<P3, (double X, double Y)> proj, P3 u, P3 v)
+    {
+        var p = i.P;
+        var bg = Geo.BulgesNaVista(p, u, v);
+        if (bg != null) return CriarBarra(c, i, bruta.Select(proj).ToList(), bg);
+        return CriarBarra(c, i, Geo.Amostrar(bruta, p.Bulges, p.NormalArcos, p.Fechada).Select(proj).ToList());
+    }
+
+    private static BarraTemplate CriarBarra(Ctx c, Info i, List<(double X, double Y)> pts, List<double> bulges = null)
     {
         var p = i.P;
         var d = p.Distribuicao ?? new Distribuicao();
@@ -343,8 +363,11 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
         };
         if (i.Var) b.ComprimentosVar.AddRange(p.ComprimentosVar);
         foreach (var s in p.SegmentosVar ?? new HashSet<int>()) b.SegmentosVar.Add(s);
-        pts = Geometria2D.SemRepetidos(pts);
-        if (p.Fechada && pts.Count > 2 && Geometria2D.Dist(pts[0], pts[pts.Count - 1]) < 1e-4) pts.RemoveAt(pts.Count - 1);
+        if (bulges == null)
+        {
+            pts = Geometria2D.SemRepetidos(pts);
+            if (p.Fechada && pts.Count > 2 && Geometria2D.Dist(pts[0], pts[pts.Count - 1]) < 1e-4) pts.RemoveAt(pts.Count - 1);
+        }
         bool feito = false;
         if (p.Forma == FormaBarra.Estribo && p.Fechada && (p.Formatos == null || p.Formatos.Count == 0) && pts.Count >= 3)
         {
@@ -362,6 +385,7 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
         if (!feito)
         {
             b.Vertices.AddRange(pts);
+            if (bulges != null) b.Bulges.AddRange(bulges);
             b.Fechada = p.Fechada;
             int nseg = p.Fechada ? pts.Count : pts.Count - 1;
             if (p.Formatos != null && p.Formatos.Count == nseg) b.Formatos.AddRange(p.Formatos);
@@ -387,7 +411,7 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
     private static BarraTemplate Dobrada(Ctx c, Info i, double x, double yTopo)
     {
         var pts = Geo.Desenvolver(i.P.Vertices, i.Plano);
-        var b = CriarBarra(c, i, pts);
+        var b = CriarBarra(c, i, pts, i.P.TemArcos ? Geo.BulgesNaVista(i.P, i.Plano.U, i.Plano.V) : null);
         if (b.Vertices.Count == 0) return b;
         double mx = b.Vertices.Min(q => q.X), my = b.Vertices.Max(q => q.Y);
         for (int k = 0; k < b.Vertices.Count; k++) b.Vertices[k] = (b.Vertices[k].X - mx + x, b.Vertices[k].Y - my + yTopo);
@@ -530,7 +554,7 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
         double l;
         if (i.Var) l = p.ComprimentosVar.Sum();
         else if (p.Vertices.Count >= 2)
-            l = ComprimentoPorEixo.Calcular(p.Vertices.Select(v => (v.X, v.Y, v.Z)).ToList(), p.Fechada, p.Bitola, p.Aco ?? "CA-50",
+            l = ComprimentoPorEixo.Calcular(Geo.Amostrar(p.Vertices, p.Bulges, p.NormalArcos, p.Fechada).Select(v => (v.X, v.Y, v.Z)).ToList(), p.Fechada, p.Bitola, p.Aco ?? "CA-50",
                     p.Forma == FormaBarra.Estribo, false, cfg) * Math.Max(1, p.Distribuicao?.Quantidade ?? 1);
         else l = 0;
         return l * rep / 100 * MedidaBarra.MassaLinear(p.Bitola, p.Aco, cfg);

@@ -28,7 +28,7 @@ indicadas em `IComponente.Argumentos`. Textos de regra (`regra_*`) só vão para
 | `barras_secao_longitudinal` | longitudinais de seção retangular vertical: cantos (1 ou 3 em "L"), faces, emendas pelo comercial (alternadas ou na mesma seção; traspasse NBR 6118, mín. 45φ) — cálculo `SecaoBarras`, o mesmo do pilar pré-moldado | funcao, funcao_vizinha, funcao_face, funcao_estribo \| bitola_estribo, chave, centro_x/y, bx, by, cobrimento (+ _xp/_xm/_yp/_ym), z_inicio, z_fim, por_canto, espacamento_canto, n_face_x/y, emendas, mesma_secao, comercial, fck, feixe, feixe_vizinha, feixe_face | — | `{chave}_canto/_vizinha/_face_x/_face_y` (+ `_2…`, `_b1…` das peças); sobrescritas bitola e traspasse na chave do grupo |
 | `grampos_secao` | grampos suplementares de seção retangular vertical: retos (medida externa do estribo) com ganchos de 135° para dentro, um por par de intermediárias das faces (ou no meio), a cada espaçamento | funcao, chave, funcao_estribo \| bitola_estribo, funcao_longitudinal, centro_x/y, bx, by, cobrimento (+ _xp/_xm/_yp/_ym), por_canto, espacamento_canto, n_face_x/y, direcoes, z_inicio, z_fim, espacamento | — | `{chave}_x`, `{chave}_y` |
 | `borda_u` | U de borda em volta do contorno (perna na face lateral, abas para dentro); circular: radiais, perímetro/espaçamento; polígono: por lado | funcao, chave, contorno, cobrimento, z_inferior, z_superior, aba | `contorno`, Var `circular`/`raio` | `{chave}` |
-| `barras_borda` | barras corridas por lado dentro dos U (base retangular). Circular: aviso — o anel precisa de barra curva (o modelo só tem trechos retos) | funcao, chave, contorno, cobrimento, bitola_u, z_inferior, z_superior, por_face | `contorno`, Var `circular` | `{chave}_x`, `{chave}_y` (ou `_1…`) |
+| `barras_borda` | barras corridas por lado dentro dos U (base retangular); circular: anéis fechados (2 arcos de 180°) por dentro dos U | funcao, chave, contorno, cobrimento, bitola_u, z_inferior, z_superior, por_face, emenda | `contorno`, Var `circular`, `raio` | `{chave}_x`, `{chave}_y` (ou `_1…`); `{chave}_anel` |
 | `verificacoes_geometria` | eixo do apoio × raio; pilar fora do contorno | dist_face, raio_apoio, centro_x/y, pilar_bx/by, texto_pilar_fora | `contorno` | avisos |
 | `verificacoes_calice` | NBR 9062: Lemb ≥ 40 e ≥ 1,2/1,5·h, parede ≥ 15, fundo ≥ 20, colarinho > contorno | pilar_bx/by, embutimento, interface, colarinho, parede, z_topo, regularizacao | `calice_furo`, `contorno` | avisos |
 | `aviso` | aviso fixo (com `ativo` = condição) | texto | — | aviso |
@@ -58,3 +58,10 @@ o `MotorReceita` com ela. A sequência em C# (`ReceitaPadrao`) foi removida depo
   `RepositorioReceitas.ExportarFabrica`); arquivo inválido → fábrica + aviso. O `ValidadorReceita` confere sem executar.
 - `calice_forma` publica também `calice_colarinho_x0/x1/y0/y1` (trecho sem estribos verticais).
 - Fórmulas: além do pedido da frente R, `var('nome', padrão)` (variável de um componente anterior) e `tem('funcao')`.
+
+## Barras curvas (2026-11-07)
+
+`PosicaoArmadura.Bulges` (um por segmento, como a polilinha do CAD: tan(ângulo/4), positivo = anti-horário visto de
+`NormalArcos`, padrão +z) + `NormalArcos`. As mesmas para todas as barras de `Barras`. A prancha desenha os arcos de verdade
+quando a vista mostra o plano deles (planta para arcos horizontais, a forma dobrada sempre) e em trechos nas outras
+(`Arcos.Amostrar`). Gravados no JSON do modelo ("bulges", "normalArcos").

@@ -64,6 +64,27 @@ internal static class Geo
     public static P3 Positivo(P3 u) =>
         u.X > 1e-6 || (Math.Abs(u.X) <= 1e-6 && (u.Y > 1e-6 || (Math.Abs(u.Y) <= 1e-6 && u.Z >= 0))) ? u : u * -1;
 
+    /// <summary><see cref="Arcos.Amostrar"/>.</summary>
+    public static List<P3> Amostrar(IReadOnlyList<P3> v, IReadOnlyList<double> bulges, P3 normal, bool fechada, int porArco = 16) =>
+        Arcos.Amostrar(v, bulges, normal, fechada, porArco);
+
+    /// <summary>
+    /// Bulges da barra numa vista de eixos (<paramref name="u"/>, <paramref name="v"/>): só quando o plano dos arcos é o da
+    /// vista (verdadeira grandeza); o sinal acompanha o sentido da vista. null = a vista não mostra os arcos em verdadeira
+    /// grandeza (use <see cref="Amostrar"/>).
+    /// </summary>
+    public static List<double> BulgesNaVista(PosicaoArmadura p, P3 u, P3 v)
+    {
+        if (p == null || !p.TemArcos) return null;
+        double s = Dot(Unit(p.NormalArcos), Unit(Cross(u, v)));
+        if (Math.Abs(s) < 0.999) return null;
+        return p.Bulges.Select(b => s > 0 ? b : -b).ToList();
+    }
+
+    /// <summary>Plano da barra, considerando os arcos (o plano deles manda).</summary>
+    public static PlanoBarra Plano(PosicaoArmadura p) =>
+        p.TemArcos ? PlanoDaNormal(Unit(p.NormalArcos)) : Plano(p.Vertices);
+
     /// <summary>Plano da barra; null = sem geometria.</summary>
     public static PlanoBarra Plano(IReadOnlyList<P3> v)
     {

@@ -100,14 +100,56 @@ public class BaseReservatorioComponentesTests
     }
 
     [Fact]
-    public void AnelCircularAvisaQueFaltaBarraCurva()
+    public void AnelCircularComArcosAteAPrancha()
     {
+        var cfg = new ConfiguracaoArmadura();
         var ctx = Ctx(new ArmaduraCalculada { Funcao = "borda", Bitola = 12.5, Quantidade = 4 });
         ComponentesPadrao.ApoiosEstacas.Aplicar(ctx, Args().Com("forma", "circular").Com("diametro", 700).Com("arranjo", "nenhum"));
-        ComponentesPadrao.BarrasBorda.Aplicar(ctx, Args().Com("z_inferior", 5).Com("z_superior", 81));
+        ComponentesPadrao.CorpoPrismatico.Aplicar(ctx, Args().Com("papel", "bloco").Com("z0", 0).Com("z1", 85));
+        ComponentesPadrao.BarrasBorda.Aplicar(ctx, Args().Com("cobrimento", 4).Com("bitola_u", 10).Com("z_inferior", 5).Com("z_superior", 81)
+            .Com("emenda", 80));
         var m = ctx.Concluir();
-        Assert.Empty(m.Posicoes);
-        Assert.Contains(m.Avisos, a => a.Contains("barra curva"));
+        var anel = m.Posicao("borda_anel");
+        Assert.NotNull(anel);
+        Assert.Equal(4, anel.Barras.Count);
+        // raio como no template: R − cob − φU − φ/2
+        double ra = 350 - 4 - 1.0 - 0.625;
+        Assert.Equal(ra, anel.Parametros["raio"], 6);
+        Assert.True(anel.TemArcos && anel.Fechada);
+        Assert.Equal(80, anel.Parametros["emenda"]);
+
+        // arcos no JSON do modelo
+        var lido = DEB.Core.Motor.Json.SerializacaoMotor.LerModelo(DEB.Core.Motor.Json.SerializacaoMotor.GravarModelo(m)).Posicao("borda_anel");
+        Assert.Equal(anel.Bulges, lido.Bulges);
+        Assert.Equal(anel.NormalArcos, lido.NormalArcos);
+
+        // prancha: a barra desenhada é um círculo (2 arcos) e o aço é o de um anel de raio ra
+        var r = new DEB.Core.Motor.Prancha.GeradorPrancha(cfg).Gerar(ctx.Elemento, m, new PerfilDetalhamento { TipoElemento = "teste" });
+        var b = r.Barras.First(x => x.Nome == "borda_anel");
+        Assert.Equal(2, b.Vertices.Count);
+        Assert.Equal(2, b.Bulges.Count);
+        Assert.All(b.Bulges, g => Assert.Equal(1, Math.Abs(g), 9));
+        Assert.True(b.Fechada);
+        double L = MedidaBarra.Unitario(b, cfg);
+        Assert.InRange(L, 2 * Math.PI * ra * 0.98, 2 * Math.PI * (ra + 1) * 1.02);
+        Assert.DoesNotContain(r.Avisos, x => x.Contains("erro"));
+    }
+
+    [Fact]
+    public void AmostrarArcoNoEspaco()
+    {
+        // semicírculo de (10,0,0) a (-10,0,0) anti-horário visto de +z passa por (0,10,0); visto de -z, por (0,-10,0)
+        var v = new List<P3> { new P3(10, 0, 0), new P3(-10, 0, 0) };
+        var a = Arcos.Amostrar(v, new[] { 1.0 }, new P3(0, 0, 1), false, 4);
+        Assert.Equal(5, a.Count);
+        Assert.Equal(10, a[2].Y, 9);
+        Assert.All(a, q => Assert.Equal(10, q.Comprimento, 9));
+        var b = Arcos.Amostrar(v, new[] { 1.0 }, new P3(0, 0, -1), false, 4);
+        Assert.Equal(-10, b[2].Y, 9);
+        // quarto de círculo (bulge tan(22,5°)) num plano vertical
+        var c = Arcos.Amostrar(new List<P3> { new P3(0, 0, 0), new P3(10, 0, 10) },
+            new[] { Math.Tan(Math.PI / 8) }, new P3(0, -1, 0), false, 8);
+        Assert.All(c, q => Assert.Equal(10, (q - new P3(0, 0, 10)).Comprimento, 6));
     }
 
     [Fact]
