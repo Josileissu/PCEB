@@ -20,6 +20,7 @@ public class ReceitasTests
         public string Tipo => "publica_largura";
         public IReadOnlyDictionary<string, string> Argumentos { get; } = new Dictionary<string, string> { ["base"] = "cm", ["fator"] = "adimensional" };
         public IReadOnlyCollection<string> VariaveisPublicadas { get; } = new[] { "largura" };
+        public IReadOnlyCollection<string> VariaveisPublicadasCom(ArgumentosComponente args) => VariaveisPublicadas;
         public void Aplicar(ContextoMotor ctx, ArgumentosComponente args) => ctx.Variaveis["largura"] = args.Num("base", 0) * args.Num("fator", 1);
     }
 

@@ -17,7 +17,8 @@ namespace DEB.Core.Motor.Componentes;
 public sealed class CaliceForma : ComponenteBase
 {
     public override string Tipo => "calice_forma";
-    public override IReadOnlyCollection<string> VariaveisPublicadas { get; } = new[] { "z_fundo_pilar", "z_fundo_calice" };
+    public override IReadOnlyCollection<string> VariaveisPublicadas { get; } = new[] { "z_fundo_pilar", "z_fundo_calice",
+        "calice_colarinho_x0", "calice_colarinho_x1", "calice_colarinho_y0", "calice_colarinho_y1" };
     protected override IEnumerable<(string, string)> Docs => new[]
     {
         ("centro_x", "cm: centro do pilar em x. Obrigatório."), ("centro_y", "cm: centro do pilar em y. Obrigatório."),
@@ -54,6 +55,9 @@ public sealed class CaliceForma : ComponenteBase
         double zP = hT - a.Num("embutimento", 0), zF = zP - reg;
         ctx.Variaveis["z_fundo_pilar"] = zP;
         ctx.Variaveis["z_fundo_calice"] = zF;
+        // limites do colarinho (ou da parede do cálice embutido) para as receitas (ex.: trecho sem estribos verticais)
+        ctx.Variaveis["calice_colarinho_x0"] = cr.X0; ctx.Variaveis["calice_colarinho_x1"] = cr.X1;
+        ctx.Variaveis["calice_colarinho_y0"] = cr.Y0; ctx.Variaveis["calice_colarinho_y1"] = cr.Y1;
         if (!a.Bool("corpos", true)) return;
         var cs = ctx.Modelo.Corpos;
         if (colar && hT > hB) cs.Add(new CorpoConcreto { Papel = "colarinho", Planta = cr.Planta(), Z0 = hB, Z1 = hT });

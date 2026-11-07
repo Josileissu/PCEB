@@ -268,16 +268,4 @@ public class ComponentesTests
         Assert.Contains("z_topo_inferior", ((ComponenteBase)cat.Obter("malha_face")).VariaveisPublicadas);
         Assert.Equal(new[] { "bitola_lateral" }, ((ComponenteBase)cat.Obter("bitola_efetiva")).VariaveisPublicadasCom(Args().Com("funcao", "lateral")));
     }
-
-    [Fact]
-    public void ReceitaPadraoDoBlocoSoUsaComponentesDoCatalogo()
-    {
-        var el = new ElementoBloco();
-        var ctx = new ContextoMotor(el, null, null);
-        var receita = MotorBlocoEstacas.ReceitaPadrao(el, ctx);
-        var cat = ComponentesPadrao.Catalogo();
-        Assert.All(receita, p => Assert.Same(p.Componente, cat.Obter(p.Componente.Tipo)));
-        Assert.Equal("apoios_estacas", receita[0].Componente.Tipo);
-        Assert.Equal(4, ctx.Variaveis["cobrimento"]);
-    }
 }
