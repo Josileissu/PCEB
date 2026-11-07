@@ -48,20 +48,13 @@ public sealed class RepositorioPerfis
     public RepositorioPerfis(string pasta) { Pasta = string.IsNullOrWhiteSpace(pasta) ? null : pasta; }
 
     /// <summary>%AppData%/PCEB/Perfis (o que o CAD usa).</summary>
-    public static string PastaPadrao() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PCEB", "Perfis");
+    public static string PastaPadrao() => ArquivosUsuarioJson.PastaPadrao("Perfis");
 
     /// <summary>Caminho do arquivo do perfil (existindo ou não); null se o Id não serve como nome de arquivo.</summary>
-    public string CaminhoArquivo(string id)
-    {
-        if (Pasta == null || !IdValido(id)) return null;
-        return Path.Combine(Pasta, id + ".json");
-    }
+    public string CaminhoArquivo(string id) => ArquivosUsuarioJson.Caminho(Pasta, id);
 
     /// <summary>Id aceito como nome de arquivo: não vazio, sem separadores de pasta nem caracteres inválidos.</summary>
-    public static bool IdValido(string id) =>
-        !string.IsNullOrWhiteSpace(id) && id.Trim() == id && id != "." && id != ".." &&
-        id.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 && id.IndexOf('/') < 0 && id.IndexOf('\\') < 0;
+    public static bool IdValido(string id) => ArquivosUsuarioJson.IdValido(id);
 
     /// <summary>Perfil por Id: fábrica + arquivo. Nunca lança exceção (problemas vão para Avisos).</summary>
     public ResultadoPerfil Obter(string id)
@@ -79,18 +72,11 @@ public sealed class RepositorioPerfis
             }
             else if (File.Exists(arq))
             {
-                try
-                {
-                    var doc = TextoJson.LerArquivo(arq);
-                    var m = Mesclar(fabrica, doc, id, r.Avisos);
-                    r.Perfil = m;
-                    r.Arquivo = arq;
-                }
-                catch (Exception e) when (e is FormatException || e is IOException || e is UnauthorizedAccessException)
-                {
-                    r.Avisos.Add($"Perfil \"{id}\": o arquivo {arq} não foi usado ({e.Message})" +
+                var m = ArquivosUsuarioJson.TentarLer(arq, t => Mesclar(fabrica, TextoJson.Ler(t), id, r.Avisos), out var motivo);
+                if (motivo == null) { r.Perfil = m; r.Arquivo = arq; }
+                else
+                    r.Avisos.Add($"Perfil \"{id}\": o arquivo {arq} não foi usado ({motivo})" +
                                  (fabrica != null ? "; valem os valores de fábrica." : "."));
-                }
             }
             if (r.Perfil == null) r.Avisos.Add($"Perfil \"{id}\" não existe (fábrica: {string.Join(", ", PerfisFabrica.Ids)}).");
         }
@@ -147,17 +133,7 @@ public sealed class RepositorioPerfis
         var p = PerfisFabrica.Obter(id);
         if (p == null) { erro = $"Não há perfil de fábrica \"{id}\"."; return false; }
         if (caminho == null) { erro = Pasta == null ? "Pasta de perfis não definida." : $"Id \"{id}\" inválido como nome de arquivo."; return false; }
-        try
-        {
-            if (File.Exists(caminho) && !sobrescrever) { erro = $"O arquivo {caminho} já existe (não foi sobrescrito)."; return false; }
-            TextoJson.GravarArquivo(caminho, SerializacaoMotor.Documento(SerializacaoMotor.ParaJson(p)));
-            return true;
-        }
-        catch (Exception e) when (e is IOException || e is UnauthorizedAccessException || e is NotSupportedException || e is ArgumentException)
-        {
-            erro = $"Não foi possível gravar {caminho}: {e.Message}";
-            return false;
-        }
+        return ArquivosUsuarioJson.Gravar(caminho, () => SerializacaoMotor.Documento(SerializacaoMotor.ParaJson(p)), sobrescrever, out erro);
     }
 
     /// <summary>Perfis disponíveis: os de fábrica (com o arquivo, se houver) e os arquivos *.json da pasta.</summary>

@@ -1,8 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using DEB.Core.Configuracao;
+using DEB.Core.Persistencia;
 using DEB.Core.Templates;
 using DEB.Core.Templates.PilarPreMoldado;
 using Xunit;
@@ -43,24 +44,25 @@ public class PreviaTemplateTests
         Gravar(pasta, "previa_bloco_b15.json", t.Gerar(v15, new ConfiguracaoArmadura()));
     }
 
-    private static void Gravar(string pasta, string arquivo, ResultadoTemplate r)
+    /// <summary>Grava a prévia (formato lido por tools/previa_template.py). Usado também pelos testes do motor.</summary>
+    internal static void Gravar(string pasta, string arquivo, ResultadoTemplate r)
     {
-        string P((double X, double Y) p) => FormattableString.Invariant($"[{p.X:0.###},{p.Y:0.###}]");
-        string Ps(System.Collections.Generic.IEnumerable<(double X, double Y)> ps) => "[" + string.Join(",", ps.Select(P)) + "]";
-        string S(string s) => "\"" + (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ") + "\"";
-        var sb = new StringBuilder("{");
-        sb.Append("\"barras\":[" + string.Join(",", r.Barras.Select(b => Ps(b.Vertices))) + "],");
-        sb.Append("\"contornos\":[" + string.Join(",", r.Contornos.Select(c => Ps(c.Fechado ? c.Vertices.Concat(c.Vertices.Take(1)) : c.Vertices))) + "],");
-        sb.Append("\"layers\":[" + string.Join(",", r.Contornos.Select(c => S(c.Layer))) + "],");
-        sb.Append("\"textos\":[" + string.Join(",", r.Textos.Select(x => FormattableString.Invariant(
-            $"{{\"t\":{S(x.Texto)},\"x\":{x.X:0.###},\"y\":{x.Y:0.###},\"h\":{x.Altura:0.###},\"a\":{x.Angulo:0.####},\"al\":{x.Alinhamento}}}"))) + "],");
-        sb.Append("\"circulos\":[" + string.Join(",", r.Circulos.Select(c => FormattableString.Invariant($"[{c.X:0.###},{c.Y:0.###},{c.Raio:0.###}]"))) + "],");
-        sb.Append("\"cotas\":[" + string.Join(",", r.Cotas.Select(c => "[" + P(c.P1) + "," + P(c.P2) + "," + P(c.Posicao) + "]")) + "],");
-        sb.Append("\"faixas\":[" + string.Join(",", r.Faixas.Select(f => "[" + P(f.P1) + "," + P(f.P2) + "," + P(f.Posicao) + "," + Ps(f.Referencias) + "]")) + "],");
-        sb.Append("\"tabelas\":[" + string.Join(",", r.Tabelas.Select(x => FormattableString.Invariant($"[{x.X:0.###},{x.Y:0.###},{x.Larguras.Sum() * x.Escala / 10:0.###},{(x.Linhas.Count + 1) * 0.8 * x.Escala:0.###}]"))) + "],");
-        sb.Append("\"ra\":" + (r.PosicaoRA is { } ra ? P(ra) : "null"));
-        sb.Append("}");
-        Directory.CreateDirectory(pasta);
-        File.WriteAllText(Path.Combine(pasta, arquivo), sb.ToString(), new UTF8Encoding(false));
+        ValorJson N(double d, int casas = 3) => ValorJson.De(Math.Round(d, casas));
+        ValorJson L(params ValorJson[] itens) { var l = ValorJson.NovaLista(); foreach (var i in itens) l.Adicionar(i); return l; }
+        ValorJson P((double X, double Y) p) => L(N(p.X), N(p.Y));
+        ValorJson Ps(IEnumerable<(double X, double Y)> ps) => L(ps.Select(P).ToArray());
+        ValorJson S(string s) => ValorJson.De((s ?? "").Replace("\n", " "));
+        var o = ValorJson.NovoObjeto()
+            .Definir("barras", L(r.Barras.Select(b => Ps(b.Vertices)).ToArray()))
+            .Definir("contornos", L(r.Contornos.Select(c => Ps(c.Fechado ? c.Vertices.Concat(c.Vertices.Take(1)) : c.Vertices)).ToArray()))
+            .Definir("layers", L(r.Contornos.Select(c => S(c.Layer)).ToArray()))
+            .Definir("textos", L(r.Textos.Select(x => ValorJson.NovoObjeto().Definir("t", S(x.Texto)).Definir("x", N(x.X)).Definir("y", N(x.Y))
+                .Definir("h", N(x.Altura)).Definir("a", N(x.Angulo, 4)).Definir("al", x.Alinhamento)).ToArray()))
+            .Definir("circulos", L(r.Circulos.Select(c => L(N(c.X), N(c.Y), N(c.Raio))).ToArray()))
+            .Definir("cotas", L(r.Cotas.Select(c => L(P(c.P1), P(c.P2), P(c.Posicao))).ToArray()))
+            .Definir("faixas", L(r.Faixas.Select(f => L(P(f.P1), P(f.P2), P(f.Posicao), Ps(f.Referencias))).ToArray()))
+            .Definir("tabelas", L(r.Tabelas.Select(x => L(N(x.X), N(x.Y), N(x.Larguras.Sum() * x.Escala / 10), N((x.Linhas.Count + 1) * 0.8 * x.Escala))).ToArray()))
+            .Definir("ra", r.PosicaoRA is { } ra ? P(ra) : ValorJson.Nulo);
+        Json.GravarArquivo(Path.Combine(pasta, arquivo), o);
     }
 }
