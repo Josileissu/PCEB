@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using DEB.Core.Calculo;
 using DEB.Core.Configuracao;
+using DEB.Core.Modelo;
 
 namespace DEB.Core.Motor.Componentes;
 
