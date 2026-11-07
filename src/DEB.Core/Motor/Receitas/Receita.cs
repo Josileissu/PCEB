@@ -134,15 +134,15 @@ public static class SerializacaoReceita
             if (ver.Numero < 1) throw new FormatException($"{caminho}.versao: versão {ver.Numero} inválida.");
             r.Versao = (int)ver.Numero;
         }
-        r.TipoElemento = Texto(o, "tipoElemento", caminho) ?? "";
-        r.Descricao = Texto(o, "descricao", caminho) ?? "";
+        r.TipoElemento = LeitorJson.Txt(o, "tipoElemento", null, caminho) ?? "";
+        r.Descricao = LeitorJson.Txt(o, "descricao", null, caminho) ?? "";
 
         int i = 0;
         foreach (var v in Lista(o, "variaveis", caminho))
         {
             string cam = $"{caminho}.variaveis[{i++}]";
-            Objeto(v, cam);
-            var nome = Texto(v, "nome", cam);
+            LeitorJson.Objeto(v, cam);
+            var nome = LeitorJson.Txt(v, "nome", null, cam);
             if (!Formula.NomeValido(nome))
                 throw new FormatException($"{cam}.nome: \"{nome}\" não serve como nome de variável (letras, dígitos, _ e pontos; começa com letra; não pode ser nome de função).");
             r.Variaveis.Add(new VariavelReceita { Nome = nome, Formula = FormulaCampo(v, "formula", cam, obrigatoria: true) });
@@ -151,11 +151,11 @@ public static class SerializacaoReceita
         foreach (var p in Lista(o, "passos", caminho))
         {
             string cam = $"{caminho}.passos[{i++}]";
-            Objeto(p, cam);
+            LeitorJson.Objeto(p, cam);
             var passo = new PassoReceita
             {
-                Componente = Texto(p, "componente", cam) ?? "",
-                Nome = Texto(p, "nome", cam) ?? "",
+                Componente = LeitorJson.Txt(p, "componente", null, cam) ?? "",
+                Nome = LeitorJson.Txt(p, "nome", null, cam) ?? "",
                 Se = FormulaCampo(p, "se", cam, obrigatoria: false),
             };
             if (string.IsNullOrWhiteSpace(passo.Componente)) throw new FormatException($"{cam}.componente: falta o nome do componente.");
@@ -171,11 +171,11 @@ public static class SerializacaoReceita
         foreach (var c in Lista(o, "verificacoes", caminho))
         {
             string cam = $"{caminho}.verificacoes[{i++}]";
-            Objeto(c, cam);
+            LeitorJson.Objeto(c, cam);
             r.Verificacoes.Add(new VerificacaoReceita
             {
                 Condicao = FormulaCampo(c, "condicao", cam, obrigatoria: true),
-                Aviso = Texto(c, "aviso", cam) ?? "",
+                Aviso = LeitorJson.Txt(c, "aviso", null, cam) ?? "",
                 Se = FormulaCampo(c, "se", cam, obrigatoria: false),
             });
         }
@@ -212,25 +212,13 @@ public static class SerializacaoReceita
 
     // ------------------------------------------------------------------ auxiliares
 
-    private static void Objeto(ValorJson v, string cam)
-    {
-        if (v == null || !v.EhObjeto) throw new FormatException($"{cam}: esperado um objeto {{ … }}.");
-    }
-
+    // "esperada uma lista" (≠ LeitorJson.Lista, "esperado"): mensagem mantida; ausente → lista vazia.
     private static IReadOnlyList<ValorJson> Lista(ValorJson o, string campo, string cam)
     {
         var v = o[campo];
         if (v == null || v.EhNulo) return Array.Empty<ValorJson>();
         if (!v.EhLista) throw new FormatException($"{cam}.{campo}: esperada uma lista [ … ].");
         return v.Itens;
-    }
-
-    private static string Texto(ValorJson o, string campo, string cam)
-    {
-        var v = o[campo];
-        if (v == null || v.EhNulo) return null;
-        if (v.Tipo != TipoJson.Texto) throw new FormatException($"{cam}.{campo}: esperado um texto entre aspas.");
-        return v.Texto;
     }
 
     /// <summary>Fórmula: texto; número e booleano também são aceitos (viram "1.5", "1"/"0").</summary>
