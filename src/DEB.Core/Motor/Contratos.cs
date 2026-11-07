@@ -174,12 +174,19 @@ public sealed class PosicaoArmadura
     public bool Fechada { get; set; }
     /// <summary>Formato de cada segmento (gancho, sobreposto…), como em BarraTemplate. Vazio = todos retos.</summary>
     public List<DEB.Core.Modelo.FormatoSegmento> Formatos { get; set; } = new List<DEB.Core.Modelo.FormatoSegmento>();
+    /// <summary>Segmentos sobrepostos (passagem dos ganchos do estribo pelo canto), como em BarraTemplate. Opcional
+    /// (frente C, 2026-11-07): estribo fechado sem <see cref="Formatos"/> ganha os ganchos na prancha.</summary>
+    public HashSet<int> Sobrepostos { get; set; } = new HashSet<int>();
     public Distribuicao Distribuicao { get; set; } = new Distribuicao();
     /// <summary>Grupo VAR: comprimento externo de cada barra (a representativa é a de <see cref="Vertices"/>).</summary>
     public List<double> ComprimentosVar { get; set; } = new List<double>();
     public HashSet<int> SegmentosVar { get; set; } = new HashSet<int>();
     /// <summary>Geometria de cada barra do grupo VAR (opcional; a prancha usa para desenhar a malha completa).</summary>
     public List<List<P3>> VerticesVar { get; set; } = new List<List<P3>>();
+    /// <summary>Geometria de TODAS as barras (Count = Quantidade × Repeticoes), quando uma distribuição linear não basta
+    /// (malha interrompida, 2 faixas, paredes opostas). Opcional; preenchido, as vistas desenham por ele e a
+    /// <see cref="Distribuicao"/> continua valendo para a faixa e o texto.</summary>
+    public List<List<P3>> Barras { get; set; } = new List<List<P3>>();
 }
 
 /// <summary>Corpo de concreto (ou vazio) para a forma e para os cortes: polígono em planta extrudado em z.</summary>
@@ -260,6 +267,12 @@ public sealed class FolhaPerfil
     public bool InformacoesProducao { get; set; } = true;
     /// <summary>Notas gerais (uma por item).</summary>
     public List<string> Notas { get; set; } = new List<string>();
+    /// <summary>Textos da prancha que dependem do elemento/escritório, "PT|EN" (opcional, frente C, 2026-11-07). Chaves:
+    /// "nivel.&lt;nível&gt;" (rótulo do nível no corte da forma; só aparecem os níveis com rótulo), "papel.&lt;papel&gt;" (texto
+    /// do corpo no corte, aceita {e} = espessura), "peca" ("BLOCO|PILE CAP"), "grupo" (DadosDetalhamento.Grupo),
+    /// "nivel_referencia" (nível a que <see cref="ElementoEstrutural.Niveis"/> se refere; padrão "topo"). Faltando, valem os
+    /// padrões de <c>DEB.Core.Motor.Prancha.VocabularioPrancha</c>.</summary>
+    public Dictionary<string, string> Rotulos { get; set; } = new Dictionary<string, string>();
 }
 
 public sealed class PerfilDetalhamento
