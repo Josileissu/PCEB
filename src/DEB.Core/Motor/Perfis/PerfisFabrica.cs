@@ -53,6 +53,7 @@ public static class PerfisFabrica
                 ["arranque.espera"] = 0,
                 ["calice.grampos"] = 1,
                 ["principal.perna"] = 0,
+                ["fundo_calice.comprimento"] = 100,
             },
             Regras = new Dictionary<string, string>
             {

@@ -407,7 +407,7 @@ public class PerfilJsonTests
         {
             ["cobrimento.solo"] = 4, ["cobrimento.calice"] = 2, ["secundaria.perna"] = 20, ["superior.perna"] = 20,
             ["suspensao.desconto_perna_externa"] = 6, ["arranque.pe"] = 20, ["arranque.espera"] = 0, ["calice.grampos"] = 1,
-            ["principal.perna"] = 0,
+            ["principal.perna"] = 0, ["fundo_calice.comprimento"] = 100,
         };
         Assert.Equal(esperado.OrderBy(k => k.Key), p.Padroes.OrderBy(k => k.Key));
         Assert.Equal("altura_base", p.Regra("principal.perna", ""));
@@ -507,7 +507,7 @@ public class PerfilJsonTests
     }
 
     [Fact]
-    public void Repositorio_folha_do_arquivo_substitui_a_inteira()
+    public void Repositorio_folha_do_arquivo_mescla_campo_a_campo()
     {
         var pasta = PastaTemp();
         try
@@ -517,8 +517,9 @@ public class PerfilJsonTests
             Assert.Equal(25, p.Folha.Escala);
             Assert.Equal("PT/EN", p.Folha.Idioma);
             Assert.Single(p.Folha.Vistas);
-            Assert.Empty(p.Folha.Detalhes);   // não veio no arquivo: padrão do contrato, não o da fábrica
-            Assert.Empty(p.Folha.Notas);
+            // não vieram no arquivo: ficam os da fábrica (mesclagem campo a campo, decisão de 2026-11-07)
+            Assert.Equal(PerfisFabrica.BpmBloco().Folha.Detalhes, p.Folha.Detalhes);
+            Assert.Equal(PerfisFabrica.BpmBloco().Folha.Notas, p.Folha.Notas);
             Assert.Equal(4, p.Padrao("cobrimento.solo", 0));
         }
         finally { Directory.Delete(pasta, true); }

@@ -333,7 +333,12 @@ public static class SerializacaoMotor
         foreach (var i in p.SegmentosVar.OrderBy(i => i)) sv.Adicionar(ValorJson.De(i));
         var vv = ValorJson.NovaLista();
         foreach (var l in p.VerticesVar) vv.Adicionar(Pontos(l));
-        return o.Definir("comprimentosVar", cv).Definir("segmentosVar", sv).Definir("verticesVar", vv);
+        var so = ValorJson.NovaLista();
+        foreach (var i in p.Sobrepostos.OrderBy(i => i)) so.Adicionar(ValorJson.De(i));
+        var bs = ValorJson.NovaLista();
+        foreach (var l in p.Barras) bs.Adicionar(Pontos(l));
+        return o.Definir("comprimentosVar", cv).Definir("segmentosVar", sv).Definir("verticesVar", vv)
+                .Definir("sobrepostos", so).Definir("barras", bs);
     }
 
     public static PosicaoArmadura PosicaoDeJson(ValorJson o, string caminho = "posicao")
@@ -375,6 +380,18 @@ public static class SerializacaoMotor
         {
             p.VerticesVar = new List<List<P3>>();
             for (int i = 0; i < vv.Quantidade; i++) p.VerticesVar.Add(PontosDeJson(vv[i], $"{caminho}.verticesVar[{i}]"));
+        }
+        var so = Lista(o, "sobrepostos", caminho);
+        if (so != null)
+        {
+            p.Sobrepostos = new HashSet<int>();
+            for (int i = 0; i < so.Quantidade; i++) p.Sobrepostos.Add(IntDeValor(so[i], $"{caminho}.sobrepostos[{i}]"));
+        }
+        var bs = Lista(o, "barras", caminho);
+        if (bs != null)
+        {
+            p.Barras = new List<List<P3>>();
+            for (int i = 0; i < bs.Quantidade; i++) p.Barras.Add(PontosDeJson(bs[i], $"{caminho}.barras[{i}]"));
         }
         return p;
     }
@@ -429,10 +446,16 @@ public static class SerializacaoMotor
             .Definir("notas", Textos(f.Notas));
     }
 
-    public static FolhaPerfil FolhaDeJson(ValorJson o, string caminho = "folha")
+    /// <param name="base">Folha de partida (mesclagem campo a campo: o que faltar no JSON fica como na base).</param>
+    public static FolhaPerfil FolhaDeJson(ValorJson o, string caminho = "folha", FolhaPerfil @base = null)
     {
         Objeto(o, caminho);
-        var f = new FolhaPerfil();
+        var f = @base == null ? new FolhaPerfil() : new FolhaPerfil
+        {
+            Idioma = @base.Idioma, Escala = @base.Escala, Titulo = @base.Titulo, Vistas = new List<VistaPerfil>(@base.Vistas),
+            Detalhes = new List<string>(@base.Detalhes), RelacaoAco = @base.RelacaoAco,
+            InformacoesProducao = @base.InformacoesProducao, Notas = new List<string>(@base.Notas),
+        };
         f.Idioma = Txt(o, "idioma", f.Idioma, caminho);
         f.Escala = Num(o, "escala", f.Escala, caminho);
         f.Titulo = Txt(o, "titulo", f.Titulo, caminho);
