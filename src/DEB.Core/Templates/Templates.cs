@@ -285,8 +285,8 @@ public static class CatalogoTemplates
     public static readonly IReadOnlyList<(CategoriaElemento Categoria, string Nome, string Variacoes)> Categorias = new[]
     {
         (CategoriaElemento.BaseCircularReservatorio, "Base de reservatório", "circular ou retangular, sobre estacas"),
-        (CategoriaElemento.Bloco1Estaca, "Bloco de 1 estaca", "arranque do pilar; falta: colarinho ou cálice (pilar pré-moldado)"),
-        (CategoriaElemento.Bloco2Estacas, "Bloco sobre 2 ou mais estacas", "estacas em grade (2, 3 em linha, 4, 6…); falta: 3 e 5 em triângulo/quincôncio, cálice"),
+        (CategoriaElemento.Bloco1Estaca, "Bloco de 1 estaca", "cálice com colarinho, cálice embutido ou arranque do pilar"),
+        (CategoriaElemento.Bloco2Estacas, "Bloco sobre 2 ou mais estacas", "estacas em grade (2, 3 em linha, 4, 6…) ou 3 em triângulo; cálice com colarinho, embutido ou arranque; falta: 5 estacas"),
         (CategoriaElemento.PilarPreMoldado, "Pilar pré-moldado", "consolos, içamento, zonas de estribos"),
         (CategoriaElemento.VigaPreMoldada, "Viga pré-moldada", "protendida ou não"),
         (CategoriaElemento.PilarMoldadoInLoco, "Pilar moldado in loco", ""),
