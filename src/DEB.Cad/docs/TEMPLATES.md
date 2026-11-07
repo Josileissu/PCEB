@@ -189,7 +189,7 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
   com regularização, concreto magro e NÍVEIS por pilar a partir do topo — tabela "Níveis"); ARMADURA (VISTA SUPERIOR da
   inferior principal, inferior secundária e superior com as dobradas embaixo; CÁLICE; ARM. LATERAL HORIZONTAL; CORTES A-A e
   B-B com barras em ponto e chamadas curtas; arranque); relação do aço; INFORMAÇÕES P/ PRODUÇÃO; detalhes padrão do pilar
-  (`TemplatePilarPreMoldado.DesenharDetalhesComuns`: DETALHE 01 chaves, raio de curvatura, emendas, comprimento das barras);
+  (`DetalhesTipicos.Desenhar`, em `DEB.Core/Templates/DetalhesTipicos.cs`: DETALHE 01 chaves, raio de curvatura, emendas, comprimento das barras);
   ANCORAGEM DAS ARMADURAS DAS ESTACAS; INDICAÇÃO BARRA VARIÁVEL; notas. Idioma PT, EN ou PT/EN.
 - Detalhamento com repetições = nº de pilares (`ResultadoTemplate.DadosDetalhamento`: grupo, classe, volume, área de forma).
 - Avisos: estaca/pilar fora, Lemb < 40 e < 1,2h/1,5h (NBR 9062 Tab. 15), parede < 15, fundo sob o cálice < 20, arranque < lb.
