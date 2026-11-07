@@ -104,6 +104,54 @@ public class SecaoLongitudinalTests
     }
 
     [Fact]
+    public void GramposAmarramAsIntermediariasComGanchos135ParaDentro()
+    {
+        var ctx = Ctx(null, A("longitudinal", 20), A("estribo", 6.3), new ArmaduraCalculada { Funcao = "grampo", Bitola = 6.3, Espacamento = 15 });
+        ComponentesPadrao.GramposSecao.Aplicar(ctx, new ArgumentosComponente()
+            .Com("centro_x", 100).Com("centro_y", 200).Com("bx", 50).Com("by", 50).Com("cobrimento", 3).Com("funcao_estribo", "estribo")
+            .Com("n_face_y", 2).Com("z_inicio", 0).Com("z_fim", 150));
+        var m = ctx.Concluir();
+        var gx = m.Posicao("grampo_x");
+        var gy = m.Posicao("grampo_y");
+        Assert.Equal(2, gx.Parametros["linhas"]);          // um por par de intermediárias das faces ±x
+        Assert.Equal(1, gy.Parametros["linhas"]);          // faces ±y sem intermediárias: no meio
+        int n = (int)gx.Parametros["quantidade"];
+        Assert.Equal(n * 2, gx.Barras.Count);
+        Assert.Equal(44, gx.Parametros["comprimento_reto"], 6);   // 50 − 2·3: medida externa do estribo
+        var b = gx.Barras[0];
+        Assert.Equal(4, b.Count);
+        Assert.Equal(44 - 0.63, (b[2] - b[1]).Comprimento, 6);    // eixo do trecho reto
+        // as y das intermediárias da face (mesmo cálculo das longitudinais)
+        var faces = SecaoBarras.Posicoes(50, 50, new[] { 3.0, 3, 3, 3 }, 6.3, 20, 1, 5, 20, 0, 2, 20).Where(s => s.Grupo == "faceH").Select(s => 200 - 25 + s.Y);
+        Assert.Contains(faces, y => Math.Abs(y - b[1].Y) < 1e-6);
+        // ganchos a 45°, para dentro (rumo ao centro da seção) e todos no mesmo z
+        var h0 = b[0] - b[1];
+        Assert.Equal(h0.X, Math.Abs(h0.Y) * Math.Sign(h0.X), 6);
+        Assert.Equal(Math.Sign(200 - b[1].Y), Math.Sign(h0.Y));
+        Assert.All(b, q => Assert.Equal(b[0].Z, q.Z, 9));
+        Assert.Equal(new[] { DEB.Core.Modelo.FormatoSegmento.Gancho45, DEB.Core.Modelo.FormatoSegmento.Linha, DEB.Core.Modelo.FormatoSegmento.Gancho45 }, gx.Formatos);
+    }
+
+    [Fact]
+    public void PranchaDesenhaLongitudinaisEGrampos()
+    {
+        var cfg = new ConfiguracaoArmadura();
+        var ctx = Ctx(null, A("longitudinal", 20), A("estribo", 6.3), new ArmaduraCalculada { Funcao = "grampo", Bitola = 6.3, Espacamento = 15 });
+        ComponentesPadrao.CorpoPrismatico.Aplicar(ctx, new ArgumentosComponente().Com("papel", "pilar").Com("x0", 75).Com("y0", 175).Com("x1", 125).Com("y1", 225).Com("z0", 0).Com("z1", 1500));
+        ComponentesPadrao.SecaoLongitudinal.Aplicar(ctx, Pilar50(1500).Com("comercial", 1200).Com("n_face_y", 2));
+        ComponentesPadrao.GramposSecao.Aplicar(ctx, new ArgumentosComponente()
+            .Com("centro_x", 100).Com("centro_y", 200).Com("bx", 50).Com("by", 50).Com("funcao_estribo", "estribo")
+            .Com("n_face_y", 2).Com("z_inicio", 0).Com("z_fim", 1500));
+        var m = ctx.Concluir();
+        var r = new DEB.Core.Motor.Prancha.GeradorPrancha(cfg).Gerar(ctx.Elemento, m, new PerfilDetalhamento { TipoElemento = "teste" });
+        Assert.DoesNotContain(r.Avisos, x => x.Contains("erro"));
+        foreach (var p in m.Posicoes)
+            Assert.Contains(r.Barras, b => b.Nome == p.Chave);
+        double aco = r.Barras.Sum(b => DEB.Core.Templates.MedidaBarra.Peso(b, cfg));
+        Assert.True(aco > 0);
+    }
+
+    [Fact]
     public void SemEmendaAvisaQuandoPassaDoComercial()
     {
         var ctx = Ctx(null, A("longitudinal", 20));

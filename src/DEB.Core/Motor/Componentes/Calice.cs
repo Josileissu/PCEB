@@ -155,21 +155,14 @@ public sealed class CaliceArmaduras : ComponenteBase
                 foreach (int lado in new[] { 0, 1 })
                     foreach (var z in zs)
                     {
-                        List<P3> pts;
-                        if (emX)
-                        {
-                            double xa = acx - L / 2, xb = acx + L / 2, yy = lado == 0 ? y0 : y1, sg = lado == 0 ? 1 : -1;
-                            pts = new List<P3> { new P3(xa, yy + sg * pg, z), new P3(xa, yy, z), new P3(xb, yy, z), new P3(xb, yy + sg * pg, z) };
-                        }
-                        else
-                        {
-                            double ya = acy - L / 2, yb = acy + L / 2, xx = lado == 0 ? x0 : x1, sg = lado == 0 ? 1 : -1;
-                            pts = new List<P3> { new P3(xx + sg * pg, ya, z), new P3(xx, ya, z), new P3(xx, yb, z), new P3(xx + sg * pg, yb, z) };
-                        }
-                        g.Barras.Add(pts);
+                        double sg = lado == 0 ? 1 : -1;
+                        double yy = lado == 0 ? y0 : y1, xx = lado == 0 ? x0 : x1;
+                        g.Barras.Add(emX
+                            ? BarrasUtil.Grampo(new P3(acx - L / 2, yy, z), new P3(acx + L / 2, yy, z), new P3(0, sg, 0), pg, false)
+                            : BarrasUtil.Grampo(new P3(xx, acy - L / 2, z), new P3(xx, acy + L / 2, z), new P3(sg, 0, 0), pg, false));
                     }
                 g.Bitola = phiG;
-                g.Formatos.AddRange(new[] { FormatoSegmento.Linha, FormatoSegmento.Linha, FormatoSegmento.Linha });
+                for (int k = 0; k + 1 < g.Barras[0].Count; k++) g.Formatos.Add(FormatoSegmento.Linha);
                 var ref0 = emX ? new P3(acx, y0, 0) : new P3(x0, acy, 0);
                 g.Distribuicao = new Distribuicao
                 {
