@@ -45,6 +45,9 @@ internal sealed class PlanoBarra
 {
     /// <summary>Barra reta (todos os segmentos na mesma direção <see cref="D"/>).</summary>
     public bool Reta;
+    /// <summary>false = barra não plana (ex.: grampo com as pernas dobradas de lado): N é o plano com mais comprimento,
+    /// mas nenhuma vista a mostra em verdadeira grandeza; a vista de barras a desenha planificada (<see cref="Geo.Desenvolver"/>).</summary>
+    public bool Plana = true;
     public P3 D, N, U, V;
     public (double X, double Y) Em2D(P3 p) => (Geo.Dot(p, U), Geo.Dot(p, V));
 }
@@ -67,12 +70,20 @@ internal static class Geo
         var dirs = new List<P3>();
         for (int i = 0; i + 1 < v.Count; i++) { var d = v[i + 1] - v[i]; if (d.Comprimento > 1e-6) dirs.Add(Unit(d)); }
         if (dirs.Count == 0) return null;
-        for (int i = 0; i < dirs.Count; i++)
+        P3? primeira = null;
+        for (int i = 0; i < dirs.Count && primeira == null; i++)
             for (int j = i + 1; j < dirs.Count; j++)
             {
                 var cr = Cross(dirs[i], dirs[j]);
-                if (cr.Comprimento > 1e-3) return PlanoDaNormal(Unit(cr));
+                if (cr.Comprimento > 1e-3) { primeira = Unit(cr); break; }
             }
+        if (primeira is P3 n0)
+        {
+            if (dirs.All(d => Math.Abs(Dot(d, n0)) < 1e-3)) return PlanoDaNormal(n0);
+            var pn = PlanoDaNormal(PlanoPrincipal(v) ?? n0);
+            pn.Plana = false;
+            return pn;
+        }
         var D = Positivo(dirs[0]);
         var p = new PlanoBarra { Reta = true, D = D };
         if (Math.Abs(D.Z) > 0.999) { p.U = Ex; p.V = Ez; p.N = Ey; }
@@ -100,9 +111,92 @@ internal static class Geo
         return p;
     }
 
+    /// <summary>
+    /// Plano principal de uma barra não plana: o de dois trechos seguidos em que só as PONTAS ficam de fora (para poder
+    /// planificar girando as pontas), com o maior comprimento; sem nenhum assim, o de maior comprimento. null = reta.
+    /// </summary>
+    public static P3? PlanoPrincipal(IReadOnlyList<P3> v)
+    {
+        int n = v.Count - 1;
+        var d = new List<P3>(); var len = new List<double>();
+        for (int k = 0; k < n; k++) { var a = v[k + 1] - v[k]; len.Add(a.Comprimento); d.Add(Unit(a)); }
+        P3? melhor = null; double score = -1; bool melhorValido = false;
+        for (int k = 0; k + 1 < n; k++)
+        {
+            var cr = Cross(d[k], d[k + 1]);
+            if (cr.Comprimento < 1e-3) continue;
+            var nn = Unit(cr);
+            var dentro = Enumerable.Range(0, n).Select(j => len[j] < 1e-9 || Math.Abs(Dot(d[j], nn)) < 1e-3).ToArray();
+            int ini = Array.IndexOf(dentro, true), fim = Array.LastIndexOf(dentro, true);
+            bool valido = ini >= 0 && Enumerable.Range(ini, fim - ini + 1).All(j => dentro[j]);
+            double sc = Enumerable.Range(0, n).Where(j => dentro[j]).Sum(j => len[j]);
+            if ((valido && !melhorValido) || (valido == melhorValido && sc > score + 1e-9)) { melhor = nn; score = sc; melhorValido = valido; }
+        }
+        return melhor;
+    }
+
+    /// <summary>
+    /// Forma da barra em 2D para a vista de barras (verdadeira grandeza). Barra plana: a projeção no plano dela. Barra NÃO
+    /// plana (ex.: grampo vertical do cálice, com as pernas dobradas de lado): planifica no <see cref="PlanoPrincipal"/> e
+    /// gira para dentro dele os trechos das pontas que saem do plano, mantendo o comprimento e o ângulo de dobra, com a ponta
+    /// livre para fora (como o desenho do escritório). Trecho fora do plano no meio da barra: projetado.
+    /// </summary>
+    public static List<(double X, double Y)> Desenvolver(IReadOnlyList<P3> v, PlanoBarra plano)
+    {
+        if (plano == null) return v.Select(q => (q.X, q.Y)).ToList();
+        var proj = v.Select(q => plano.Em2D(q)).ToList();
+        if (plano.Reta || v.Count < 3) return proj;
+        int n = v.Count - 1;
+        var d = new P3[n]; var len = new double[n];
+        for (int k = 0; k < n; k++) { len[k] = (v[k + 1] - v[k]).Comprimento; d[k] = Unit(v[k + 1] - v[k]); }
+        bool NoPlano(P3 u, P3 nn) => Math.Abs(Dot(u, nn)) < 1e-3;
+        if (Enumerable.Range(0, n).All(k => len[k] < 1e-9 || NoPlano(d[k], plano.N))) return proj;
+
+        var melhor = PlanoPrincipal(v) ?? plano.N;
+        var pl = PlanoDaNormal(melhor);
+        var dentro = Enumerable.Range(0, n).Select(k => len[k] < 1e-9 || NoPlano(d[k], melhor)).ToArray();
+        var dir = new (double X, double Y)[n];
+        for (int k = 0; k < n; k++) dir[k] = pl.Em2D(d[k]);
+        var pontosDentro = Enumerable.Range(0, n).Where(k => dentro[k]).SelectMany(k => new[] { pl.Em2D(v[k]), pl.Em2D(v[k + 1]) }).ToList();
+        if (pontosDentro.Count == 0) return proj;
+        var cen = Geometria2D.Centro(pontosDentro);
+        (double X, double Y) Girar((double X, double Y) a, double t) => (a.X * Math.Cos(t) - a.Y * Math.Sin(t), a.X * Math.Sin(t) + a.Y * Math.Cos(t));
+        double Dist2((double X, double Y) a) => (a.X - cen.X) * (a.X - cen.X) + (a.Y - cen.Y) * (a.Y - cen.Y);
+
+        // pontas fora do plano: giradas para dentro dele (início: em relação ao trecho seguinte; fim: ao anterior)
+        int ini = 0; while (ini < n && !dentro[ini]) ini++;
+        int fim = n - 1; while (fim >= 0 && !dentro[fim]) fim--;
+        if (ini > fim) return proj;
+        var pos = new (double X, double Y)[v.Count];
+        for (int k = ini; k <= fim + 1; k++) pos[k] = pl.Em2D(v[k]);
+        for (int k = ini + 1; k <= fim; k++)   // trechos do meio fora do plano: projetados (posições já são as projeções)
+            if (!dentro[k]) dir[k] = (pos[k + 1].X - pos[k].X, pos[k + 1].Y - pos[k].Y);
+        for (int k = ini - 1; k >= 0; k--)
+        {
+            double th = Math.Acos(Math.Max(-1, Math.Min(1, Dot(d[k], d[k + 1]))));
+            var ref_ = dir[k + 1];
+            var a = Girar(ref_, th); var b = Girar(ref_, -th);
+            var pa = (pos[k + 1].X - len[k] * a.X, pos[k + 1].Y - len[k] * a.Y);
+            var pb = (pos[k + 1].X - len[k] * b.X, pos[k + 1].Y - len[k] * b.Y);
+            bool usaA = Dist2(pa) >= Dist2(pb);
+            dir[k] = usaA ? a : b; pos[k] = usaA ? pa : pb;
+        }
+        for (int k = fim + 1; k < n; k++)
+        {
+            double th = Math.Acos(Math.Max(-1, Math.Min(1, Dot(d[k - 1], d[k]))));
+            var ref_ = dir[k - 1];
+            var a = Girar(ref_, th); var b = Girar(ref_, -th);
+            var pa = (pos[k].X + len[k] * a.X, pos[k].Y + len[k] * a.Y);
+            var pb = (pos[k].X + len[k] * b.X, pos[k].Y + len[k] * b.Y);
+            bool usaA = Dist2(pa) >= Dist2(pb);
+            dir[k] = usaA ? a : b; pos[k + 1] = usaA ? pa : pb;
+        }
+        return pos.ToList();
+    }
+
     /// <summary>A barra aparece em verdadeira grandeza numa vista de normal <paramref name="vn"/>.</summary>
     public static bool VerdadeiraGrandeza(PlanoBarra p, P3 vn) =>
-        p != null && (p.Reta ? Math.Abs(Dot(p.D, vn)) < 1e-3 : Cross(p.N, vn).Comprimento < 1e-3);
+        p != null && (p.Reta ? Math.Abs(Dot(p.D, vn)) < 1e-3 : p.Plana && Cross(p.N, vn).Comprimento < 1e-3);
 
     /// <summary>
     /// Contorno da união dos retângulos cheios menos os vazios (s × z), como laços fechados anti-horários. Serve para o corte
