@@ -58,8 +58,9 @@ public class PilarItensTests
         Assert.Contains(r.Textos, t => t.Texto == "ESPAÇAMENTO BARRAS");
         Assert.Contains(r.Textos, t => t.Texto == "REFORÇO NOS FUROS DOS PILARES");
         Assert.Contains(r.Textos, t => t.Texto == "ATENÇÃO!");
-        Assert.Contains(r.Textos, t => t.Texto == "RAIO (r) DE CURVATURA PARA GANCHOS");
-        Assert.Contains(r.Tabelas, t => t.Titulo.StartsWith("BITOLA (Ø)"));
+        // detalhe típico (raio de curvatura, emendas, comprimento das barras) removido do pilar (pedido do usuário, 2026-11-07)
+        Assert.DoesNotContain(r.Textos, t => t.Texto == "RAIO (r) DE CURVATURA PARA GANCHOS");
+        Assert.DoesNotContain(r.Tabelas, t => t.Titulo.StartsWith("BITOLA (Ø)"));
         // alças pelo CG: cotas base → alça → alça → topo somam o comprimento
         var cadeia = r.Cotas.Where(c => Math.Abs(c.Angulo - Math.PI / 2) < 1e-9 && c.Texto == "").ToList();
         Assert.Contains(cadeia, c => Math.Abs(c.P1.Y) < 1e-9 && c.P2.Y > 200 && c.P2.Y < 300);
