@@ -2454,6 +2454,8 @@ public sealed class AutoTeste
                 double yMin = r.Barras.SelectMany(bb => bb.Vertices).Where(p => p.X < tArm.X + 2000).Select(p => p.Y).DefaultIfEmpty(tArm.Y - 300).Min();
                 janelas.Add((nome + "_armaduras", origem.X + tArm.X - 40, origem.Y + yMin - 60, origem.X + tArm.X + 520, origem.Y + tArm.Y + 15));
             }
+            if (r.ColunaDetalhes is { } colDet)
+                janelas.Add((nome + "_detalhes", origem.X + colDet.X - 20, origem.Y + colDet.Y - 700, origem.X + colDet.X + 700, origem.Y + colDet.Y + 20));
             var tSec = r.Textos.Where(q => q.Texto.StartsWith("SEÇÃO")).ToList();
             if (tSec.Count > 0)
                 janelas.Add((nome + "_secoes", origem.X + tSec.Min(q => q.X) - 20, origem.Y + tSec.Min(q => q.Y) - 160,
@@ -2468,6 +2470,7 @@ public sealed class AutoTeste
             {
                 var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
                 Checar(bt.Has(nome), $"{nome}: detalhamento criado");
+                foreach (var det in r.DetalhesBiblioteca) Checar(bt.Has("DET_" + det), $"{nome}: detalhe típico \"{det}\" inserido da biblioteca");
                 tr.Commit();
             }
         }

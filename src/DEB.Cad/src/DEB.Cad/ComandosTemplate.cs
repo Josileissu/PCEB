@@ -295,6 +295,46 @@ public sealed class ComandosTemplate
             dim.DimensionStyle = EstilosCota.Garantir(db, tr, c.Escala > 0 ? c.Escala : r.Escala, cpu);
         }
         foreach (var t in r.Tabelas) Tabela(tr, db, esp, t, P3(t.X, t.Y), cfg, cpu, r.Escala, todos);
+
+        // ---- detalhes típicos da biblioteca do escritório (DWG inseridos como bloco, empilhados na coluna à direita;
+        //      decisão do usuário, 2026-11-08: nunca desenhados por código) ----
+        if (r.DetalhesBiblioteca.Count > 0 && r.ColunaDetalhes.HasValue)
+        {
+            var btab = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+            double cx = r.ColunaDetalhes.Value.X, cy = r.ColunaDetalhes.Value.Y;
+            foreach (var nomeDet in r.DetalhesBiblioteca)
+            {
+                string arq = BibliotecaDetalhes.Arquivo(nomeDet);
+                if (!File.Exists(arq)) { r.Avisos.Add($"Detalhe típico \"{nomeDet}\" não está na biblioteca ({arq}): não inserido."); continue; }
+                string nomeBloco = "DET_" + nomeDet;
+                ObjectId defId;
+                try
+                {
+                    if (btab.Has(nomeBloco)) defId = btab[nomeBloco];
+                    else
+                    {
+                        using var lado = new Database(false, true);
+                        lado.ReadDwgFile(arq, FileOpenMode.OpenForReadAndAllShare, true, "");
+                        lado.CloseInput(true);
+                        defId = db.Insert(nomeBloco, lado, true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Erro("Template.DetalheBiblioteca", ex);
+                    r.Avisos.Add($"Detalhe típico \"{nomeDet}\" não pôde ser lido ({ex.Message}).");
+                    continue;
+                }
+                // unidades da folha (mm do papel) × escala do desenho; os outros já estão em cm
+                double fator = (BibliotecaDetalhes.EmUnidadesDeFolha(nomeDet) ? r.Escala / 10 : 1) * BibliotecaDetalhes.FatorArquivo(nomeDet) / cpu;
+                var br = Add(new BlockReference(P3(cx, cy), defId) { ScaleFactors = new Scale3d(fator) }, Layer("ARM-DETALHE-TIPICO", 7));
+                Extents3d ext;
+                try { ext = br.GeometricExtents; } catch { continue; }
+                var canto = P3(cx, cy);
+                br.TransformBy(Matrix3d.Displacement(new Vector3d(canto.X - ext.MinPoint.X, canto.Y - ext.MaxPoint.Y, 0)));
+                cy -= (ext.MaxPoint.Y - ext.MinPoint.Y) * cpu + r.Escala / 2;
+            }
+        }
         foreach (var hc in r.Hachuras)
         {
             try

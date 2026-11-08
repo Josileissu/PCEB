@@ -132,4 +132,34 @@ public class VigaArmadurasTests
         Assert.Contains(r.Textos, x => x.Texto.StartsWith("GRAMPO"));
         Assert.Contains(r.Textos, x => x.Texto.StartsWith("COSTURA"));
     }
+
+    [Fact]
+    public void AlcaNoFundoNaRelacaoEDetalhesDaBiblioteca()
+    {
+        var (r, v) = Gerar(v => { v["H"] = "75"; v["CobFundo"] = "2.5"; v["AlcaEmb"] = "0"; v["AlcaPernas"] = "2"; });
+        Assert.Equal(72.5, TemplateVigaPreMoldada.EmbutimentoAlcaViga(v), 6);   // até o fundo: h − cobrimento do fundo
+        var alca = r.Barras.Single(b => b.Nome == "alca");
+        Assert.Equal("CP-190", alca.Aco);
+        Assert.Equal(2, alca.Quantidade);
+        Assert.Equal(2, alca.Repeticoes);                       // duas alças
+        Assert.Contains(r.Textos, t => t.Texto == "ALÇA DE IÇAMENTO");
+        // detalhes típicos pedidos à biblioteca (nunca desenhados por código), na coluna à direita da relação do aço
+        Assert.Contains(BibliotecaDetalhes.RaioEmendasComprimento, r.DetalhesBiblioteca);
+        Assert.Contains(BibliotecaDetalhes.SoldaTirante, r.DetalhesBiblioteca);
+        Assert.True(r.ColunaDetalhes.Value.X > r.PosicaoRA.Value.X);
+        Assert.DoesNotContain(r.Textos, t => t.Texto.StartsWith("RAIO (r) DE CURVATURA"));
+    }
+
+    [Fact]
+    public void EstabilidadeLateralPelaNbr9062()
+    {
+        // 6.1.6: L/b ≤ 50 e L·h/b² ≤ 500, com L entre as alças
+        var (ok, _) = TemplateVigaPreMoldada.EstabilidadeLateral(800, 20, 75);
+        Assert.Equal(40, ok, 6);
+        Assert.Equal(150, TemplateVigaPreMoldada.EstabilidadeLateral(800, 20, 75).Indice, 6);   // 800·75 / 20²
+        var (r, _) = Gerar(v => { v["B"] = "15"; v["H"] = "90"; v["L"] = "1500"; v["ExtE"] = "Reta"; v["ExtD"] = "Reta"; });
+        Assert.Contains(r.Avisos, a => a.StartsWith("Estabilidade lateral"));
+        var (r2, _) = Gerar(v => { v["B"] = "40"; v["H"] = "50"; v["L"] = "767"; });
+        Assert.DoesNotContain(r2.Avisos, a => a.StartsWith("Estabilidade lateral"));
+    }
 }
