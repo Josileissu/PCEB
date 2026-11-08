@@ -189,15 +189,15 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         // ---------------- armaduras em elevação (etapa 2) ----------------
         var longs = LerLongitudinais(v, L, v.Numero("CobPontas"), e, d, r.Avisos);
         var zonas = ZonasEstribos(v, cfg, L, e, d);
-        double yArm = ArmadurasEmElevacao(c, v, cfg, b, h, L, e, d, longs, zonas, cortes, yE - 16 * hv);
-
-        // ---------------- protensão (VP-3): cordoalhas abaixo das passivas ----------------
+        // ---------------- protensão (VP-3): superiores acima das passivas, as outras abaixo ----------------
         bool prot = v.SimNao("Protendida");
         var cords = prot ? LerCordoalhas(v, r.Avisos) : new List<GrupoCordoalhas>();
+        double yArm = ArmadurasEmElevacao(c, v, cfg, b, h, L, e, d, longs, zonas, cortes, yE - 16 * hv, cords.Where(g => Superior(g, h)).ToList());
+
         VerificarCordoalhas(cords, b, h, v.Numero("CobLateral"), v.Numero("CobFundo"), v.Numero("CobTopo"), v.Numero("EstBitola"),
             prot ? v.Numero("FcjSaque") : 99, e, d, r.Avisos);
         VerificarPassivasComCordoalhas(cords, longs, b, h, v.Numero("CobFundo"), v.Numero("CobTopo"), v.Numero("CobLateral"), v.Numero("EstBitola"), r.Avisos);
-        CordoalhasEmElevacao(c, cords, h, L, e, d, yArm - 2 * hv);
+        CordoalhasEmElevacao(c, cords.Where(g => !Superior(g, h)).ToList(), h, L, e, d, yArm - 2 * hv);
 
         // ---------------- seções de forma e de armadura (coluna à direita das vistas) ----------------
         double xS = L + 25 * hv, yS = 0, xSA = xS + b + 25 * hc;

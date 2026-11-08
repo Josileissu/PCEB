@@ -125,6 +125,12 @@ public sealed partial class TemplateVigaPreMoldada
             avisos.Add($"fcj na liberação da protensão = {Num(fcjProt, "0.#")} MPa < 21 MPa (NBR 9062 9.2.5.3).");
     }
 
+    /// <summary>
+    /// Cordoalha superior (controle da tração no topo na liberação): fiada acima da meia altura. Vai numa linha à parte ACIMA das
+    /// passivas, como nas pranchas 1071/1078 — cada linha do lado da face em que está na seção.
+    /// </summary>
+    public static bool Superior(GrupoCordoalhas g, double h) => g.Y > h / 2;
+
     /// <summary>Trecho da cordoalha ao longo da viga: de ponta a ponta, ou da face do recorte se a fiada passa no recorte do dente.</summary>
     public static (double Ini, double Fim) TrechoCordoalha(GrupoCordoalhas g, double h, double L, ExtremidadeViga e, ExtremidadeViga d) =>
         (e.TemDente && g.Y < e.Recorte(h) ? e.CompDente : 0, L - (d.TemDente && g.Y < d.Recorte(h) ? d.CompDente : 0));
@@ -132,17 +138,19 @@ public sealed partial class TemplateVigaPreMoldada
     private static string ListaNumeros(GrupoCordoalhas g) => string.Join(", ", g.Cordoalhas.Select(c => c.Numero));
 
     /// <summary>ARMADURAS DE PROTENSÃO abaixo de <paramref name="yTopo"/>: uma linha por grupo com o isolamento cotado; devolve o y abaixo.</summary>
-    private static double CordoalhasEmElevacao(Ctx c, List<GrupoCordoalhas> gs, double h, double L, ExtremidadeViga e, ExtremidadeViga d, double yTopo)
+    private static double CordoalhasEmElevacao(Ctx c, List<GrupoCordoalhas> gs, double h, double L, ExtremidadeViga e, ExtremidadeViga d, double yTopo,
+        bool superiores = false)
     {
         if (gs.Count == 0) return yTopo;
         double hv = c.hV, esc = c.escV, y = yTopo;
         int n = gs.Sum(g => g.Quantidade);
         var phis = gs.Select(g => g.Bitola).Distinct().OrderBy(p => p).Select(p => "ø " + Num(p, "0.0") + "mm").ToList();
-        foreach (var t in c.Linhas($"ARMADURAS DE PROTENSÃO - {n} {string.Join(" / ", phis)} CP 190 RB",
-                                   $"PRESTRESSING STRANDS - {n} {string.Join(" / ", phis)} CP 190 RB"))
+        foreach (var t in c.Linhas($"ARMADURAS DE PROTENSÃO{(superiores ? " SUPERIORES" : "")} - {n} {string.Join(" / ", phis)} CP 190 RB",
+                                   $"{(superiores ? "TOP " : "")}PRESTRESSING STRANDS - {n} {string.Join(" / ", phis)} CP 190 RB"))
         { c.Texto(t, 0, y, 1.0 * hv); y -= 1.6 * hv; }
         y -= 5 * hv;
-        foreach (var g in gs.OrderBy(g => g.Fiada).ThenBy(g => g.Linha))
+        // como na seção: as de cima primeiro nas superiores, as de baixo por último nas inferiores
+        foreach (var g in (superiores ? gs.OrderByDescending(g => g.Fiada) : gs.OrderBy(g => g.Fiada)).ThenBy(g => g.Linha))
         {
             var (ini, fim) = TrechoCordoalha(g, h, L, e, d);
             c.R.Barras.Add(new BarraTemplate

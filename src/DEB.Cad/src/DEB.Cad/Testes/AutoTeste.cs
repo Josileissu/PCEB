@@ -2438,7 +2438,7 @@ public sealed class AutoTeste
                      ("ExtE", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta),
                      ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
                      // VP-3: protendida como a V148 da GRU 710 (11 ø15,2, isolamento em grupos)
-                     ("Protendida", "Sim"), ("Longitudinais", "Superior|2|12.5|1|0|0||;Pele|3|10|1|0|0||"), ("Cordoalhas", "1|5|15.2|0|0|20.5;1|2|15.2|250|250|20.5;2|2|15.2|0|0|20.5;2|2|15.2|120|120|20.5") })
+                     ("Protendida", "Sim"), ("Longitudinais", "Superior|2|12.5|1|0|0||;Pele|3|10|1|0|0||"), ("Cordoalhas", "1|5|15.2|0|0|20.5;1|2|15.2|250|250|20.5;2|2|15.2|0|0|20.5;2|2|15.2|120|120|20.5;18|2|12.7|0|0|10") })
             vReta[k] = val;
         var casos = new[] { ("V144", v144, new Point3d(12000, -5000, 0)), ("V149", vReta, new Point3d(12000, -12000, 0)) };
         var janelas = new List<(string, double, double, double, double)>();
