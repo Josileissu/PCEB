@@ -427,10 +427,9 @@ public class PerfilJsonTests
         Assert.Equal("x", f.Vistas.First(v => v.Id == "corte_a").Plano);
         Assert.Equal("x", f.Vistas.First(v => v.Id == "forma_corte_a").Plano);
         Assert.Equal(new[] { "principal" }, f.Vistas.First(v => v.Id == "principal").Posicoes);
-        Assert.Equal(new[] { "calice_topo", "calice", "calice_vertical", "suspensao", "fundo_calice", "arranque", "arranque_estribo" },
-            f.Vistas.First(v => v.Id == "calice").Posicoes);
+        Assert.Equal(new[] { "calice_topo", "calice", "calice_vertical" }, f.Vistas.First(v => v.Id == "calice").Posicoes);
         Assert.Equal(new[] { "lateral", "estribo_vertical" }, f.Vistas.First(v => v.Id == "lateral").Posicoes);
-        Assert.Equal(new[] { "principal", "secundaria", "superior", "calice" }, f.Vistas.Where(v => v.BarrasAbaixo).Select(v => v.Id));
+        Assert.Equal(new[] { "principal", "secundaria", "superior", "calice", "corte_a" }, f.Vistas.Where(v => v.BarrasAbaixo).Select(v => v.Id));
         // vistas não repetem lugar na folha
         Assert.Equal(f.Vistas.Count, f.Vistas.Select(v => (v.Quadro, v.Linha, v.Ordem)).Distinct().Count());
         Assert.Equal(new[] { "chaves", "ancoragem_estacas", "barra_variavel" }, f.Detalhes);

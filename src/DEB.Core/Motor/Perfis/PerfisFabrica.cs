@@ -90,10 +90,16 @@ public static class PerfisFabrica
         f.Vistas.Add(new VistaPerfil
         {
             Id = "calice", Titulo = "CÁLICE|SOCKET", Tipo = TipoVista.Planta,
-            Posicoes = { Funcoes.CaliceTopo, Funcoes.Calice, Funcoes.CaliceVertical, Funcoes.Suspensao, Funcoes.FundoCalice, Funcoes.Arranque, Funcoes.ArranqueEstribo },
+            // como nas folhas do escritório (B4, B28, B3.1): na planta do cálice só as horizontais, os grampos e as verticais;
+            // suspensão, barras sob o pilar e arranque ficam com a forma embaixo do corte A-A (2026-11-08)
+            Posicoes = { Funcoes.CaliceTopo, Funcoes.Calice, Funcoes.CaliceVertical },
             BarrasAbaixo = true, Quadro = 1, Linha = 0, Ordem = 3,
         });
-        f.Vistas.Add(new VistaPerfil { Id = "corte_a", Titulo = "CORTE A-A|SECTION A-A", Tipo = TipoVista.Corte, Plano = "x", Quadro = 1, Linha = 1, Ordem = 0 });
+        f.Vistas.Add(new VistaPerfil
+        {
+            Id = "corte_a", Titulo = "CORTE A-A|SECTION A-A", Tipo = TipoVista.Corte, Plano = "x", Quadro = 1, Linha = 1, Ordem = 0,
+            BarrasAbaixo = true,
+        });
         f.Vistas.Add(new VistaPerfil { Id = "corte_b", Titulo = "CORTE B-B|SECTION B-B", Tipo = TipoVista.Corte, Plano = "y", Quadro = 1, Linha = 1, Ordem = 1 });
         // A folha atual desenha a lateral e o estribo vertical já como barras dobradas (sem planta): tipo Barras.
         f.Vistas.Add(new VistaPerfil
