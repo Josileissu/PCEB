@@ -389,10 +389,10 @@ Etapas do VP-1 + VP-2, cada uma conferida pelo usuário antes da seguinte:
    alturas nas pontas, marcas A/B/C), seções de forma (dente cortado + recorte em vista; vão), notas (cobrimentos fundo /
    topo / laterais / pontas, tolerâncias da tab. 2, neoprene, contraflecha, E adotado, estocagem) e informações para
    produção. Volume = seção cheia − recortes (a V144 dá 0,432 m³ / 1,080 t, como a prancha; a V143 dá 0,669 contra 0,664
-   da prancha — [CONFERIR] o que a prancha desconta). **Catálogo de dentes** (`TipoDente`: nome, altura do dente,
+   da prancha — vale o CALCULADO, resposta do usuário em 2026-11-08). **Catálogo de dentes** (`TipoDente`: nome, altura do dente,
    comprimento; padrão DG 45x25 da V143 e DG 35x25 da V129), por enquanto estático (sem janela ARMDENTES).
    Testes: `VigaPreMoldadaTests`; autoteste `tools\autoteste_autocad.ps1 -Comando ARMTESTEVIGA` (V144 e uma reta 40 × 95).
-   [VALIDAR] "2 Furos" do V129 com cota 20 | 20: o template distribui os furos na LARGURA (2 furos em 40 = 13,3 | 13,3 | 13,3).
+   "2 Furos" do V129 (cota 20 | 20): UM FURO EM CADA PONTA, centrado na largura (resposta do usuário, 2026-11-08).
 2. **Armaduras passivas**: longitudinais em lista (função, quantidade, bitola, início/fim, ancoragem nas pontas), desenhadas
    FORA da forma com o rótulo da função; estribos por zona a partir das pontas (cota em cadeia `100 / 11 N5 c/10`); estribos
    salientes da capa; SEÇÃO X-X - ARMADURA com uma indicação por barra; formas dos estribos; RA.

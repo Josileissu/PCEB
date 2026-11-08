@@ -2447,6 +2447,11 @@ public sealed class AutoTeste
             var xs = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.X)).Concat(r.Textos.Select(q => q.X)).ToList();
             var ys = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.Y)).Concat(r.Textos.Select(q => q.Y)).ToList();
             janelas.Add((nome, origem.X + xs.Min() - 50, origem.Y + ys.Min() - 50, origem.X + xs.Max() + 450, origem.Y + ys.Max() + 50));
+            // de perto: a coluna das seções (títulos "SEÇÃO …")
+            var tSec = r.Textos.Where(q => q.Texto.StartsWith("SEÇÃO")).ToList();
+            if (tSec.Count > 0)
+                janelas.Add((nome + "_secoes", origem.X + tSec.Min(q => q.X) - 20, origem.Y + tSec.Min(q => q.Y) - 160,
+                             origem.X + tSec.Max(q => q.X) + 260, origem.Y + tSec.Max(q => q.Y) + 20));
             using (var tr = db.TransactionManager.StartTransaction())
             {
                 var ids = ComandosTemplate.Desenhar(tr, db, cfg, r, origem);
