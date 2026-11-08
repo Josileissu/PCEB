@@ -165,7 +165,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     /// <summary>Tolerância de comprimento da NBR 9062 (tab. 2) para pilares, em mm.</summary>
     public static int ToleranciaComprimento(double lCm) => lCm <= 500 ? 10 : lCm <= 1000 ? 15 : 20;
 
-    private sealed class Ctx
+    /// <summary>Contexto de desenho (textos, linhas, cotas, marcas de corte); a viga pré-moldada usa o mesmo.</summary>
+    internal sealed class Ctx
     {
         public ResultadoTemplate R;
         public IdiomaDesenho Idioma;

@@ -2402,6 +2402,66 @@ public sealed class AutoTeste
         }
     }, suspender: false);
 
+    /// <summary>
+    /// Viga pré-moldada (2026-11-07): desenha a V144 (dentes nas duas pontas) e uma viga de pontas retas, confere o
+    /// detalhamento e grava um PNG de cada. Uso: tools\autoteste_autocad.ps1 -Comando ARMTESTEVIGA.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEVIGA")]
+    public void Viga() => Comandos.Executar("ARMTESTEVIGA", (doc, ed, db, cfg) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0;
+        var t = new Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
+        var v144 = new Core.Templates.ValoresTemplate(t.Parametros);
+        v144["Nome"] = "V144"; v144["L"] = "308";
+        var vReta = new Core.Templates.ValoresTemplate(t.Parametros);
+        foreach (var (k, val) in new[] { ("Nome", "V149"), ("Quantidade", "17"), ("B", "40"), ("H", "95"), ("L", "1150"),
+                     ("ExtE", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta),
+                     ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20") })
+            vReta[k] = val;
+        var casos = new[] { ("V144", v144, new Point3d(12000, -5000, 0)), ("V149", vReta, new Point3d(12000, -12000, 0)) };
+        var janelas = new List<(string, double, double, double, double)>();
+        foreach (var (nome, v, origem) in casos)
+        {
+            var r = t.Gerar(v, cfg);
+            Checar(r.Avisos.Count == 0, $"{nome}: sem avisos ({string.Join(" | ", r.Avisos)})");
+            var xs = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.X)).Concat(r.Textos.Select(q => q.X)).ToList();
+            var ys = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.Y)).Concat(r.Textos.Select(q => q.Y)).ToList();
+            janelas.Add((nome, origem.X + xs.Min() - 50, origem.Y + ys.Min() - 50, origem.X + xs.Max() + 450, origem.Y + ys.Max() + 50));
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var ids = ComandosTemplate.Desenhar(tr, db, cfg, r, origem);
+                Checar(ids.Count == r.Barras.Count, $"{nome}: {ids.Count} armaduras desenhadas ({r.Barras.Count} no template)");
+                tr.Commit();
+            }
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                Checar(bt.Has(nome), $"{nome}: detalhamento criado");
+                tr.Commit();
+            }
+        }
+        Gravar();
+        Log.Info($"autoteste: ARMTESTEVIGA fim ({_ok} ok, {_falhas} falha(s))");
+        var saida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+        if (!string.IsNullOrEmpty(saida))
+        {
+            try { db.SaveAs(Path.Combine(Path.GetDirectoryName(saida), "autoteste_viga.dwg"), DwgVersion.Current); }
+            catch (Exception ex) { Log.Erro("ARMTESTEVIGA salvar", ex); }
+            _filedia = CadApp.GetSystemVariable("FILEDIA");
+            CadApp.SetSystemVariable("FILEDIA", 0);
+            string N(double x) => x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            foreach (var (nome, x0, y0, x1, y1) in janelas)
+            {
+                doc.SendStringToExecute($"_.ZOOM _W {N(x0)},{N(y0)} {N(x1)},{N(y1)}\n", true, false, true);
+                string png = Path.Combine(Path.GetDirectoryName(saida), "autoteste_viga_" + nome.ToLowerInvariant() + ".png");
+                try { File.Delete(png); } catch (Exception ex) { Log.Erro("ARMTESTEVIGA png", ex); } // o PNGOUT não sobrescreve
+                doc.SendStringToExecute($"_.PNGOUT {png}\n\n", true, false, true);
+            }
+            doc.SendStringToExecute($"FILEDIA {Convert.ToInt32(_filedia ?? 1)}\n", true, false, true);
+            doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
+        }
+    }, suspender: false);
+
     [Rt.CommandMethod("ARMTESTEMARCA")]
     public void Marca() => Log.Info($"autoteste: marca {++_marca}");
 
