@@ -94,7 +94,11 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                   descricao: "As duas alças ficam simétricas em relação ao CG da viga, afastadas (50 − x) % do comprimento dele (regra do pilar)."),
                 P(G5, "AlcaX1", "Alça da esquerda (0 = automática)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda; 0 = pela regra do CG."),
                 P(G5, "AlcaX2", "Alça da direita (0 = automática)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda; 0 = pela regra do CG."),
-                P(G5, "AlcaEmb", "Embutimento", "70", "cm", min: 10),
+                P(G5, "AlcaEmb", "Embutimento (0 = até o fundo)", "0", "cm", min: 0,
+                  descricao: "0 = as pernas descem até o fundo da viga (h − cobrimento do fundo), com o pé lá (regra do usuário para o pilar, 2026-11-08)."),
+                P(G5, "AlcaBitola", "Cordoalha", "12.7", "mm", TipoParametro.Bitola, 9.5, 15.2),
+                P(G5, "AlcaPernas", "Cordoalhas por alça", "2", tipo: TipoParametro.Inteiro, min: 1, max: 4),
+                P(G5, "AlcaPe", "Pé (dobra no fim de cada perna)", "20", "cm", min: 0),
                 P(G5, "AlcaAcima", "Altura acima do topo", "15", "cm", min: 5),
                 P(G5, "AlcaEntre", "Distância entre as pernas", "10", "cm", min: 4),
 
@@ -217,6 +221,14 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                 yForma -= (fy1 - fy0) + 9 * hc;
             }
 
+        // ---------------- detalhe da alça (embaixo das seções) e estabilidade lateral ----------------
+        if (alcas) DetalheAlca(c, v, xS, yS - 4 * hc);
+        double lAlcas = alcas ? Math.Abs(PosicaoAlcas(v, b, L, e, d)[1] - PosicaoAlcas(v, b, L, e, d)[0]) : L;
+        var (esb, ind) = EstabilidadeLateral(lAlcas, b, h);
+        if (esb > 50 || ind > 500)
+            r.Avisos.Add($"Estabilidade lateral (NBR 9062 6.1.6, L = {Num(lAlcas, "0")} cm entre as alças): L/b = {Num(esb, "0.#")} (≤ 50) e " +
+                         $"L·h/b² = {Num(ind, "0")} (≤ 500) — verificar a carga crítica, travar ou mudar as alças (6.1.4, 6.1.7).");
+
         // ---------------- notas e informações para produção ----------------
         double xD = xEst + b + 30 * hc, yD = 0;
         yD = Notas(c, v, L, xD, yD);
@@ -224,6 +236,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         r.Tabelas.Add(TemplatePilarPreMoldado.TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"),
             vol, peso, qtd, xD, yD, escV));
         r.PosicaoRA = (xD + 75 * hv, 0);
+
+        // ---------------- detalhes típicos da biblioteca do escritório (DWG; coluna à direita, o usuário ajusta) ----------------
+        BibliotecaDetalhes.Pedir(r, BibliotecaDetalhes.RaioEmendasComprimento);
+        if (v.SimNao("InfSoldada") || e.TemDente || d.TemDente) BibliotecaDetalhes.Pedir(r, BibliotecaDetalhes.SoldaTirante);
+        BibliotecaDetalhes.PosicionarColuna(r, hv);
+        if (r.ColunaDetalhes is { } col) r.ColunaDetalhes = (Math.Max(col.X, r.PosicaoRA.Value.X + 110 * hv), col.Y);
         return r;
     }
 
@@ -365,12 +383,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         double yCadeiaTopo = yT + 2.5 * hv;
         if (alcas)
         {
-            double emb = v.Numero("AlcaEmb"), acima = v.Numero("AlcaAcima"), r0 = v.Numero("AlcaEntre") / 2;
+            double emb = EmbutimentoAlcaViga(v), acima = v.Numero("AlcaAcima"), r0 = v.Numero("AlcaEntre") / 2;
             var xa = PosicaoAlcas(v, b, L, e, d);
             foreach (double x in xa)
                 c.R.Contornos.Add(new ContornoTemplate
                 {
-                    Vertices = { (x - r0, yT - Math.Min(emb, h - 2)), (x - r0, yT + acima - r0), (x + r0, yT + acima - r0), (x + r0, yT - Math.Min(emb, h - 2)) },
+                    Vertices = { (x - r0, yT - Math.Min(emb, h - 1)), (x - r0, yT + acima - r0), (x + r0, yT + acima - r0), (x + r0, yT - Math.Min(emb, h - 1)) },
                     Bulges = { 0, -1, 0, 0 }, Layer = "ARM-ALCA",
                 });
             yCadeiaTopo = yT + acima + 2.5 * hv;

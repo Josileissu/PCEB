@@ -261,6 +261,10 @@ public sealed class ResultadoTemplate
     public DadosDetalhamento DadosDetalhamento { get; set; }
     /// <summary>Canto superior esquerdo da relação do aço parcial (null = sem tabela).</summary>
     public (double X, double Y)? PosicaoRA { get; set; }
+    /// <summary>Detalhes típicos da biblioteca do escritório a inserir (nomes dos DWG; ver <see cref="BibliotecaDetalhes"/>).</summary>
+    public List<string> DetalhesBiblioteca { get; } = new List<string>();
+    /// <summary>Canto superior esquerdo da coluna dos detalhes da biblioteca (empilhados para baixo).</summary>
+    public (double X, double Y)? ColunaDetalhes { get; set; }
     /// <summary>Avisos ao usuário (valores fora do padrão, verificações).</summary>
     public List<string> Avisos { get; } = new List<string>();
 }
