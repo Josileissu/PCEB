@@ -2443,6 +2443,124 @@ public sealed class AutoTeste
     }
 
     /// <summary>
+    /// Ferramenta (2026-11-08): recorta os detalhes típicos das folhas do escritório em DWGs separados (a biblioteca de
+    /// detalhes). ARM_DET_LISTA = arquivo texto com uma linha por detalhe: "nome;origem.dwg;bloco;NOME DO BLOCO" (exporta um
+    /// bloco que a folha já tem) ou "nome;origem.dwg;janela;x0;y0;x1;y1" (o que está inteiro na janela do modelo, com o canto
+    /// inferior esquerdo levado à origem). ARM_DET_SAIDA = pasta dos DWGs. Depois insere todos lado a lado no desenho
+    /// atual (para conferência) e, com ARM_AUTOTESTE_SAIDA, gera o PNG e fecha. As folhas de origem só são lidas.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEDETALHES")]
+    public void Detalhes() => Comandos.Executar("ARMTESTEDETALHES", (doc, ed, db, cfg) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0;
+        string lista = Environment.GetEnvironmentVariable("ARM_DET_LISTA"), pasta = Environment.GetEnvironmentVariable("ARM_DET_SAIDA");
+        Directory.CreateDirectory(pasta);
+        var gerados = new List<string>();
+        foreach (var linha in File.ReadAllLines(lista).Where(l => l.Trim().Length > 0 && !l.StartsWith("#")))
+        {
+            var c = linha.Split(';');
+            string nome = c[0].Trim(), destino = Path.Combine(pasta, nome + ".dwg");
+            try
+            {
+                using var origem = new Database(false, true);
+                origem.ReadDwgFile(c[1].Trim(), FileOpenMode.OpenForReadAndAllShare, true, "");
+                origem.CloseInput(true);
+                Database novo;
+                if (c[2].Trim() == "bloco")
+                {
+                    ObjectId btrId;
+                    using (var tr = origem.TransactionManager.StartTransaction())
+                    {
+                        var bt = (BlockTable)tr.GetObject(origem.BlockTableId, OpenMode.ForRead);
+                        btrId = bt.Has(c[3].Trim()) ? bt[c[3].Trim()] : ObjectId.Null;
+                        tr.Commit();
+                    }
+                    if (btrId.IsNull) { Checar(false, $"{nome}: bloco \"{c[3]}\" não existe na folha"); continue; }
+                    novo = origem.Wblock(btrId);
+                }
+                else
+                {
+                    double x0 = double.Parse(c[3], System.Globalization.CultureInfo.InvariantCulture), y0 = double.Parse(c[4], System.Globalization.CultureInfo.InvariantCulture);
+                    double x1 = double.Parse(c[5], System.Globalization.CultureInfo.InvariantCulture), y1 = double.Parse(c[6], System.Globalization.CultureInfo.InvariantCulture);
+                    // "janela" = espaço do modelo; "janela_papel" = o primeiro layout que tiver algo na janela
+                    var ids = new ObjectIdCollection();
+                    using (var tr = origem.TransactionManager.StartTransaction())
+                    {
+                        var espacos = new List<ObjectId>();
+                        if (c[2].Trim() == "janela_papel")
+                        {
+                            var bt = (BlockTable)tr.GetObject(origem.BlockTableId, OpenMode.ForRead);
+                            foreach (ObjectId b in bt)
+                            {
+                                var r = (BlockTableRecord)tr.GetObject(b, OpenMode.ForRead);
+                                if (r.IsLayout && b != SymbolUtilityServices.GetBlockModelSpaceId(origem)) espacos.Add(b);
+                            }
+                        }
+                        else espacos.Add(SymbolUtilityServices.GetBlockModelSpaceId(origem));
+                        foreach (var esp in espacos)
+                        {
+                            var ms = (BlockTableRecord)tr.GetObject(esp, OpenMode.ForRead);
+                            foreach (ObjectId id in ms)
+                            {
+                                if (!(tr.GetObject(id, OpenMode.ForRead) is Entity e) || e is Viewport) continue;
+                                try
+                                {
+                                    var x = e.GeometricExtents;
+                                    if (x.MinPoint.X >= x0 && x.MinPoint.Y >= y0 && x.MaxPoint.X <= x1 && x.MaxPoint.Y <= y1) ids.Add(id);
+                                }
+                                catch { /* sem extensão */ }
+                            }
+                            if (ids.Count > 0) break;
+                        }
+                        tr.Commit();
+                    }
+                    if (ids.Count == 0) { Checar(false, $"{nome}: nada na janela"); continue; }
+                    novo = origem.Wblock(ids, new Point3d(x0, y0, 0));
+                }
+                using (novo) novo.SaveAs(destino, DwgVersion.Current);
+                gerados.Add(destino);
+                Checar(File.Exists(destino), $"{nome}: gravado em {destino}");
+            }
+            catch (Exception ex) { Checar(false, $"{nome}: {ex.Message}"); }
+        }
+        // conferência: os detalhes lado a lado no desenho atual, com o nome em cima
+        double xIns = 0;
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var ms = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForWrite);
+            foreach (var arq in gerados)
+            {
+                using var d = new Database(false, true);
+                d.ReadDwgFile(arq, FileOpenMode.OpenForReadAndAllShare, true, "");
+                d.CloseInput(true);
+                var btrId = db.Insert("DET_" + Path.GetFileNameWithoutExtension(arq), d, true);
+                var br = new BlockReference(Point3d.Origin, btrId);
+                ms.AppendEntity(br); tr.AddNewlyCreatedDBObject(br, true);
+                Extents3d ext;
+                try { ext = br.GeometricExtents; } catch { ext = new Extents3d(Point3d.Origin, new Point3d(100, 100, 0)); }
+                // canto inferior esquerdo da extensão no cursor
+                br.TransformBy(Matrix3d.Displacement(new Vector3d(xIns - ext.MinPoint.X, -ext.MinPoint.Y, 0)));
+                double w = ext.MaxPoint.X - ext.MinPoint.X, h = ext.MaxPoint.Y - ext.MinPoint.Y;
+                var txt = new DBText { TextString = Path.GetFileNameWithoutExtension(arq), Height = Math.Max(2, Math.Max(w, h) / 20), Position = new Point3d(xIns, h + 5, 0) };
+                ms.AppendEntity(txt); tr.AddNewlyCreatedDBObject(txt, true);
+                xIns += w + Math.Max(40, w / 5);
+            }
+            tr.Commit();
+        }
+        Gravar();
+        var saida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+        if (!string.IsNullOrEmpty(saida))
+        {
+            _filedia = CadApp.GetSystemVariable("FILEDIA");
+            CadApp.SetSystemVariable("FILEDIA", 0);
+            doc.SendStringToExecute("_.ZOOM _E\n", true, false, true);
+            doc.SendStringToExecute($"_.PNGOUT {Path.Combine(Path.GetDirectoryName(saida), "detalhes.png")}\n\n", true, false, true);
+            doc.SendStringToExecute($"FILEDIA {Convert.ToInt32(_filedia ?? 1)}\n", true, false, true);
+            doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
+        }
+    }, suspender: false);
+
+    /// <summary>
     /// Ferramenta de estudo: converte o DWG de ARM_DXF_ENTRADA em DXF (ARM_DXF_SAIDA) num banco lateral — o
     /// desenho de referência do usuário só é lido — e fecha o CAD. Uso: script com NETLOAD + ARMTESTEDXF.
     /// </summary>
