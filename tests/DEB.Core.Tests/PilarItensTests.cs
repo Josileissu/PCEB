@@ -58,8 +58,9 @@ public class PilarItensTests
         Assert.Contains(r.Textos, t => t.Texto == "ESPAÇAMENTO BARRAS");
         Assert.Contains(r.Textos, t => t.Texto == "REFORÇO NOS FUROS DOS PILARES");
         Assert.Contains(r.Textos, t => t.Texto == "ATENÇÃO!");
-        Assert.Contains(r.Textos, t => t.Texto == "RAIO (r) DE CURVATURA PARA GANCHOS");
-        Assert.Contains(r.Tabelas, t => t.Titulo.StartsWith("BITOLA (Ø)"));
+        // detalhe típico (raio de curvatura, emendas, comprimento das barras) removido do pilar (pedido do usuário, 2026-11-07)
+        Assert.DoesNotContain(r.Textos, t => t.Texto == "RAIO (r) DE CURVATURA PARA GANCHOS");
+        Assert.DoesNotContain(r.Tabelas, t => t.Titulo.StartsWith("BITOLA (Ø)"));
         // alças pelo CG: cotas base → alça → alça → topo somam o comprimento
         var cadeia = r.Cotas.Where(c => Math.Abs(c.Angulo - Math.PI / 2) < 1e-9 && c.Texto == "").ToList();
         Assert.Contains(cadeia, c => Math.Abs(c.P1.Y) < 1e-9 && c.P2.Y > 200 && c.P2.Y < 300);
@@ -107,5 +108,19 @@ public class PilarItensTests
     {
         var r = Gerar(("FuroPct", "45"));
         Assert.Contains(r.Avisos, a => a.Contains("25 % a 35 %"));
+    }
+
+    [Fact]
+    public void AlcaAncoraNoFundoDoPilar()
+    {
+        // decisão do usuário (2026-11-08): com embutimento 0 as pernas vão até a face oposta menos o cobrimento dela
+        var t = new TemplatePilarPreMoldado();
+        var v = new ValoresTemplate(t.Parametros);
+        v["AlcaFace"] = "2"; v["CobFace4"] = "3";
+        Assert.Equal(60 - 3, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        v["AlcaFace"] = "1"; v["CobFace3"] = "2.5";
+        Assert.Equal(40 - 2.5, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        v["AlcaEmb"] = "45";
+        Assert.Equal(45, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
     }
 }

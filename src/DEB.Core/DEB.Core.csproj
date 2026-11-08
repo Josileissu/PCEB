@@ -7,4 +7,9 @@
     <RootNamespace>DEB.Core</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!-- receitas de fábrica do motor (Motor/Receitas/ReceitasFabrica.cs) -->
+    <EmbeddedResource Include="Motor\Receitas\Fabrica\*.json" LogicalName="DEB.Receitas.%(Filename).json" />
+  </ItemGroup>
+
 </Project>

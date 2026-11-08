@@ -26,4 +26,10 @@ public sealed class DadosDetalhamento
     /// </summary>
     public int Repeticoes { get; set; }
     public int Numero { get; set; }
+    /// <summary>
+    /// Origem no motor de detalhamento (2026-11-07, decisão do usuário: fica no detalhamento): JSON com o elemento, o perfil,
+    /// as sobreposições do perfil e as sobrescritas (edições manuais) que geraram este detalhamento, para regenerar depois.
+    /// Vazio = desenhado à mão ou por um template antigo. XData "MOT" (em pedaços de 250 caracteres).
+    /// </summary>
+    public string Motor { get; set; } = "";
 }
