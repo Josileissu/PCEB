@@ -269,7 +269,7 @@ public sealed class ComandosTemplate
             pl.Elevation = origem.Z;
             return pl;
         }
-        short CorDoLayer(string nome) => nome switch { "ARM-TANQUE" => 4, "ARM-ESTACA" => 5, "ARM-CORTE" => 1, "ARM-TEXTO-FORMA" => 7, "ARM-NIVEL" => 9, _ => 8 };
+        short CorDoLayer(string nome) => nome switch { "ARM-TANQUE" => 4, "ARM-ESTACA" => 8, "ARM-CORTE" => 1, "ARM-TEXTO-FORMA" => 7, "ARM-NIVEL" => 9, _ => 8 };
 
         // ---- forma, textos, cotas ----
         foreach (var c in r.Contornos) Add(Poli(c.Vertices, c.Bulges, c.Fechado), Layer(c.Layer, CorDoLayer(c.Layer)));

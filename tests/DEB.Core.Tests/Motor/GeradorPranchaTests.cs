@@ -299,7 +299,7 @@ public class GeradorPranchaTests
         p3.Folha.Vistas.Add(new VistaPerfil { Id = "nada", Titulo = "NADA", Tipo = TipoVista.Planta, Posicoes = { "inexistente" } });
         p3.Folha.Detalhes.Add("desconhecido");
         var r3 = g.Gerar(Elemento(), Modelo(), p3);
-        Assert.Contains(r3.Avisos, a => a.Contains("\"nada\""));
+        Assert.DoesNotContain(r3.Avisos, a => a.Contains("\"nada\""));   // vista sem posições: simplesmente não entra (2026-11-08)
         Assert.Contains(r3.Avisos, a => a.Contains("desconhecido"));
         var r4 = g.Gerar(Elemento(), new ModeloArmadura(), Perfil());
         Assert.Empty(r4.Barras);
