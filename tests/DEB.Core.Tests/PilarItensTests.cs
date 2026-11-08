@@ -109,4 +109,18 @@ public class PilarItensTests
         var r = Gerar(("FuroPct", "45"));
         Assert.Contains(r.Avisos, a => a.Contains("25 % a 35 %"));
     }
+
+    [Fact]
+    public void AlcaAncoraNoFundoDoPilar()
+    {
+        // decisão do usuário (2026-11-08): com embutimento 0 as pernas vão até a face oposta menos o cobrimento dela
+        var t = new TemplatePilarPreMoldado();
+        var v = new ValoresTemplate(t.Parametros);
+        v["AlcaFace"] = "2"; v["CobFace4"] = "3";
+        Assert.Equal(60 - 3, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        v["AlcaFace"] = "1"; v["CobFace3"] = "2.5";
+        Assert.Equal(40 - 2.5, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        v["AlcaEmb"] = "45";
+        Assert.Equal(45, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+    }
 }
