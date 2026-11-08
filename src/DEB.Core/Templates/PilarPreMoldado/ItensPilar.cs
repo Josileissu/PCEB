@@ -432,8 +432,8 @@ public sealed partial class TemplatePilarPreMoldado
             yBaixo = Math.Min(yBaixo, fy - tam - 6 * ht);
         }
 
-        // ---- detalhe típico: raio de curvatura, emendas e comprimento das barras (como a prancha do escritório) ----
-        x = DetalhesTipicos.Tipico(Desenho(c), x, yTopo, ref yBaixo);
+        // (detalhe típico de raio de curvatura, emendas e comprimento das barras: removido do pilar a pedido do usuário,
+        // 2026-11-07 — o desenho gerado ficou feio; o padrão é o do escritório em auxiliar_cad/pilar_padrão)
 
         // ---- SPDA ----
         if (v.SimNao("AvisoSPDA"))
