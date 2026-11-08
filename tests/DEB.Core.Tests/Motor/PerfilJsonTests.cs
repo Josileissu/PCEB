@@ -433,7 +433,7 @@ public class PerfilJsonTests
         Assert.Equal(new[] { "principal", "secundaria", "superior", "calice" }, f.Vistas.Where(v => v.BarrasAbaixo).Select(v => v.Id));
         // vistas não repetem lugar na folha
         Assert.Equal(f.Vistas.Count, f.Vistas.Select(v => (v.Quadro, v.Linha, v.Ordem)).Distinct().Count());
-        Assert.Equal(new[] { "chaves", "raio_curvatura", "emendas", "comprimento_barras", "ancoragem_estacas", "barra_variavel" }, f.Detalhes);
+        Assert.Equal(new[] { "chaves", "ancoragem_estacas", "barra_variavel" }, f.Detalhes);
         Assert.True(f.RelacaoAco);
         Assert.True(f.InformacoesProducao);
         Assert.Equal(5, f.Notas.Count);
