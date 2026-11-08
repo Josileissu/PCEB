@@ -246,6 +246,9 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   `ARM_DXF_ENTRADA` → `ARM_DXF_SAIDA` num banco lateral (script NETLOAD + ARMTESTEDXF numa instância nova; copie o
   DWG para o scratchpad antes). A instância NÃO fecha sozinha: encerre só ela (confira o pai e a linha de comando
   com o .scr). Depois `ezdxf` (instalado com pip --user) lê o DXF.
+  **PC2** (sem GstarCAD, sem pip: firewall): `accoreconsole.exe` do AutoCAD 2026 com um .scr `(command "_.DXFOUT" <caminho> 16)`
+  + `(command "_.QUIT" "_Y")` — chame pelo PowerShell (o Git Bash troca `/i` por `I:/`) e sem o QUIT o console não fecha.
+  Sem ezdxf, o DXF ASCII se lê como pares de linhas (código, valor); cuidado com o nome do bloco corrente: zere-o no ENDBLK.
 - Pilar pré-moldado: requisitos e regras conferidas na norma em `docs/PILAR_PREMOLDADO_REQUISITOS.md`; template e
   etapas em `docs/TEMPLATES.md`.
 - **Nunca** editar fonte com `Get-Content`/`Set-Content` do Windows PowerShell 5.1: sem `-Encoding` ele lê UTF-8 como ANSI

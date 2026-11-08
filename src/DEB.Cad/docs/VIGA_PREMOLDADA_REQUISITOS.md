@@ -10,26 +10,106 @@ Fontes deste levantamento:
   - **NBR 6118:2014** (`Concreto\Antigos`), porque as cópias de 2023 têm o texto embaralhado. [CONFERIR na 2023 se
     algum valor mudou.]
 - O que já foi decidido e implementado no pilar pré-moldado (vale para a viga quando o assunto é o mesmo).
-- **Padrão do escritório: ainda não recebido.** O usuário vai enviar o padrão a seguir. A seção 1 fica a preencher
-  com ele (organização da prancha, layers, escalas, textos, blocos). Os itens marcados **[PADRÃO]** dependem desse exemplo.
+- **Padrão do escritório: recebido em 2026-11-06** (7 pranchas em PDF + DWG) e medido na seção 1.
 
 ---
 
-## 1. Padrão do escritório (a preencher com o exemplo do usuário)
-Pasta para o exemplo: `src/DEB.Cad/info_auxiliar/templates/viga_pre_moldada/` (fora do Git), com PDF e, de
-preferência, **DWG**: o DWG dá layers, estilos de cota, alturas de texto e blocos.
+## 1. Padrão do escritório (medido em 2026-11-06)
+Pasta: `src/DEB.Cad/info_auxiliar/templates/viga_pre_moldada/` (fora do Git). DWGs convertidos para DXF com o
+`accoreconsole` do AutoCAD 2026 (sem janela; roteiro `DXFOUT` + `QUIT`) e lidos com um leitor de DXF próprio (o PC2 não
+instala o ezdxf: o firewall bloqueia o pip).
 
-O que vou medir no exemplo, como foi feito no P61:
-| Item | Pergunta |
-|---|---|
-| Organização da prancha | Quais vistas existem (elevação/forma, planta do topo, vistas das extremidades), em que ordem e em que escala |
-| Elevação das armaduras | Barras lado a lado ou sobre a forma? Estribos em faixas por zona? |
-| Seções | Quais seções (meio do vão, apoio, dente, região isolada das cordoalhas) e em que escala; barras em ponto com indicação N |
-| Protensão | Quadro das cordoalhas (posição, isolamento), força, alongamento, fcj de liberação |
-| Extremidades | Dente Gerber e apoio sem recorte (armadura padrão), almofada, furos de pino, chapas |
-| Detalhes padrão | Alças, furos, insertos, detalhes típicos (já existem no pilar: raio, emendas, comprimento) |
-| Quadros e notas | RA, informações para produção, contraflecha, notas PT/EN |
-| Layers, textos e cotas | Nomes e cores, ESTRUT{escala}, Arial 2 mm no papel? |
+### 1.1 Exemplos
+| Prancha | Vigas | Seção | Tipo | Extremidades | O que mostra a mais |
+|---|---|---|---|---|---|
+| 1071 (BPM) | VT-1 | 40×100, L com aba | **protendida** (18+2 ø12,7) | dente Gerber nas 2 pontas, cantoneiras CAN-03 | consolo corrido, pino para calha, suspensão, neoprene NP-06 |
+| 1078 (BPM) | VLV-2013… (5 peças) | 35×40, T invertido (abas de laje) | **protendida** (8+2 ø12,7) | reta | isolamento com mangueira, reforços em volta de furos (REF. 01/02), estribos c/VAR |
+| 316-6208 | V129, V130 | 40×50, L (aba de laje) | armada | **dente Gerber** + 2 furos ø32 | capa (estribos salientes), consolo na viga (V130: apoio de PP93/PP94) |
+| 316-6219 | V143, V144 | 20×75, retangular | armada | dente Gerber + 1 furo ø32 | capa (estribos salientes) |
+| 316-6238 | V138, V139 | 20×65+10 | armada, "viga com segundo estágio de concretagem" | dente Gerber + 1 furo ø32 | V139 com nichos e várias seções (C-C, D-D, E-E) |
+| 702 (GRU) | V149…V181 (17×) | 40×95, L (aba) | armada | reta + 2 furos ø40 | RA "UNITÁRIA" (17 peças) |
+| 710 (GRU) | V148 | 40×95, L (aba) | **protendida** (11 ø15,2) | reta + 2 furos ø40 | TABELA DE ARMADURA DE PROTENSÃO, isolamento em 3 grupos |
+
+Projetos PT/EN (Schreiber, 316): títulos e notas bilíngues; os outros só em PT.
+
+### 1.2 Organização da prancha
+- **Título** da viga: `V129 (40 x 50)` ou `V149, V151, … - 17x (40x95)` + `ESC 1:50`. Uma ou duas vigas por folha, cada
+  uma com RA, resumo e quadro de produção **próprios** (à direita do detalhamento).
+- Ordem das vistas, de cima para baixo, à esquerda: **FÔRMAS EM PLANTA** → **FÔRMAS EM ELEVAÇÃO** → **ARMADURAS EM
+  ELEVAÇÃO**. Escala **1:50** (vigas de até ~12 m) ou **1:25** (VT-1, VLV). No template: **1:50 padrão**, editável
+  (2026-11-07).
+- À direita da elevação: **SEÇÃO A-A / B-B / C-C** de forma (1:25 ou 1:15), cada uma com a **SEÇÃO X-X - ARMADURA** ao
+  lado e as **formas dos estribos** (com C=) ao lado dela. As marcas dos cortes ficam na forma em elevação e na elevação
+  das armaduras. Típico: A-A e C-C nas pontas (dente) e B-B no vão; a V139 tem um corte por mudança (até F-F).
+- Abaixo: **detalhes típicos sem escala** (RAIO DE CURVATURA PARA GANCHOS, COMPRIMENTO DAS BARRAS, EMENDAS POR TRASPASSE
+  ≥ 45ø, EMENDAS POR SOLDA POR TRASPASSE ≥ 5ø), **DETALHE DA SOLDA DO TIRANTE** e **ALÇA DE IÇAMENTO** 1:20 — os mesmos
+  do pilar (`DetalheTipico`).
+- Carimbo, revisões e notas gerais são do **formato da folha** (fora do template, como no pilar).
+
+### 1.3 Forma
+- **Planta**: contorno com aba e topo, furos de pino (`2 Furos ø32 mm` / `1 Furo`; cota 20 + 20 a partir das faces e
+  11,5/13,5 a partir da ponta), cotas em cadeia (dente 25 | vão | dente 25) e total.
+- **Elevação**: o dente aparece como recorte inferior (altura do dente 35 de 50 na V129; comprimento 25), alças
+  desenhadas no topo, marcas dos cortes. Cotas de altura na ponta.
+- Seções de forma hachuradas (AR-CONC no BPM; sem hachura nos 316/GRU), com cotas das abas.
+
+### 1.4 Elevação das armaduras (o ponto principal do padrão)
+- **Forma da viga em linha fina com os estribos dentro, em vermelho**, e as **longitudinais DESENHADAS FORA da forma**,
+  uma barra por linha, **acima** (superior, aba, pele, construtiva) e **abaixo** (inferior, tirante, grampo, costura),
+  com o rótulo da função embaixo da barra: `ARMADURA SUPERIOR`, `ARMADURA SUPERIOR ABA`, `ARMADURA CONSTRUTIVA`,
+  `(PELE)`, `ARMADURA ABA LAJE`, `ARMADURA INFERIOR`, `TIRANTE`, `GRAMPO`, `COSTURA`, `SUSPENSÃO`, `ESTRIBOS GERBER`.
+  → É o arranjo "lado a lado" que o plugin já faz no pilar (a viga é o pilar deitado).
+- Descrição acima da barra (`2 N11 ø16.0 C=762`); pele = `2x3 N6 ø12.5` (faces × barras); pontas dobradas com a medida.
+- Barras com **barra transversal soldada** na ponta: círculo com `VER DET. DE SOLDA` e a barra curta descrita na
+  diagonal (`1 N14 ø25.0 C=35`) — inferior e tirante do dente (NBR 9062 7.4/7.5).
+- **Faixas de estribos em cota abaixo da forma**, em cadeia a partir das pontas: `100 / 11 N5 c/10` | `477 / 33 N5 c/15` |
+  `100 / 11 N5 c/10`; os estribos do dente e a suspensão em faixas próprias (`4 N4` em 25, `5 N10` em 20). Os estribos
+  salientes da capa numa cota separada (`767 / 32 N3 c/25`).
+
+### 1.5 Seções e estribos
+- **SEÇÃO X-X - ARMADURA**: contorno, estribos, barras em ponto (vermelho) com **uma indicação por barra** (`N2`, `N6`…)
+  dos dois lados — como no pilar.
+- Formas dos estribos ao lado da seção, com as medidas e a descrição (`78 N1 ø6.3 c/10 C=124`).
+- Estribo saliente da capa: forma separada `CAPA LAJE / ARM. CONEXÃO`, dobrado em gancho inclinado (75 / 38 / 45).
+- Dente Gerber (armadura padrão, igual nos 316): `ESTRIBOS GERBER` (U horizontal ø8 c/10), `SUSPENSÃO` (estribos
+  fechados ø10 junto ao dente), `GRAMPO` (U ø10, 100/34/100), `COSTURA` (U ø10), `TIRANTE` (ø16 C=200 + barra
+  transversal soldada) e `ARMADURA INFERIOR` com barra transversal soldada.
+
+### 1.6 Protensão (1071, 1078, 710)
+- Abaixo das passivas: `ARMADURAS DE PROTENSÃO - 11 ø 15,2mm CP 190 RB` e **uma linha por grupo de cordoalhas** com o
+  mesmo isolamento: `CORDOALHAS 1, 2, 6, 7, 8, 11 - Ø15.2 FORÇA DE PROTENSÃO=20.5 tf/CABO` (1071/1078 acrescentam
+  `ARMADURA ATIVA` e o N da cordoalha, ex. N26). Cordoalhas superiores numa linha à parte, acima das passivas.
+- **Isolamento**: trecho grosso preto em cada ponta, rotulado `MANGUEIRA ISOLAMENTO` e cotado (100, 120, 250…).
+- Cordoalhas em **azul** (cor 5 por objeto, layer `Armadura`).
+- **NOMENCLATURA E POSICIONAMENTO DAS CORDOALHAS EM SEÇÃO TRANSVERSAL** (1:15 ou 1:20): seção com as cordoalhas
+  numeradas em círculos (as isoladas em vermelho na 710) e, ao lado, a seção com a grade cotada (passo 5, com folgas de
+  10 entre grupos) + `OBSERVAÇÕES: Atentar-se ao isolamento das cordoalhas e ao posicionamento na seção.`
+- Quantidade: na RA como aço **CP190** (1071/1078) ou na **TABELA DE ARMADURA DE PROTENSÃO** com resumo em kg (710).
+  **O template usa a RA** (CP190), por decisão do usuário (2026-11-07).
+- Quadro de produção da protendida: `RESISTÊNCIA ATO DA PROT.` (no lugar de `AO SAQUE`), e o BPM acrescenta `TAXA DE
+  ARM. PASSIVA` e `TAXA DE ARM. ATIVA` (kg/m³).
+
+### 1.7 Quadros e notas
+- **Relação do aço** (AÇO, N, DIAM, QUANT, C.UNIT, C.TOTAL; coluna ELEMENTO opcional; `- UNITÁRIA` quando há várias
+  peças iguais) + **Resumo do aço** (por bitola, peso total) — o que o `ServicoRA` já faz.
+- **INFORMAÇÕES PARA PRODUÇÃO** (PT/EN nos 316): RESISTÊNCIA AO SAQUE / MONTAGEM / 28 DIAS (fcj, fcj, fck), VOLUME, PESO
+  (ton.), QUANTIDADE (un.) — mesmo quadro do pilar.
+- Notas: `Cobrimentos: 2,5 cm`; `Utilizar neoprene 15 mm` ou detalhe `APARELHOS DE APOIO NP-06` com quantitativo;
+  barras ≥ ø12,5 com mais de 12 m soldadas por caldeamento, em posições desencontradas (nota do BPM).
+- **Não aparecem** nos exemplos: contraflecha, E adotado, pontos de estocagem (o usuário quer no desenho: entram no quadro
+  de produção e nas notas — proposta minha de lugar).
+
+### 1.8 Layers, textos e cotas (DWG)
+Os mesmos do pilar (já mapeados em `PadraoLayers` → ARM-*): `DT-Forma` (7, 0,05), `DT-Armadura` (1, 0,20),
+`Armadura` (1, 0,50), `DT-Barras na forma` (1, 0,20), `DT-Barras no corte` (1, 0,05), `DT-Pontilhado` (9, DASHDOT),
+`Descrição da armadura` e `Textos armaduras` (0,05), `Texto da cota`, `DIM`/`Cotas`, `Cortes` (6, 0,40),
+`DT-Título` (6, 0,40), `Relação do aço`, `Hachuras` (9), `SIMBOLOGIA` (2), `Chapas` (5), `Insertos` (1).
+- Textos em **Arial**: descrições e indicações **2,2 mm** no papel, texto das cotas **2,0 mm**, títulos das vistas
+  **5 mm**, RA 2,2 mm (título 3,3 mm).
+- Desenho em **cm**, verdadeira grandeza, com viewports por escala e estilos **ESTRUT25 / ESTRUT15** (1071) — o mesmo
+  sistema do plugin. As pranchas 316/GRU/1078 vieram de exportação do Revit (vistas já reduzidas, estilos `UM_50` com
+  DIMLFAC = 50): não é um padrão a seguir, só a origem do desenho.
+- Formatos de folha: A0 (1071), A1+ (316-6208/6219), A1 (316-6238, 1078), A2 (GRU).
 
 ---
 
@@ -140,7 +220,8 @@ O que vou medir no exemplo, como foi feito no P61:
 
 ## 6. Armadura ativa (protendida por pré-tração)
 - **Cordoalhas em grade** na seção: posições (x, y) nos nós da malha da pista, **5 cm entre eixos na horizontal e na
-  vertical** (resposta do usuário, 2026-11-06), e quantidade por fiada. Origem da grade: **[PADRÃO]**.
+  vertical** (resposta do usuário, 2026-11-06), e quantidade por fiada. Origem da grade: 1ª fiada a 5 cm do fundo,
+  simétrica no eixo vertical (2026-11-07). Cordoalhas na Relação do aço como CP190.
 - **Isolamento** (embainhamento) de cordoalhas nas extremidades, por cordoalha ou por grupo. É desenhado na elevação
   com uma convenção **[PADRÃO]** e listado num quadro de cordoalhas.
 - **Cordoalhas superiores** (controle da tração no topo na liberação).
@@ -225,7 +306,7 @@ validadas com o padrão de viga armada → **VP-3** com o desenho protendido que
 | Emendas | como no pilar |
 | Protensão | tabela de cordoalhas: tipo, fiada (y), posições (x ou quantidade centrada), isolamento E/D (cm), força inicial; grade da pista (passo) |
 | Estribos | tipo (fechado, U saliente), ramos, bitola; zonas (nome, de/até a partir da ponta E/D, espaçamento, ganchos de torção); salientes (altura) |
-| Extremidades | por ponta: forma (reta/dente), ligação (pino, chapa/cantoneira para solda, ou as duas; chapa do catálogo de insertos), tirante (bitola, nº, soldada/laço), costura, suspensão, estribos do dente, almofada (a × b × e), furo de pino |
+| Extremidades | por ponta: forma (reta/dente; dente escolhido do **catálogo de dentes** e editável), ligação (pino, chapa/cantoneira para solda, ou as duas; chapa do catálogo de insertos), tirante (bitola, nº, soldada/laço), costura, suspensão, estribos do dente, almofada (a × b × e), furo de pino |
 | Içamento | alças (cordoalha, pernas, posição %, ou valores), pontos de estocagem |
 | Insertos | tabela: tipo (do catálogo de insertos do pilar), face, posição |
 | Outros | armadura de obra (capa), notas |
@@ -268,12 +349,26 @@ validadas com o padrão de viga armada → **VP-3** com o desenho protendido que
    **com chapas/cantoneiras para solda** (insertos na extremidade). → Extremidade = forma (reta/dente) + ligação
    (pino, chapa/cantoneira, ou as duas), escolhidas por ponta.
 3. **Grade das cordoalhas**: **5 cm entre eixos**, na horizontal e na vertical. → As posições possíveis das cordoalhas
-   são os nós dessa grade. [Falta confirmar a origem da grade (centro da seção ou face) — sai do desenho protendido.]
+   são os nós dessa grade. [Origem confirmada em 14.3.]
 4. **Isolamento**: a convenção sai do desenho protendido que ele vai enviar.
 5. **Estribos salientes para a capa**: usados, **mas não só eles** (também estribos fechados, conforme a viga) → tipo
    do estribo por zona/viga. [Falta: se a armadura da capa entra no desenho da viga — ver no padrão.]
 6. **Alças**: vale a regra do pilar (par simétrico ao CG, ≈ 20 % do comprimento a partir de cada ponta, editável).
 7. **Contraflecha, pontos de estocagem e E adotado**: entram no desenho (informações para produção e notas).
+
+### 14.2 O que os exemplos responderam e o que falta (2026-11-06)
+- **Isolamento** (pergunta 4): trecho grosso em cada ponta, `MANGUEIRA ISOLAMENTO` cotado, uma linha por grupo (1.6).
+- **Capa** (pergunta 5): os exemplos mostram só os **estribos salientes** (`CAPA LAJE / ARM. CONEXÃO`); a armadura da
+  capa não aparece na prancha da viga.
+- **Viga armada e protendida**: os dois tipos estão nos exemplos; o arranjo da prancha é o mesmo (1.2).
+### 14.3 Respostas do usuário (2026-11-07)
+1. **Grade das cordoalhas**: 1ª fiada a **5 cm do fundo**, grade de 5 cm **simétrica em relação ao eixo vertical** da
+   seção (folgas de 10 entre grupos, como na 710). É a regra.
+2. **Quantidade de cordoalhas**: vai **na Relação do aço** (aço CP190, como no BPM); sem tabela de protensão separada.
+3. **Dente Gerber**: a armadura **muda a cada projeto** (vem do dimensionamento, NBR 9062 7.4). → **Catálogo de
+   dentes**, como o de consolos do pilar: cada entrada guarda geometria + estribos Gerber, suspensão, grampo, costura e
+   tirante (bitola, nº, barra soldada/laço), editáveis por projeto. Os 316 servem de exemplo de entrada.
+4. **Escala da elevação**: **1:50 como padrão** (editável na entrada).
 
 ## 15. Decisões herdadas do pilar (valem até o usuário dizer o contrário)
 - **O template monta o detalhamento** (bloco do plugin), não a folha.
@@ -285,3 +380,24 @@ validadas com o padrão de viga armada → **VP-3** com o desenho protendido que
 - Peso a 2500 kgf/m³.
 - Entrada por parâmetros e por tabela (com Ctrl+V do Excel).
 - Modelos salvos em CSV.
+
+## 16. Implementação (PC2, branch `pc2/viga-premoldada-template`)
+Etapas do VP-1 + VP-2, cada uma conferida pelo usuário antes da seguinte:
+1. **Forma** (2026-11-07, feita) — `src/DEB.Core/Templates/VigaPreMoldada/`: título `V144 (20 x 75)` (`- 17x` com várias
+   peças), FÔRMAS EM PLANTA (furos de pino distribuídos na largura, faces dos recortes ocultas, cotas furo | dente, dente |
+   vão | dente e total, largura dos furos), FÔRMAS EM ELEVAÇÃO (recortes dos dentes, furos ocultos, alças pelo CG a 20 %,
+   alturas nas pontas, marcas A/B/C), seções de forma (dente cortado + recorte em vista; vão), notas (cobrimentos fundo /
+   topo / laterais / pontas, tolerâncias da tab. 2, neoprene, contraflecha, E adotado, estocagem) e informações para
+   produção. Volume = seção cheia − recortes (a V144 dá 0,432 m³ / 1,080 t, como a prancha; a V143 dá 0,669 contra 0,664
+   da prancha — [CONFERIR] o que a prancha desconta). **Catálogo de dentes** (`TipoDente`: nome, altura do dente,
+   comprimento; padrão DG 45x25 da V143 e DG 35x25 da V129), por enquanto estático (sem janela ARMDENTES).
+   Testes: `VigaPreMoldadaTests`; autoteste `tools\autoteste_autocad.ps1 -Comando ARMTESTEVIGA` (V144 e uma reta 40 × 95).
+   [VALIDAR] "2 Furos" do V129 com cota 20 | 20: o template distribui os furos na LARGURA (2 furos em 40 = 13,3 | 13,3 | 13,3).
+2. **Armaduras passivas**: longitudinais em lista (função, quantidade, bitola, início/fim, ancoragem nas pontas), desenhadas
+   FORA da forma com o rótulo da função; estribos por zona a partir das pontas (cota em cadeia `100 / 11 N5 c/10`); estribos
+   salientes da capa; SEÇÃO X-X - ARMADURA com uma indicação por barra; formas dos estribos; RA.
+3. **Dente Gerber e apoio sem recorte**: armadura do catálogo (estribos Gerber, suspensão, grampo, costura, tirante com barra
+   transversal soldada) + janela ARMDENTES na configuração do usuário; tirante da 7.5 nas pontas retas.
+4. **Itens e detalhes**: ligação por chapa/cantoneira (catálogo de insertos), detalhe da alça, detalhe da solda do tirante,
+   detalhes típicos do pilar, aviso de estabilidade lateral (6.1.6).
+Depois: VP-3 (protensão), VP-4 (L, T invertido, I, capa), VP-5.
