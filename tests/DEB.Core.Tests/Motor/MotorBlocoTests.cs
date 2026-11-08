@@ -134,7 +134,8 @@ public class MotorBlocoTests
                     Assert.InRange(b.ComprimentosVar[k] - p.ComprimentosVar[k], -0.5, 15);
             }
         }
-        Assert.Equal(r.Barras.Count, m.Posicoes.Count);
+        // estribo vertical em y do bloco de 1 estaca: novo no motor (2026-11-08), o template antigo não tinha
+        Assert.Equal(r.Barras.Count, m.Posicoes.Count(p => p.Chave != "estribo_vertical_y"));
         // avisos do template (sem desenho) também no motor
         foreach (var a in r.Avisos) Assert.Contains(a, m.Avisos);
     }

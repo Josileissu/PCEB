@@ -55,7 +55,7 @@ public static class VocabularioPrancha
                 if (diam <= 0 && d.TryGetValue("diamestaca", out var de)) d["diametro"] = de;
                 else d["diametro"] = Num(diam);
                 // {calice:…} nas notas: o texto só entra com ligação por cálice
-                d["calice"] = e is ElementoBloco b && b.Ligacao != LigacaoPilar.Arranque ? "1" : "0";
+                d["calice"] = e is ElementoBloco b && (b.Ligacao == LigacaoPilar.CaliceColarinho || b.Ligacao == LigacaoPilar.CaliceEmbutido) ? "1" : "0";
             },
         };
 

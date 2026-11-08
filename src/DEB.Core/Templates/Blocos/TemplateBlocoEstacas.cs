@@ -34,7 +34,8 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
 {
     public const string IdUmaEstaca = "bloco_1_estaca", IdEstacas = "bloco_estacas";
     public const string Grade = "Retangular (grade nx × ny)", Triangulo = "Triangular (3 estacas)";
-    public const string Colarinho = "Cálice com colarinho", Embutido = "Cálice embutido no bloco", Arranque = "Arranque (moldado in loco)";
+    public const string Colarinho = "Cálice com colarinho", Embutido = "Cálice embutido no bloco", Arranque = "Arranque (moldado in loco)",
+        SemLigacao = "Sem pilar (bloco simples)";
     public const string Lisa = "Lisa", Rugosa = "Rugosa", Chaves = "Com chaves de cisalhamento";
     public const string PeDentro = "Para dentro", PeFora = "Para fora";
 
@@ -96,7 +97,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
         P(G4, "PilarBy", "Pilar: dimensão em y", "20", "cm", min: 10),
         P(G4, "PilarEx", "Pilar: deslocamento em x", "0", "cm", descricao: "Em relação ao centro das estacas."),
         P(G4, "PilarEy", "Pilar: deslocamento em y", "0", "cm"),
-        P(G4, "Ligacao", "Ligação do pilar", Colarinho, tipo: TipoParametro.Opcao, opcoes: new[] { Colarinho, Embutido, Arranque }),
+        P(G4, "Ligacao", "Ligação do pilar", Colarinho, tipo: TipoParametro.Opcao, opcoes: new[] { Colarinho, Embutido, Arranque, SemLigacao }),
         P(G4, "hColar", "Colarinho: altura acima da base", "40", "cm", min: 0),
         P(G4, "tParede", "Cálice: espessura das paredes", "21", "cm", min: 10, descricao: "Colarinho: parede de concreto (NBR 9062: ≥ 15). Embutido: faixa das armaduras em volta."),
         P(G4, "Folga", "Cálice: folga entre o pilar e a parede", "4", "cm", min: 0),

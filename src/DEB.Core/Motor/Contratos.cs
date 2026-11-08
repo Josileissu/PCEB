@@ -71,7 +71,8 @@ public sealed class NivelPilar
 }
 
 public enum ArranjoEstacas { Grade, Triangulo }
-public enum LigacaoPilar { CaliceColarinho, CaliceEmbutido, Arranque }
+/// <summary>Nenhuma = bloco simples, sem pilar ligado (pedido do usuário, 2026-11-08).</summary>
+public enum LigacaoPilar { CaliceColarinho, CaliceEmbutido, Arranque, Nenhuma }
 public enum InterfaceCalice { Lisa, Rugosa, Chaves }
 
 /// <summary>Bloco sobre estacas (B3, B4, B15, B28, B31, B3.1 — src/DEB.Cad/docs/BLOCOS_REQUISITOS.md).</summary>

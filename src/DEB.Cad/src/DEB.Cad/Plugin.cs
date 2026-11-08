@@ -32,8 +32,10 @@ public sealed class Plugin : Rt.IExtensionApplication
             Core.Templates.CatalogoTemplates.Registrar(new Core.Templates.Reservatorio.TemplateReservatorio());
             // blocos pelo motor de detalhamento (2026-11-07): mesma janela e modelos do template antigo; perfil e receita do
             // usuário em %AppData%\PCEB\Perfis e \Receitas (sem arquivo = fábrica); origem gravada no detalhamento
-            Core.Templates.CatalogoTemplates.Registrar(Core.Motor.Fundacoes.TemplateBlocoMotor.DoUsuario(umaEstaca: true));
-            Core.Templates.CatalogoTemplates.Registrar(Core.Motor.Fundacoes.TemplateBlocoMotor.DoUsuario());
+            // blocos: uma entrada por número de estacas e variante (pedido do usuário, 2026-11-08)
+            foreach (var bv in Core.Motor.Fundacoes.TemplateBlocoVariante.Todas(
+                         Core.Motor.Perfis.RepositorioPerfis.PastaPadrao(), Core.Motor.Receitas.RepositorioReceitas.PastaPadrao()))
+                Core.Templates.CatalogoTemplates.Registrar(bv);
             // modelos dos templates (PADRÃO + elementos salvos): carregados a cada abertura do GstarCAD
             try { ModelosTemplates.Carregar(); } catch (Exception ex) { Log.Erro("Modelos dos templates", ex); }
             DesenhoArmadura.Registrar();
