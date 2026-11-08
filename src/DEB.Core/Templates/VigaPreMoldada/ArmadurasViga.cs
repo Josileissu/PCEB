@@ -176,7 +176,8 @@ public sealed partial class TemplateVigaPreMoldada
 
     /// <summary>ARMADURAS EM ELEVAÇÃO abaixo de <paramref name="yTopo"/>; devolve o y abaixo de tudo.</summary>
     private double ArmadurasEmElevacao(Ctx c, ValoresTemplate v, ConfiguracaoArmadura cfg, double b, double h, double L,
-        ExtremidadeViga e, ExtremidadeViga d, List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, List<(string Id, double X)> cortes, double yTopo)
+        ExtremidadeViga e, ExtremidadeViga d, List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, List<(string Id, double X)> cortes, double yTopo,
+        List<GrupoCordoalhas> cordSup)
     {
         var r = c.R;
         double hv = c.hV, esc = c.escV;
@@ -188,6 +189,8 @@ public sealed partial class TemplateVigaPreMoldada
         var cima = longs.Where(l => !l.Inferior).OrderBy(l => l.Pele ? 1 : 0).ThenBy(l => l.Camada).ToList();
         var baixo = longs.Where(l => l.Inferior).OrderBy(l => l.Camada).ToList();
         double y = yTopo - 7 * hv;
+        // cordoalhas superiores (VP-3) acima das passivas
+        if (cordSup.Count > 0) y = CordoalhasEmElevacao(c, cordSup, h, L, e, d, yTopo - 6 * hv, superiores: true) + 1 * hv;
         foreach (var l in cima) { BarraLongitudinal(c, l, aco, y, esc); y -= passo; }
 
         // forma em linha fina e estribos dentro

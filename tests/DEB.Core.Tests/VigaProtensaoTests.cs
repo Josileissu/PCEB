@@ -65,6 +65,23 @@ public class VigaProtensaoTests
     }
 
     [Fact]
+    public void CordoalhasSuperioresAcimaDasPassivas()
+    {
+        // h = 95: fiada 18 (y = 90) é superior → linha à parte acima da armadura superior passiva; as de baixo abaixo da inferior
+        var (r, _) = Gerar(v =>
+        {
+            v["B"] = "40"; v["H"] = "95"; v["L"] = "1150"; v["ExtE"] = "Reta"; v["ExtD"] = "Reta";
+            v["Cordoalhas"] = "1|5|15.2|0|0|20.5;18|2|12.7|0|0|10";
+        });
+        double yC(string n) => r.Barras.Single(b => b.Nome == n).Vertices[0].Y;
+        double ySupPassiva = yC("long2"), yInfPassiva = yC("long1");
+        Assert.True(yC("cord2") > ySupPassiva);
+        Assert.True(yC("cord1") < yInfPassiva);
+        Assert.Contains(r.Textos, t => t.Texto == "ARMADURAS DE PROTENSÃO SUPERIORES - 2 ø 12,7mm CP 190 RB");
+        Assert.Contains(r.Textos, t => t.Texto == "ARMADURAS DE PROTENSÃO - 5 ø 15,2mm CP 190 RB");
+    }
+
+    [Fact]
     public void FiadaNoRecorteDoDenteParaNaFace()
     {
         // V144: 20 x 75 com dentes 45 x 25 (recorte de 30): a fiada 1 (y = 5) é cortada na face do recorte; a fiada 7 (y = 35) não
