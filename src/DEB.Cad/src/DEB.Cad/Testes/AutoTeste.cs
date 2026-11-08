@@ -2358,11 +2358,20 @@ public sealed class AutoTeste
                      ("DiamEstaca", "50"), ("PilarBx", "40"), ("PilarBy", "40"), ("tParede", "25"), ("hBase", "105"), ("hColar", "30"), ("Lemb", "65"),
                      ("PrincBitola", "12.5"), ("PrincEsp", "11"), ("Pilares", "P23/ P24/ P32/ P33/ P35/ P36") })
             vB15[k] = val;
-        var casos = new[] { ("BLOCO B28", vB28, new Point3d(12000, -5000, 0)), ("BLOCO B15", vB15, new Point3d(12000, -12000, 0)) };
+        // bloco de 1 estaca com arranque (exemplo do usuário, 2026-11-08): 50x50x50, estaca ø30, pilar in loco 14x30
+        var t1 = new Core.Motor.Fundacoes.TemplateBlocoMotor(umaEstaca: true);
+        var vB1 = new Core.Templates.ValoresTemplate(t1.Parametros);
+        foreach (var (k, val) in new[] { ("Nome", "B1"), ("Pilares", "P1"), ("DiamEstaca", "30"), ("DistFace", "25"), ("hBase", "50"),
+                     ("PilarBx", "14"), ("PilarBy", "30"), ("Ligacao", Core.Templates.Blocos.TemplateBlocoEstacas.Arranque), ("Cob", "3"),
+                     ("SecBitola", "0"), ("SupBitola", "0"), ("LatBitola", "6.3"), ("LatEsp", "20"), ("EstVBitola", "6.3"), ("EstVEsp", "20"),
+                     ("ArrBitola", "10"), ("Escala", "20") })
+            vB1[k] = val;
+        var casos = new[] { ("BLOCO B28", vB28, new Point3d(12000, -5000, 0)), ("BLOCO B15", vB15, new Point3d(12000, -12000, 0)),
+                            ("BLOCO B1", vB1, new Point3d(12000, -19000, 0)) };
         var janelas = new List<(string, double, double, double, double)>();
         foreach (var (nome, v, origem) in casos)
         {
-            var r = t.Gerar(v, cfg);
+            var r = (nome == "BLOCO B1" ? t1 : t).Gerar(v, cfg);
             var xs = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.X)).Concat(r.Textos.Select(q => q.X)).ToList();
             var ys = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.Y)).Concat(r.Textos.Select(q => q.Y)).ToList();
             janelas.Add((nome, origem.X + xs.Min() - 50, origem.Y + ys.Min() - 50, origem.X + xs.Max() + 450, origem.Y + ys.Max() + 50));
@@ -2373,7 +2382,9 @@ public sealed class AutoTeste
                 var dados = ids.Select(i => XDataCad.LerBarra(tr.GetObject(i, OpenMode.ForRead))).ToList();
                 Checar(dados.All(d => d != null), $"{nome}: todas as barras com dados do plugin");
                 int iCal = r.Barras.FindIndex(b => b.Nome == "calice_topo");
-                Checar(iCal >= 0 && dados[iCal].Estribo && dados[iCal].Quantidade == 3, $"{nome}: horizontais do topo do cálice ({(iCal >= 0 ? dados[iCal].Quantidade : -1)})");
+                if (v["Ligacao"] != Core.Templates.Blocos.TemplateBlocoEstacas.Arranque)
+                    Checar(iCal >= 0 && dados[iCal].Estribo && dados[iCal].Quantidade == 3, $"{nome}: horizontais do topo do cálice ({(iCal >= 0 ? dados[iCal].Quantidade : -1)})");
+                else Checar(r.Barras.Any(b => b.Nome == "arranque"), $"{nome}: barras do arranque");
                 tr.Commit();
             }
             using (var tr = db.TransactionManager.StartTransaction())
