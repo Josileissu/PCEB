@@ -70,7 +70,8 @@ public sealed class NivelPilar
     public double CotaM { get; set; }
 }
 
-public enum ArranjoEstacas { Grade, Triangulo }
+/// <summary>Cinco = 4 estacas nos cantos e 1 no centro (decisão do usuário, 2026-11-08).</summary>
+public enum ArranjoEstacas { Grade, Triangulo, Cinco }
 /// <summary>Nenhuma = bloco simples, sem pilar ligado (pedido do usuário, 2026-11-08).</summary>
 public enum LigacaoPilar { CaliceColarinho, CaliceEmbutido, Arranque, Nenhuma }
 public enum InterfaceCalice { Lisa, Rugosa, Chaves }

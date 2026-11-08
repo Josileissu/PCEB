@@ -12,11 +12,11 @@ namespace DEB.Core.Tests.Motor;
 public class TemplateBlocoVarianteTests
 {
     [Fact]
-    public void DezesseisEntradasComIdsUnicosNasCategoriasCertas()
+    public void VinteEntradasComIdsUnicosNasCategoriasCertas()
     {
         var ts = TemplateBlocoVariante.Todas().ToList();
-        Assert.Equal(16, ts.Count);
-        Assert.Equal(16, ts.Select(t => t.Id).Distinct().Count());
+        Assert.Equal(20, ts.Count);
+        Assert.Equal(20, ts.Select(t => t.Id).Distinct().Count());
         Assert.Equal(4, ts.Count(t => t.Categoria == CategoriaElemento.Bloco1Estaca));
         Assert.Equal(4, ts.Count(t => t.Categoria == CategoriaElemento.Bloco4Estacas));
         Assert.All(ts, t => Assert.DoesNotContain(t.Parametros, p => p.Nome == "Ligacao" || p.Nome == "NEstX" || p.Nome == "Arranjo"));
@@ -28,6 +28,7 @@ public class TemplateBlocoVarianteTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
+    [InlineData(5)]
     public void CadaVarianteGeraSoOQueEDela(int estacas)
     {
         var cfg = new ConfiguracaoArmadura();

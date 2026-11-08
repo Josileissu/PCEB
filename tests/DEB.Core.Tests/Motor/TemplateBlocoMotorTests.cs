@@ -50,7 +50,9 @@ public class TemplateBlocoMotorTests
             Assert.Equal(a.Bitola, b.Bitola);
             Assert.Equal(a.Quantidade * Math.Max(1, a.Repeticoes), b.Quantidade * Math.Max(1, b.Repeticoes));
             double la = MedidaBarra.Unitario(a, cfg), lb = MedidaBarra.Unitario(b, cfg);
-            if (diferentes.Contains(b.Nome)) Assert.InRange(lb - la, 0, 13);
+            // estribos verticais acima da cabeça das estacas (decisão do usuário, 2026-11-08): mais curtos que no antigo
+            if (b.Nome == "estribo_vertical_x") Assert.InRange(la - lb, 0, 12);
+            else if (diferentes.Contains(b.Nome)) Assert.InRange(lb - la, 0, 13);
             else Assert.True(Math.Abs(la - lb) <= 1, $"{b.Nome}: {la} × {lb}");
         }
         Assert.False(string.IsNullOrEmpty(r.DadosDetalhamento.Motor));

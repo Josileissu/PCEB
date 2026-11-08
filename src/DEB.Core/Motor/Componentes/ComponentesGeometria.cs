@@ -24,7 +24,7 @@ public sealed class ApoiosEstacas : ComponenteBase
         new[] { "largura_x", "largura_y", "centro_apoios_x", "centro_apoios_y", "triangular", "n_apoios", "circular", "raio" };
     protected override IEnumerable<(string, string)> Docs => new[]
     {
-        ("arranjo", "texto: \"grade\" (nx × ny) ou \"triangulo\" (3 apoios). Padrão \"grade\"."),
+        ("arranjo", "texto: \"grade\" (nx × ny), \"triangulo\" (3 apoios) ou \"cinco\" (4 nos cantos de esp_x × esp_y e 1 no centro). Padrão \"grade\"."),
         ("nx", "apoios em x (grade), ≥ 1. Padrão 2."),
         ("ny", "apoios em y (grade), ≥ 1. Padrão 1."),
         ("esp_x", "cm, entre eixos em x (triângulo: lado). Padrão 120."),
@@ -43,22 +43,24 @@ public sealed class ApoiosEstacas : ComponenteBase
     {
         string forma = a.Txt("forma", "");
         if (forma.Length > 0) { ComFormaDada(ctx, a, forma); return; }
-        bool tri = a.Txt("arranjo", "grade") == "triangulo";
+        string arr = a.Txt("arranjo", "grade");
+        bool tri = arr == "triangulo", cinco = arr == "cinco";
         double e = a.Num("dist_face", 35);
         List<(double X, double Y)> cont, est;
         if (tri) (cont, est) = Triangular(a.Num("esp_x", 120), e);
         else
         {
-            int nx = Math.Max(1, a.Int("nx", 2)), ny = Math.Max(1, a.Int("ny", 1));
+            int nx = cinco ? 2 : Math.Max(1, a.Int("nx", 2)), ny = cinco ? 2 : Math.Max(1, a.Int("ny", 1));
             double ex = a.Num("esp_x", 120), ey = a.Num("esp_y", 120);
             double W = (nx - 1) * ex + 2 * e, H = (ny - 1) * ey + 2 * e;
             cont = new List<(double, double)> { (0, 0), (W, 0), (W, H), (0, H) };
             est = new List<(double X, double Y)>();
             for (int j = 0; j < ny; j++) for (int i = 0; i < nx; i++) est.Add((e + i * ex, e + j * ey));
+            if (cinco) est.Add((W / 2, H / 2));
         }
         ctx.Dados["contorno"] = cont;
         ctx.Dados["estacas"] = est;
-        ctx.Dados["arranjo"] = tri ? "triangulo" : "grade";
+        ctx.Dados["arranjo"] = tri ? "triangulo" : cinco ? "cinco" : "grade";
         ctx.Variaveis["largura_x"] = cont.Max(p => p.X);
         ctx.Variaveis["largura_y"] = cont.Max(p => p.Y);
         ctx.Variaveis["centro_apoios_x"] = est.Average(p => p.X);

@@ -151,7 +151,7 @@ public static class ConversorBloco
         v["Pilares"] = TemplateBlocoEstacas.TextoPilares(e.Pilares ?? new List<string>());
         v["Quantidade"] = N(e.Repeticoes);
         v["Niveis"] = ValoresTemplate.JuntarTabela((e.Niveis ?? new List<NivelPilar>()).Select(n => new[] { n.Pilar, N(n.CotaM) }));
-        v["Arranjo"] = e.Arranjo == ArranjoEstacas.Triangulo ? TemplateBlocoEstacas.Triangulo : TemplateBlocoEstacas.Grade;
+        v["Arranjo"] = e.Arranjo == ArranjoEstacas.Triangulo ? TemplateBlocoEstacas.Triangulo : e.Arranjo == ArranjoEstacas.Cinco ? TemplateBlocoEstacas.Cinco : TemplateBlocoEstacas.Grade;
         v["NEstX"] = N(e.EstacasX); v["NEstY"] = N(e.EstacasY);
         v["EspX"] = N(e.EspX); v["EspY"] = N(e.EspY);
         v["DiamEstaca"] = N(e.DiamEstaca); v["DistFace"] = N(e.DistFace); v["EmbEstaca"] = N(e.EmbutimentoEstaca);
@@ -218,7 +218,8 @@ public static class ConversorBloco
     {
         string k = Chave(s);
         if (k.StartsWith("grade") || k.StartsWith("retangular")) return ArranjoEstacas.Grade;   // "Retangular (grade nx × ny)"
-        if (k.StartsWith("triang")) return ArranjoEstacas.Triangulo;                            // "Triangular (3 estacas)"
+        if (k.StartsWith("triang")) return ArranjoEstacas.Triangulo;
+        if (k.StartsWith("5") || k.StartsWith("cinco")) return ArranjoEstacas.Cinco;                            // "Triangular (3 estacas)"
         return null;
     }
 
