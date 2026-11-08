@@ -25,6 +25,10 @@ public enum CategoriaElemento
     Laje,
     /// <summary>Reservatório de concreto (paredes, fundo e tampas), pedido de 2026-11-05.</summary>
     Reservatorio,
+    // blocos separados por número de estacas (pedido do usuário, 2026-11-08); Bloco2Estacas = "2 estacas"
+    Bloco3Estacas,
+    Bloco4Estacas,
+    Bloco5Estacas,
 }
 
 public enum TipoParametro { Numero, Inteiro, Texto, Opcao, Bitola, SimNao, Tabela }
@@ -285,8 +289,11 @@ public static class CatalogoTemplates
     public static readonly IReadOnlyList<(CategoriaElemento Categoria, string Nome, string Variacoes)> Categorias = new[]
     {
         (CategoriaElemento.BaseCircularReservatorio, "Base de reservatório", "circular ou retangular, sobre estacas"),
-        (CategoriaElemento.Bloco1Estaca, "Bloco de 1 estaca", "cálice com colarinho, cálice embutido ou arranque do pilar"),
-        (CategoriaElemento.Bloco2Estacas, "Bloco sobre 2 ou mais estacas", "estacas em grade (2, 3 em linha, 4, 6…) ou 3 em triângulo; cálice com colarinho, embutido ou arranque; falta: 5 estacas"),
+        (CategoriaElemento.Bloco1Estaca, "Blocos de 1 estaca", "simples, com arranque, com embutimento, com embutimento e colarinho"),
+        (CategoriaElemento.Bloco2Estacas, "Blocos de 2 estacas", "simples, com arranque, com embutimento, com embutimento e colarinho"),
+        (CategoriaElemento.Bloco3Estacas, "Blocos de 3 estacas", "simples, com arranque, com embutimento, com embutimento e colarinho"),
+        (CategoriaElemento.Bloco4Estacas, "Blocos de 4 estacas", "simples, com arranque, com embutimento, com embutimento e colarinho"),
+        (CategoriaElemento.Bloco5Estacas, "Blocos de 5 estacas", "falta o arranjo das 5 estacas"),
         (CategoriaElemento.PilarPreMoldado, "Pilar pré-moldado", "consolos, içamento, zonas de estribos"),
         (CategoriaElemento.VigaPreMoldada, "Viga pré-moldada", "protendida ou não"),
         (CategoriaElemento.PilarMoldadoInLoco, "Pilar moldado in loco", ""),

@@ -65,7 +65,7 @@ public class NovidadesTests
     [Fact]
     public void CatalogoValidaERegistraTemplates()
     {
-        Assert.Equal(9, CatalogoTemplates.Categorias.Count); // + Reservatório (2026-11-05)
+        Assert.Equal(12, CatalogoTemplates.Categorias.Count); // + Reservatório (2026-11-05); blocos de 1 a 5 estacas (2026-11-08)
         var t = new Exemplo();
         CatalogoTemplates.Registrar(t);
         try

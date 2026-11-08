@@ -36,6 +36,9 @@ public class TemplateBlocoMotorTests
         Assert.DoesNotContain(r.Avisos, a => a.Contains("erro inesperado") || a.Contains("inválidos"));
         Assert.NotEmpty(r.Barras);
         var r0 = antigo.Gerar(new ValoresTemplate(antigo.Parametros), cfg);
+        // estribo vertical em y do bloco de 1 estaca: só no motor (2026-11-08)
+        Assert.Equal(umaEstaca, r.Barras.Any(b => b.Nome == "estribo_vertical_y"));
+        r.Barras.RemoveAll(b => b.Nome == "estribo_vertical_y");
         Assert.Equal(r0.Barras.Count, r.Barras.Count);
         // mesmas barras, na mesma ordem, com o mesmo comprimento e quantidade (nomes: rótulo no antigo, chave no motor).
         // 1 estaca: o antigo reservava a camada da principal (que não existe) e subia a secundária 2,5 cm; o motor apoia a

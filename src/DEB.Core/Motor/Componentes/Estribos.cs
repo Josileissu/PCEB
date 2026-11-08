@@ -68,8 +68,9 @@ public sealed class EstribosVerticais : ComponenteBase
         ("nome", "texto: nome legível. Padrão \"estribo vertical\"."),
         ("cobrimento", "cm. Padrão 4."),
         ("x0", "cm: início do trecho em x. Padrão 0."), ("y0", "cm: face y mínima. Padrão 0."), ("z0", "cm: face inferior. Padrão 0."),
-        ("comprimento", "cm: extensão em x (distribuição). Obrigatório."),
-        ("largura", "cm: extensão em y (face a face). Obrigatório."),
+        ("direcao", "texto: \"x\" = distribuídos em x, no plano yz; \"y\" = distribuídos em y, no plano xz. Padrão \"x\"."),
+        ("comprimento", "cm: extensão na direção da distribuição. Obrigatório."),
+        ("largura", "cm: extensão na outra direção em planta (face a face). Obrigatório."),
         ("altura", "cm: extensão em z (face a face). Obrigatório."),
         ("excluir_x0", "cm: início do trecho sem estribos (com excluir_x1). Sem = não exclui."), ("excluir_x1", "cm."),
         ("regra_quantidade", "texto. Padrão \"(comprimento − 2·cobrimento) / espaçamento\"."),
@@ -98,11 +99,14 @@ public sealed class EstribosVerticais : ComponenteBase
         double w = H - 2 * cob, h = hB - 2 * cob;
         p.Parametros["largura"] = w; p.Regras["largura"] = a.Txt("regra_largura", "largura − 2·cobrimento");
         p.Parametros["altura"] = h; p.Regras["altura"] = a.Txt("regra_altura", "altura − 2·cobrimento");
-        // plano yz: u = y, v = z
-        BarrasUtil.Estribo(ctx, p, Ret(0, 0, w, h), phi, xs.Select(x => (Func<double, double, P3>)((u, v) => new P3(x, y0 + cob + u, z0 + cob + v))));
+        bool emY = a.Txt("direcao", "x") == "y";
+        // em x: plano yz (u = y, v = z), distribuídos em x; em y: plano xz (u = x, v = z), distribuídos em y (x0/y0 trocam de papel)
+        P3 Pt(double s, double u, double v) => emY ? new P3(x0 + cob + u, s, z0 + cob + v) : new P3(s, y0 + cob + u, z0 + cob + v);
+        if (emY) xs = xs.Select(s => s - x0 + y0).ToList();
+        BarrasUtil.Estribo(ctx, p, Ret(0, 0, w, h), phi, xs.Select(s => (Func<double, double, P3>)((u, v) => Pt(s, u, v))));
         p.Distribuicao = new Distribuicao
         {
-            Inicio = new P3(xs[0], y0 + H / 2, z0 + hB / 2), Fim = new P3(xs[xs.Count - 1], y0 + H / 2, z0 + hB / 2), Quantidade = xs.Count, Espacamento = esp,
+            Inicio = Pt(xs[0], w / 2, h / 2), Fim = Pt(xs[xs.Count - 1], w / 2, h / 2), Quantidade = xs.Count, Espacamento = esp,
         };
         ctx.Adicionar(p);
     }

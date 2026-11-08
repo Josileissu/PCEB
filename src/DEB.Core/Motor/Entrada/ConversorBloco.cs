@@ -161,6 +161,7 @@ public static class ConversorBloco
         {
             LigacaoPilar.CaliceEmbutido => TemplateBlocoEstacas.Embutido,
             LigacaoPilar.Arranque => TemplateBlocoEstacas.Arranque,
+            LigacaoPilar.Nenhuma => TemplateBlocoEstacas.SemLigacao,
             _ => TemplateBlocoEstacas.Colarinho,
         };
         v["hColar"] = N(e.AlturaColarinho); v["tParede"] = N(e.ParedeCalice); v["Folga"] = N(e.FolgaCalice);
@@ -227,6 +228,7 @@ public static class ConversorBloco
         if (k == Chave(TemplateBlocoEstacas.Colarinho) || k.Contains("colarinho")) return LigacaoPilar.CaliceColarinho;
         if (k == Chave(TemplateBlocoEstacas.Embutido) || k.Contains("embutido")) return LigacaoPilar.CaliceEmbutido;
         if (k == Chave(TemplateBlocoEstacas.Arranque) || k.StartsWith("arranque")) return LigacaoPilar.Arranque;
+        if (k == Chave(TemplateBlocoEstacas.SemLigacao) || k.StartsWith("sem") || k.StartsWith("nenhum")) return LigacaoPilar.Nenhuma;
         return null;
     }
 
