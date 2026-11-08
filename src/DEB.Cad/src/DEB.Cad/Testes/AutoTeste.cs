@@ -2432,7 +2432,7 @@ public sealed class AutoTeste
         Rel.Clear(); _ok = _falhas = 0;
         var t = new Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
         var v144 = new Core.Templates.ValoresTemplate(t.Parametros);
-        v144["Nome"] = "V144"; v144["L"] = "308";
+        v144["Nome"] = "V144"; v144["L"] = "308"; v144["CantE"] = "Sim"; v144["CantD"] = "Sim";
         var vReta = new Core.Templates.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V149"), ("Quantidade", "17"), ("B", "40"), ("H", "95"), ("L", "1150"),
                      ("ExtE", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta),
@@ -2456,6 +2456,9 @@ public sealed class AutoTeste
                 double yMin = r.Barras.SelectMany(bb => bb.Vertices).Where(p => p.X < tArm.X + 2000).Select(p => p.Y).DefaultIfEmpty(tArm.Y - 300).Min();
                 janelas.Add((nome + "_armaduras", origem.X + tArm.X - 40, origem.Y + yMin - 60, origem.X + tArm.X + 520, origem.Y + tArm.Y + 15));
             }
+            var tCan = r.Textos.Where(q => q.Layer == "ARM-INSERTO").ToList();
+            if (tCan.Count > 0)
+                janelas.Add((nome + "_ponta", origem.X - 200, origem.Y + tCan.Min(q => q.Y) - 120, origem.X + 160, origem.Y + tCan.Max(q => q.Y) + 30));
             var tNom = r.Textos.FirstOrDefault(q => q.Texto.StartsWith("NOMENCLATURA E POSICIONAMENTO DAS CORDOALHAS"));
             if (tNom != null) janelas.Add((nome + "_nomenclatura", origem.X + tNom.X - 20, origem.Y + tNom.Y - 200, origem.X + tNom.X + 220, origem.Y + tNom.Y + 15));
             var tProt = r.Textos.FirstOrDefault(q => q.Texto.StartsWith("ARMADURAS DE PROTENSÃO"));

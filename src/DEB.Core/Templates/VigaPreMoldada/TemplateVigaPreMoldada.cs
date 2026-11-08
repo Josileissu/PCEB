@@ -111,7 +111,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                 P(G6, "ModuloE", "Módulo de elasticidade adotado (0 = sem nota)", "0", "GPa", min: 0,
                   descricao: "NBR 9062, 5.6.1.2: o desenho informa o E adotado."),
                 P(G6, "Estocagem", "Estocagem: apoios a partir das pontas (0 = nas alças)", "0", "cm", min: 0),
-            }.Concat(ParametrosArmadura()).Concat(ParametrosProtensao()).ToArray();
+            }.Concat(ParametrosCantoneira()).Concat(ParametrosArmadura()).Concat(ParametrosProtensao()).ToArray();
         }
     }
 
@@ -163,6 +163,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         var e = LerExtremidade(v, true, CatalogoDentes, r.Avisos);
         var d = LerExtremidade(v, false, CatalogoDentes, r.Avisos);
         ValidarExtremidades(r, b, h, L, e, d, v.Numero("FuroDiam") / 10);
+        ValidarCantoneiras(v, b, h, e, d, r.Avisos);
         int qtd = Math.Max(1, v.Inteiro("Quantidade"));
 
         // ---------------- título ----------------
@@ -344,6 +345,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         }
         if (e.TemDente || d.TemDente) CadeiaH(c, PontosComprimento(L, e, d), yP, yP - 3 * hv, esc);
         c.Cota(0, yP, L, yP, L / 2, yP - 6 * hv, 0, esc);
+        CantoneirasEmPlanta(c, v, b, L, yP);
     }
 
     /// <summary>Posições das duas alças (cm da ponta esquerda): simétricas ao CG, como no pilar; valores digitados mandam.</summary>
@@ -388,6 +390,8 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
             c.Linha(xf - rf, yb, xf - rf, yT, "ARM-FURO-OCULTO");
             c.Linha(xf + rf, yb, xf + rf, yT, "ARM-FURO-OCULTO");
         }
+
+        CantoneirasEmElevacao(c, v, L, yT);
 
         // alças: laço acima do topo; cadeia ponta → alça → alça → ponta em cima
         double yCadeiaTopo = yT + 2.5 * hv;

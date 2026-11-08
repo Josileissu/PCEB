@@ -217,5 +217,7 @@ Usa o contexto de desenho do pilar (`TemplatePilarPreMoldado.Ctx`, agora `intern
   SOLID em ARM-ISOLAMENTO cotado, "MANGUEIRA ISOLAMENTO"); fiada que passa no recorte do dente é cortada na face dele;
   seção NOMENCLATURA 1:15 (isoladas em vermelho, grade cotada); RA em CP-190; quadro com "RESISTÊNCIA ATO DA PROT." (fcj do
   saque) e aviso < 21 MPa; avisos de largura, espaço livre (9.2.1) e passiva encostando em cordoalha.
-- Falta: ligação por chapa/cantoneira nas pontas, cordoalhas superiores numa linha acima das passivas, fretagem, taxas de
-  armadura passiva/ativa no quadro, VP-4 (L, T invertido, I).
+- **Cantoneira nas pontas** (`LigacaoViga.cs`, padrão CAN-03 da 1071): por ponta (CantE/CantD), nome, altura, distância ao topo e
+  aba; retângulo na elevação e L nos dois cantos na planta (layer ARM-INSERTO), cotas por fora e o nome com chamada; não entra
+  na RA. Cordoalhas superiores (fiada acima de h/2) numa linha à parte acima das passivas.
+- Falta: fretagem, taxas de armadura passiva/ativa no quadro, VP-4 (L, T invertido, I).

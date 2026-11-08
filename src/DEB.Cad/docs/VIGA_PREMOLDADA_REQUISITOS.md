@@ -400,8 +400,8 @@ Etapas do VP-1 + VP-2, cada uma conferida pelo usuário antes da seguinte:
    transversal soldada) + janela ARMDENTES na configuração do usuário; tirante da 7.5 nas pontas retas.
 4. **Itens e detalhes**: ligação por chapa/cantoneira (catálogo de insertos), detalhe da alça, detalhe da solda do tirante,
    detalhes típicos do pilar, aviso de estabilidade lateral (6.1.6).
-Estado em 2026-11-08 (branch `pc2/viga-premoldada-detalhamento`): etapas 2, 3 (com a janela ARMDENTES) e 4 feitas — falta
-a ligação por chapa/cantoneira nas pontas. **VP-3 feito** (`ProtensaoViga.cs`): grupos de cordoalhas na grade de 5 cm,
-isolamento cotado, NOMENCLATURA 1:15, RA em CP-190, "RESISTÊNCIA ATO DA PROT."; faltam cordoalhas superiores numa linha
-acima das passivas, fretagem e as taxas de armadura no quadro. Resumo em `TEMPLATES.md`. Tudo aguarda a conferência do usuário.
+Estado em 2026-11-08 (branch `pc2/viga-premoldada-detalhamento`): etapas 2, 3 (com a janela ARMDENTES) e 4 feitas (cantoneira
+nas pontas como a CAN-03 da 1071, parâmetros por ponta). **VP-3 feito** (`ProtensaoViga.cs`): grupos de cordoalhas na grade de 5 cm,
+isolamento cotado, NOMENCLATURA 1:15, RA em CP-190, "RESISTÊNCIA ATO DA PROT."; cordoalhas superiores numa linha acima das passivas
+(feito); faltam a fretagem e as taxas de armadura no quadro. Resumo em `TEMPLATES.md`. Tudo aguarda a conferência do usuário.
 Depois: VP-4 (L, T invertido, I, capa), VP-5.
