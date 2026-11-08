@@ -24,7 +24,7 @@ internal static class PainelComandos
                            ("Chamada", "ARMCHAMADA"), ("Indicação", "ARMINDICACAO") }),
         ("Relação do aço", new[] { ("Inserir", "ARMRAINSERIR"), ("Atualizar", "ARMRAATUALIZAR"), ("Parcial", "ARMRAPARCIAL"),
                                    ("Associar", "ARMRAASSOCIAR"), ("Bloquear", "ARMRABLOQUEAR"), ("Corte e dobra", "ARMCORTEDOBRA") }),
-        ("Detalhamentos", new[] { ("Criar", "ARMDETCRIAR"), ("Gerenciar", "ARMDETGERENCIAR"), ("Templates", "ARMTEMPLATE"), ("Regenerar", "ARMDETREGENERAR"), ("Consolos", "ARMCONSOLOS"), ("Insertos", "ARMINSERTOS") }),
+        ("Detalhamentos", new[] { ("Criar", "ARMDETCRIAR"), ("Gerenciar", "ARMDETGERENCIAR"), ("Templates", "ARMTEMPLATE"), ("Consolos", "ARMCONSOLOS"), ("Insertos", "ARMINSERTOS") }),
         ("Geral", new[] { ("Importar .cad", "ARMIMPORTARCAD"), ("Paleta prop.", "ARMPALETA"), ("Prop. rápida", "ARMPALETARAPIDA"), ("Configuração", "ARMCONFIG"), ("Sobre", "ARMSOBRE") }),
     };
 
