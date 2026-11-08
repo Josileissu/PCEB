@@ -97,6 +97,8 @@ internal sealed class FamiliaRetas
     public bool Superior;
     /// <summary>Distribuição com o passo real entre as duas primeiras retas (faixa) em vez do espaçamento pedido (malha).</summary>
     public bool PassoReal;
+    /// <summary>Distribuição de cobrimento a cobrimento (malha): o texto mostra o passo real entre as retas, a 0,5 cm.</summary>
+    public bool DivisaoIgual;
     /// <summary>Cobrimento medido na normal da face (corda do contorno encolhido), em vez de ao longo da barra.</summary>
     public bool CobrimentoNormal = true;
     public List<LinhaReta> Linhas = new List<LinhaReta>();
@@ -161,6 +163,7 @@ internal sealed class FamiliaRetas
         if (Faixas > 1 && Linhas.Count % Faixas != 0) Faixas = 1;   // alguma barra caiu fora: uma distribuição só
         int porFaixa = Linhas.Count / Faixas;
         double passo = PassoReal && porFaixa > 1 ? Math.Abs(Linhas[1].T - Linhas[0].T) : Esp;
+        if (DivisaoIgual) passo = ContextoMotor.EspacamentoReal(Linhas.Select(l => l.T).Distinct().OrderBy(t => t), Esp);
         p.Distribuicao = new Distribuicao
         {
             Inicio = meios[0], Fim = meios[Math.Max(0, porFaixa - 1)], Quantidade = porFaixa, Espacamento = passo, Repeticoes = Faixas,

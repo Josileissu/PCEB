@@ -63,10 +63,11 @@ public sealed class MalhaFace : ComponenteBase
             Z = sup ? zFace - phi / 20 - (camadas > 0 ? camadas * phi / 10 : 0) : zFace + phi / 20 + (camadas > 0 ? camadas * phi / 10 : 0),
         };
         f.CobrimentoNormal = a.Bool("cobrimento_normal", true);
+        f.DivisaoIgual = true;
         f.Perna = ctx.Par(p, "perna", a.Num("perna", 0), a.Txt("regra_perna", "argumento da receita"));
 
         double t0 = contorno.Min(pt => Dot(f.N, pt)), t1 = contorno.Max(pt => Dot(f.N, pt));
-        double vao = t1 - t0 - 2 * cob;
+        double vao = t1 - t0 - 2 * cob - phi / 10;   // face das barras das pontas no cobrimento
         int n = ctx.ParInt(p, "quantidade", ctx.Quantidade(vao, f.Esp), a.Txt("regra_quantidade", "vão (face a face − 2·cobrimento) / espaçamento"));
         f.PorFaixa = n;
         var ab = Retangulo(ctx, a.Txt("abertura", ""));
@@ -74,7 +75,7 @@ public sealed class MalhaFace : ComponenteBase
         bool emX = Math.Abs(f.Ang) < 1e-6, emY = Math.Abs(f.Ang - Math.PI / 2) < 1e-6;
         foreach (var s in ctx.Posicoes(vao, n, f.Esp))
         {
-            double t = t0 + cob + s;
+            double t = t0 + cob + phi / 20 + s;
             int antes = f.Linhas.Count;
             f.AdicionarLinha(contorno, cob, recuo, t);
             if (ab == null || !(emX || emY) || f.Linhas.Count == antes) continue;

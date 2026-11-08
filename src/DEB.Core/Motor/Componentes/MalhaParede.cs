@@ -129,7 +129,7 @@ public sealed class MalhaParede : ComponenteBase
                 p.Distribuicao = new Distribuicao
                 {
                     Inicio = b0[pIni > 0 ? 1 : 0], Fim = new P3(b0[pIni > 0 ? 1 : 0].X, b0[pIni > 0 ? 1 : 0].Y, p.Barras[p.Barras.Count - 1][0].Z),
-                    Quantidade = p.Barras.Count, Espacamento = esp,
+                    Quantidade = p.Barras.Count, Espacamento = ContextoMotor.EspacamentoReal(p.Barras.Select(b => b[0].Z), esp),
                 };
                 ctx.Adicionar(p);
             }
@@ -170,7 +170,7 @@ public sealed class MalhaParede : ComponenteBase
                 for (int k = 0; k + 1 < p.Barras[0].Count; k++) p.Formatos.Add(FormatoSegmento.Linha);
                 p.Distribuicao = new Distribuicao
                 {
-                    Inicio = w.Pt(ss[0], d, zP), Fim = w.Pt(ss[ss.Count - 1], d, zP), Quantidade = ss.Count, Espacamento = esp,
+                    Inicio = w.Pt(ss[0], d, zP), Fim = w.Pt(ss[ss.Count - 1], d, zP), Quantidade = ss.Count, Espacamento = ContextoMotor.EspacamentoReal(ss, esp),
                 };
                 ctx.Adicionar(p);
             }

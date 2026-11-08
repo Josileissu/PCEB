@@ -88,7 +88,8 @@ public class BaseReservatorioComponentesTests
         ComponentesPadrao.BarrasBorda.Aplicar(ctx, Args().Com("cobrimento", 4).Com("bitola_u", 10).Com("z_inferior", 5).Com("z_superior", 81));
         var m = ctx.Concluir();
         var cfg = new ConfiguracaoArmadura();
-        int Q(double L) => DEB.Core.Modelo.CalculoFaixa.Quantidade(L, 18, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
+        // divisão igual de cobrimento a cobrimento (2026-11-08): teto(L / esp) + 1
+        int Q(double L) => (int)Math.Ceiling(L / 18 - 1e-6) + 1;
         Assert.Equal(2 * Q(672) + 2 * Q(492), m.Posicao("borda_u").Parametros["quantidade"]);
         var bx = m.Posicao("borda_x"); var by = m.Posicao("borda_y");
         Assert.Equal(6, bx.Barras.Count);                   // 3 por lado × 2 lados
