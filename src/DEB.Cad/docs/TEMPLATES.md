@@ -220,4 +220,8 @@ Usa o contexto de desenho do pilar (`TemplatePilarPreMoldado.Ctx`, agora `intern
 - **Cantoneira nas pontas** (`LigacaoViga.cs`, padrão CAN-03 da 1071): por ponta (CantE/CantD), nome, altura, distância ao topo e
   aba; retângulo na elevação e L nos dois cantos na planta (layer ARM-INSERTO), cotas por fora e o nome com chamada; não entra
   na RA. Cordoalhas superiores (fiada acima de h/2) numa linha à parte acima das passivas.
-- Falta: fretagem, taxas de armadura passiva/ativa no quadro, VP-4 (L, T invertido, I).
+- **Fretagem** (resposta do usuário: feita com estribos; no dente a suspensão ajuda): a zona dos estribos de cada ponta vai
+  pelo menos até o fim da transferência das cordoalhas aderentes, ℓbpt da NBR 6118 9.4.5 (fbpd com o fcj do saque, ηp1 = 1,2;
+  × 1,25 se a liberação não for gradual); nota no desenho. **Taxas** passiva e ativa (kg/m³) no quadro de produção da protendida
+  (pesos pelas regras da RA, `MedidaBarra`; alças fora).
+- Falta: VP-4 (L, T invertido, I).

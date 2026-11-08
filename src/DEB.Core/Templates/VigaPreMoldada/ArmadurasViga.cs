@@ -133,22 +133,29 @@ public sealed partial class TemplateVigaPreMoldada
     /// Zonas de estribos simétricas: ponta E, vão e ponta D, entre as faces dos dentes (ou as pontas retas) menos o cobrimento;
     /// posições pela regra de faixas do plugin (<see cref="CalculoFaixa"/>), a mesma com que a faixa conta os estribos.
     /// </summary>
-    public static List<ZonaEstriboViga> ZonasEstribos(ValoresTemplate v, ConfiguracaoArmadura cfg, double L, ExtremidadeViga e, ExtremidadeViga d)
+    /// <param name="fretE">Fretagem (VP-3): a zona da ponta esquerda vai pelo menos até esta distância da ponta (fim da transferência).</param>
+    /// <param name="fretD">Idem, medida da ponta direita.</param>
+    public static List<ZonaEstriboViga> ZonasEstribos(ValoresTemplate v, ConfiguracaoArmadura cfg, double L, ExtremidadeViga e, ExtremidadeViga d,
+        double fretE = 0, double fretD = 0)
     {
         double cob = v.Numero("CobPontas"), phi = v.Numero("EstBitola") / 10;
         double x0 = (e.TemDente ? e.CompDente : 0) + cob + phi / 2 + ExtensaoSuspensao(e),
                x1 = L - (d.TemDente ? d.CompDente : 0) - cob - phi / 2 - ExtensaoSuspensao(d);
         double lz = Math.Max(0, v.Numero("EstZonaPonta")), espP = v.Numero("EstEspPonta"), espV = v.Numero("EstEspVao");
+        // fretagem da protensão: a zona da ponta cobre o comprimento de transferência (a suspensão do dente também ajuda)
+        double lzE = Math.Max(lz, fretE - x0), lzD = Math.Max(lz, fretD - (L - x1));
         var r = new List<ZonaEstriboViga>();
         if (x1 - x0 < 1) return r;
         // vão menor que um espaçamento: uma zona só (viga curta, ou a suspensão do dente ocupou o lugar)
-        if (lz <= 0 || 2 * lz >= x1 - x0 - Math.Max(espV, espP) - 1e-6)
-            r.Add(new ZonaEstriboViga { Nome = lz <= 0 ? "vão" : "ponta", X1 = x0, X2 = x1, Esp = lz <= 0 ? espV : espP });
+        if (lzE <= 0 && lzD <= 0)
+            r.Add(new ZonaEstriboViga { Nome = "vão", X1 = x0, X2 = x1, Esp = espV });
+        else if (lzE + lzD >= x1 - x0 - Math.Max(espV, espP) - 1e-6)
+            r.Add(new ZonaEstriboViga { Nome = "ponta", X1 = x0, X2 = x1, Esp = espP });
         else
         {
-            r.Add(new ZonaEstriboViga { Nome = "ponta E", X1 = x0, X2 = x0 + lz, Esp = espP });
-            r.Add(new ZonaEstriboViga { Nome = "vão", X1 = x0 + lz, X2 = x1 - lz, Esp = espV });
-            r.Add(new ZonaEstriboViga { Nome = "ponta D", X1 = x1 - lz, X2 = x1, Esp = espP });
+            if (lzE > 0) r.Add(new ZonaEstriboViga { Nome = "ponta E", X1 = x0, X2 = x0 + lzE, Esp = espP });
+            r.Add(new ZonaEstriboViga { Nome = "vão", X1 = x0 + Math.Max(0, lzE), X2 = x1 - Math.Max(0, lzD), Esp = espV });
+            if (lzD > 0) r.Add(new ZonaEstriboViga { Nome = "ponta D", X1 = x1 - lzD, X2 = x1, Esp = espP });
         }
         foreach (var z in r)
         {

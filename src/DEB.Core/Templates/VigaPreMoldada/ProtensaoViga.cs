@@ -39,6 +39,8 @@ public sealed partial class TemplateVigaPreMoldada
 
     private static IEnumerable<ParametroTemplate> ParametrosProtensao() => new[]
     {
+        P(G9, "LiberacaoGradual", "Liberação gradual da protensão", "Sim", tipo: TipoParametro.SimNao,
+          descricao: "NBR 6118 9.4.5.2: não gradual = comprimento de transferência × 1,25 (fretagem nas pontas)."),
         P(G9, "Protendida", "Viga protendida", "Não", tipo: TipoParametro.SimNao,
           descricao: "Sim = desenha as cordoalhas da tabela; o quadro de produção troca \"ao saque\" por \"ato da protensão\"."),
         new ParametroTemplate
@@ -130,6 +132,43 @@ public sealed partial class TemplateVigaPreMoldada
     /// passivas, como nas pranchas 1071/1078 — cada linha do lado da face em que está na seção.
     /// </summary>
     public static bool Superior(GrupoCordoalhas g, double h) => g.Y > h / 2;
+
+    /// <summary>Área nominal da cordoalha de 7 fios CP-190 RB (NBR 7483), cm².</summary>
+    public static double AreaCordoalha(double phi) => phi < 11 ? 0.548 : phi < 14 ? 0.987 : 1.40;
+
+    /// <summary>
+    /// Comprimento de transferência ℓbpt (cm), NBR 6118:2014 9.4.5: ℓbp = (7φ/36)·fpyd/fbpd (cordoalhas de 3/7 fios),
+    /// fbpd = ηp1·ηp2·fctd com ηp1 = 1,2, ηp2 = 1,0 e fctd = 0,7·0,3·fcj^(2/3)/1,4 na idade da protensão (9.3.2.1);
+    /// ℓbpt = 0,5·ℓbp·σpi/fpyd, × 1,25 se a liberação não for gradual. CP-190 RB: fpyd = 0,9·1900/1,15.
+    /// Sem força informada, σpi = fpyd (a favor da segurança).
+    /// </summary>
+    public static double ComprimentoTransferencia(double phiMm, double forcaTf, double fcjMPa, bool gradual = true)
+    {
+        double fpyd = 0.9 * 1900 / 1.15;
+        double fctd = 0.7 * 0.3 * Math.Pow(Math.Max(1, fcjMPa), 2.0 / 3) / 1.4, fbpd = 1.2 * 1.0 * fctd;
+        double lbp = 7 * (phiMm / 10) / 36 * fpyd / fbpd;
+        double spi = forcaTf > 0 ? Math.Min(fpyd, forcaTf * 9.80665 / AreaCordoalha(phiMm) * 10) : fpyd;
+        double lbpt = 0.5 * lbp * spi / fpyd;
+        return gradual ? lbpt : 1.25 * lbpt;
+    }
+
+    /// <summary>
+    /// Fim da transferência das cordoalhas aderentes em cada ponta (cm a partir da ponta): início da cordoalha + ℓbpt. As isoladas
+    /// numa ponta transferem depois da mangueira, longe da ponta — não entram na fretagem dessa ponta.
+    /// </summary>
+    public static (double E, double D, double Lbpt) Fretagem(List<GrupoCordoalhas> gs, double h, double L, ExtremidadeViga e, ExtremidadeViga d,
+        double fcj, bool gradual)
+    {
+        double fe = 0, fd = 0, lmax = 0;
+        foreach (var g in gs)
+        {
+            var (ini, fim) = TrechoCordoalha(g, h, L, e, d);
+            double lt = ComprimentoTransferencia(g.Bitola, g.Forca, fcj, gradual);
+            if (g.IsolE <= 0) { fe = Math.Max(fe, ini + lt); lmax = Math.Max(lmax, lt); }
+            if (g.IsolD <= 0) { fd = Math.Max(fd, L - fim + lt); lmax = Math.Max(lmax, lt); }
+        }
+        return (fe, fd, lmax);
+    }
 
     /// <summary>Trecho da cordoalha ao longo da viga: de ponta a ponta, ou da face do recorte se a fiada passa no recorte do dente.</summary>
     public static (double Ini, double Fim) TrechoCordoalha(GrupoCordoalhas g, double h, double L, ExtremidadeViga e, ExtremidadeViga d) =>
