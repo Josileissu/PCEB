@@ -103,6 +103,18 @@ public class VigaProtensaoTests
     }
 
     [Fact]
+    public void CantoneirasNasPontasComoACan03()
+    {
+        // VT-1 da 1071: CAN-03 a 5 cm do topo, 12 de altura, nos dois cantos de cada ponta
+        var (r, _) = Gerar(v => { v["Protendida"] = "Não"; v["CantE"] = "Sim"; v["CantD"] = "Sim"; });
+        Assert.Equal(4, r.Textos.Count(t => t.Texto == "CAN-03" && t.Layer == "ARM-INSERTO"));       // elevação + planta, 2 pontas
+        Assert.Equal(6, r.Contornos.Count(k => k.Layer == "ARM-INSERTO" && k.Fechado));                         // 1 na elevação + 2 L na planta, por ponta
+        Assert.DoesNotContain(r.Barras, b => b.Nome.StartsWith("can"));                            // não entra na relação do aço
+        var (r2, _) = Gerar(v => { v["Protendida"] = "Não"; v["CantE"] = "Sim"; v["CantAlt"] = "45"; });
+        Assert.Contains(r2.Avisos, a => a.StartsWith("Cantoneira da ponta esquerda"));
+    }
+
+    [Fact]
     public void VigaArmadaSemCordoalhas()
     {
         var (r, _) = Gerar(v => v["Protendida"] = "Não");
