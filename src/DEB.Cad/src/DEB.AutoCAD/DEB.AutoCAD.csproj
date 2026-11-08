@@ -49,7 +49,7 @@
     <OutputPath Condition="'$(Demo)' == 'true'">$(MSBuildThisFileDirectory)..\..\bin\demo\AutoCAD$(AutoCadVersao)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>0.1.28</Version>
+    <Version>0.1.29</Version>
     <!-- Sem o hash do Git em ProductVersion: o nome do Setup sai do ProductVersion. -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
