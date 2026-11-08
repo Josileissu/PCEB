@@ -102,7 +102,8 @@ public static class PerfisFabrica
             Posicoes = { Funcoes.Lateral, Funcoes.EstriboVertical }, Quadro = 1, Linha = 0, Ordem = 4,
         });
 
-        f.Detalhes.AddRange(new[] { "chaves", "raio_curvatura", "emendas", "comprimento_barras", "ancoragem_estacas", "barra_variavel" });
+        // raio de curvatura, emendas e comprimento das barras: fora da folha do bloco (pedido do usuário, 2026-11-08)
+        f.Detalhes.AddRange(new[] { "chaves", "ancoragem_estacas", "barra_variavel" });
         f.RelacaoAco = true;
         f.InformacoesProducao = true;
         // Notas do TemplateBlocoEstacas.Detalhes (o "NOTAS:" do cabeçalho fica com a prancha).
