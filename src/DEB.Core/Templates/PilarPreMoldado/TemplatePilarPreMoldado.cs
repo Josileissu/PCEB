@@ -454,7 +454,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     /// à esquerda e valor com unidade à direita. A linha da montagem só entra com fcj de montagem &gt; 0.
     /// </summary>
     public static TabelaTemplate TabelaProducao(IdiomaDesenho idioma, double fcjSaque, double fcjMontagem, double fck,
-        double volume, double peso, int quantidade, double x, double y, double escala)
+        double volume, double peso, int quantidade, double x, double y, double escala, bool protendida = false)
     {
         bool en = idioma == IdiomaDesenho.EN;
         string N(double v, string f) => en ? v.ToString(f, CultureInfo.InvariantCulture) : Num(v, f);
@@ -471,7 +471,9 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         };
         t.Larguras.AddRange(new[] { 24.0, 11.0 });
         t.Alinhamentos.AddRange(new[] { 0, 2 });
-        t.Linhas.Add(new[] { R("RESISTÊNCIA AO SAQUE:", "STRENGTH DEMOLDING:"), $"fcj = {N(fcjSaque, "0.#")} MPa" });
+        t.Linhas.Add(protendida
+            ? new[] { R("RESISTÊNCIA ATO DA PROT.:", "STRENGTH AT PRESTRESS RELEASE:"), $"fcj = {N(fcjSaque, "0.#")} MPa" }
+            : new[] { R("RESISTÊNCIA AO SAQUE:", "STRENGTH DEMOLDING:"), $"fcj = {N(fcjSaque, "0.#")} MPa" });
         if (fcjMontagem > 0)
             t.Linhas.Add(new[] { R("RESISTÊNCIA NA MONTAGEM:", "STRENGTH ERECTION:"), $"fcj = {N(fcjMontagem, "0.#")} MPa" });
         t.Linhas.Add(new[] { R("RESISTÊNCIA 28 DIAS:", "STRENGTH AT 28 DAYS:"), $"fck = {N(fck, "0.#")} MPa" });

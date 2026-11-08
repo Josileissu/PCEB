@@ -111,7 +111,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                 P(G6, "ModuloE", "Módulo de elasticidade adotado (0 = sem nota)", "0", "GPa", min: 0,
                   descricao: "NBR 9062, 5.6.1.2: o desenho informa o E adotado."),
                 P(G6, "Estocagem", "Estocagem: apoios a partir das pontas (0 = nas alças)", "0", "cm", min: 0),
-            }.Concat(ParametrosArmadura()).ToArray();
+            }.Concat(ParametrosArmadura()).Concat(ParametrosProtensao()).ToArray();
         }
     }
 
@@ -189,7 +189,15 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         // ---------------- armaduras em elevação (etapa 2) ----------------
         var longs = LerLongitudinais(v, L, v.Numero("CobPontas"), e, d, r.Avisos);
         var zonas = ZonasEstribos(v, cfg, L, e, d);
-        ArmadurasEmElevacao(c, v, cfg, b, h, L, e, d, longs, zonas, cortes, yE - 16 * hv);
+        double yArm = ArmadurasEmElevacao(c, v, cfg, b, h, L, e, d, longs, zonas, cortes, yE - 16 * hv);
+
+        // ---------------- protensão (VP-3): cordoalhas abaixo das passivas ----------------
+        bool prot = v.SimNao("Protendida");
+        var cords = prot ? LerCordoalhas(v, r.Avisos) : new List<GrupoCordoalhas>();
+        VerificarCordoalhas(cords, b, h, v.Numero("CobLateral"), v.Numero("CobFundo"), v.Numero("CobTopo"), v.Numero("EstBitola"),
+            prot ? v.Numero("FcjSaque") : 99, e, d, r.Avisos);
+        VerificarPassivasComCordoalhas(cords, longs, b, h, v.Numero("CobFundo"), v.Numero("CobTopo"), v.Numero("CobLateral"), v.Numero("EstBitola"), r.Avisos);
+        CordoalhasEmElevacao(c, cords, h, L, e, d, yArm - 2 * hv);
 
         // ---------------- seções de forma e de armadura (coluna à direita das vistas) ----------------
         double xS = L + 25 * hv, yS = 0, xSA = xS + b + 25 * hc;
@@ -198,6 +206,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         {
             var ext = xc < L / 2 && e.TemDente && xc < e.CompDente ? e : xc > L / 2 && d.TemDente && xc > L - d.CompDente ? d : null;
             SecaoArmadura(c, v, id, xc, b, h, L, ext, longs, zonas, xSA, yS);
+            if (cords.Count > 0) CordoalhasNaSecao(c, cords, xc, h, L, e, d, b, xSA + 4 * hc, SecaoBase(c, yS, ext, h));
             if (ext == null) ySVao = yS;
             yS = SecaoForma(c, id, b, h, ext, xS, yS) - 8 * hc;
         }
@@ -222,7 +231,8 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
             }
 
         // ---------------- detalhe da alça (embaixo das seções) e estabilidade lateral ----------------
-        if (alcas) DetalheAlca(c, v, xS, yS - 4 * hc);
+        double yItens = alcas ? DetalheAlca(c, v, xS, yS - 4 * hc) : yS - 4 * hc;
+        NomenclaturaCordoalhas(c, cords, b, h, xS, yItens);
         double lAlcas = alcas ? Math.Abs(PosicaoAlcas(v, b, L, e, d)[1] - PosicaoAlcas(v, b, L, e, d)[0]) : L;
         var (esb, ind) = EstabilidadeLateral(lAlcas, b, h);
         if (esb > 50 || ind > 500)
@@ -234,12 +244,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         yD = Notas(c, v, L, xD, yD);
         double vol = Volume(b, h, L, e, d), peso = vol * v.Numero("PesoEspecifico") / 1000;
         r.Tabelas.Add(TemplatePilarPreMoldado.TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"),
-            vol, peso, qtd, xD, yD, escV));
+            vol, peso, qtd, xD, yD, escV, protendida: prot));
         r.PosicaoRA = (xD + 75 * hv, 0);
 
         // ---------------- detalhes típicos da biblioteca do escritório (DWG; coluna à direita, o usuário ajusta) ----------------
         BibliotecaDetalhes.Pedir(r, BibliotecaDetalhes.RaioEmendasComprimento);
-        if (v.SimNao("InfSoldada") || e.TemDente || d.TemDente) BibliotecaDetalhes.Pedir(r, BibliotecaDetalhes.SoldaTirante);
+        if ((v.SimNao("InfSoldada") && longs.Any(l => l.Inferior)) || e.TemDente || d.TemDente) BibliotecaDetalhes.Pedir(r, BibliotecaDetalhes.SoldaTirante);
         BibliotecaDetalhes.PosicionarColuna(r, hv);
         if (r.ColunaDetalhes is { } col) r.ColunaDetalhes = (Math.Max(col.X, r.PosicaoRA.Value.X + 110 * hv), col.Y);
         return r;

@@ -281,6 +281,10 @@ public sealed partial class TemplateVigaPreMoldada
         return Dividir(xl, xr, l.Quantidade).Select(xx => (xx, yc)).ToList();
     }
 
+    /// <summary>y do fundo da SEÇÃO X-X - ARMADURA desenhada com o topo em <paramref name="yTopo"/> (a mesma conta de <see cref="SecaoArmadura"/>).</summary>
+    private static double SecaoBase(Ctx c, double yTopo, ExtremidadeViga ext, double h) =>
+        yTopo - (c.Idioma == IdiomaDesenho.PTEN ? 4 : 2) * c.hC - 5 * c.hC - (ext?.TemDente == true ? ext.Dente.Altura : h);
+
     /// <summary>SEÇÃO X-X - ARMADURA no x do corte, com o topo em <paramref name="yTopo"/> (mesma altura da seção de forma).</summary>
     private static void SecaoArmadura(Ctx c, ValoresTemplate v, string id, double xCorte, double b, double h, double L, ExtremidadeViga ext,
         List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, double x0, double yTopo)

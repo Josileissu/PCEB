@@ -2436,7 +2436,9 @@ public sealed class AutoTeste
         var vReta = new Core.Templates.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V149"), ("Quantidade", "17"), ("B", "40"), ("H", "95"), ("L", "1150"),
                      ("ExtE", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta),
-                     ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20") })
+                     ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
+                     // VP-3: protendida como a V148 da GRU 710 (11 ø15,2, isolamento em grupos)
+                     ("Protendida", "Sim"), ("Longitudinais", "Superior|2|12.5|1|0|0||;Pele|3|10|1|0|0||"), ("Cordoalhas", "1|5|15.2|0|0|20.5;1|2|15.2|250|250|20.5;2|2|15.2|0|0|20.5;2|2|15.2|120|120|20.5") })
             vReta[k] = val;
         var casos = new[] { ("V144", v144, new Point3d(12000, -5000, 0)), ("V149", vReta, new Point3d(12000, -12000, 0)) };
         var janelas = new List<(string, double, double, double, double)>();
@@ -2453,6 +2455,14 @@ public sealed class AutoTeste
             {
                 double yMin = r.Barras.SelectMany(bb => bb.Vertices).Where(p => p.X < tArm.X + 2000).Select(p => p.Y).DefaultIfEmpty(tArm.Y - 300).Min();
                 janelas.Add((nome + "_armaduras", origem.X + tArm.X - 40, origem.Y + yMin - 60, origem.X + tArm.X + 520, origem.Y + tArm.Y + 15));
+            }
+            var tNom = r.Textos.FirstOrDefault(q => q.Texto.StartsWith("NOMENCLATURA E POSICIONAMENTO DAS CORDOALHAS"));
+            if (tNom != null) janelas.Add((nome + "_nomenclatura", origem.X + tNom.X - 20, origem.Y + tNom.Y - 200, origem.X + tNom.X + 220, origem.Y + tNom.Y + 15));
+            var tProt = r.Textos.FirstOrDefault(q => q.Texto.StartsWith("ARMADURAS DE PROTENSÃO"));
+            if (tProt != null)
+            {
+                double yMin = r.Barras.Where(bb => bb.Nome.StartsWith("cord")).SelectMany(bb => bb.Vertices).Select(p => p.Y).DefaultIfEmpty(tProt.Y - 200).Min();
+                janelas.Add((nome + "_protensao", origem.X + tProt.X - 20, origem.Y + yMin - 60, origem.X + tProt.X + 520, origem.Y + tProt.Y + 15));
             }
             if (r.ColunaDetalhes is { } colDet)
                 janelas.Add((nome + "_detalhes", origem.X + colDet.X - 20, origem.Y + colDet.Y - 700, origem.X + colDet.X + 700, origem.Y + colDet.Y + 20));

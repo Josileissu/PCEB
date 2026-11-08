@@ -66,6 +66,9 @@ public static class PadroesLayers
         L("ARM-PINO", 1, 0.15, "", "Pinos dos consolos nas vistas e cortes (DT-Armadura)"),
         L("ARM-TANQUE", 4, 0, "", "Base de reservatório: tanque"),
         L("ARM-ESTACA", 5, 0, "", "Base de reservatório: estacas"),
+        L("ARM-CORDOALHA", 5, 0.30, "", "Cordoalhas de protensão (Armadura, em azul)"),
+        L("ARM-CORDOALHA-ISOLADA", 1, 0.15, "", "Cordoalhas isoladas na seção de nomenclatura (em vermelho)"),
+        L("ARM-ISOLAMENTO", 7, 0.50, "", "Mangueira de isolamento das cordoalhas (trecho grosso preto)"),
     };
 
     private static PadraoLayer L(string n, short cor, double mm, string tipo, string desc) =>
