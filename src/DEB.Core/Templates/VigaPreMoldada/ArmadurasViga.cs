@@ -80,6 +80,8 @@ public sealed partial class TemplateVigaPreMoldada
                 new ColunaTabela { Nome = "Fim", Rotulo = "Fim (cm)", Tipo = TipoParametro.Numero, Padrao = "", Largura = 70 },
             },
         },
+        P(G7, "InfSoldada", "Inferior com barra transversal soldada nas pontas", "Sim", tipo: TipoParametro.SimNao,
+          descricao: "NBR 9062 7.4/7.5: ancoragem da armadura inferior com barra transversal soldada (como nas pranchas 316 e 702)."),
         P(G8, "EstAco", "Aço", "CA-50", tipo: TipoParametro.Opcao, opcoes: new[] { "CA-50", "CA-60" }),
         P(G8, "EstBitola", "Bitola", "6.3", "mm", TipoParametro.Bitola, 5, 16),
         P(G8, "EstTipo", "Tipo", EstFechado, tipo: TipoParametro.Opcao, opcoes: new[] { EstFechado, EstAberto }),
@@ -134,11 +136,13 @@ public sealed partial class TemplateVigaPreMoldada
     public static List<ZonaEstriboViga> ZonasEstribos(ValoresTemplate v, ConfiguracaoArmadura cfg, double L, ExtremidadeViga e, ExtremidadeViga d)
     {
         double cob = v.Numero("CobPontas"), phi = v.Numero("EstBitola") / 10;
-        double x0 = (e.TemDente ? e.CompDente : 0) + cob + phi / 2, x1 = L - (d.TemDente ? d.CompDente : 0) - cob - phi / 2;
+        double x0 = (e.TemDente ? e.CompDente : 0) + cob + phi / 2 + ExtensaoSuspensao(e),
+               x1 = L - (d.TemDente ? d.CompDente : 0) - cob - phi / 2 - ExtensaoSuspensao(d);
         double lz = Math.Max(0, v.Numero("EstZonaPonta")), espP = v.Numero("EstEspPonta"), espV = v.Numero("EstEspVao");
         var r = new List<ZonaEstriboViga>();
         if (x1 - x0 < 1) return r;
-        if (lz <= 0 || 2 * lz >= x1 - x0 - 1e-6)
+        // vão menor que um espaçamento: uma zona só (viga curta, ou a suspensão do dente ocupou o lugar)
+        if (lz <= 0 || 2 * lz >= x1 - x0 - Math.Max(espV, espP) - 1e-6)
             r.Add(new ZonaEstriboViga { Nome = lz <= 0 ? "vão" : "ponta", X1 = x0, X2 = x1, Esp = lz <= 0 ? espV : espP });
         else
         {
@@ -162,7 +166,7 @@ public sealed partial class TemplateVigaPreMoldada
         };
         string en = l.Funcao switch
         {
-            FInferior => "BOTTOM REINFORCEMENT", FSuperior => "TOP REINFORCEMENT", FPele => "(SKIN)", _ => "CONSTRUCTION REINFORCEMENT",
+            FInferior => "BOTTOM REINFORCEMENT", FSuperior => "TOP REINFORCEMENT", FPele => "SKIN", _ => "CONSTRUCTION REINFORCEMENT",
         };
         if (l.Camada == 2) { pt += " - 2ª CAMADA"; en += " - 2ND LAYER"; }
         return string.Join(" / ", c.Linhas(pt, en));
@@ -178,7 +182,7 @@ public sealed partial class TemplateVigaPreMoldada
         double hv = c.hV, esc = c.escV;
         TituloVista(c, "ARMADURAS EM ELEVAÇÃO", "REINFORCEMENT ELEVATION", 0, yTopo, esc);
         string aco = v["LongAco"];
-        double passo = 4.5 * hv;
+        double passo = 7.5 * hv;   // descrição em cima (acima da cota do comprimento) e a função embaixo das cotas
 
         // linhas de cima (superior, construtiva, pele) e de baixo (inferior), cada uma numa linha fora da forma
         var cima = longs.Where(l => !l.Inferior).OrderBy(l => l.Pele ? 1 : 0).ThenBy(l => l.Camada).ToList();
@@ -199,6 +203,8 @@ public sealed partial class TemplateVigaPreMoldada
         double cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo");
         foreach (var x in zonas.SelectMany(z => z.Posicoes))
             c.Linha(x, yB + cobF, x, yT - cobT + sal + (sal > 0 ? cobT : 0), "ARM-BARRA-DETALHE");
+        DenteEmElevacao(c, v, h, L, e, true, yT, yB);
+        DenteEmElevacao(c, v, h, L, d, false, yT, yB);
         // marcas das seções também aqui
         foreach (var (id, xc) in cortes) { c.MarcaCorte(id, xc, yT + 0.2 * hv, hv); MarcaCorteBaixo(c, id, xc, yB - 0.2 * hv, hv); }
 
@@ -217,7 +223,19 @@ public sealed partial class TemplateVigaPreMoldada
         }
 
         y = yF - (zonas.Count > 1 ? 10 : 7) * hv;
-        foreach (var l in baixo) { BarraLongitudinal(c, l, aco, y, esc); y -= passo; }
+        bool soldada = v.SimNao("InfSoldada");
+        foreach (var l in baixo)
+        {
+            BarraLongitudinal(c, l, aco, y, esc);
+            if (soldada && l.Camada == 1)
+            {
+                double w = b - 2 * v.Numero("CobLateral");
+                BarraSoldada(c, $"solda_inf{l.Linha}_E", l.Ini, y, l.Bitola, aco, w, true, esc);
+                BarraSoldada(c, $"solda_inf{l.Linha}_D", l.Fim, y, l.Bitola, aco, w, false, esc);
+            }
+            y -= passo;
+        }
+        y = DenteBarras(c, v, b, L, e, d, y);
         return y;
     }
 
@@ -236,7 +254,7 @@ public sealed partial class TemplateVigaPreMoldada
         if (l.DobraD > 0) bt.Vertices.Add((l.Fim, y + s * l.DobraD));
         for (int i = 0; i + 1 < bt.Vertices.Count; i++) bt.Formatos.Add(FormatoSegmento.Linha);
         c.R.Barras.Add(bt);
-        c.Texto(RotuloFuncao(c, l), (l.Ini + l.Fim) / 2, y - 1.5 * hv, 0.75 * hv, 1);
+        c.Texto(RotuloFuncao(c, l), (l.Ini + l.Fim) / 2, y - 3.4 * hv, 0.75 * hv, 1);   // abaixo das cotas das dobras e das soldadas
     }
 
     /// <summary>Barras da linha na seção (centros, coordenadas da seção com a origem no canto inferior esquerdo).</summary>
@@ -264,7 +282,7 @@ public sealed partial class TemplateVigaPreMoldada
     }
 
     /// <summary>SEÇÃO X-X - ARMADURA no x do corte, com o topo em <paramref name="yTopo"/> (mesma altura da seção de forma).</summary>
-    private static void SecaoArmadura(Ctx c, ValoresTemplate v, string id, double xCorte, double b, double h, ExtremidadeViga ext,
+    private static void SecaoArmadura(Ctx c, ValoresTemplate v, string id, double xCorte, double b, double h, double L, ExtremidadeViga ext,
         List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, double x0, double yTopo)
     {
         double hc = c.hC, y = yTopo;
@@ -280,6 +298,7 @@ public sealed partial class TemplateVigaPreMoldada
             double t = phiT / 20;
             c.Retangulo(sx0 + cobL + t, sy0 + cobF + t, sx0 + b - cobL - t, sy1 - cobT - t, "ARM-BARRA-DETALHE");
         }
+        if (ext?.TemDente == true) DenteNaSecao(c, v, ext.Dente, xCorte < L / 2, b, sx0, sy0, sy1);
         // barras em ponto e uma indicação por linha (inferiores embaixo, superiores em cima, pele à direita)
         int kBaixo = 0, kCima = 0, kDir = 0;
         foreach (var l in longs.Where(l => xCorte >= l.Ini - 1e-6 && xCorte <= l.Fim + 1e-6))

@@ -193,7 +193,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         foreach (var (id, xc) in cortes)
         {
             var ext = xc < L / 2 && e.TemDente && xc < e.CompDente ? e : xc > L / 2 && d.TemDente && xc > L - d.CompDente ? d : null;
-            SecaoArmadura(c, v, id, xc, b, h, ext, longs, zonas, xSA, yS);
+            SecaoArmadura(c, v, id, xc, b, h, L, ext, longs, zonas, xSA, yS);
             if (ext == null) ySVao = yS;
             yS = SecaoForma(c, id, b, h, ext, xS, yS) - 8 * hc;
         }
@@ -204,6 +204,18 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         var ex = est.Vertices;
         est.PosicaoDescricao = ((ex.Min(q => q.X) + ex.Max(q => q.X)) / 2, ex.Min(q => q.Y) - 3 * hc);
         if (zonas.Count > 0) r.Barras.Add(est);
+        // formas dos estribos do dente (Gerber e suspensão de cada ponta), embaixo, uma depois da outra
+        double yForma = ex.Min(q => q.Y) - 9 * hc;
+        foreach (var (x, esq) in new[] { (e, true), (d, false) })
+            foreach (var f in FormasDente(v, cfg, b, h, x, esq))
+            {
+                double fy0 = f.Vertices.Min(q => q.Y), fy1 = f.Vertices.Max(q => q.Y), fx0 = f.Vertices.Min(q => q.X);
+                for (int i = 0; i < f.Vertices.Count; i++) f.Vertices[i] = (f.Vertices[i].X - fx0 + xEst, f.Vertices[i].Y - fy1 + yForma);
+                f.Escala = escC;
+                f.PosicaoDescricao = ((f.Vertices.Min(q => q.X) + f.Vertices.Max(q => q.X)) / 2, yForma - (fy1 - fy0) - 3 * hc);
+                r.Barras.Add(f);
+                yForma -= (fy1 - fy0) + 9 * hc;
+            }
 
         // ---------------- notas e informações para produção ----------------
         double xD = xEst + b + 30 * hc, yD = 0;

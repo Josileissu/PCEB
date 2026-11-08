@@ -2448,6 +2448,12 @@ public sealed class AutoTeste
             var ys = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.Y)).Concat(r.Textos.Select(q => q.Y)).ToList();
             janelas.Add((nome, origem.X + xs.Min() - 50, origem.Y + ys.Min() - 50, origem.X + xs.Max() + 450, origem.Y + ys.Max() + 50));
             // de perto: a coluna das seções (títulos "SEÇÃO …")
+            var tArm = r.Textos.FirstOrDefault(q => q.Texto == "ARMADURAS EM ELEVAÇÃO");
+            if (tArm != null)
+            {
+                double yMin = r.Barras.SelectMany(bb => bb.Vertices).Where(p => p.X < tArm.X + 2000).Select(p => p.Y).DefaultIfEmpty(tArm.Y - 300).Min();
+                janelas.Add((nome + "_armaduras", origem.X + tArm.X - 40, origem.Y + yMin - 60, origem.X + tArm.X + 520, origem.Y + tArm.Y + 15));
+            }
             var tSec = r.Textos.Where(q => q.Texto.StartsWith("SEÇÃO")).ToList();
             if (tSec.Count > 0)
                 janelas.Add((nome + "_secoes", origem.X + tSec.Min(q => q.X) - 20, origem.Y + tSec.Min(q => q.Y) - 160,

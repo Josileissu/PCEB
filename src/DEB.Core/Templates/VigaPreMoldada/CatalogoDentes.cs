@@ -20,6 +20,27 @@ public sealed class TipoDente
     /// <summary>Comprimento do dente, da ponta da viga à face do recorte, cm.</summary>
     [DataMember(Order = 4)] public double Comprimento { get; set; } = 25;
 
+    // armadura do dente (etapa 3, 2026-11-08; padrão das pranchas 316-6208/6219 — muda por projeto, NBR 9062 7.4)
+    /// <summary>Estribos Gerber: fechados dentro do dente (altura do dente), distribuídos no comprimento dele.</summary>
+    [DataMember(Order = 5)] public double EstGerberBitola { get; set; } = 8;
+    [DataMember(Order = 6)] public int EstGerberQtd { get; set; } = 4;
+    /// <summary>Suspensão: estribos fechados de altura total, junto da face do recorte, a cada <see cref="SuspEsp"/>.</summary>
+    [DataMember(Order = 7)] public double SuspBitola { get; set; } = 10;
+    [DataMember(Order = 8)] public int SuspQtd { get; set; } = 5;
+    [DataMember(Order = 9)] public double SuspEsp { get; set; } = 5;
+    /// <summary>Grampo: U horizontal na parte de cima do dente, pernas entrando na viga.</summary>
+    [DataMember(Order = 10)] public double GrampoBitola { get; set; } = 10;
+    [DataMember(Order = 11)] public int GrampoQtd { get; set; } = 4;
+    [DataMember(Order = 12)] public double GrampoPerna { get; set; } = 100;
+    /// <summary>Costura: U horizontal na parte de baixo do dente.</summary>
+    [DataMember(Order = 13)] public double CosturaBitola { get; set; } = 10;
+    [DataMember(Order = 14)] public int CosturaQtd { get; set; } = 3;
+    [DataMember(Order = 15)] public double CosturaPerna { get; set; } = 100;
+    /// <summary>Tirante: barras retas no topo do dente, com barra transversal soldada na ponta (NBR 9062 7.4).</summary>
+    [DataMember(Order = 16)] public double TiranteBitola { get; set; } = 16;
+    [DataMember(Order = 17)] public int TiranteQtd { get; set; } = 3;
+    [DataMember(Order = 18)] public double TiranteComp { get; set; } = 200;
+
     /// <summary>Texto curto ("45 x 25").</summary>
     public string Resumo => $"{TemplatePilarPreMoldado.Num(Altura, "0.#")} x {TemplatePilarPreMoldado.Num(Comprimento, "0.#")}";
 
