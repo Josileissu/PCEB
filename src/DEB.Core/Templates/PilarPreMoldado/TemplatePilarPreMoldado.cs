@@ -454,7 +454,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     /// à esquerda e valor com unidade à direita. A linha da montagem só entra com fcj de montagem &gt; 0.
     /// </summary>
     public static TabelaTemplate TabelaProducao(IdiomaDesenho idioma, double fcjSaque, double fcjMontagem, double fck,
-        double volume, double peso, int quantidade, double x, double y, double escala, bool protendida = false)
+        double volume, double peso, int quantidade, double x, double y, double escala, bool protendida = false,
+        double taxaPassiva = 0, double taxaAtiva = 0)
     {
         bool en = idioma == IdiomaDesenho.EN;
         string N(double v, string f) => en ? v.ToString(f, CultureInfo.InvariantCulture) : Num(v, f);
@@ -480,6 +481,9 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         t.Linhas.Add(new[] { R("VOLUME DE CONCRETO:", "CONCRETE VOLUME:"), $"{N(volume, "0.000")} m³" });
         t.Linhas.Add(new[] { R("PESO:", "WEIGHT:"), $"{N(peso, "0.000")} ton." });
         t.Linhas.Add(new[] { R("QUANTIDADE:", "QUANTITY:"), $"{quantidade} un." });
+        // viga protendida (BPM 1071): taxas de armadura passiva e ativa por m³ de concreto
+        if (taxaPassiva > 0) t.Linhas.Add(new[] { R("TAXA DE ARM. PASSIVA:", "PASSIVE REINF. RATIO:"), $"{N(taxaPassiva, "0.0")} kg/m³" });
+        if (taxaAtiva > 0) t.Linhas.Add(new[] { R("TAXA DE ARM. ATIVA:", "ACTIVE REINF. RATIO:"), $"{N(taxaAtiva, "0.0")} kg/m³" });
         return t;
     }
 

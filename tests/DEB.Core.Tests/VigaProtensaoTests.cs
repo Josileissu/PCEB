@@ -115,6 +115,30 @@ public class VigaProtensaoTests
     }
 
     [Fact]
+    public void FretagemPeloComprimentoDeTransferencia()
+    {
+        // ø12,7, 14 tf, fcj 30: fctd = 1,448; fbpd = 1,738; ℓbp = 211 cm; σpi = 1391 MPa → ℓbpt ≈ 99 cm (× 1,25 não gradual)
+        double lt = TemplateVigaPreMoldada.ComprimentoTransferencia(12.7, 14, 30);
+        Assert.InRange(lt, 97, 101);
+        Assert.Equal(1.25 * lt, TemplateVigaPreMoldada.ComprimentoTransferencia(12.7, 14, 30, gradual: false), 6);
+        // zona das pontas de 50 cm é ampliada até o fim da transferência das aderentes (as isoladas não contam)
+        var (r, v) = Gerar(v =>
+        {
+            v["B"] = "40"; v["L"] = "800"; v["ExtE"] = "Reta"; v["ExtD"] = "Reta"; v["EstZonaPonta"] = "50"; v["FcjSaque"] = "30";
+            v["Cordoalhas"] = "1|3|12.7|0|0|14;1|2|12.7|300|300|14";
+        });
+        var zonas = TemplateVigaPreMoldada.ZonasEstribos(v, new ConfiguracaoArmadura(), 800,
+            new ExtremidadeViga(), new ExtremidadeViga(), lt, lt);
+        Assert.Equal(lt, zonas[0].X2, 6);
+        Assert.Equal(800 - lt, zonas[2].X1, 6);
+        Assert.Contains(r.Textos, t => t.Texto.Contains("FRETAGEM"));
+        // taxas no quadro
+        var linhas = r.Tabelas.SelectMany(t => t.Linhas).ToList();
+        Assert.Contains(linhas, l => l[0].StartsWith("TAXA DE ARM. PASSIVA") && l[1].EndsWith("kg/m³"));
+        Assert.Contains(linhas, l => l[0].StartsWith("TAXA DE ARM. ATIVA"));
+    }
+
+    [Fact]
     public void VigaArmadaSemCordoalhas()
     {
         var (r, _) = Gerar(v => v["Protendida"] = "Não");

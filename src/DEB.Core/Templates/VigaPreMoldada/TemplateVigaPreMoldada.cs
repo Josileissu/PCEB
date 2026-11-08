@@ -189,10 +189,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
 
         // ---------------- armaduras em elevação (etapa 2) ----------------
         var longs = LerLongitudinais(v, L, v.Numero("CobPontas"), e, d, r.Avisos);
-        var zonas = ZonasEstribos(v, cfg, L, e, d);
         // ---------------- protensão (VP-3): superiores acima das passivas, as outras abaixo ----------------
         bool prot = v.SimNao("Protendida");
         var cords = prot ? LerCordoalhas(v, r.Avisos) : new List<GrupoCordoalhas>();
+        // fretagem: estribos das pontas até o fim da transferência das cordoalhas aderentes (NBR 6118 9.4.5.2)
+        var fret = Fretagem(cords, h, L, e, d, v.Numero("FcjSaque"), v.SimNao("LiberacaoGradual"));
+        var zonas = ZonasEstribos(v, cfg, L, e, d, fret.E, fret.D);
         double yArm = ArmadurasEmElevacao(c, v, cfg, b, h, L, e, d, longs, zonas, cortes, yE - 16 * hv, cords.Where(g => Superior(g, h)).ToList());
 
         VerificarCordoalhas(cords, b, h, v.Numero("CobLateral"), v.Numero("CobFundo"), v.Numero("CobTopo"), v.Numero("EstBitola"),
@@ -242,10 +244,11 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
 
         // ---------------- notas e informações para produção ----------------
         double xD = xEst + b + 30 * hc, yD = 0;
-        yD = Notas(c, v, L, xD, yD);
+        yD = Notas(c, v, L, xD, yD, fret.Lbpt);
         double vol = Volume(b, h, L, e, d), peso = vol * v.Numero("PesoEspecifico") / 1000;
         r.Tabelas.Add(TemplatePilarPreMoldado.TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"),
-            vol, peso, qtd, xD, yD, escV, protendida: prot));
+            vol, peso, qtd, xD, yD, escV, protendida: prot,
+            taxaPassiva: prot ? PesoPassivo(r, cfg, zonas) / vol : 0, taxaAtiva: prot ? PesoAtivo(r, cfg) / vol : 0));
         r.PosicaoRA = (xD + 75 * hv, 0);
 
         // ---------------- detalhes típicos da biblioteca do escritório (DWG; coluna à direita, o usuário ajusta) ----------------
@@ -461,7 +464,16 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         return sy0 - 6 * hc;
     }
 
-    private static double Notas(Ctx c, ValoresTemplate v, double L, double x, double y)
+    /// <summary>Peso (kg) da armadura passiva de uma peça pelas regras da RA (estribos: um por posição das zonas; sem as alças).</summary>
+    public static double PesoPassivo(ResultadoTemplate r, ConfiguracaoArmadura cfg, List<ZonaEstriboViga> zonas) =>
+        r.Barras.Where(b => !Tabelas.TabelaBarras.EhCordoalha(b.Aco))
+                .Sum(b => MedidaBarra.Peso(b, cfg) * (b.Nome == "estribo" ? Math.Max(1, zonas.Sum(z => z.Posicoes.Count)) : 1));
+
+    /// <summary>Peso (kg) das cordoalhas de protensão de uma peça (sem as alças, que também são CP).</summary>
+    public static double PesoAtivo(ResultadoTemplate r, ConfiguracaoArmadura cfg) =>
+        r.Barras.Where(b => b.Nome.StartsWith("cord")).Sum(b => MedidaBarra.Peso(b, cfg));
+
+    private static double Notas(Ctx c, ValoresTemplate v, double L, double x, double y, double lbpt = 0)
     {
         double hn = 0.9 * c.hV;
         string N(double q) => Num(q, "0.0#");
@@ -496,6 +508,11 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         {
             pt.Add($"{n}) ESTOCAGEM E TRANSPORTE: APOIAR NA POSIÇÃO DAS ALÇAS;");
             en.Add($"{n++}) STORAGE AND TRANSPORT: SUPPORT AT THE LIFTING HANDLES;");
+        }
+        if (lbpt > 0)
+        {
+            pt.Add($"{n}) FRETAGEM: ESTRIBOS DAS PONTAS ATÉ O FIM DA TRANSFERÊNCIA DA PROTENSÃO (lbpt = {Num(lbpt, "0")} cm, NBR 6118 9.4.5.2);");
+            en.Add(FormattableString.Invariant($"{n++}) BURSTING REINFORCEMENT: END STIRRUPS ALONG THE PRESTRESS TRANSFER LENGTH (lbpt = {lbpt:0} cm, NBR 6118 9.4.5.2);"));
         }
         if (c.Idioma != IdiomaDesenho.EN) y = c.Bloco(pt, x, y, hn) - hn;
         if (c.Idioma != IdiomaDesenho.PT) y = c.Bloco(en, x, y, hn) - hn;
