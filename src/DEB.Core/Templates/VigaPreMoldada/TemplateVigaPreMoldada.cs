@@ -30,13 +30,14 @@ public sealed class ExtremidadeViga
 /// Verdadeira grandeza (cm), como o pilar: a escala só dá a altura dos textos e cotas. x ao longo da viga (ponta E em 0),
 /// y para cima; na planta, y = largura b.
 /// </summary>
-public sealed class TemplateVigaPreMoldada : ITemplateArmadura
+public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
 {
     public string Id => "viga-premoldada";
     public string Nome => "Viga pré-moldada (VP-1/VP-2)";
     public CategoriaElemento Categoria => CategoriaElemento.VigaPreMoldada;
     public string Descricao => "Viga retangular pré-moldada no padrão do escritório: fôrmas em planta e em elevação, dentes Gerber do catálogo, " +
-                               "furos de pino, alças, seções de forma, notas e informações para produção.";
+                               "furos de pino, alças, armaduras em elevação (longitudinais fora da forma, estribos por zona), seções de forma e " +
+                               "de armadura, notas, relação do aço e informações para produção.";
 
     public const string Reta = "Reta";
 
@@ -106,7 +107,7 @@ public sealed class TemplateVigaPreMoldada : ITemplateArmadura
                 P(G6, "ModuloE", "Módulo de elasticidade adotado (0 = sem nota)", "0", "GPa", min: 0,
                   descricao: "NBR 9062, 5.6.1.2: o desenho informa o E adotado."),
                 P(G6, "Estocagem", "Estocagem: apoios a partir das pontas (0 = nas alças)", "0", "cm", min: 0),
-            };
+            }.Concat(ParametrosArmadura()).ToArray();
         }
     }
 
@@ -181,16 +182,31 @@ public sealed class TemplateVigaPreMoldada : ITemplateArmadura
         var cortes = CortesForma(e, d, L);
         DesenharElevacao(c, v, b, h, L, e, d, yE, cortes, alcas);
 
-        // ---------------- seções de forma (coluna à direita das vistas) ----------------
-        double xS = L + 25 * hv, yS = 0;
+        // ---------------- armaduras em elevação (etapa 2) ----------------
+        var longs = LerLongitudinais(v, L, v.Numero("CobPontas"), e, d, r.Avisos);
+        var zonas = ZonasEstribos(v, cfg, L, e, d);
+        ArmadurasEmElevacao(c, v, cfg, b, h, L, e, d, longs, zonas, cortes, yE - 16 * hv);
+
+        // ---------------- seções de forma e de armadura (coluna à direita das vistas) ----------------
+        double xS = L + 25 * hv, yS = 0, xSA = xS + b + 25 * hc;
+        double ySVao = 0;
         foreach (var (id, xc) in cortes)
         {
             var ext = xc < L / 2 && e.TemDente && xc < e.CompDente ? e : xc > L / 2 && d.TemDente && xc > L - d.CompDente ? d : null;
+            SecaoArmadura(c, v, id, xc, b, h, ext, longs, zonas, xSA, yS);
+            if (ext == null) ySVao = yS;
             yS = SecaoForma(c, id, b, h, ext, xS, yS) - 8 * hc;
         }
+        // forma do estribo ao lado da seção do vão (descrição embaixo)
+        double xEst = xSA + b + 22 * hc;
+        var est = FormaEstribo(v, cfg, b, h, xEst, ySVao - 7 * hc - (h - v.Numero("CobFundo") - v.Numero("CobTopo")));
+        est.Escala = escC;
+        var ex = est.Vertices;
+        est.PosicaoDescricao = ((ex.Min(q => q.X) + ex.Max(q => q.X)) / 2, ex.Min(q => q.Y) - 3 * hc);
+        if (zonas.Count > 0) r.Barras.Add(est);
 
         // ---------------- notas e informações para produção ----------------
-        double xD = xS + b + 30 * hc, yD = 0;
+        double xD = xEst + b + 30 * hc, yD = 0;
         yD = Notas(c, v, L, xD, yD);
         double vol = Volume(b, h, L, e, d), peso = vol * v.Numero("PesoEspecifico") / 1000;
         r.Tabelas.Add(TemplatePilarPreMoldado.TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"),
