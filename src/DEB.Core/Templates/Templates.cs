@@ -293,7 +293,7 @@ public static class CatalogoTemplates
         (CategoriaElemento.Bloco2Estacas, "Blocos de 2 estacas", "simples, com arranque, com embutimento, com embutimento e colarinho"),
         (CategoriaElemento.Bloco3Estacas, "Blocos de 3 estacas", "simples, com arranque, com embutimento, com embutimento e colarinho"),
         (CategoriaElemento.Bloco4Estacas, "Blocos de 4 estacas", "simples, com arranque, com embutimento, com embutimento e colarinho"),
-        (CategoriaElemento.Bloco5Estacas, "Blocos de 5 estacas", "falta o arranjo das 5 estacas"),
+        (CategoriaElemento.Bloco5Estacas, "Blocos de 5 estacas", "4 nos cantos e 1 no centro; simples, com arranque, com embutimento, com embutimento e colarinho"),
         (CategoriaElemento.PilarPreMoldado, "Pilar pré-moldado", "consolos, içamento, zonas de estribos"),
         (CategoriaElemento.VigaPreMoldada, "Viga pré-moldada", "protendida ou não"),
         (CategoriaElemento.PilarMoldadoInLoco, "Pilar moldado in loco", ""),

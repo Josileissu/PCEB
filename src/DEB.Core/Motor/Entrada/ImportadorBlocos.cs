@@ -100,8 +100,8 @@ public static class ImportadorBlocos
         Texto("pilares", (e, s) => e.Pilares = TemplateBlocoEstacas.LerPilares(s), e => TemplateBlocoEstacas.TextoPilares(e.Pilares));
         Int("quantidade", "Quantidade", (e, x) => e.Repeticoes = x, e => e.Repeticoes);
         l.Add(new Coluna { Nome = "niveis", Aplicar = AplicarNiveis, Ler = e => TextoNiveis(e.Niveis) });
-        Opcao("arranjo", ConversorBloco.LerArranjo, "grade ou triangulo", (e, x) => e.Arranjo = x,
-            e => e.Arranjo == ArranjoEstacas.Triangulo ? "triangulo" : "grade");
+        Opcao("arranjo", ConversorBloco.LerArranjo, "grade, triangulo ou cinco", (e, x) => e.Arranjo = x,
+            e => e.Arranjo == ArranjoEstacas.Triangulo ? "triangulo" : e.Arranjo == ArranjoEstacas.Cinco ? "cinco" : "grade");
         Int("nestx", "NEstX", (e, x) => e.EstacasX = x, e => e.EstacasX, 1);
         Int("nesty", "NEstY", (e, x) => e.EstacasY = x, e => e.EstacasY, 1);
         Num("espx", "EspX", (e, x) => e.EspX = x, e => e.EspX, 0);

@@ -33,7 +33,7 @@ namespace DEB.Core.Templates.Blocos;
 public sealed class TemplateBlocoEstacas : ITemplateArmadura
 {
     public const string IdUmaEstaca = "bloco_1_estaca", IdEstacas = "bloco_estacas";
-    public const string Grade = "Retangular (grade nx × ny)", Triangulo = "Triangular (3 estacas)";
+    public const string Grade = "Retangular (grade nx × ny)", Triangulo = "Triangular (3 estacas)", Cinco = "5 estacas (4 nos cantos e 1 no centro)";
     public const string Colarinho = "Cálice com colarinho", Embutido = "Cálice embutido no bloco", Arranque = "Arranque (moldado in loco)",
         SemLigacao = "Sem pilar (bloco simples)";
     public const string Lisa = "Lisa", Rugosa = "Rugosa", Chaves = "Com chaves de cisalhamento";
@@ -80,7 +80,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
             },
         },
 
-        P(G2, "Arranjo", "Arranjo das estacas", Grade, tipo: TipoParametro.Opcao, opcoes: new[] { Grade, Triangulo }),
+        P(G2, "Arranjo", "Arranjo das estacas", Grade, tipo: TipoParametro.Opcao, opcoes: new[] { Grade, Triangulo, Cinco }),
         P(G2, "NEstX", "Estacas em x (grade)", uma ? "1" : "2", tipo: TipoParametro.Inteiro, min: 1, max: 10),
         P(G2, "NEstY", "Estacas em y (grade)", "1", tipo: TipoParametro.Inteiro, min: 1, max: 10),
         P(G2, "EspX", "Distância entre eixos em x (triangular: lado)", uma ? "0" : "120", "cm", min: 0),

@@ -26,8 +26,8 @@ public sealed class TemplateBlocoVariante : ITemplateArmadura
     public int Estacas { get; }
     public VarianteBloco Variante { get; }
 
-    /// <summary>Números de estacas com arranjo no motor (5: aguardando o arranjo do escritório).</summary>
-    public static readonly int[] EstacasSuportadas = { 1, 2, 3, 4 };
+    /// <summary>Números de estacas com arranjo no motor (5 = 4 nos cantos e 1 no centro).</summary>
+    public static readonly int[] EstacasSuportadas = { 1, 2, 3, 4, 5 };
 
     /// <param name="pastaPerfis">pasta dos perfis do usuário (null = só fábrica)</param>
     /// <param name="pastaReceitas">pasta das receitas do usuário (null = só fábrica)</param>
@@ -47,9 +47,9 @@ public sealed class TemplateBlocoVariante : ITemplateArmadura
                 VarianteBloco.Embutimento => TemplateBlocoEstacas.Embutido,
                 _ => TemplateBlocoEstacas.Colarinho,
             },
-            ["Arranjo"] = estacas == 3 ? TemplateBlocoEstacas.Triangulo : TemplateBlocoEstacas.Grade,
+            ["Arranjo"] = estacas == 3 ? TemplateBlocoEstacas.Triangulo : estacas == 5 ? TemplateBlocoEstacas.Cinco : TemplateBlocoEstacas.Grade,
             ["NEstX"] = estacas == 1 ? "1" : "2",
-            ["NEstY"] = estacas == 4 ? "2" : "1",
+            ["NEstY"] = estacas == 4 || estacas == 5 ? "2" : "1",
         };
         var ocultos = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Ligacao", "Arranjo", "NEstX", "NEstY" };
         if (estacas == 1) ocultos.UnionWith(new[] { "EspX", "EspY", "PrincBitola", "PrincQtd", "PrincEsp", "PrincPerna" });
@@ -102,11 +102,12 @@ public sealed class TemplateBlocoVariante : ITemplateArmadura
         1 => CategoriaElemento.Bloco1Estaca,
         2 => CategoriaElemento.Bloco2Estacas,
         3 => CategoriaElemento.Bloco3Estacas,
-        _ => CategoriaElemento.Bloco4Estacas,
+        4 => CategoriaElemento.Bloco4Estacas,
+        _ => CategoriaElemento.Bloco5Estacas,
     };
 
     public string Descricao =>
-        $"Bloco de {Estacas} estaca{(Estacas > 1 ? "s" : "")}" + (Estacas == 3 ? " (triângulo)" : Estacas == 4 ? " (2 × 2)" : Estacas == 2 ? " (em linha)" : "") +
+        $"Bloco de {Estacas} estaca{(Estacas > 1 ? "s" : "")}" + (Estacas == 3 ? " (triângulo)" : Estacas == 4 ? " (2 × 2)" : Estacas == 5 ? " (4 nos cantos e 1 no centro)" : Estacas == 2 ? " (em linha)" : "") +
         Variante switch
         {
             VarianteBloco.Simples => ", sem pilar ligado.",
