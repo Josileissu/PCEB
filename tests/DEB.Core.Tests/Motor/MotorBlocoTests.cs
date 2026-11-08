@@ -104,6 +104,13 @@ public class MotorBlocoTests
         ["fundo_calice"] = "sob a base do pilar", ["arranque"] = "arranque", ["arranque_estribo"] = "estribo do pilar no bloco",
     };
 
+    /// <summary>Posições distribuídas de cobrimento a cobrimento pela regra nova (malhas, laterais, estribos, horizontais do cálice).</summary>
+    private static readonly HashSet<string> DivisaoIgual = new HashSet<string>
+    {
+        "secundaria_x", "secundaria_y", "superior_x", "superior_y", "lateral", "estribo_vertical_x", "estribo_vertical_y",
+        "calice", "calice_grampos_x", "calice_grampos_y",
+    };
+
     private static ResultadoTemplate Template(Action<ValoresTemplate> ajustar, bool uma = false)
     {
         var t = new TemplateBlocoEstacas(uma);
@@ -123,8 +130,11 @@ public class MotorBlocoTests
             var p = m.Posicao(chave);
             Assert.True(p != null, "falta " + chave);
             Assert.Equal(b.Bitola, p.Bitola);
-            Assert.Equal(b.Quantidade * Math.Max(1, b.Repeticoes), p.Barras.Count);
-            if (!tri) Assert.Equal(b.ComprimentosVar, p.ComprimentosVar);
+            // quantidades e VAR: mudaram com a divisão igual de cobrimento a cobrimento (decisão do usuário, 2026-11-08); só
+            // as posições que não dependem dela (cálice concentrado, arranque, fundo) continuam iguais ao antigo
+            if (!DivisaoIgual.Contains(chave)) Assert.Equal(b.Quantidade * Math.Max(1, b.Repeticoes), p.Barras.Count);
+            if (DivisaoIgual.Contains(chave)) { }
+            else if (!tri) Assert.Equal(b.ComprimentosVar, p.ComprimentosVar);
             else
             {
                 // triangular: o motor mede o cobrimento das pontas na perpendicular da face oblíqua (decisão do usuário,
