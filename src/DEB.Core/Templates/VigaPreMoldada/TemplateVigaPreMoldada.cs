@@ -175,7 +175,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         // ---------------- fôrmas em planta ----------------
         y -= 7 * hv;
         TituloVista(c, "FÔRMAS EM PLANTA", "FORMWORK PLAN", 0, y, escV);
-        double yP = y - 8 * hv - b; // fundo da planta (face de y = 0)
+        double yP = y - 10 * hv - b; // fundo da planta (face de y = 0); folga para a 2ª linha da cadeia dos furos
         DesenharPlanta(c, v, b, L, e, d, yP);
 
         // ---------------- fôrmas em elevação ----------------
@@ -285,16 +285,32 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
     /// <summary>Cadeia de cotas horizontais pelos pontos (em ordem), na altura <paramref name="yc"/>.</summary>
     private static void CadeiaH(Ctx c, IEnumerable<double> xs, double yRef, double yc, double esc)
     {
-        var p = xs.Distinct().OrderBy(q => q).ToList();
-        for (int i = 0; i + 1 < p.Count; i++)
-            if (p[i + 1] - p[i] > 1e-6) c.Cota(p[i], yRef, p[i + 1], yRef, (p[i] + p[i + 1]) / 2, yc, 0, esc);
+        foreach (var (a, z, desl) in Trechos(c, xs, yc - yRef))
+            c.Cota(a, yRef, z, yRef, (a + z) / 2, yc + desl, 0, esc);
     }
 
     private static void CadeiaV(Ctx c, IEnumerable<double> ys, double xRef, double xc, double esc)
     {
-        var p = ys.Distinct().OrderBy(q => q).ToList();
+        foreach (var (a, z, desl) in Trechos(c, ys, xc - xRef))
+            c.Cota(xRef, a, xRef, z, xc + desl, (a + z) / 2, Math.PI / 2, esc);
+    }
+
+    /// <summary>
+    /// Trechos da cadeia; dois trechos curtos seguidos (menos de 3 alturas de texto: em 1:50, 11,5 | 13,5 e 10 | 10) não cabem
+    /// na mesma linha — o segundo vai uma linha mais para fora (<paramref name="lado"/> = sentido da cota em relação à peça).
+    /// </summary>
+    private static IEnumerable<(double A, double Z, double Desl)> Trechos(Ctx c, IEnumerable<double> pontos, double lado)
+    {
+        var p = pontos.Distinct().OrderBy(q => q).ToList();
+        double s = lado < 0 ? -1 : 1;
+        bool antCurto = false, antDesl = false;
         for (int i = 0; i + 1 < p.Count; i++)
-            if (p[i + 1] - p[i] > 1e-6) c.Cota(xRef, p[i], xRef, p[i + 1], xc, (p[i] + p[i + 1]) / 2, Math.PI / 2, esc);
+        {
+            if (p[i + 1] - p[i] <= 1e-6) continue;
+            bool curto = p[i + 1] - p[i] < 3 * c.hV, desl = curto && antCurto && !antDesl;
+            yield return (p[i], p[i + 1], desl ? s * 2.2 * c.hV : 0);
+            antCurto = curto; antDesl = desl;
+        }
     }
 
     /// <summary>Pontos da cadeia "dente | vão | dente" (só a ponta e o total quando não há dente).</summary>
@@ -338,13 +354,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         // cotas: furos em cima; dente | vão | dente e o total embaixo
         if (pontosFuros.Count > 0)
         {
+            // só os trechos das pontas (o vão fica na cadeia de baixo)
             var p = pontosFuros.Distinct().OrderBy(q => q).ToList();
-            for (int i = 0; i + 1 < p.Count; i++)
-            {
-                // só os trechos das pontas (o vão fica na cadeia de baixo)
-                bool ponta = p[i + 1] <= Math.Max(e.CompDente, e.DistFuro) + 1e-6 || p[i] >= L - Math.Max(d.CompDente, d.DistFuro) - 1e-6;
-                if (ponta && p[i + 1] - p[i] > 1e-6) c.Cota(p[i], yP + b, p[i + 1], yP + b, (p[i] + p[i + 1]) / 2, yP + b + 2.5 * hv, 0, esc);
-            }
+            var pe = p.Where(q => q <= Math.Max(e.CompDente, e.DistFuro) + 1e-6).ToList();
+            var pd = p.Where(q => q >= L - Math.Max(d.CompDente, d.DistFuro) - 1e-6).ToList();
+            if (pe.Count > 1) CadeiaH(c, pe, yP + b, yP + b + 2.5 * hv, esc);
+            if (pd.Count > 1) CadeiaH(c, pd, yP + b, yP + b + 2.5 * hv, esc);
         }
         if (e.TemDente || d.TemDente) CadeiaH(c, PontosComprimento(L, e, d), yP, yP - 3 * hv, esc);
         c.Cota(0, yP, L, yP, L / 2, yP - 6 * hv, 0, esc);
