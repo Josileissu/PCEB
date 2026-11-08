@@ -200,9 +200,22 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
   edição do bloco); principal no triangular reta de face a face; pernas da secundária/superior = valor padrão do template
   (20); suspensão com perna externa = interna − 6. [VALIDAR no uso] posição das chamadas; o B3 agora sai no padrão BPM.
 - Depois (não são comuns, decisão de 2026-11-07): 5 estacas em quincôncio e outros arranjos não em grade; colarinho excêntrico; chaves desenhadas nas paredes do cálice.
-### Viga pré-moldada VP-1/VP-2 (Templates/VigaPreMoldada/, 2026-11-07, PC2) — em construção
+### Viga pré-moldada VP-1/VP-2/VP-3 (Templates/VigaPreMoldada/, 2026-11-07/08, PC2) — aguardando a conferência do usuário
 Padrão medido e decisões: `docs/VIGA_PREMOLDADA_REQUISITOS.md` (seção 1 = pranchas do escritório; seção 16 = etapas).
 Usa o contexto de desenho do pilar (`TemplatePilarPreMoldado.Ctx`, agora `internal`), o quadro de produção e a regra das alças.
 - **Etapa 1 (forma, feita)**: planta e elevação com dentes Gerber do catálogo (`TipoDente`), furos de pino, alças, cotas,
   seções de forma, notas e produção. Autoteste: `tools\autoteste_autocad.ps1 -Comando ARMTESTEVIGA`.
-- Próximas: armaduras passivas (etapa 2), armadura do dente e ARMDENTES (3), insertos e detalhes (4); depois VP-3 (protensão).
+- **Etapa 2** (`ArmadurasViga.cs`): longitudinais em tabela desenhadas fora da forma com o rótulo da função, estribos por zona
+  (`CalculoFaixa`), SEÇÃO X-X - ARMADURA, forma do estribo (fechado ou U com saliência para a capa).
+- **Etapa 3** (`DenteViga.cs`): armadura do dente pelo catálogo (estribos Gerber, suspensão, grampo, costura, tirante com barra
+  soldada). **ARMDENTES** (`Paleta/FormConsolos.cs`, `Catalogos.Dentes`; config DataMember 70 `Dentes`; botão "Dentes" na paleta).
+- **Etapa 4** (`ItensViga.cs`): alça CP-190 até o fundo com detalhe 1:20; aviso de estabilidade lateral (NBR 9062 6.1.6);
+  detalhes típicos pela biblioteca DWG (`BibliotecaDetalhes`, `%AppData%\PCEB\DEB.Cad\Detalhes`, inseridos pelo CAD).
+- **VP-3** (`ProtensaoViga.cs`): "Viga protendida" + tabela de grupos de cordoalhas (fiada, quantidade, bitola, isolamento E/D,
+  força). Nós da grade de 5 cm (fiada 1 a 5 cm do fundo, simétrica; o 1º grupo da fiada no meio), numeração de baixo para cima
+  e da esquerda para a direita; ARMADURAS DE PROTENSÃO abaixo das passivas (layer ARM-CORDOALHA azul; isolamento = trecho
+  SOLID em ARM-ISOLAMENTO cotado, "MANGUEIRA ISOLAMENTO"); fiada que passa no recorte do dente é cortada na face dele;
+  seção NOMENCLATURA 1:15 (isoladas em vermelho, grade cotada); RA em CP-190; quadro com "RESISTÊNCIA ATO DA PROT." (fcj do
+  saque) e aviso < 21 MPa; avisos de largura, espaço livre (9.2.1) e passiva encostando em cordoalha.
+- Falta: ligação por chapa/cantoneira nas pontas, cordoalhas superiores numa linha acima das passivas, fretagem, taxas de
+  armadura passiva/ativa no quadro, VP-4 (L, T invertido, I).

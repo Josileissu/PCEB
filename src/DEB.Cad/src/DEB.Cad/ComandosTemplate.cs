@@ -227,6 +227,18 @@ public sealed class ComandosTemplate
         ed.WriteMessage($"\n{f.Resultado.Count} consolo(s) padrão salvos: " + string.Join(", ", f.Resultado.Select(t => t.Nome)) + ".");
     }, suspender: false);
 
+    /// <summary>ARMDENTES: catálogo de dentes Gerber padrão (usado pelo template da viga pré-moldada).</summary>
+    [Rt.CommandMethod("ARMDENTES")]
+    public void ArmDentes() => Comandos.Executar("ARMDENTES", (doc, ed, db, cfg) =>
+    {
+        using var f = Paleta.Catalogos.Dentes(Plugin.Config.Dentes);
+        if (CadApp.ShowModalDialog(f) != DialogResult.OK) return;
+        Plugin.Config.Dentes = f.Resultado;
+        Plugin.SalvarConfig();
+        Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Plugin.Config.Dentes;
+        ed.WriteMessage($"\n{f.Resultado.Count} dente(s) padrão salvos: " + string.Join(", ", f.Resultado.Select(t => t.Nome)) + ".");
+    }, suspender: false);
+
     /// <summary>ARMINSERTOS: catálogo de insertos metálicos padrão (usado pelo template do pilar pré-moldado).</summary>
     [Rt.CommandMethod("ARMINSERTOS")]
     public void ArmInsertos() => Comandos.Executar("ARMINSERTOS", (doc, ed, db, cfg) =>
@@ -269,7 +281,8 @@ public sealed class ComandosTemplate
             pl.Elevation = origem.Z;
             return pl;
         }
-        short CorDoLayer(string nome) => nome switch { "ARM-TANQUE" => 4, "ARM-ESTACA" => 5, "ARM-CORTE" => 1, "ARM-TEXTO-FORMA" => 7, "ARM-NIVEL" => 9, _ => 8 };
+        short CorDoLayer(string nome) => nome switch { "ARM-TANQUE" => 4, "ARM-ESTACA" => 5, "ARM-CORTE" => 1, "ARM-TEXTO-FORMA" => 7, "ARM-NIVEL" => 9,
+            "ARM-CORDOALHA" => 5, "ARM-CORDOALHA-ISOLADA" => 1, "ARM-ISOLAMENTO" => 7, _ => 8 };
 
         // ---- forma, textos, cotas ----
         foreach (var c in r.Contornos) Add(Poli(c.Vertices, c.Bulges, c.Fechado), Layer(c.Layer, CorDoLayer(c.Layer)));

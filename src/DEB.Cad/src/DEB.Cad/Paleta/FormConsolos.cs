@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Templates.VigaPreMoldada;
 
 namespace DEB.Cad.Paleta;
 
@@ -203,4 +204,49 @@ internal static class Catalogos
     public static FormCatalogo<TipoInserto> Insertos(IEnumerable<TipoInserto> tipos) => new FormCatalogo<TipoInserto>(
         "Armadura — insertos metálicos padrão", tipos, t => t.Clonar(), () => new TipoInserto(), t => t.Nome, (t, n) => t.Nome = n, t => t.Resumo,
         t => new PropriedadesInserto(t));
+
+    public static FormCatalogo<TipoDente> Dentes(IEnumerable<TipoDente> tipos) => new FormCatalogo<TipoDente>(
+        "Armadura — dentes Gerber padrão (viga pré-moldada)", tipos, t => t.Clonar(), () => new TipoDente(), t => t.Nome, (t, n) => t.Nome = n, t => t.Resumo,
+        t => new PropriedadesDente(t));
+}
+
+/// <summary>Tipo de dente Gerber no PropertyGrid (ARMDENTES): geometria e armadura, que mudam a cada projeto (NBR 9062 7.4).</summary>
+internal sealed class PropriedadesDente
+{
+    private const string G1 = "1. Tipo", G2 = "2. Forma (cm)", G3 = "3. Estribos Gerber", G4 = "4. Suspensão", G5 = "5. Grampo",
+        G6 = "6. Costura", G7 = "7. Tirante";
+
+    public TipoDente T { get; }
+    public PropriedadesDente(TipoDente t) { T = t; }
+
+    [Category(G1), DisplayName("Nome"), Description("Nome que aparece na lista de extremidades do template da viga.")]
+    public string Nome { get => T.Nome; set => T.Nome = value?.Trim() ?? ""; }
+    [Category(G1), DisplayName("Descrição")] public string Descricao { get => T.Descricao; set => T.Descricao = value ?? ""; }
+    [Category(G1), DisplayName("Resumo"), ReadOnly(true)] public string Resumo => T.Resumo;
+
+    [Category(G2), DisplayName("Altura do dente"), Description("Parte da viga que fica sobre o apoio; o recorte embaixo = h da viga − esta altura.")]
+    public double Altura { get => T.Altura; set => T.Altura = Math.Max(5, value); }
+    [Category(G2), DisplayName("Comprimento do dente"), Description("Da ponta da viga à face do recorte.")]
+    public double Comprimento { get => T.Comprimento; set => T.Comprimento = Math.Max(5, value); }
+
+    [Category(G3), DisplayName("Quantidade")] public int EstGerberQtd { get => T.EstGerberQtd; set => T.EstGerberQtd = Math.Max(0, value); }
+    [Category(G3), DisplayName("Bitola (mm)")] public double EstGerberBitola { get => T.EstGerberBitola; set => T.EstGerberBitola = value; }
+
+    [Category(G4), DisplayName("Quantidade"), Description("Estribos fechados de altura total junto da face do recorte.")]
+    public int SuspQtd { get => T.SuspQtd; set => T.SuspQtd = Math.Max(0, value); }
+    [Category(G4), DisplayName("Bitola (mm)")] public double SuspBitola { get => T.SuspBitola; set => T.SuspBitola = value; }
+    [Category(G4), DisplayName("Espaçamento (cm)")] public double SuspEsp { get => T.SuspEsp; set => T.SuspEsp = Math.Max(1, value); }
+
+    [Category(G5), DisplayName("Quantidade")] public int GrampoQtd { get => T.GrampoQtd; set => T.GrampoQtd = Math.Max(0, value); }
+    [Category(G5), DisplayName("Bitola (mm)")] public double GrampoBitola { get => T.GrampoBitola; set => T.GrampoBitola = value; }
+    [Category(G5), DisplayName("Perna (cm)")] public double GrampoPerna { get => T.GrampoPerna; set => T.GrampoPerna = Math.Max(1, value); }
+
+    [Category(G6), DisplayName("Quantidade")] public int CosturaQtd { get => T.CosturaQtd; set => T.CosturaQtd = Math.Max(0, value); }
+    [Category(G6), DisplayName("Bitola (mm)")] public double CosturaBitola { get => T.CosturaBitola; set => T.CosturaBitola = value; }
+    [Category(G6), DisplayName("Perna (cm)")] public double CosturaPerna { get => T.CosturaPerna; set => T.CosturaPerna = Math.Max(1, value); }
+
+    [Category(G7), DisplayName("Quantidade"), Description("Barras retas no topo do dente com barra transversal soldada na ponta.")]
+    public int TiranteQtd { get => T.TiranteQtd; set => T.TiranteQtd = Math.Max(0, value); }
+    [Category(G7), DisplayName("Bitola (mm)")] public double TiranteBitola { get => T.TiranteBitola; set => T.TiranteBitola = value; }
+    [Category(G7), DisplayName("Comprimento (cm)")] public double TiranteComp { get => T.TiranteComp; set => T.TiranteComp = Math.Max(1, value); }
 }

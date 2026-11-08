@@ -100,6 +100,7 @@ public sealed class Plugin : Rt.IExtensionApplication
         // catálogo de consolos padrão do template do pilar pré-moldado (ARMCONSOLOS)
         Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Config.Consolos;
         Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.CatalogoInsertos = Config.Insertos;
+        Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Config.Dentes; // ARMDENTES
     }
 
     public static void SalvarConfig()

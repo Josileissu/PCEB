@@ -128,6 +128,8 @@ public sealed class ConfiguracaoArmadura
     [DataMember(Order = 68)] public List<Templates.PilarPreMoldado.TipoConsolo> Consolos { get; set; } = Templates.PilarPreMoldado.TipoConsolo.Padrao();
     /// <summary>Insertos metálicos padrão (template do pilar pré-moldado; ARMINSERTOS).</summary>
     [DataMember(Order = 69)] public List<Templates.PilarPreMoldado.TipoInserto> Insertos { get; set; } = Templates.PilarPreMoldado.TipoInserto.Padrao();
+    /// <summary>Dentes Gerber padrão (template da viga pré-moldada; ARMDENTES).</summary>
+    [DataMember(Order = 70)] public List<Templates.VigaPreMoldada.TipoDente> Dentes { get; set; } = Templates.VigaPreMoldada.TipoDente.Padrao();
 
     /// <summary>Versão do formato da configuração (migrações automáticas).</summary>
     [DataMember(Order = 100)] public int VersaoConfig { get; set; } = VersaoAtual;
@@ -167,6 +169,7 @@ public sealed class ConfiguracaoArmadura
         if (Telas == null || Telas.Count == 0) Telas = Catalogos.TelasPadrao();
         if (Consolos == null || Consolos.Count == 0) Consolos = Templates.PilarPreMoldado.TipoConsolo.Padrao();
         if (Insertos == null || Insertos.Count == 0) Insertos = Templates.PilarPreMoldado.TipoInserto.Padrao();
+        if (Dentes == null || Dentes.Count == 0) Dentes = Templates.VigaPreMoldada.TipoDente.Padrao();
         if (VersaoConfig < 2)
         {
             // v2 (2026-10-26): desenho em cm e escala base 1:10, pedidos pelo usuário
