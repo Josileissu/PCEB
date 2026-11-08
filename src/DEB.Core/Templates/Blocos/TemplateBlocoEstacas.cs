@@ -33,8 +33,9 @@ namespace DEB.Core.Templates.Blocos;
 public sealed class TemplateBlocoEstacas : ITemplateArmadura
 {
     public const string IdUmaEstaca = "bloco_1_estaca", IdEstacas = "bloco_estacas";
-    public const string Grade = "Retangular (grade nx × ny)", Triangulo = "Triangular (3 estacas)";
-    public const string Colarinho = "Cálice com colarinho", Embutido = "Cálice embutido no bloco", Arranque = "Arranque (moldado in loco)";
+    public const string Grade = "Retangular (grade nx × ny)", Triangulo = "Triangular (3 estacas)", Cinco = "5 estacas (4 nos cantos e 1 no centro)";
+    public const string Colarinho = "Cálice com colarinho", Embutido = "Cálice embutido no bloco", Arranque = "Arranque (moldado in loco)",
+        SemLigacao = "Sem pilar (bloco simples)";
     public const string Lisa = "Lisa", Rugosa = "Rugosa", Chaves = "Com chaves de cisalhamento";
     public const string PeDentro = "Para dentro", PeFora = "Para fora";
 
@@ -79,7 +80,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
             },
         },
 
-        P(G2, "Arranjo", "Arranjo das estacas", Grade, tipo: TipoParametro.Opcao, opcoes: new[] { Grade, Triangulo }),
+        P(G2, "Arranjo", "Arranjo das estacas", Grade, tipo: TipoParametro.Opcao, opcoes: new[] { Grade, Triangulo, Cinco }),
         P(G2, "NEstX", "Estacas em x (grade)", uma ? "1" : "2", tipo: TipoParametro.Inteiro, min: 1, max: 10),
         P(G2, "NEstY", "Estacas em y (grade)", "1", tipo: TipoParametro.Inteiro, min: 1, max: 10),
         P(G2, "EspX", "Distância entre eixos em x (triangular: lado)", uma ? "0" : "120", "cm", min: 0),
@@ -96,7 +97,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
         P(G4, "PilarBy", "Pilar: dimensão em y", "20", "cm", min: 10),
         P(G4, "PilarEx", "Pilar: deslocamento em x", "0", "cm", descricao: "Em relação ao centro das estacas."),
         P(G4, "PilarEy", "Pilar: deslocamento em y", "0", "cm"),
-        P(G4, "Ligacao", "Ligação do pilar", Colarinho, tipo: TipoParametro.Opcao, opcoes: new[] { Colarinho, Embutido, Arranque }),
+        P(G4, "Ligacao", "Ligação do pilar", Colarinho, tipo: TipoParametro.Opcao, opcoes: new[] { Colarinho, Embutido, Arranque, SemLigacao }),
         P(G4, "hColar", "Colarinho: altura acima da base", "40", "cm", min: 0),
         P(G4, "tParede", "Cálice: espessura das paredes", "21", "cm", min: 10, descricao: "Colarinho: parede de concreto (NBR 9062: ≥ 15). Embutido: faixa das armaduras em volta."),
         P(G4, "Folga", "Cálice: folga entre o pilar e a parede", "4", "cm", min: 0),
@@ -218,7 +219,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
     }
 
     private static string Num(double x) => CalculoComprimento.NumeroCompacto(x);
-    private static string NumV(double x) => x.ToString("0.##", CultureInfo.InvariantCulture).Replace('.', ',');
+    private static string NumV(double x) => CalculoComprimento.NumeroVirgula(x);
 
     public static List<string> LerPilares(string s) =>
         (s ?? "").Replace(" e ", ",").Replace(" E ", ",").Split(new[] { ',', ';', '/' }, StringSplitOptions.RemoveEmptyEntries)
@@ -566,10 +567,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
     {
         double mx = pol.Min(p => p.X), my = pol.Min(p => p.Y);
         var p0 = pol.Select(p => (p.X - mx, p.Y - my)).ToList();
-        int canto = GeradorEstribo.Canto(p0, PosicaoGanchos.SuperiorEsquerdo);
-        double lg = c.Cfg.Dobramento.ComprimentoGancho(FormatoSegmento.Gancho90, phi, c.Aco, estribo: true);
-        double passagem = c.Cfg.Dobramento.DiametroPino(phi, c.Aco, estribo: true) + 2 * phi / 10;
-        var fo = GeradorEstribo.FechadoPoligono(p0, canto, FormatoSegmento.Gancho90, lg, passagem);
+        var fo = GeradorEstribo.FechadoPadrao(p0, phi, c.Aco, c.Cfg.Dobramento);
         var b = new BarraTemplate { Nome = nome, Bitola = phi, Aco = c.Aco, Estribo = true, Escala = c.esc, Quantidade = Math.Max(1, qtd), Espacamento = esp };
         b.Vertices.AddRange(fo.Vertices.Select(p => (p.X, p.Y)));
         b.Formatos.AddRange(fo.Formatos);
@@ -1210,20 +1208,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
 
     private static void Producao(Ctx c, double x, double y)
     {
-        double peso = 0;
-        foreach (var b in c.R.Barras)
-        {
-            double comp;
-            if (b.ComprimentosVar.Count > 0) comp = b.ComprimentosVar.Sum();
-            else
-            {
-                double s = 0;
-                for (int i = 0; i + 1 < b.Vertices.Count; i++)
-                    s += Math.Sqrt(Math.Pow(b.Vertices[i + 1].X - b.Vertices[i].X, 2) + Math.Pow(b.Vertices[i + 1].Y - b.Vertices[i].Y, 2));
-                comp = s * b.Quantidade;
-            }
-            peso += comp / 100 * Math.Max(1, b.Repeticoes) * TabelaBarras.MassaTeorica(b.Bitola);
-        }
+        double peso = c.R.Barras.Sum(b => MedidaBarra.Peso(b, c.Cfg));   // mesmas regras da RA do CAD
         double vol = c.R.DadosDetalhamento.Volume;
         var t = new TabelaTemplate { Titulo = c.L("INFORMAÇÕES P/ PRODUÇÃO", "MANUFACTURING INFORMATION")[0], X = x, Y = y, Escala = c.esc };
         t.Larguras.AddRange(new[] { 24.0, 11.0 });
@@ -1241,7 +1226,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
     {
         double ht = c.ht;
         bool chaves = c.Calice && c.V["Interface"] == Chaves;
-        double x = TemplatePilarPreMoldado.DesenharDetalhesComuns(c.R, c.Idioma, c.esc, c.Cfg.AlturaTextoMm, x0, yTopo, chaves, 5, 4, 1, out _);
+        double x = DetalhesTipicos.Desenhar(c.R, c.Idioma, c.esc, c.Cfg.AlturaTextoMm, x0, yTopo, chaves, 5, 4, 1, out _);
         // ancoragem das armaduras das estacas (esquemático)
         x += 6 * ht;
         double y = Linhas(c, "ANCORAGEM DAS ARMADURAS DAS ESTACAS", "ANCHORAGE OF PILE REINFORCEMENT", x, yTopo, 1.1 * ht);

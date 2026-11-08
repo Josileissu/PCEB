@@ -114,8 +114,8 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   aviso fora de 25–35 %) nas faces 1-3 ou 2-4 (círculo de frente, linhas ocultas de lado, cota ao topo) com o detalhe
   "REFORÇO NOS FUROS" (grampos U, r = ø/2 + 3 → C=125 do P61, 8 por furo), ou alça de topo (+1 alça). Inserto: nome
   acima da VISTA 1, chumbadores nas vistas, gabarito com cotas em cadeia no corte A-A. Detalhes padrão: chaves (1:10),
-  espaçamento no canto (1:5, com os valores reais), tabela de raio de curvatura (NBR 6118), emendas por traspasse e por
-  solda, comprimento das barras (A1/B1), ATENÇÃO SPDA (PT/EN). O x do próximo detalhe respeita a largura do título.
+  espaçamento no canto (1:5, com os valores reais), ATENÇÃO SPDA (PT/EN). A tabela de raio de curvatura, as emendas e o
+  comprimento das barras (A1/B1) saíram do pilar em 2026-11-07 (pedido do usuário: o desenho gerado ficou feio). O x do próximo detalhe respeita a largura do título.
 - **Ajustes de 2026-10-29 (3ª rodada)**:
   - **Parâmetro tabela** (`TipoParametro.Tabela`, `ColunaTabela`; valor = células "|", linhas ";"): no ARMTEMPLATE vira
     "N consolos" com botão "…" (`Paleta/FormTabela.cs`: grade, opções em lista, adicionar/remover/subir/descer, **Ctrl+V
@@ -189,7 +189,7 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
   com regularização, concreto magro e NÍVEIS por pilar a partir do topo — tabela "Níveis"); ARMADURA (VISTA SUPERIOR da
   inferior principal, inferior secundária e superior com as dobradas embaixo; CÁLICE; ARM. LATERAL HORIZONTAL; CORTES A-A e
   B-B com barras em ponto e chamadas curtas; arranque); relação do aço; INFORMAÇÕES P/ PRODUÇÃO; detalhes padrão do pilar
-  (`TemplatePilarPreMoldado.DesenharDetalhesComuns`: DETALHE 01 chaves, raio de curvatura, emendas, comprimento das barras);
+  (`DetalhesTipicos.Desenhar`, em `DEB.Core/Templates/DetalhesTipicos.cs`: DETALHE 01 chaves, raio de curvatura, emendas, comprimento das barras);
   ANCORAGEM DAS ARMADURAS DAS ESTACAS; INDICAÇÃO BARRA VARIÁVEL; notas. Idioma PT, EN ou PT/EN.
 - Detalhamento com repetições = nº de pilares (`ResultadoTemplate.DadosDetalhamento`: grupo, classe, volume, área de forma).
 - Avisos: estaca/pilar fora, Lemb < 40 e < 1,2h/1,5h (NBR 9062 Tab. 15), parede < 15, fundo sob o cálice < 20, arranque < lb.

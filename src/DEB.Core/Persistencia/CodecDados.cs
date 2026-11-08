@@ -334,6 +334,7 @@ public static class CodecDados
         R("VOL", d.Volume); R("FORMA", d.AreaForma);
         I("SIS", (int)d.Sistema); S("OBS", d.Comentarios); I("NUM", d.Numero);
         if (d.Repeticoes > 0) I("REP", d.Repeticoes);
+        if (!string.IsNullOrEmpty(d.Motor)) foreach (var parte in Fatiar(d.Motor, 80)) S("MOT", parte);   // 80 caracteres: ≤ 255 bytes mesmo com acentos
         return l;
     }
 
@@ -341,6 +342,7 @@ public static class CodecDados
     {
         if (LerTipo(campos) != TipoParte.Detalhamento) return null;
         var d = new DadosDetalhamento();
+        var motor = new System.Text.StringBuilder();
         foreach (var (k, v) in Pares(campos))
         {
             switch (k)
@@ -354,8 +356,10 @@ public static class CodecDados
                 case "OBS": d.Comentarios = v as string ?? ""; break;
                 case "NUM": d.Numero = Int(v); break;
                 case "REP": d.Repeticoes = Int(v); break;
+                case "MOT": motor.Append(v as string ?? ""); break;
             }
         }
+        d.Motor = motor.ToString();
         return d;
     }
     // ---------- tabela da relação do aço ----------

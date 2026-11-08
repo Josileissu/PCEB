@@ -239,6 +239,22 @@ public static class GeradorEstribo
         return f;
     }
 
+    /// <summary>Passagem padrão do estribo fechado (trecho sobreposto junto aos ganchos): pino do estribo + 2φ (cm).</summary>
+    public static double PassagemPadrao(Normas.RegrasDobramento regras, double bitolaMm, string aco) =>
+        regras.DiametroPino(bitolaMm, aco, estribo: true) + 2 * bitolaMm / 10;
+
+    /// <summary>
+    /// Estribo fechado no padrão do escritório: ganchos no canto superior esquerdo (<see cref="CantoPadrao"/>), comprimento
+    /// do gancho pela norma (ou o informado) e a <see cref="PassagemPadrao"/>. Usado pelo motor, pela prancha e pelo
+    /// comprimento por eixo (Revit), para todos fazerem o mesmo estribo.
+    /// </summary>
+    public static FormaEstribo FechadoPadrao(IReadOnlyList<(double X, double Y)> poligono, double bitolaMm, string aco,
+        Normas.RegrasDobramento regras, FormatoSegmento gancho = FormatoSegmento.Gancho90, double? comprimentoGancho = null)
+    {
+        double lg = comprimentoGancho ?? regras.ComprimentoGancho(gancho, bitolaMm, aco, estribo: true);
+        return FechadoPoligono(poligono, CantoPadrao(poligono), gancho, lg, PassagemPadrao(regras, bitolaMm, aco));
+    }
+
     /// <summary>Vértice "superior mais à esquerda" (maior Y; empate: menor X), onde ficam os ganchos por padrão.</summary>
     public static int CantoPadrao(IReadOnlyList<(double X, double Y)> poligono) =>
         Canto(poligono, PosicaoGanchos.SuperiorEsquerdo);

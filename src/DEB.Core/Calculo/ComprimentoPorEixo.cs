@@ -38,10 +38,7 @@ public static class ComprimentoPorEixo
         {
             // estribo fechado: poligonal externa (eixo afastado φ/2 para fora) no gerador do CAD
             var poligono = Afastar(NoPlano(eixo), phi / 2);
-            double lg = regras.ComprimentoGancho(FormatoSegmento.Gancho45, bitolaMm, aco, estribo: true);
-            double passagem = regras.DiametroPino(bitolaMm, aco, estribo: true) + 2 * phi;
-            var forma = GeradorEstribo.FechadoPoligono(poligono, GeradorEstribo.CantoPadrao(poligono),
-                FormatoSegmento.Gancho45, lg, passagem);
+            var forma = GeradorEstribo.FechadoPadrao(poligono, bitolaMm, aco, regras, FormatoSegmento.Gancho45);
             var geo = Segmentos(forma.Vertices, fechada: false);
             for (int i = 0; i < geo.Count; i++)
             {
