@@ -51,7 +51,8 @@ public sealed partial class TemplatePilarPreMoldado
         P(G17, "AlcaZ2", "Alça de cima (0 = automática)", "0", "cm", min: 0),
         P(G17, "AlcaBitola", "Cordoalha", "12.7", "mm", TipoParametro.Bitola, 9.5, 15.2),
         P(G17, "AlcaPernas", "Cordoalhas por alça", "2", tipo: TipoParametro.Inteiro, min: 1, max: 4),
-        P(G17, "AlcaEmb", "Embutimento", "45", "cm", min: 10),
+        P(G17, "AlcaEmb", "Embutimento (0 = até o fundo)", "0", "cm", min: 0,
+          descricao: "0 = as pernas vão até a face oposta à da alça (o fundo do pilar), menos o cobrimento dela, com o pé lá (decisão do usuário, 2026-11-08)."),
         P(G17, "AlcaAcima", "Altura acima da face", "15", "cm", min: 5),
         P(G17, "AlcaEntre", "Distância entre as pernas", "10", "cm", min: 4),
         P(G17, "AlcaPe", "Pé (dobra no fim de cada perna)", "20", "cm", min: 0),
@@ -87,11 +88,26 @@ public sealed partial class TemplatePilarPreMoldado
     /// <summary>Raio do grampo de reforço em volta do furo (do P61: ø100 → C=125 com pernas de 50 → r ≈ 8 cm).</summary>
     public static double RaioGrampoFuro(double furoMm) => furoMm / 20 + 3;
 
+    /// <summary>
+    /// Embutimento das pernas da alça: o digitado, ou (0) até o fundo — a face oposta à da alça menos o cobrimento dela
+    /// (faces 1/3 atravessam b; 2/4, h). Decisão do usuário, 2026-11-08: a alça ancora no fundo do pilar, não perto da face.
+    /// </summary>
+    public static double EmbutimentoAlca(ValoresTemplate v, double b, double h)
+    {
+        double dado = v.Numero("AlcaEmb");
+        if (dado > 0) return dado;
+        int face = Math.Max(1, Math.Min(4, v.Inteiro("AlcaFace")));
+        int oposta = (face + 1) % 4 + 1;                  // 1↔3, 2↔4
+        double prof = face == 1 || face == 3 ? b : h;
+        return Math.Max(10, prof - Cobrimentos(v)[oposta - 1]);
+    }
+
     // ======================== içamento, montagem e inserto nas vistas ========================
 
     private sealed class Itens
     {
         public double Z1, Z2;          // alças
+        public double EmbAlca;         // embutimento das pernas (da face da alça até o pé)
         public bool Alcas, AlcaTopo, Furo;
         public double ZFuro;
         public int NAlcas;
@@ -103,17 +119,23 @@ public sealed partial class TemplatePilarPreMoldado
         var r = c.R;
         double hv = c.hV;
         var it = new Itens { Alcas = v.SimNao("Alcas"), AlcaTopo = v["Montagem"] == MontagemAlcaTopo, Furo = v["Montagem"] == MontagemFuro };
-        double emb = v.Numero("AlcaEmb"), acima = v.Numero("AlcaAcima"), entre = v.Numero("AlcaEntre");
+        double acima = v.Numero("AlcaAcima"), entre = v.Numero("AlcaEntre");
+        double emb = it.EmbAlca = EmbutimentoAlca(v, b, h);
 
         // laço da alça na vista de lado (pernas dentro, laço fora da face) e o traço na vista de frente
+        double peAlca = v.Numero("AlcaPe");
         void AlcaDeLado(double xf, double s, double z)
         {
-            double r0 = entre / 2;
-            r.Contornos.Add(new ContornoTemplate
-            {
-                Vertices = { (xf - s * emb, z - r0), (xf + s * (acima - r0), z - r0), (xf + s * (acima - r0), z + r0), (xf - s * emb, z + r0) },
-                Bulges = { 0, s > 0 ? 1 : -1, 0, 0 }, Layer = "ARM-ALCA",
-            });
+            // pernas até o fundo (embutimento), laço fora da face e o pé de cada perna dobrado lá no fundo
+            double r0 = entre / 2, xb = xf - s * emb;
+            var k = new ContornoTemplate { Layer = "ARM-ALCA" };
+            if (peAlca > 0) { k.Vertices.Add((xb, z - r0 - peAlca)); k.Bulges.Add(0); }
+            k.Vertices.Add((xb, z - r0)); k.Bulges.Add(0);
+            k.Vertices.Add((xf + s * (acima - r0), z - r0)); k.Bulges.Add(s > 0 ? 1 : -1);
+            k.Vertices.Add((xf + s * (acima - r0), z + r0)); k.Bulges.Add(0);
+            k.Vertices.Add((xb, z + r0)); k.Bulges.Add(0);
+            if (peAlca > 0) { k.Vertices.Add((xb, z + r0 + peAlca)); k.Bulges.Add(0); }
+            r.Contornos.Add(k);
         }
 
         if (it.Alcas)
@@ -357,7 +379,7 @@ public sealed partial class TemplatePilarPreMoldado
         if (it.NAlcas > 0)
         {
             double esc = 20, ht = Ht(c, esc);
-            double phi = v.Numero("AlcaBitola"), emb = v.Numero("AlcaEmb"), acima = v.Numero("AlcaAcima"), e = v.Numero("AlcaEntre"), pe = v.Numero("AlcaPe");
+            double phi = v.Numero("AlcaBitola"), emb = it.EmbAlca, acima = v.Numero("AlcaAcima"), e = v.Numero("AlcaEntre"), pe = v.Numero("AlcaPe");
             fimTitulo = Titulo("ALÇA DE IÇAMENTO", "LIFTING HANDLE", x, yTopo, esc, "ESC. 1:20");
             double y0 = yTopo - 10 * ht - emb - acima, xa = x + pe + 2 * ht;
             var bt = new BarraTemplate
