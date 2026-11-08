@@ -94,7 +94,6 @@ pela unidade do desenho (`INSUNITS`; se indefinida, a configuração — padrão
 | `ARMBARRA` → `Cobrimento` | Clica nas linhas da forma; vértices nas interseções das linhas deslocadas; `Ponto` projeta um ponto livre |
 | `ARMDETCRIAR` | Seleção → nome → grupo → pavimento: vira um BLOCO (detalhamento) no mesmo lugar; vínculos preservados |
 | `ARMDETGERENCIAR` | Grade com todos os detalhamentos (nome, grupo, pavimento, repetições = inserções, volume, forma, classe, sistema, comentários; F5 copia para a coluna) |
-| `ARMDETREGENERAR` | Redesenha um detalhamento gerado pelo motor (ARMTEMPLATE do bloco) pela origem gravada nele (XData "MOT"): perfil e receita atuais + edições manuais; janela com regra e valor de cada parâmetro e a coluna "Manual" |
 | `ARMRAPARCIAL` | Blocos (Enter = desenho inteiro) → ponto: relação só com as barras desses blocos (× inserções) |
 | `ARMRAASSOCIAR` | Blocos → tabela: os blocos passam a pertencer só a essa relação parcial |
 | `ARMRABLOQUEAR` | Liga/desliga o bloqueio: números fixos; novas/alteradas acima do maior com "*" |

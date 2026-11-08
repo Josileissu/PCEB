@@ -2344,7 +2344,7 @@ public sealed class AutoTeste
     /// repetições, confere as barras e grava um PNG. Uso: tools\autoteste_autocad.ps1 -Comando ARMTESTEBLOCO.
     /// </summary>
     // Desde 2026-11-07 pelo motor (TemplateBlocoMotor só com a fábrica: não lê perfis/receitas do usuário); confere também
-    // a origem do motor gravada no detalhamento e a regeneração (ARMDETREGENERAR) do B28 com uma edição manual.
+    // a origem do motor gravada no detalhamento.
     [Rt.CommandMethod("ARMTESTEBLOCO")]
     public void Bloco() => Comandos.Executar("ARMTESTEBLOCO", (doc, ed, db, cfg) =>
     {
@@ -2388,62 +2388,6 @@ public sealed class AutoTeste
                         $"{nome}: origem do motor gravada no detalhamento ({erroOrigem ?? om?.Elemento?.Nome})");
                 }
                 tr.Commit();
-            }
-        }
-
-        // regeneração com edição manual: mesmo bloco e inserções, mesmas barras, perna menor, edição gravada na origem
-        {
-            const string nome = "BLOCO B28";
-            ObjectId btrId = ObjectId.Null;
-            DadosDetalhamento det = null;
-            int barrasAntes = 0, insAntes = 0;
-            double comprAntes = 0;
-            Point3d minAntes = Point3d.Origin;
-            (int barras, double compr, Point3d min) Medir(Transaction tr, BlockTableRecord btr)
-            {
-                int n = 0; double c = 0; Extents3d? ext = null;
-                foreach (ObjectId id in btr)
-                {
-                    var e = tr.GetObject(id, OpenMode.ForRead) as Entity;
-                    if (e == null) continue;
-                    try { var x = e.GeometricExtents; if (ext == null) ext = x; else { var v = ext.Value; v.AddExtents(x); ext = v; } } catch { }
-                    if (e is Polyline pl && XDataCad.Tipo(pl) == Core.Persistencia.TipoParte.Barra) { n++; c += pl.Length; }
-                }
-                return (n, c, ext?.MinPoint ?? Point3d.Origin);
-            }
-            using (var tr = db.TransactionManager.StartTransaction())
-            {
-                var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-                if (bt.Has(nome))
-                {
-                    var btr = (BlockTableRecord)tr.GetObject(bt[nome], OpenMode.ForRead);
-                    btrId = btr.ObjectId;
-                    det = ServicoDetalhamento.Ler(btr);
-                    (barrasAntes, comprAntes, minAntes) = Medir(tr, btr);
-                    insAntes = ServicoDetalhamento.Insercoes(tr, btr);
-                }
-                tr.Commit();
-            }
-            var o = Core.Motor.Entrada.OrigemDetalhamento.TentarLer(det?.Motor, out _);
-            Checar(o != null, $"{nome}: origem lida para regenerar");
-            if (o != null)
-            {
-                Core.Motor.Sobrescritas.Definir(o.Sobrescritas, "principal_x", "perna", 20);
-                var avisos = ComandosDetalhamento.Regenerar(db, cfg, btrId, o, det);
-                Checar(!avisos.Any(a => a.Contains("não foi alterado") || a.Contains("erro inesperado")), $"{nome}: regenerado ({string.Join(" | ", avisos)})");
-                using (var tr = db.TransactionManager.StartTransaction())
-                {
-                    var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
-                    var (barras, compr, min) = Medir(tr, btr);
-                    Checar(btr.Name == nome && ServicoDetalhamento.Insercoes(tr, btr) == insAntes, $"{nome}: mesmo bloco e inserções depois de regenerar");
-                    Checar(barras == barrasAntes, $"{nome}: {barras} armaduras depois de regenerar ({barrasAntes} antes)");
-                    Checar(compr < comprAntes - 1, FormattableString.Invariant($"{nome}: perna manual encurtou as barras ({comprAntes:0.#} → {compr:0.#})"));
-                    Checar(min.DistanceTo(minAntes) < 0.01, $"{nome}: conteúdo no mesmo lugar ({min} × {minAntes})");
-                    var o2 = Core.Motor.Entrada.OrigemDetalhamento.TentarLer(ServicoDetalhamento.Ler(btr)?.Motor, out _);
-                    Checar(o2 != null && Core.Motor.Sobrescritas.Obter(o2.Sobrescritas, "principal_x", "perna") == 20,
-                        $"{nome}: edição manual gravada no detalhamento");
-                    tr.Commit();
-                }
             }
         }
         Gravar();

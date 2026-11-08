@@ -109,36 +109,4 @@ public class TemplateBlocoMotorTests
         Assert.Null(OrigemDetalhamento.TentarLer("", out var erro));
         Assert.NotNull(erro);
     }
-
-    [Fact]
-    public void RegeneracaoListaParametrosEGravaEdicoes()
-    {
-        var cfg = new ConfiguracaoArmadura();
-        var r = new TemplateBlocoMotor().Gerar(ConversorBloco.Valores(ImportadorBlocos.ExemploB28()), cfg);
-        var o = OrigemDetalhamento.Ler(r.DadosDetalhamento.Motor);
-        Assert.True(RegeneracaoMotor.Suporta(o));
-
-        var ps = RegeneracaoMotor.Parametros(o, cfg);
-        var perna = ps.Single(p => p.Posicao == "principal_x" && p.Parametro == "perna");
-        Assert.Null(perna.Manual);
-        Assert.True(perna.PelaRegra > 20);
-        Assert.Equal(ps.Count, ps.Select(p => (p.Posicao, p.Parametro)).Distinct().Count());
-
-        // edição → sobrescrita; o desenho regenerado muda e a origem nova guarda a edição
-        perna.Manual = 20;
-        Assert.Equal(1, RegeneracaoMotor.Aplicar(o, ps));
-        Assert.Equal(0, RegeneracaoMotor.Aplicar(o, ps));        // nada mudou de novo
-        var r2 = RegeneracaoMotor.Gerar(o, cfg);
-        Assert.True(Peso(r2.Barras, cfg) < Peso(r.Barras, cfg));
-        var o2 = OrigemDetalhamento.Ler(r2.DadosDetalhamento.Motor);
-        var perna2 = RegeneracaoMotor.Parametros(o2, cfg).Single(p => p.Posicao == "principal_x" && p.Parametro == "perna");
-        Assert.Equal(20, perna2.Manual);
-        Assert.Equal(perna.PelaRegra, perna2.PelaRegra);       // a regra é calculada sem as edições
-
-        // valor igual à regra (ou vazio) volta para a regra
-        perna2.Manual = perna2.PelaRegra;
-        Assert.Equal(1, RegeneracaoMotor.Aplicar(o2, new[] { perna2 }));
-        Assert.Empty(o2.Sobrescritas);
-        Assert.Equal(Peso(r.Barras, cfg), Peso(RegeneracaoMotor.Gerar(o2, cfg).Barras, cfg), 6);
-    }
 }

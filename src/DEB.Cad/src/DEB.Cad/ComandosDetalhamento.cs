@@ -3,12 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Cad.Infra;
 using DEB.Cad.Relacao;
-using DEB.Core.Configuracao;
 using DEB.Core.Modelo;
-using DEB.Core.Motor;
-using DEB.Core.Motor.Entrada;
-using DEB.Core.Motor.Perfis;
-using DEB.Core.Motor.Receitas;
 using DEB.Core.RelacaoAco;
 
 [assembly: Rt.CommandClass(typeof(DEB.Cad.ComandosDetalhamento))]
@@ -161,103 +156,4 @@ public sealed class ComandosDetalhamento
             ? "\nRelação do aço BLOQUEADA: os números atuais ficam fixos; barras novas ou alteradas recebem números acima do maior e aparecem com * na tabela."
             : "\nRelação do aço DESBLOQUEADA: tudo foi renumerado e os destaques removidos.");
     });
-
-    /// <summary>
-    /// ARMDETREGENERAR (2026-11-07): redesenha um detalhamento gerado pelo motor (ARMTEMPLATE do bloco) a partir da
-    /// origem gravada nele: mesmo elemento, perfil e receita atuais e as edições manuais. A janela mostra os parâmetros
-    /// de cada posição (regra e valor) e aceita o valor manual; nome, dados e inserções do bloco não mudam.
-    /// </summary>
-    [Rt.CommandMethod("ARMDETREGENERAR", Flags)]
-    public void Regenerar() => Comandos.Executar("ARMDETREGENERAR", (doc, ed, db, cfg) =>
-    {
-        ObjectId refId;
-        var impl = ed.SelectImplied();
-        if (impl.Status == PromptStatus.OK && impl.Value != null && impl.Value.Count == 1)
-        {
-            refId = impl.Value.GetObjectIds()[0];
-            ed.SetImpliedSelection(new ObjectId[0]);
-        }
-        else
-        {
-            var op = new PromptEntityOptions("\nSelecione o detalhamento (bloco) gerado pelo ARMTEMPLATE:");
-            op.SetRejectMessage("\nSelecione um bloco.");
-            op.AddAllowedClass(typeof(BlockReference), false);
-            var r = ed.GetEntity(op);
-            if (r.Status != PromptStatus.OK) return;
-            refId = r.ObjectId;
-        }
-
-        ObjectId btrId;
-        string nome;
-        DadosDetalhamento dados;
-        using (var tr = new TransacaoSegura(db))
-        {
-            if (!(tr.GetObject(refId, OpenMode.ForRead) is BlockReference br) || br is Table)
-            { ed.WriteMessage("\nIsso não é um detalhamento (bloco)."); return; }
-            btrId = br.IsDynamicBlock ? br.DynamicBlockTableRecord : br.BlockTableRecord;
-            var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForRead);
-            nome = btr.Name;
-            dados = ServicoDetalhamento.Ler(btr);
-        }
-        var origem = OrigemDetalhamento.TentarLer(dados?.Motor, out var erro);
-        if (origem == null) { ed.WriteMessage($"\n\"{nome}\": não dá para regenerar — {erro}"); return; }
-        if (!RegeneracaoMotor.Suporta(origem))
-        { ed.WriteMessage($"\n\"{nome}\": ainda não há motor para regenerar \"{origem.Elemento.Tipo}\"."); return; }
-
-        // janela das edições (com script ativo, regenera direto com as edições gravadas)
-        bool script = false;
-        try { script = (Convert.ToInt32(CadApp.GetSystemVariable("CMDACTIVE")) & 4) != 0; } catch { }
-        int mudadas = 0;
-        if (!script)
-        {
-            var ps = RegeneracaoMotor.Parametros(origem, cfg, RepositorioPerfis.PastaPadrao(), RepositorioReceitas.PastaPadrao());
-            var ignoradas = origem.Sobrescritas.Where(x => !ps.Any(p => p.Posicao == x.Posicao && p.Parametro == x.Parametro))
-                .Select(x => $"Edição sem efeito (a posição ou o parâmetro não existe mais): {x.Posicao}.{x.Parametro} = {Core.Calculo.CalculoComprimento.NumeroVirgula(x.Valor)}");
-            using (var f = new Paleta.FormEdicaoMotor(nome, ps, ignoradas.ToList()))
-                if (CadApp.ShowModalDialog(f) != System.Windows.Forms.DialogResult.OK) return;
-            mudadas = RegeneracaoMotor.Aplicar(origem, ps);
-        }
-
-        var avisos = Regenerar(db, cfg, btrId, origem, dados);
-        foreach (var a in avisos) ed.WriteMessage("\nAviso: " + a);
-        ed.WriteMessage($"\nDetalhamento \"{nome}\" regenerado" +
-                        (mudadas > 0 ? $" ({mudadas} edição(ões) alterada(s))" : "") +
-                        $"; {origem.Sobrescritas.Count} parâmetro(s) manual(is).");
-    });
-
-    /// <summary>
-    /// Gera de novo pela origem e troca o conteúdo do bloco <paramref name="btrId"/>; grava a origem (com as edições) nos
-    /// dados do detalhamento e atualiza as relações do aço. Se o motor não gerar nada, o detalhamento não muda.
-    /// Devolve os avisos do motor.
-    /// </summary>
-    internal static List<string> Regenerar(Database db, ConfiguracaoArmadura cfg, ObjectId btrId, OrigemDetalhamento origem, DadosDetalhamento dados)
-    {
-        var res = RegeneracaoMotor.Gerar(origem, cfg, RepositorioPerfis.PastaPadrao(), RepositorioReceitas.PastaPadrao());
-        if (res.Barras.Count == 0)
-        {
-            var r = new List<string>(res.Avisos) { "O motor não gerou armaduras; o detalhamento não foi alterado." };
-            return r;
-        }
-        res.Detalhamento = "";      // desenha solto; o conteúdo vai para o bloco existente
-        res.PosicaoRA = null;       // a relação do aço que já existe é atualizada
-        var tr = new TransacaoSegura(db);
-        try
-        {
-            ComandosTemplate.Desenhar(tr, db, cfg, res, Point3d.Origin, out var entidades);
-            var btr = (BlockTableRecord)tr.GetObject(btrId, OpenMode.ForWrite);
-            ServicoDetalhamento.Substituir(db, tr, btr, entidades.ToArray());
-            dados ??= new DadosDetalhamento();
-            dados.Motor = res.DadosDetalhamento?.Motor ?? origem.Gravar();
-            ServicoDetalhamento.Gravar(db, tr, btr, dados);
-            ServicoRA.Atualizar(db, tr, cfg);
-            tr.Commit();
-        }
-        catch
-        {
-            tr.Abortar();
-            throw;
-        }
-        finally { tr.Dispose(); }
-        return res.Avisos;
-    }
 }
