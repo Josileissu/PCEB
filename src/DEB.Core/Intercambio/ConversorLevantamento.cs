@@ -69,6 +69,8 @@ public static class ConversorLevantamento
         var arq = new ArquivoPecas { Origem = origem ?? "", Data = data ?? "" };
         if (notasDoLevantamento != null) arq.Notas.AddRange(notasDoLevantamento);
         var todas = pecas.ToList();
+        int fora = todas.RemoveAll(p => p.NaoExportar);
+        if (fora > 0) arq.Notas.Add($"{fora} peça(s) marcada(s) como \"não exportar\" na conferência ficaram de fora.");
 
         var pilares = PreMoldadas(todas, TipoPeca.Pilar, "pilar", "pilares", arq.Notas);
         var vigas = PreMoldadas(todas, TipoPeca.Viga, "viga", "vigas", arq.Notas);

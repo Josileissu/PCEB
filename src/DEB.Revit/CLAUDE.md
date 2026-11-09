@@ -83,6 +83,12 @@ e pelo volume (`PerfilViga`, `AgrupadorVigas`, `PrecastExport.Beams` foram remov
 - `uid` (UniqueId) de cada elemento vai no JSON como campo opcional (o DEB.Cad 0.1.32 instalado ignora e continua lendo).
 - `PrecastSurvey` lê a geometria de cada candidato a consolo uma vez (antes: de novo para cada pilar) e descarta os distantes pela caixa.
 AutoRun `exportarpecas` (`SD_EXPORT` = caminho). Só lê o modelo.
+**Edições na janela (etapa 3, 09/11/2026)** — as únicas gravações da conferência no modelo (`Precast/PieceReviewEdits`, comando em
+`TransactionMode.Manual`): "Gravar marca no modelo" (parâmetro Marca de todas as peças do grupo; a janela recusa a marca que já é de
+outro grupo) e "Não exportar este grupo" (Extensible Storage, schema `DEB_ConferenciaPeca`, campo `NaoExportar`, no próprio elemento:
+vale nas próximas conferências; ⊘ na lista). AutoRun `conferireditar`: grava VT1/PT1 e um "não exportar", levanta de novo, exporta e
+DESFAZ tudo (TransactionGroup.RollBack) → `logs/conferireditar_*/resultado.txt` + PNG. Testado no Teste_PM. Falta: função dos
+trechos (sem uso no CAD até o JSON v2), "Selecionar no modelo" e voltar para "a conferir" quando a geometria muda.
 
 ## Conferir peças (09/11/2026, PC2 — `docs/04_arquitetura/conferencia_e_subdivisao_pecas.md`)
 Botão "Conferir peças" (painel Pré-moldados, `Commands/ReviewPiecesCommand`): `Precast/PieceReview` levanta vigas e pilares
