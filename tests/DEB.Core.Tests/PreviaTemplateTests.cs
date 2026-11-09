@@ -24,7 +24,11 @@ public class PreviaTemplateTests
         var pasta = Environment.GetEnvironmentVariable("ARM_PREVIA");
         if (string.IsNullOrEmpty(pasta)) return;
         var t = new TemplatePilarPreMoldado();
-        Gravar(pasta, "previa_pilar.json", t.Gerar(new ValoresTemplate(t.Parametros), new ConfiguracaoArmadura()));
+        var v = new ValoresTemplate(t.Parametros);
+        // consolos da prévia (ex.: "CS 20x28,5x25|1|300|0"); vazio = o padrão do template
+        var consolos = Environment.GetEnvironmentVariable("ARM_PREVIA_CONSOLOS");
+        if (!string.IsNullOrEmpty(consolos)) v["Consolos"] = consolos;
+        Gravar(pasta, "previa_pilar.json", t.Gerar(v, new ConfiguracaoArmadura()));
     }
 
     [Fact]
@@ -54,6 +58,7 @@ public class PreviaTemplateTests
         ValorJson S(string s) => ValorJson.De((s ?? "").Replace("\n", " "));
         var o = ValorJson.NovoObjeto()
             .Definir("barras", L(r.Barras.Select(b => Ps(b.Vertices)).ToArray()))
+            .Definir("nomes", L(r.Barras.Select(b => S(b.Nome)).ToArray()))
             .Definir("contornos", L(r.Contornos.Select(c => Ps(c.Fechado ? c.Vertices.Concat(c.Vertices.Take(1)) : c.Vertices)).ToArray()))
             .Definir("layers", L(r.Contornos.Select(c => S(c.Layer)).ToArray()))
             .Definir("textos", L(r.Textos.Select(x => ValorJson.NovoObjeto().Definir("t", S(x.Texto)).Definir("x", N(x.X)).Definir("y", N(x.Y))
