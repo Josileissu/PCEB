@@ -227,15 +227,27 @@ end;
 
 { ---------- programas abertos ---------- }
 
+function GetCurrentProcessId(): Cardinal;
+  external 'GetCurrentProcessId@kernel32.dll stdcall';
+function ProcessIdToSessionId(ProcessId: Cardinal; var SessionId: Cardinal): Boolean;
+  external 'ProcessIdToSessionId@kernel32.dll stdcall';
+
+{ Só conta o programa aberto na sessão do Windows de quem instala: o de outro usuário conectado
+  não usa os arquivos desta instalação (que é por usuário) e não pode ser fechado por ele. }
 function ProcessoAberto(Exe: String): Boolean;
 var
   Wmi, Servico, Lista: Variant;
+  Sessao: Cardinal;
+  Filtro: String;
 begin
   Result := False;
+  Filtro := '';
+  if ProcessIdToSessionId(GetCurrentProcessId(), Sessao) then
+    Filtro := ' AND SessionId = ' + IntToStr(Sessao);
   try
     Wmi := CreateOleObject('WbemScripting.SWbemLocator');
     Servico := Wmi.ConnectServer('.', 'root\cimv2');
-    Lista := Servico.ExecQuery('SELECT ProcessId FROM Win32_Process WHERE Name = ''' + Exe + '''');
+    Lista := Servico.ExecQuery('SELECT ProcessId FROM Win32_Process WHERE Name = ''' + Exe + '''' + Filtro);
     Result := Lista.Count > 0;
   except
   end;
