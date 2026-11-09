@@ -94,7 +94,14 @@ QUATRO FACES em pé (como no template: face 1 = +x, 2 = −y, 3 = −x, 4 = +y, 
 atrás), coluna "CONSOLOS (perfil)" ampliada com cotas e chanfros, seções empilhadas na vertical; grupos com giro 90/180/270° = iguais.
 **Chanfro do consolo** (relato do usuário): `Describe` media a altura da ponta nos vértices da ponta — o chanfro 2 × 2 do Teste_PM
 virava "ponta 21,5" (trapezoidal, CT no catálogo). Agora `PerfilConsolo.Medir` (Core): envoltórias convexas do perfil, chanfro =
-último trecho ≤ 5 cm com outra inclinação, altura pelas retas principais → 23,5 (o JSON do CAD também). Próximo (etapa 3): marca editável gravada no Revit, função dos
+último trecho ≤ 5 cm com outra inclinação, altura pelas retas principais → 23,5 (o JSON do CAD também).
+**Viga apoiada em viga** (relato do usuário, modelo Nordika 26049, V245): o consolo é aninhado na viga que SE APOIA e encosta na
+face lateral da viga que RECEBE. `PieceReview.BeamCorbels` dá cada consolo sem dono (os dos pilares saem antes) à viga cuja face
+lateral REAL (planar, normal ±y — inclui a da alma dentro das abas) ele toca e da qual sai; perfil cortado no meio do consolo;
+trecho = "Apoio de viga" (situação ✖: o CAD ainda não desenha consolo em viga). Na cópia do Nordika: V112/V212, V237, V312 e 3
+sem marca. "encostaEm" do diagnóstico NÃO serve para isso (consolos de pilar encostam nas vigas vizinhas).
+Revit do usuário aberto segura a DLL: renomeie `DEB.Revit.dll`/`DEB.Core.dll` para `.antigo` (o Windows deixa) e copie as novas —
+o Revit dele segue com a carregada; os abertos depois pegam a nova. Próximo (etapa 3): marca editável gravada no Revit, função dos
 trechos, aceitar/ignorar, Extensible Storage, exportar pela janela, "Selecionar no modelo".
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio

@@ -143,6 +143,21 @@ public class SubdivisaoPecasTests
     }
 
     [Fact]
+    public void VigaQueRecebeOutraVigaNoConsolo()
+    {
+        // trecho com consolo de apoio de outra viga (função marcada no levantamento): aviso próprio e "o CAD ainda não desenha"
+        var cheia = SecaoPoligonal.Retangulo(19, 75);
+        var comConsolo = Poli((0, 0), (19, 0), (19, 30), (44, 30), (44, 55), (19, 55), (19, 75), (0, 75));
+        var p = new PecaLevantada { Tipo = TipoPeca.Viga, TipoRevit = "19x75", PreMoldada = true, Comprimento = 568,
+            Trechos = Subdivisao.Juntar(new[] { (0.0, 250.0, cheia), (250.0, 290.0, comConsolo), (290.0, 568.0, cheia) }) };
+        p.Trechos[1].FuncaoSugerida = FuncaoTrecho.ApoioViga;
+        ConferenciaPecas.Avaliar(p);
+        Assert.Equal(SituacaoPeca.NaoSuportada, p.Situacao);
+        Assert.Contains(p.Avisos, a => a.StartsWith("trecho 250–290: consolo de apoio de outra viga"));
+        Assert.DoesNotContain(p.Avisos, a => a.StartsWith("nome do tipo"));
+    }
+
+    [Fact]
     public void NomeDoTipoContraAGeometria()
     {
         Assert.Equal((26.0, 170.0), NomeTipo.Dimensoes("Viga Pré-Moldada - seção retangular com aba laje : 26x170"));

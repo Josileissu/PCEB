@@ -27,6 +27,8 @@ namespace DEB.Revit.Precast
                         consolos[m.Instance.Id.Value] = m.Corbels.Select(c => c.Instance).Where(c => c != null).ToList();
             }
             catch (Exception ex) { notes.Add("consolos dos pilares não reconhecidos: " + ex.Message); }
+            try { BeamCorbels(doc, consolos); }
+            catch (Exception ex) { notes.Add("consolos das vigas não reconhecidos: " + ex.Message); }
             foreach (BuiltInCategory cat in new[] { BuiltInCategory.OST_StructuralFraming, BuiltInCategory.OST_StructuralColumns })
             {
                 IEnumerable<FamilyInstance> els = new FilteredElementCollector(doc).OfCategory(cat)
@@ -38,6 +40,86 @@ namespace DEB.Revit.Precast
                     catch (Exception ex) { notes.Add($"{fi.Name} [{fi.Id.Value}]: erro no levantamento — {ex.Message}"); }
                 }
             }
+            return r;
+        }
+
+        /// <summary>
+        /// Consolos nas vigas (viga apoiada em viga, 2026-11-09): o consolo é uma família aninhada na viga que SE APOIA, mas fica
+        /// encostado na face lateral da viga que RECEBE (Nordika, V245). Cada consolo ainda sem dono (os dos pilares já foram
+        /// atribuídos) vai para a viga cuja face lateral ele toca, dentro do comprimento e da altura dela, saindo para fora.
+        /// </summary>
+        private static void BeamCorbels(Document doc, Dictionary<long, List<FamilyInstance>> owner)
+        {
+            _faceOf.Clear();
+            var used = new HashSet<long>(owner.Values.SelectMany(l => l).Select(c => c.Id.Value));
+            var beams = new List<(FamilyInstance Fi, PieceInfo Info, BoundingBoxXYZ Bb, List<LateralFace> Faces)>();
+            foreach (FamilyInstance b in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
+                         .WhereElementIsNotElementType().OfType<FamilyInstance>().Where(fi => fi.SuperComponent == null))
+            {
+                try { var info = PieceAnalyzer.Analyze(b); beams.Add((b, info, b.get_BoundingBox(null), LateralFaces(b, info))); }
+                catch { /* sem eixo reto etc.: fica de fora */ }
+            }
+            double tol = U.Mm(5), folga = U.Mm(30);
+            foreach (FamilyInstance c in new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+                         .Where(fi => fi.Category != null && !used.Contains(fi.Id.Value) &&
+                                      (fi.Category.BuiltInCategory == BuiltInCategory.OST_StructConnections ||
+                                       fi.Category.BuiltInCategory == BuiltInCategory.OST_GenericModel)))
+            {
+                BoundingBoxXYZ cb = c.get_BoundingBox(null);
+                if (cb == null) continue;
+                List<XYZ> verts = null;
+                foreach (var (b, info, bb, faces) in beams)
+                {
+                    if (bb == null || cb.Min.X > bb.Max.X + folga || cb.Max.X < bb.Min.X - folga || cb.Min.Y > bb.Max.Y + folga ||
+                        cb.Max.Y < bb.Min.Y - folga || cb.Min.Z > bb.Max.Z + folga || cb.Max.Z < bb.Min.Z - folga) continue;
+                    verts ??= GeometryHelper.GetVertices(GeometryHelper.GetSolids(c, null));
+                    if (verts.Count == 0) break;
+                    double X(XYZ q) => (q - info.Origin).DotProduct(info.AxisX);
+                    double Y(XYZ q) => (q - info.Origin).DotProduct(info.AxisY);
+                    double Z(XYZ q) => (q - info.Origin).DotProduct(info.AxisZ);
+                    double x0 = verts.Min(X), x1 = verts.Max(X), y0 = verts.Min(Y), y1 = verts.Max(Y), z0 = verts.Min(Z), z1 = verts.Max(Z);
+                    // encosta numa face lateral REAL da viga (a da alma, dentro das abas, também) e sai para fora dela
+                    double min = U.Mm(10);
+                    LateralFace f = faces.FirstOrDefault(q =>
+                        (q.Sign > 0 ? Math.Abs(y0 - q.Y) <= tol && y1 - q.Y > U.Mm(20) : Math.Abs(y1 - q.Y) <= tol && q.Y - y0 > U.Mm(20)) &&
+                        Math.Min(x1, q.X1) - Math.Max(x0, q.X0) > min && Math.Min(z1, q.Z1) - Math.Max(z0, q.Z0) > min);
+                    if (f == null) continue;
+                    _faceOf[c.Id.Value] = (f.Y, f.Sign);
+                    if (!owner.TryGetValue(b.Id.Value, out var l)) owner[b.Id.Value] = l = new List<FamilyInstance>();
+                    l.Add(c);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>Face lateral plana da viga (normal ±y do sistema da viga): posição y, sentido e extensão em x e z (pés).</summary>
+        private sealed class LateralFace { public double Y, X0, X1, Z0, Z1; public int Sign; }
+
+        /// <summary>Consolo de viga → face em que encosta (y e sentido), do reconhecimento para o perfil.</summary>
+        private static readonly Dictionary<long, (double Y, int Sign)> _faceOf = new Dictionary<long, (double, int)>();
+
+        private static List<LateralFace> LateralFaces(FamilyInstance b, PieceInfo info)
+        {
+            var r = new List<LateralFace>();
+            List<SolidRef> refs = GeometryHelper.GetSolids(b, null);
+            foreach (SolidRef sr in refs)
+                foreach (Face f in sr.Solid.Faces)
+                {
+                    if (!(f is PlanarFace pf)) continue;
+                    XYZ n = sr.ToWorld.OfVector(pf.FaceNormal);
+                    double dy = n.DotProduct(info.AxisY);
+                    if (Math.Abs(dy) < 0.999) continue;
+                    var pts = new List<XYZ>();
+                    foreach (EdgeArray loop in pf.EdgeLoops) foreach (Edge e in loop) foreach (XYZ q in e.Tessellate()) pts.Add(sr.ToWorld.OfPoint(q) - info.Origin);
+                    if (pts.Count == 0) continue;
+                    r.Add(new LateralFace
+                    {
+                        Y = pts.Average(q => q.DotProduct(info.AxisY)), Sign = dy > 0 ? 1 : -1,
+                        X0 = pts.Min(q => q.DotProduct(info.AxisX)), X1 = pts.Max(q => q.DotProduct(info.AxisX)),
+                        Z0 = pts.Min(q => q.DotProduct(info.AxisZ)), Z1 = pts.Max(q => q.DotProduct(info.AxisZ)),
+                    });
+                }
+            GC.KeepAlive(refs);
             return r;
         }
 
@@ -75,18 +157,21 @@ namespace DEB.Revit.Precast
             {
                 p.Bx = Cm(info.LengthX);
                 p.By = Cm(info.LengthY);
+            }
+            {
                 foreach (FamilyInstance c in corbels)
                 {
                     List<SolidRef> cr = GeometryHelper.GetSolids(c, null);
                     corbelRefs.Add(cr);
                     var cs = cr.Select(sr => sr.ToWorld.IsIdentity ? sr.Solid : SolidUtils.CreateTransformed(sr.Solid, sr.ToWorld)).ToList();
                     if (cs.Count == 0) continue;
-                    ConsoloLevantado k = Corbel(info, cs, out string aviso);
+                    ConsoloLevantado k = beam ? BeamCorbel(info, cs, _faceOf.TryGetValue(c.Id.Value, out var fy) ? fy : ((double, int)?)null, out string aviso)
+                                              : Corbel(info, cs, out aviso);
                     if (aviso != null) p.Avisos.Add($"consolo {c.Id.Value}: {aviso}");
                     if (k == null) continue;
                     p.Consolos.Add(k);
                     xs.AddRange(GeometryHelper.GetVertices(cr).Select(v => Cm((v - info.Origin).DotProduct(along))));
-                    // o corte horizontal passa pelo pilar e pelo consolo juntos
+                    // o corte passa pela peça e pelo consolo juntos
                     foreach (Solid s in cs)
                     {
                         try { solids[0] = BooleanOperationsUtils.ExecuteBooleanOperation(solids[0], s, BooleanOperationsType.Union); }
@@ -104,6 +189,10 @@ namespace DEB.Revit.Precast
             GC.KeepAlive(refs);
             GC.KeepAlive(corbelRefs);
             p.Trechos = Subdivisao.Juntar(cortes, p.Tipo);
+            // viga: trecho com consolo de outra viga = apoio de viga
+            if (beam)
+                foreach (TrechoPeca t in p.Trechos)
+                    if (p.Consolos.Any(k => Math.Min(k.S1, t.X1) - Math.Max(k.S0, t.X0) > 0.5)) t.FuncaoSugerida = FuncaoTrecho.ApoioViga;
             ConferenciaPecas.Avaliar(p);
             return p;
         }
@@ -130,6 +219,27 @@ namespace DEB.Revit.Precast
             SecaoPoligonal perfil = Cut(solids, fp, tangent, outward, info.AxisZ, (s0 + s1) / 2, out string a2);
             if (perfil == null) { aviso = a2 ?? "perfil não cortado"; return null; }
             return new ConsoloLevantado { Face = face, S0 = Round(Cm(s0)), S1 = Round(Cm(s1)), Perfil = perfil };
+        }
+
+        /// <summary>
+        /// Consolo numa face lateral da viga: face 4 = +y (esquerda de quem olha ao longo do eixo), 2 = −y; trecho ao longo do
+        /// eixo e o perfil cortado no meio dele (distância para fora × altura a partir do fundo da viga).
+        /// </summary>
+        private static ConsoloLevantado BeamCorbel(PieceInfo info, List<Solid> solids, (double Y, int Sign)? face, out string aviso)
+        {
+            aviso = null;
+            var v = new List<XYZ>();
+            foreach (Solid s in solids) foreach (Edge e in s.Edges) v.AddRange(e.Tessellate());
+            double X(XYZ q) => (q - info.Origin).DotProduct(info.AxisX);
+            double Y(XYZ q) => (q - info.Origin).DotProduct(info.AxisY);
+            double x0 = v.Min(X), x1 = v.Max(X), y0 = v.Min(Y);
+            // a face em que encosta (a da alma, dentro das abas) — do reconhecimento; sem ela, a da caixa
+            bool mais = face?.Sign > 0 || (face == null && y0 >= info.LengthY - U.Mm(5));
+            double fy = face?.Y ?? (mais ? info.LengthY : 0);
+            XYZ fp = info.Origin + info.AxisY * fy, outward = mais ? info.AxisY : info.AxisY.Negate();
+            SecaoPoligonal perfil = Cut(solids, fp, info.AxisX, outward, info.AxisZ, (x0 + x1) / 2, out string a2);
+            if (perfil == null) { aviso = a2 ?? "perfil não cortado"; return null; }
+            return new ConsoloLevantado { Face = mais ? 4 : 2, S0 = Round(Cm(x0)), S1 = Round(Cm(x1)), Perfil = perfil };
         }
 
         /// <summary>Seção no plano perpendicular a <paramref name="along"/> a <paramref name="t"/> (pés) da origem; null se não cortou.</summary>
