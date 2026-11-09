@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Pecas;
@@ -90,6 +91,55 @@ public class SubdivisaoPecasTests
         Assert.Equal(new[] { FuncaoTrecho.Dente, FuncaoTrecho.SemApoio, FuncaoTrecho.ApoioLaje, FuncaoTrecho.SemApoio, FuncaoTrecho.Dente },
                      tr.Select(t => t.FuncaoSugerida));
         Assert.All(tr, t => Assert.Equal("", t.Funcao));   // o usuário confirma
+    }
+
+    [Fact]
+    public void ChanfroNaPontaNaoFazOConsoloTrapezoidal()
+    {
+        // Teste_PM: consolo 23,5 × 25 com chanfro 2 × 2 na aresta inferior da ponta → retangular, ponta 23,5 (antes: 21,5 = trapezoidal)
+        var m = PerfilConsolo.Medir(new[] { (0.0, 550.0), (23.0, 550.0), (25.0, 552.0), (25.0, 573.5), (0.0, 573.5) });
+        Assert.Equal(23.5, m.AlturaNaFace, 6);
+        Assert.Equal(23.5, m.AlturaPonta, 6);
+        Assert.Equal((2.0, 2.0), (Math.Round(m.ChanfroInferior.D, 6), Math.Round(m.ChanfroInferior.C, 6)));
+        Assert.Equal((0.0, 0.0), m.ChanfroSuperior);
+        // trapezoidal de verdade (33,5 na face, 23,5 na ponta): o fundo inclinado ocupa todo o balanço
+        var t = PerfilConsolo.Medir(new[] { (0.0, 0.0), (25.0, 10.0), (25.0, 33.5), (0.0, 33.5) });
+        Assert.Equal(23.5, t.AlturaPonta, 6);
+        Assert.Equal((0.0, 0.0), t.ChanfroInferior);
+        // trapezoidal com chanfro: a reta principal prolongada até a ponta
+        var tc = PerfilConsolo.Medir(new[] { (0.0, 0.0), (23.0, 9.2), (25.0, 12.0), (25.0, 33.5), (0.0, 33.5) });
+        Assert.Equal(23.5, tc.AlturaPonta, 6);
+    }
+
+    [Fact]
+    public void TrechosDoPilarComConsolo()
+    {
+        var corrente = SecaoPoligonal.Retangulo(40, 40);
+        var comConsolo = Poli((0, 0), (40, 0), (40, 10), (65, 10), (65, 30), (40, 30), (40, 40), (0, 40));
+        var tr = Subdivisao.Juntar(new[] { (0.0, 550.0, corrente), (550.0, 573.5, comConsolo), (573.5, 600.0, corrente) }, TipoPeca.Pilar);
+        Assert.Equal(new[] { FuncaoTrecho.Corrente, FuncaoTrecho.Consolo, FuncaoTrecho.Corrente }, tr.Select(t => t.FuncaoSugerida));
+    }
+
+    [Fact]
+    public void PilaresGiradosSaoIguais()
+    {
+        SecaoPoligonal Perfil() => Poli((0, 550), (23, 550), (25, 552), (25, 573.5), (0, 573.5));
+        PecaLevantada Pilar(string id, params (int Face, double S0, double S1)[] cs)
+        {
+            var p = new PecaLevantada { Id = id, Tipo = TipoPeca.Pilar, Bx = 40, By = 40, Comprimento = 600, PreMoldada = true,
+                Trechos = Subdivisao.Juntar(new[] { (0.0, 600.0, SecaoPoligonal.Retangulo(40, 40)) }, TipoPeca.Pilar) };
+            foreach (var (f, a, b) in cs) p.Consolos.Add(new ConsoloLevantado { Face = f, S0 = a, S1 = b, Perfil = Perfil() });
+            ConferenciaPecas.Avaliar(p);
+            return p;
+        }
+        // consolos nas faces 2 e 3 (Teste_PM P1); girado 90°: faces 1 e 2; 180°: 4 e 1; e um com as faces 1 e 3 (outro)
+        var g = ConferenciaPecas.Agrupar(new[]
+        {
+            Pilar("1", (2, 10, 30), (3, 10, 30)), Pilar("2", (1, 10, 30), (2, 10, 30)), Pilar("3", (4, 10, 30), (1, 10, 30)),
+            Pilar("4", (1, 10, 30), (3, 10, 30)),
+        });
+        Assert.Equal(2, g.Count);
+        Assert.Equal(3, g.Max(x => x.Quantidade));
     }
 
     [Fact]

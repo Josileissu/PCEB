@@ -57,6 +57,7 @@ namespace DEB.Revit.Precast.UI
             PecaLevantada p = _group.Representante;
             if (p.Trechos.Count == 0) { Text(dc, "Sem seção: a geometria não pôde ser cortada.", 20, 20, 13); return; }
 
+            if (p.Tipo == TipoPeca.Pilar) { DrawColumn(dc, p); return; }
             double topH = Math.Max(150, ActualHeight * 0.34);
             double fim = DrawElevation(dc, p, new Rect(0, 0, ActualWidth, topH));   // a legenda pode passar da faixa da elevação
             DrawSections(dc, p, new Rect(0, fim + 12, ActualWidth, ActualHeight - fim - 12));
@@ -103,6 +104,138 @@ namespace DEB.Revit.Precast.UI
                 lx += w;
             }
             return ly + 16;
+        }
+
+        // ------------------------------------------------------------------ pilar: as quatro faces + seções na vertical
+
+        private static readonly Pen DashPen = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x77, 0x77, 0x77)), 1.0) { DashStyle = DashStyles.Dash });
+        private static readonly Brush CorbelFill = Frozen(new SolidColorBrush(Color.FromRgb(0xDD, 0xE6, 0xF0)));
+
+        /// <summary>
+        /// As quatro faces em pé, como no template do pilar (face 1 = +x, 2 = −y, 3 = −x, 4 = +y; cada uma vista de fora), com os
+        /// consolos de frente, de perfil (chanfros exatos, com as medidas) ou tracejados atrás; à direita, as seções dos trechos
+        /// empilhadas na vertical.
+        /// </summary>
+        private void DrawColumn(DrawingContext dc, PecaLevantada p)
+        {
+            const double pad = 26, top = 46, bottom = 40;
+            double secW = Math.Min(300, ActualWidth * 0.26);
+            double detW = p.Consolos.Count > 0 ? Math.Min(250, ActualWidth * 0.2) : 0;   // perfis dos consolos ampliados
+            double areaW = ActualWidth - secW - detW - pad;
+            if (detW > 0) DrawCorbelDetails(dc, p, new Rect(areaW, 0, detW, ActualHeight));
+            double proj = p.Consolos.Select(c => c.Perfil.YMax).DefaultIfEmpty(0).Max();
+            double[] larg = { p.By, p.Bx, p.By, p.Bx };   // largura vista em cada face
+            double gap = 60;
+            double totalW = larg.Sum() + 8 * proj + 4 * gap;
+            double sc = Math.Min((areaW - 2 * pad) / totalW, (ActualHeight - top - bottom) / Math.Max(1, p.Comprimento));
+            double x = pad, yb = ActualHeight - bottom;   // base do pilar na tela
+            for (int k = 1; k <= 4; k++)
+            {
+                double w = larg[k - 1], ox = x + proj * sc + gap * sc / 2;
+                Point P(double h, double c) => new Point(ox + h * sc, yb - c * sc);
+                Text(dc, $"FACE {k}", ox + w * sc / 2, top - 30, 12, bold: true, center: true);
+                dc.DrawRectangle(Fill, Outline, new Rect(P(0, p.Comprimento), P(w, 0)));
+                foreach (ConsoloLevantado c in p.Consolos)
+                {
+                    int rel = ((c.Face - k) % 4 + 4) % 4;   // 0 = de frente, 2 = atrás, 1/3 = de perfil
+                    var m = c.Medidas;
+                    if (rel == 0 || rel == 2)
+                    {
+                        double h0 = H(k, c.Face, c.S0, 0, p), h1 = H(k, c.Face, c.S1, 0, p);
+                        var r = new Rect(P(Math.Min(h0, h1), c.Perfil.ZMax), P(Math.Max(h0, h1), c.Perfil.ZMin));
+                        dc.DrawRectangle(rel == 0 ? CorbelFill : null, rel == 0 ? Outline : DashPen, r);
+                        if (rel == 0)   // arestas vistas de frente (início do chanfro, fundo inclinado)
+                            foreach (double z in c.Perfil.Contorno.Select(q => q.Z).Distinct().Where(z => z > c.Perfil.ZMin + 0.1 && z < c.Perfil.ZMax - 0.1))
+                                dc.DrawLine(DimPen, P(Math.Min(h0, h1), z), P(Math.Max(h0, h1), z));
+                    }
+                    else
+                    {
+                        var pts = c.Perfil.Contorno.Select(q => P(H(k, c.Face, c.S0, q.Y, p), q.Z)).ToList();
+                        dc.DrawGeometry(CorbelFill, Outline, Poly(pts));
+                    }
+                }
+                DimH(dc, P(0, 0).X, P(w, 0).X, yb + 14, N(w));
+                if (k == 1) DimV(dc, yb, P(0, p.Comprimento).Y, P(0, 0).X - (proj * sc + 12), N(p.Comprimento));
+                x += (w + 2 * proj + gap) * sc;
+            }
+            // seções na vertical, à direita (trecho mais alto em cima)
+            var unicas = new List<(SecaoPoligonal S, List<int> Trechos)>();
+            for (int i = p.Trechos.Count - 1; i >= 0; i--)
+            {
+                var u = unicas.FirstOrDefault(q => q.S.MesmaSecao(p.Trechos[i].Secao));
+                if (u.S != null) u.Trechos.Add(i); else unicas.Add((p.Trechos[i].Secao, new List<int> { i }));
+            }
+            if (unicas.Count > 4) unicas = unicas.Take(4).ToList();
+            double cellH = (ActualHeight - 10) / unicas.Count, sx0 = ActualWidth - secW;
+            double bMax = unicas.Max(q => q.S.B), hMax = unicas.Max(q => q.S.H);
+            double ss = Math.Min((secW - 90) / bMax, (cellH - 80) / hMax);
+            for (int k = 0; k < unicas.Count; k++)
+            {
+                var (s, trs) = unicas[k];
+                double cy = 6 + k * cellH;
+                var t = p.Trechos[trs[0]];
+                string f = string.IsNullOrEmpty(t.Funcao) ? t.FuncaoSugerida : t.Funcao;
+                Text(dc, $"SEÇÃO {string.Join(", ", trs.OrderBy(i => i).Select(i => $"{N(p.Trechos[i].X0)}–{N(p.Trechos[i].X1)}"))}", sx0, cy, 11.5, bold: true, maxW: secW - 10);
+                Text(dc, $"{f}: {s.Classificar().Descricao}", sx0, cy + 30, 10.5, maxW: secW - 10);
+                double ox = sx0 + (secW - 40 - s.B * ss) / 2, oy = cy + cellH - 34;
+                Point Q((double Y, double Z) q) => new Point(ox + (q.Y - s.YMin) * ss, oy - (q.Z - s.ZMin) * ss);
+                dc.DrawGeometry(ColorOf(f), Outline, Poly(s.Contorno.Select(Q)));
+                foreach (var h in s.Furos) dc.DrawGeometry(Brushes.White, Outline, Poly(h.Select(Q)));
+                DimH(dc, ox, ox + s.B * ss, oy + 12, N(s.B));
+                DimV(dc, oy, oy - s.H * ss, ox + s.B * ss + 12, N(s.H));
+            }
+        }
+
+        /// <summary>
+        /// Perfis dos consolos ampliados (um por perfil diferente, com as faces onde aparece): balanço, altura na face, altura
+        /// real na ponta, altura das retas principais (sem chanfro) e os chanfros — para conferir o que o levantamento entendeu.
+        /// </summary>
+        private void DrawCorbelDetails(DrawingContext dc, PecaLevantada p, Rect area)
+        {
+            var tipos = new List<(ConsoloLevantado C, List<int> Faces)>();
+            foreach (ConsoloLevantado c in p.Consolos.OrderBy(c => c.Face))
+            {
+                var t = tipos.FirstOrDefault(x => x.C.Perfil.MesmaSecao(c.Perfil) && Math.Abs(x.C.Largura - c.Largura) < 0.5);
+                if (t.C != null) t.Faces.Add(c.Face); else tipos.Add((c, new List<int> { c.Face }));
+            }
+            if (tipos.Count > 3) tipos = tipos.Take(3).ToList();
+            Text(dc, "CONSOLOS (perfil)", area.X + 8, area.Y + 6, 12, bold: true);
+            double cellH = (area.Height - 30) / tipos.Count;
+            double bMax = tipos.Max(t => t.C.Perfil.B), hMax = tipos.Max(t => t.C.Perfil.H);
+            double sc = Math.Min((area.Width - 90) / bMax, Math.Min(cellH - 110, 260) / hMax);
+            for (int i = 0; i < tipos.Count; i++)
+            {
+                var (c, faces) = tipos[i];
+                var s = c.Perfil;
+                var m = c.Medidas;
+                double y0 = area.Y + 30 + i * cellH;
+                Text(dc, $"face{(faces.Count > 1 ? "s" : "")} {string.Join(", ", faces)} · largura {N(c.Largura)}", area.X + 8, y0, 10.5, bold: true);
+                double ox = area.X + 40, oy = y0 + 22 + s.H * sc;
+                Point P(double d, double z) => new Point(ox + d * sc, oy - (z - s.ZMin) * sc);
+                dc.DrawLine(Outline, P(0, s.ZMin - 4), P(0, s.ZMax + 4));   // face do pilar
+                dc.DrawGeometry(CorbelFill, Outline, Poly(s.Contorno.Select(q => P(q.Y, q.Z))));
+                var ponta = s.Contorno.Where(q => q.Y >= m.Balanco - 0.05).ToList();
+                double pMin = ponta.Min(q => q.Z), pMax = ponta.Max(q => q.Z);
+                DimH(dc, P(0, 0).X, P(m.Balanco, 0).X, oy + 12, N(m.Balanco));
+                DimV(dc, P(0, m.BaseNaFace).Y, P(0, m.TopoNaFace).Y, ox - 14, N(m.AlturaNaFace));
+                DimV(dc, P(0, pMin).Y, P(0, pMax).Y, P(m.Balanco, 0).X + 14, N(pMax - pMin));
+                double ty = oy + 30;
+                string forma = Math.Abs(m.AlturaPonta - m.AlturaNaFace) > 0.1 ? $"trapezoidal: h {N(m.AlturaNaFace)} → {N(m.AlturaPonta)}" : $"retangular: h = {N(m.AlturaNaFace)}";
+                Text(dc, forma, area.X + 8, ty, 10.5, maxW: area.Width - 12);
+                if (m.ChanfroInferior.D > 0) Text(dc, $"chanfro inferior na ponta: {N(m.ChanfroInferior.D)} × {N(m.ChanfroInferior.C)}", area.X + 8, ty += 15, 10.5);
+                if (m.ChanfroSuperior.D > 0) Text(dc, $"chanfro superior na ponta: {N(m.ChanfroSuperior.D)} × {N(m.ChanfroSuperior.C)}", area.X + 8, ty += 15, 10.5);
+                Text(dc, $"topo a {N(s.ZMax)} cm da base", area.X + 8, ty + 15, 10.5);
+            }
+        }
+
+        /// <summary>
+        /// Coordenada horizontal, na vista da face <paramref name="k"/>, de um ponto da face <paramref name="j"/> a
+        /// <paramref name="s"/> ao longo dela e <paramref name="d"/> para fora (sistema do pilar: x de 0 a Bx, y de 0 a By).
+        /// </summary>
+        private static double H(int k, int j, double s, double d, PecaLevantada p)
+        {
+            var (x, y) = j switch { 1 => (p.Bx + d, s), 2 => (s, -d), 3 => (-d, s), _ => (s, p.By + d) };
+            return k switch { 1 => y, 2 => x, 3 => p.By - y, _ => p.Bx - x };
         }
 
         // ------------------------------------------------------------------ seções
