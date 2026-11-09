@@ -438,8 +438,10 @@ public sealed class ComandosTemplate
 
         // ---- detalhamento (bloco) com tudo, e a relação do aço parcial dele ----
         foreach (var id in ids) todos.AddRange(PartesDaBarra(tr, db, (Polyline)tr.GetObject(id, OpenMode.ForRead)));
-        string nome = r.Detalhamento.Trim();
-        for (int k = 2; Relacao.ServicoDetalhamento.ValidarNome(db, tr, nome) != null && k < 1000; k++) nome = $"{r.Detalhamento.Trim()} ({k})";
+        // o nome pode vir da marca do modelo do Revit ("V1/2"): caracteres que o CAD não aceita em nome de bloco viram "-"
+        string nomeBase = string.Concat(r.Detalhamento.Trim().Select(ch => "<>/\\\":;?*|,=`".IndexOf(ch) >= 0 ? '-' : ch));
+        string nome = nomeBase;
+        for (int k = 2; Relacao.ServicoDetalhamento.ValidarNome(db, tr, nome) != null && k < 1000; k++) nome = $"{nomeBase} ({k})";
         var dadosDet = r.DadosDetalhamento ?? new DadosDetalhamento();
         if (string.IsNullOrWhiteSpace(dadosDet.Grupo)) dadosDet.Grupo = Relacao.ServicoDetalhamento.GrupoSugerido(nome);
         if (string.IsNullOrWhiteSpace(dadosDet.Comentarios)) dadosDet.Comentarios = "Gerado pelo template.";

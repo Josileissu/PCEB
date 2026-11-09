@@ -194,6 +194,14 @@ namespace DEB.Revit.Precast
                               (fi.SuperComponent != null && fi.Category.BuiltInCategory != BuiltInCategory.OST_StructuralColumns)))
                 .ToList();
 
+            // geometria de cada candidato lida UMA vez (antes: de novo para cada pilar — pilares × candidatos extrações)
+            var candidates = new List<(FamilyInstance Fi, List<XYZ> Verts, BoundingBoxXYZ Bb)>();
+            foreach (FamilyInstance k in corbelCandidates)
+            {
+                List<XYZ> verts = GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null));
+                if (verts.Count > 0) candidates.Add((k, verts, k.get_BoundingBox(null)));
+            }
+
             var pieces = new List<PrecastColumn>();
             var used = new HashSet<ElementId>();
             foreach (FamilyInstance fi in precast)
@@ -213,11 +221,14 @@ namespace DEB.Revit.Precast
                 // Vértices dos consolos que encostam no pilar (guardados para descrevê-los em cada giro).
                 ColumnFrame f0 = ColumnFrame.From(info);
                 var corbelVerts = new List<(FamilyInstance Fi, List<XYZ> Verts)>();
-                foreach (FamilyInstance k in corbelCandidates)
+                BoundingBoxXYZ pb = fi.get_BoundingBox(null);
+                double folga = U_.Mm(30);
+                foreach (var (k, verts, kb) in candidates)
                 {
                     if (used.Contains(k.Id)) continue;
-                    List<XYZ> verts = GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null));
-                    if (verts.Count == 0) continue;
+                    // longe do pilar: nem olha os vértices
+                    if (pb != null && kb != null && (kb.Min.X > pb.Max.X + folga || kb.Max.X < pb.Min.X - folga || kb.Min.Y > pb.Max.Y + folga ||
+                        kb.Max.Y < pb.Min.Y - folga || kb.Min.Z > pb.Max.Z + folga || kb.Max.Z < pb.Min.Z - folga)) continue;
                     if (Describe(f0, k, verts) == null) continue;
                     corbelVerts.Add((k, verts));
                     used.Add(k.Id);

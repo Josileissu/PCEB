@@ -44,8 +44,25 @@ public sealed class NivelPeca
 public sealed class ElementoPeca
 {
     public string Id { get; set; } = "";
+    /// <summary>Identificador estável do elemento no modelo (UniqueId do Revit); vazio = não informado. Opcional no JSON.</summary>
+    public string Uid { get; set; } = "";
     public string Marca { get; set; } = "";
     public int Giro { get; set; }
+
+    internal ValorJson ParaJson()
+    {
+        var o = ValorJson.NovoObjeto().Definir("id", Id);
+        if (!string.IsNullOrEmpty(Uid)) o.Definir("uid", Uid);
+        return o.Definir("marca", Marca).Definir("giro", Giro);
+    }
+
+    internal static ElementoPeca DeJson(ValorJson je, string caminho) => new ElementoPeca
+    {
+        Id = LeitorJson.Txt(je, "id", "", caminho),
+        Uid = LeitorJson.Txt(je, "uid", "", caminho),
+        Marca = LeitorJson.Txt(je, "marca", "", caminho),
+        Giro = LeitorJson.Int(je, "giro", 0, caminho),
+    };
 }
 
 /// <summary>Grupo de pilares iguais (ou girados 90/180/270°) do modelo.</summary>
@@ -123,8 +140,7 @@ public sealed class ArquivoPecas
         {
             var jp = ValorJson.NovoObjeto().Definir("marca", p.Marca).Definir("quantidade", p.Quantidade);
             var els = ValorJson.NovaLista();
-            foreach (var e in p.Elementos)
-                els.Adicionar(ValorJson.NovoObjeto().Definir("id", e.Id).Definir("marca", e.Marca).Definir("giro", e.Giro));
+            foreach (var e in p.Elementos) els.Adicionar(e.ParaJson());
             jp.Definir("elementos", els)
               .Definir("b", R(p.B)).Definir("h", R(p.H)).Definir("l", R(p.L))
               .Definir("cota_base", Math.Round(p.CotaBase, 4))
@@ -152,8 +168,7 @@ public sealed class ArquivoPecas
             ValorJson Dente(DentePeca d) => d == null ? ValorJson.Nulo
                 : ValorJson.NovoObjeto().Definir("altura", R(d.Altura)).Definir("comprimento", R(d.Comprimento));
             var els = ValorJson.NovaLista();
-            foreach (var e in p.Elementos)
-                els.Adicionar(ValorJson.NovoObjeto().Definir("id", e.Id).Definir("marca", e.Marca).Definir("giro", e.Giro));
+            foreach (var e in p.Elementos) els.Adicionar(e.ParaJson());
             vigas.Adicionar(ValorJson.NovoObjeto().Definir("marca", p.Marca).Definir("quantidade", p.Quantidade)
                 .Definir("elementos", els)
                 .Definir("b", R(p.B)).Definir("h", R(p.H)).Definir("l", R(p.L))
@@ -199,13 +214,7 @@ public sealed class ArquivoPecas
             var le = LeitorJson.Lista(jp, "elementos", cp);
             for (int k = 0; le != null && k < le.Quantidade; k++)
             {
-                var je = LeitorJson.Objeto(le[k], $"{cp}.elementos[{k}]");
-                p.Elementos.Add(new ElementoPeca
-                {
-                    Id = LeitorJson.Txt(je, "id", "", $"{cp}.elementos[{k}]"),
-                    Marca = LeitorJson.Txt(je, "marca", "", $"{cp}.elementos[{k}]"),
-                    Giro = LeitorJson.Int(je, "giro", 0, $"{cp}.elementos[{k}]"),
-                });
+                p.Elementos.Add(ElementoPeca.DeJson(LeitorJson.Objeto(le[k], $"{cp}.elementos[{k}]"), $"{cp}.elementos[{k}]"));
             }
             // sem a lista de elementos, vale a quantidade informada
             if (p.Elementos.Count == 0)
@@ -259,13 +268,7 @@ public sealed class ArquivoPecas
             var le = LeitorJson.Lista(jv, "elementos", cv);
             for (int k = 0; le != null && k < le.Quantidade; k++)
             {
-                var je = LeitorJson.Objeto(le[k], $"{cv}.elementos[{k}]");
-                v.Elementos.Add(new ElementoPeca
-                {
-                    Id = LeitorJson.Txt(je, "id", "", $"{cv}.elementos[{k}]"),
-                    Marca = LeitorJson.Txt(je, "marca", "", $"{cv}.elementos[{k}]"),
-                    Giro = LeitorJson.Int(je, "giro", 0, $"{cv}.elementos[{k}]"),
-                });
+                v.Elementos.Add(ElementoPeca.DeJson(LeitorJson.Objeto(le[k], $"{cv}.elementos[{k}]"), $"{cv}.elementos[{k}]"));
             }
             if (v.Elementos.Count == 0)
                 for (int k = LeitorJson.Int(jv, "quantidade", 1, cv); k > 0; k--) v.Elementos.Add(new ElementoPeca());

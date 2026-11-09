@@ -196,6 +196,10 @@ public sealed class ComandosPecas
             rel.Linhas.Add($"  {g.Marca}: {g.Resumo} → detalhamento \"{r.Detalhamento}\"" +
                            (marcas.Count > 0 ? $" (marcas no modelo: {string.Join(", ", marcas)})" : ""));
             rel.Avisos.AddRange(r.Avisos.Select(a => $"{g.Marca}: {a}"));
+            // a marca é a do modelo: importar de novo depois de mudar o modelo NÃO substitui o detalhamento que já existe
+            if (r.Detalhamento.EndsWith(")", StringComparison.Ordinal) && !g.Marca.TrimEnd().EndsWith(")", StringComparison.Ordinal))
+                rel.Avisos.Add($"{g.Marca}: o desenho já tinha um detalhamento com esse nome; o novo entrou como \"{r.Detalhamento}\" — " +
+                               "confira e apague o que não vale mais.");
 
             // a próxima à direita do que foi desenhado
             if (ext.HasValue) { x = ext.Value.MaxPoint.X + folga; yMin = Math.Min(yMin, ext.Value.MinPoint.Y); }

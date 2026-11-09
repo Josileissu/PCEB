@@ -45,6 +45,10 @@ Decisões gravadas no próprio elemento (Extensible Storage do plugin); geometri
 - Etapa 1 (núcleo) feita em 09/11/2026 — `DEB.Core/Pecas`, testes `SubdivisaoPecasTests`.
 - Etapa 2 (Revit, só leitura) feita em 09/11/2026 — ver `src/DEB.Revit/CLAUDE.md` ("Conferir peças").
 
+- Exportação unificada (09/11/2026, branch `pc2/exportar-pela-conferencia`): o JSON do CAD sai do levantamento da conferência
+  (`ConversorLevantamento`), com a marca do modelo como nome e o botão "Exportar para o CAD…" na janela. Da etapa 3 faltam: editar a
+  marca na janela e gravar no Revit, função dos trechos, aceitar/ignorar e Extensible Storage.
+
 ## 4. Etapas
 1. **Núcleo** (sem tela): seção poligonal (propriedades, faixas, classificação), junção dos trechos, conferência do nome do
    tipo × geometria, sugestão de função. Testes.
