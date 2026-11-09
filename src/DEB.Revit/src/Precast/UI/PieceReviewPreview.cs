@@ -84,6 +84,13 @@ namespace DEB.Revit.Precast.UI
                 _hits.Add((new Rect(r.X, area.Y + 30, r.Width, y0 - area.Y), i));
                 if (r.Width > 34) Text(dc, $"{i + 1}", r.X + r.Width / 2, r.Y + r.Height / 2 - 7, 11, center: true);
             }
+            // consolos nas faces laterais (viga que recebe outra): de frente a face −y (2), tracejada a de trás (+y, 4)
+            foreach (ConsoloLevantado c in p.Consolos)
+            {
+                var r = new Rect(area.X + pad + c.S0 * sx, y0 - (c.Perfil.ZMax - zMin) * sz, (c.S1 - c.S0) * sx, (c.Perfil.ZMax - c.Perfil.ZMin) * sz);
+                dc.DrawRectangle(c.Face == 2 ? CorbelFill : null, c.Face == 2 ? Outline : DashPen, r);
+                Text(dc, $"consolo {(c.Face == 2 ? "−y" : "+y")}", r.X + r.Width / 2, r.Y - 14, 9.5, center: true);
+            }
             // cadeia dos trechos e total
             double yc = y0 + 16;
             if (p.Trechos.Count > 1)

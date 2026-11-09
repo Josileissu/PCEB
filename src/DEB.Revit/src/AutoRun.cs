@@ -123,6 +123,12 @@ namespace DEB.Revit
                 for (int tab = 0; tab < 2; tab++)
                     for (int i = 0; i < Math.Min(8, w.Count(tab)); i++)
                         w.RenderToPng(Path.Combine(dir, $"{(tab == 0 ? "vigas" : "pilares")}_{i + 1}.png"), tab, i);
+                // vigas com consolo de outra viga (viga apoiada em viga), até 6
+                var vigas = grupos.Where(g => g.Representante.Tipo == DEB.Core.Pecas.TipoPeca.Viga).ToList();
+                int n = 0;
+                for (int i = 0; i < vigas.Count && n < 6; i++)
+                    if (vigas[i].Representante.Consolos.Count > 0)
+                        w.RenderToPng(Path.Combine(dir, $"viga_com_consolo_{++n}.png"), 0, i);
             }
             catch (Exception ex) { sb.AppendLine("ERRO ao renderizar a janela: " + ex); }
             File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString());

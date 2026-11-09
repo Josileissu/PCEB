@@ -87,6 +87,12 @@ public static class ConferenciaPecas
             foreach (var t in p.Trechos)
             {
                 var (tipo, desc) = t.Secao.Classificar();
+                if (t.FuncaoSugerida == FuncaoTrecho.ApoioViga)
+                {
+                    naoSuportada = true;
+                    p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: consolo de apoio de outra viga — o CAD ainda não desenha consolo em viga");
+                    continue;
+                }
                 if (tipo == TipoSecao.Retangular) continue;
                 naoSuportada = true;
                 p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: {desc} — o CAD ainda só desenha a seção retangular (VP-4)");
