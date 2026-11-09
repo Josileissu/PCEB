@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using Autodesk.Revit.DB;
 using DEB.Core.Intercambio;
+using DEB.Revit.Core;
 
 namespace DEB.Revit.Precast
 {
@@ -60,7 +61,50 @@ namespace DEB.Revit.Precast
                     });
                 arq.Pilares.Add(p);
             }
+            arq.Vigas = Beams(doc, arq.Notas);
             return arq;
+        }
+
+        /// <summary>
+        /// Vigas pré-moldadas (material estrutural "Concreto pré-moldado"): seção, comprimento e dentes Gerber lidos da geometria
+        /// (perfil no plano vertical do eixo, <see cref="PerfilViga"/>), agrupadas pelas medidas — invertidas são iguais.
+        /// As moldadas no local ficam de fora (o template é de pré-moldada).
+        /// </summary>
+        public static List<VigaPeca> Beams(Document doc, List<string> notes)
+        {
+            List<FamilyInstance> beams = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                .WhereElementIsNotElementType().OfType<FamilyInstance>()
+                .Where(fi => fi.SuperComponent == null &&
+                             fi.StructuralMaterialType == Autodesk.Revit.DB.Structure.StructuralMaterialType.PrecastConcrete)
+                .ToList();
+            if (beams.Count == 0)
+            {
+                notes.Add("Nenhuma viga com material \"Concreto pré-moldado\": vigas não exportadas.");
+                return new List<VigaPeca>();
+            }
+
+            var medidas = new List<VigaMedida>();
+            foreach (FamilyInstance fi in beams)
+            {
+                PieceInfo info;
+                try { info = PieceAnalyzer.Analyze(fi); }
+                catch (PieceNotSupportedException ex) { notes.Add($"Viga {fi.Id.Value} ignorada: {ex.Message}"); continue; }
+
+                double l = Cm(info.LengthX), h = Cm(info.LengthZ);
+                var perfil = info.Vertices.Select(v => v - info.Origin)
+                    .Select(v => (X: Cm(v.DotProduct(info.AxisX)), Z: Cm(v.DotProduct(info.AxisZ)))).ToList();
+                var avisos = new List<string>();
+                var (e, d) = PerfilViga.Dentes(perfil, l, h, avisos);
+                foreach (string a in avisos) notes.Add($"Viga {fi.Id.Value}: {a}");
+                medidas.Add(new VigaMedida
+                {
+                    Id = fi.Id.Value.ToString(CultureInfo.InvariantCulture),
+                    Marca = fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "",
+                    B = Cm(info.LengthY), H = h, L = l, DenteE = e, DenteD = d,
+                });
+            }
+            return AgrupadorVigas.Agrupar(medidas);
         }
 
         public static int Face(ColumnFace f) => f switch

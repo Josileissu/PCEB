@@ -326,4 +326,6 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   da base, níveis, embutimento, consolos). Consolos casados com o catálogo do ARMCONSOLOS pelas medidas (±0,6 cm); dois iguais
   em faces opostas = tipo duplo (o duplo do template é simétrico pelo centro); fora do catálogo = aviso, fica de fora.
   Repetições do detalhamento = peças do grupo; os modelos do template NÃO são gravados (P1, P2… sobrescreveriam os dele).
-  Autoteste: `ARMTESTEPECAS` (3 grupos de exemplo; `ARM_PECAS_ENTRADA` = um JSON real), `autoteste_pecas.dwg/.png`.
+  Vigas (mesmo dia): fila de baixo, pelo template `viga-premoldada`; pontas pelo catálogo do ARMDENTES (altura × comprimento,
+  ±0,6 cm); dente fora do catálogo = viga NÃO gerada, com aviso (desenhar reta seria a peça errada).
+  Autoteste: `ARMTESTEPECAS` (3 pilares e 3 vigas de exemplo; `ARM_PECAS_ENTRADA` = um JSON real), `autoteste_pecas.dwg/.png`.

@@ -64,6 +64,10 @@ levantamento/grupos do `PrecastSurvey` vira um `ArquivoPecas` (`DEB.Core/Interca
 cota da base, níveis entre a base e o topo, embutimento (parâmetro "Embutimento", null se a família não tiver) e consolos
 por face. Faces: PX→1, NY→2, NX→3, PY→4 (as do template do CAD); Bx = b (x), By = h (y). Cotas: `Elevation` dos níveis
 (o referencial mostrado); a base = Z do canto do pilar menos (`ProjectElevation − Elevation`). No CAD: ARMIMPORTARPECAS.
+Vigas: as de material "Concreto pré-moldado" (as moldadas no local ficam de fora); `PieceAnalyzer` dá eixo/seção/vértices e
+`PerfilViga` (Core) acha os dentes Gerber pelo perfil (x, z) de cada ponta — face da ponta mais baixa que h, com topo em h;
+comprimento = ponta → início do fundo; `AgrupadorVigas` junta as iguais e as invertidas (giro 180). Não depende dos parâmetros
+da família (dx_gerber etc.). Furos de pino ainda não são lidos (ficam os do PADRÃO do CAD).
 Só lê o modelo. Em 09/11/2026 o AutoRun não rodou (Revit 2025 parado em "manage licensing"): exportação real ainda não testada.
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio

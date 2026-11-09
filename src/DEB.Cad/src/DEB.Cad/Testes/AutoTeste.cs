@@ -2510,8 +2510,8 @@ public sealed class AutoTeste
     }, suspender: false);
 
     /// <summary>
-    /// Peças do Revit (2026-11-09): importa um levantamento (ARM_PECAS_ENTRADA = .json exportado pelo DEB.Revit; sem ele, três
-    /// grupos de exemplo) e confere um detalhamento por grupo, lado a lado, com as repetições = peças do grupo.
+    /// Peças do Revit (2026-11-09): importa um levantamento (ARM_PECAS_ENTRADA = .json exportado pelo DEB.Revit; sem ele, pilares e vigas de
+    /// exemplo) e confere um detalhamento por grupo, lado a lado, com as repetições = peças do grupo.
     /// Uso: script NETLOAD + ARMTESTEPECAS numa instância nova, com ARM_AUTOTESTE_SAIDA.
     /// </summary>
     [Rt.CommandMethod("ARMTESTEPECAS")]
@@ -2549,6 +2549,20 @@ public sealed class AutoTeste
                         Consolos = { C(4, 0, 40, 300, 40, 35, 40) },   // fora do catálogo: aviso
                     },
                 },
+                Vigas =
+                {
+                    new Core.Intercambio.VigaPeca
+                    {
+                        Marca = "VX1", B = 20, H = 75, L = 466, DenteE = new Core.Intercambio.DentePeca { Altura = 45, Comprimento = 25 },
+                        Elementos = { new Core.Intercambio.ElementoPeca { Id = "7" }, new Core.Intercambio.ElementoPeca { Id = "8", Giro = 180 } },
+                    },
+                    new Core.Intercambio.VigaPeca { Marca = "VX2", B = 40, H = 50, L = 600, Elementos = { new Core.Intercambio.ElementoPeca { Id = "9" } } },
+                    new Core.Intercambio.VigaPeca   // dente fora do catálogo: não gerada, com aviso
+                    {
+                        Marca = "VX3", B = 20, H = 50, L = 600, DenteD = new Core.Intercambio.DentePeca { Altura = 30, Comprimento = 20 },
+                        Elementos = { new Core.Intercambio.ElementoPeca { Id = "10" } },
+                    },
+                },
             };
         }
 
@@ -2556,27 +2570,38 @@ public sealed class AutoTeste
         var rel = ComandosPecas.Importar(db, cfg, arq, origem);
         foreach (var l in rel.Linhas) Rel.AppendLine("        " + l);
         foreach (var a in rel.Avisos) Rel.AppendLine("        aviso: " + a);
-        Checar(rel.Detalhamentos.Count == arq.Pilares.Count && rel.Detalhamentos.All(n => n != null),
-            $"peças: um detalhamento por grupo ({rel.Detalhamentos.Count(n => n != null)} de {arq.Pilares.Count})");
+        int nPilares = arq.Pilares.Count;
+        var quantidades = arq.Pilares.Select(p => (p.Marca, p.Quantidade)).Concat(arq.Vigas.Select(v => (v.Marca, v.Quantidade))).ToList();
+        Checar(rel.Grupos.Count == quantidades.Count, $"peças: um resultado por grupo ({rel.Grupos.Count} de {quantidades.Count})");
         using (var tr = db.TransactionManager.StartTransaction())
         {
             var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
-            for (int i = 0; i < arq.Pilares.Count; i++)
+            for (int i = 0; i < rel.Grupos.Count && i < quantidades.Count; i++)
             {
-                var nome = rel.Detalhamentos[i];
-                if (nome == null || !bt.Has(nome)) { Checar(false, $"peças: detalhamento de {arq.Pilares[i].Marca} no desenho"); continue; }
+                var nome = rel.Grupos[i].Detalhamento;
+                if (nome == null) { Rel.AppendLine($"        {rel.Grupos[i].Marca}: não gerado"); continue; }
+                if (!bt.Has(nome)) { Checar(false, $"peças: detalhamento de {rel.Grupos[i].Marca} no desenho"); continue; }
                 var det = ServicoDetalhamento.Ler((BlockTableRecord)tr.GetObject(bt[nome], OpenMode.ForRead));
-                Checar(det != null && det.Repeticoes == arq.Pilares[i].Quantidade,
-                    $"peças: {nome} com {det?.Repeticoes} repetição(ões) = peças do grupo ({arq.Pilares[i].Quantidade})");
+                Checar(det != null && det.Repeticoes == quantidades[i].Quantidade,
+                    $"peças: {nome} com {det?.Repeticoes} repetição(ões) = peças do grupo ({quantidades[i].Quantidade})");
             }
             tr.Commit();
         }
-        var regs = rel.Regioes.Where(e => e.HasValue).Select(e => e.Value).ToList();
-        Checar(regs.Zip(regs.Skip(1), (a, b) => a.MaxPoint.X < b.MinPoint.X).All(x => x), "peças: grupos lado a lado, sem sobreposição");
+        bool LadoALado(IEnumerable<Extents3d> r) { var l = r.ToList(); return l.Zip(l.Skip(1), (a, b) => a.MaxPoint.X < b.MinPoint.X).All(x => x); }
+        var regPil = rel.Grupos.Take(nPilares).Where(g => g.Regiao.HasValue).Select(g => g.Regiao.Value).ToList();
+        var regVig = rel.Grupos.Skip(nPilares).Where(g => g.Regiao.HasValue).Select(g => g.Regiao.Value).ToList();
+        var regs = regPil.Concat(regVig).ToList();
+        Checar(LadoALado(regPil) && LadoALado(regVig), "peças: pilares lado a lado e vigas lado a lado, sem sobreposição");
+        if (regPil.Count > 0 && regVig.Count > 0)
+            Checar(regVig.Max(e => e.MaxPoint.Y) < regPil.Min(e => e.MinPoint.Y), "peças: fila das vigas abaixo da fila dos pilares");
         if (string.IsNullOrEmpty(entrada))
         {
+            Checar(rel.Grupos.Count(g => g.Detalhamento != null) == 5, $"peças: 3 pilares e 2 vigas gerados ({rel.Grupos.Count(g => g.Detalhamento != null)})");
             Checar(rel.Avisos.Any(a => a.Contains("PX3") && a.Contains("catálogo")), "peças: consolo fora do catálogo avisado (PX3)");
-            Checar(!rel.Avisos.Any(a => a.Contains("PX1") || a.Contains("PX2")), "peças: PX1 (duplo) e PX2 (trapezoidal) sem avisos");
+            Checar(rel.Avisos.Any(a => a.Contains("VX3") && a.Contains("ARMDENTES")), "peças: dente fora do catálogo avisado e viga não gerada (VX3)");
+            // detalhes típicos da biblioteca de DWGs dependem do computador: não contam
+            Checar(!rel.Avisos.Where(a => !a.Contains("não está na biblioteca")).Any(a => a.Contains("PX1") || a.Contains("PX2") || a.Contains("VX1") || a.Contains("VX2")),
+                "peças: PX1 (duplo), PX2 (trapezoidal), VX1 (dente) e VX2 (reta) sem avisos");
         }
 
         Gravar();

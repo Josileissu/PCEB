@@ -12,7 +12,8 @@ namespace DEB.Revit.Commands
 {
     /// <summary>
     /// "Exportar para o CAD": grava os grupos de pilares pré-moldados iguais (seção, comprimento, níveis, consolos) num
-    /// arquivo .json do DEB; no CAD, o ARMIMPORTARPECAS gera um detalhamento por grupo pelo template do pilar.
+    /// arquivo .json do DEB, e também as vigas pré-moldadas (seção, comprimento, dentes Gerber); no CAD, o ARMIMPORTARPECAS gera um
+    /// detalhamento por grupo pelos templates do pilar e da viga.
     /// Só lê o modelo.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
@@ -24,9 +25,9 @@ namespace DEB.Revit.Commands
             try
             {
                 ArquivoPecas arq = PrecastExport.Build(doc);
-                if (arq.Pilares.Count == 0)
+                if (arq.Pilares.Count == 0 && arq.Vigas.Count == 0)
                 {
-                    TaskDialog.Show("Exportar para o CAD", "Nenhum pilar estrutural encontrado no modelo.");
+                    TaskDialog.Show("Exportar para o CAD", "Nenhum pilar nem viga pré-moldada encontrado no modelo.");
                     return Result.Cancelled;
                 }
 
@@ -40,9 +41,9 @@ namespace DEB.Revit.Commands
                 if (dlg.ShowDialog() != true) return Result.Cancelled;
                 arq.Gravar(dlg.FileName);
 
-                int pecas = arq.Pilares.Sum(p => p.Quantidade);
                 TaskDialog.Show("Exportar para o CAD",
-                    $"{arq.Pilares.Count} grupo(s) de pilares iguais ({pecas} peça(s)) gravados em:\n{dlg.FileName}\n\n" +
+                    $"Pilares: {arq.Pilares.Count} grupo(s) de peças iguais ({arq.Pilares.Sum(p => p.Quantidade)} peça(s)).\n" +
+                    $"Vigas: {arq.Vigas.Count} grupo(s) ({arq.Vigas.Sum(v => v.Quantidade)} peça(s)).\n\nGravado em:\n{dlg.FileName}\n\n" +
                     "No CAD, use o comando ARMIMPORTARPECAS." +
                     (arq.Notas.Count > 0 ? "\n\nObservações:\n" + string.Join("\n", arq.Notas) : ""));
                 return Result.Succeeded;
