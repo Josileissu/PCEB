@@ -27,6 +27,8 @@ public sealed class PecaLevantada
     public List<(string Nome, double Cota)> Niveis { get; set; }
     public TipoPeca Tipo { get; set; }
     public string Marca { get; set; } = "";
+    /// <summary>Decisão do usuário na conferência: a peça não vai para o CAD (gravada no elemento do modelo).</summary>
+    public bool NaoExportar { get; set; }
     public string Familia { get; set; } = "";
     public string TipoRevit { get; set; } = "";
     public string Material { get; set; } = "";

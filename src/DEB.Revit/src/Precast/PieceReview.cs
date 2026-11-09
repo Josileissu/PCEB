@@ -140,6 +140,7 @@ namespace DEB.Revit.Precast
             {
                 Id = fi.Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 Uid = fi.UniqueId ?? "",
+                NaoExportar = PieceReviewEdits.IsSkipped(fi),
                 Tipo = beam ? TipoPeca.Viga : TipoPeca.Pilar,
                 Marca = fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "",
                 Familia = fi.Symbol?.FamilyName ?? "",

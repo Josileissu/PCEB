@@ -56,6 +56,9 @@ namespace DEB.Revit
                     case "conferir":
                         status = "OK " + ReviewAutoTest(uidoc.Document);
                         break;
+                    case "conferireditar":
+                        status = "OK " + ReviewEditAutoTest(uidoc.Document);
+                        break;
                     case "exportarpecas":
                         status = "OK " + ExportPiecesAutoTest(uidoc.Document);
                         break;
@@ -82,6 +85,59 @@ namespace DEB.Revit
 
             if (_exit)
                 uiapp.PostCommand(RevitCommandId.LookupPostableCommandId(PostableCommand.ExitRevit));
+        }
+
+        /// <summary>
+        /// Edições da conferência (etapa 3), sem mostrar a janela: grava a marca VT1 no 1º grupo de vigas e PT1 no 1º de pilares,
+        /// "não exportar" no 2º grupo de vigas, levanta o modelo DE NOVO (as marcas e a decisão têm de vir do modelo) e exporta
+        /// (SD_EXPORT = caminho do .json). Tudo dentro de um grupo de transações DESFEITO no fim: o modelo não muda.
+        /// </summary>
+        private static string ReviewEditAutoTest(Document doc)
+        {
+            string dir = Path.Combine(DetailingReport.LogDir, "conferireditar_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var sb = new StringBuilder();
+            using (var tg = new TransactionGroup(doc, "Conferir peças (teste)"))
+            {
+                tg.Start();
+                try
+                {
+                    var notes = new List<string>();
+                    var grupos = DEB.Core.Pecas.ConferenciaPecas.Agrupar(PieceReview.Run(doc, notes));
+                    var vigas = grupos.Where(g => g.Representante.Tipo == DEB.Core.Pecas.TipoPeca.Viga).ToList();
+                    var pilares = grupos.Where(g => g.Representante.Tipo == DEB.Core.Pecas.TipoPeca.Pilar).ToList();
+                    if (vigas.Count > 0) sb.AppendLine("marca VT1: " + (PieceReviewEdits.SetMark(doc, vigas[0], "VT1") ?? "ok"));
+                    if (vigas.Count > 1) sb.AppendLine("não exportar: " + (PieceReviewEdits.SetSkipped(doc, vigas[1], true) ?? "ok"));
+                    if (pilares.Count > 0) sb.AppendLine("marca PT1: " + (PieceReviewEdits.SetMark(doc, pilares[0], "PT1") ?? "ok"));
+
+                    // de novo, do modelo
+                    var notes2 = new List<string>();
+                    var pecas2 = PieceReview.Run(doc, notes2);
+                    var arq = PrecastExport.Build(doc, pecas2, notes2);
+                    string path = Environment.GetEnvironmentVariable("SD_EXPORT");
+                    if (string.IsNullOrWhiteSpace(path)) path = Path.Combine(dir, "pecas.json");
+                    arq.Gravar(path);
+                    sb.AppendLine("pilares: " + string.Join(", ", arq.Pilares.Select(p => $"{p.Marca} x{p.Quantidade}")));
+                    sb.AppendLine("vigas: " + string.Join(", ", arq.Vigas.Select(v => $"{v.Marca} x{v.Quantidade}")));
+                    foreach (string n in arq.Notas) sb.AppendLine("nota: " + n);
+                    sb.AppendLine("json: " + path);
+                    try
+                    {
+                        var grupos2 = DEB.Core.Pecas.ConferenciaPecas.Agrupar(pecas2);
+                        var w = new Precast.UI.PieceReviewWindow(grupos2, notes2, new Precast.UI.ReviewActions
+                        {
+                            Export = () => { }, SetMark = (g, m) => null, SetSkip = (g, v) => null,
+                        });
+                        w.RenderToPng(Path.Combine(dir, "vigas_1.png"), 0, 0);
+                        w.RenderToPng(Path.Combine(dir, "vigas_2.png"), 0, 1);
+                        w.RenderToPng(Path.Combine(dir, "pilares_1.png"), 1, 0);
+                    }
+                    catch (Exception ex) { sb.AppendLine("ERRO ao renderizar a janela: " + ex); }
+                }
+                finally { tg.RollBack(); }
+            }
+            File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString());
+            return dir;
         }
 
         /// <summary>
