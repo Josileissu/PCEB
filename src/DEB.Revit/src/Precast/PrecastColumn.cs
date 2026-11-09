@@ -299,7 +299,9 @@ namespace DEB.Revit.Precast
             if (proj < U_.Mm(20)) return null;   // só encosta, não é saliência
 
             List<Loc> atFace = l.Where(p => d(p) <= tol).ToList();
-            List<Loc> atTip = l.Where(p => d(p) >= proj - tol).ToList();
+            // altura na ponta pelas retas principais do perfil: um chanfro na ponta não torna o consolo trapezoidal
+            // (antes: vértices da ponta → 23,5 com chanfro de 2 virava "ponta 21,5"; relato do usuário, 09/11/2026)
+            var med = DEB.Core.Pecas.PerfilConsolo.Medir(l.Select(p => (U_.ToMm(d(p)) / 10, U_.ToMm(p.C) / 10)));
 
             return new Corbel
             {
@@ -310,7 +312,7 @@ namespace DEB.Revit.Precast
                 ZBottom = atFace.Count > 0 ? atFace.Min(p => p.C) : cMin,
                 ZTop = cMax,
                 Projection = proj,
-                TipHeight = atTip.Count > 0 ? atTip.Max(p => p.C) - atTip.Min(p => p.C) : cMax - cMin
+                TipHeight = U_.Mm(med.AlturaPonta * 10)
             };
         }
 

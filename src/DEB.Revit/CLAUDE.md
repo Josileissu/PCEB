@@ -87,8 +87,14 @@ Botão "Conferir peças" (painel Pré-moldados, `Commands/ReviewPiecesCommand`):
 conferido). Janela `Precast/UI/PieceReviewWindow` (abas Vigas/Pilares, só leitura nesta etapa) + `PieceReviewPreview` (elevação
 com trechos coloridos pela função, seções cotadas, área/Iy/CG). AutoRun `conferir` → `logs/conferir_*/resultado.txt` + PNG por grupo.
 Testado no PC2: Teste_PM (3 grupos de vigas 20×50 com dentes 25×25, pilares 40×40 e 50×50, tudo ok) e Projeto1 (viga com mísula
-de 0 a 325 + trecho sem aba + dente: "seção que o CAD ainda não desenha"). Consolos dos pilares (famílias separadas) ainda não
-aparecem na janela; elevação dos pilares desenhada na horizontal. Próximo (etapa 3): marca editável gravada no Revit, função dos
+de 0 a 325 + trecho sem aba + dente: "seção que o CAD ainda não desenha").
+Pilares (mesmo dia, pedido do usuário): consolos pelo mesmo reconhecimento do "Pilares pré-moldados" (`PrecastSurvey`), unidos ao
+pilar nos cortes horizontais; perfil exato de cada consolo cortado no meio da largura (`ConsoloLevantado`); aba Pilares com as
+QUATRO FACES em pé (como no template: face 1 = +x, 2 = −y, 3 = −x, 4 = +y, vistas de fora; consolo de frente, de perfil ou tracejado
+atrás), coluna "CONSOLOS (perfil)" ampliada com cotas e chanfros, seções empilhadas na vertical; grupos com giro 90/180/270° = iguais.
+**Chanfro do consolo** (relato do usuário): `Describe` media a altura da ponta nos vértices da ponta — o chanfro 2 × 2 do Teste_PM
+virava "ponta 21,5" (trapezoidal, CT no catálogo). Agora `PerfilConsolo.Medir` (Core): envoltórias convexas do perfil, chanfro =
+último trecho ≤ 5 cm com outra inclinação, altura pelas retas principais → 23,5 (o JSON do CAD também). Próximo (etapa 3): marca editável gravada no Revit, função dos
 trechos, aceitar/ignorar, Extensible Storage, exportar pela janela, "Selecionar no modelo".
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio

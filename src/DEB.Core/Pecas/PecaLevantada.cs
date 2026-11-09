@@ -26,6 +26,11 @@ public sealed class PecaLevantada
     /// <summary>Comprimento ao longo do eixo (viga) ou altura (pilar), cm.</summary>
     public double Comprimento { get; set; }
     public List<TrechoPeca> Trechos { get; set; } = new List<TrechoPeca>();
+    /// <summary>Pilar: consolos (famílias separadas ou aninhadas noutra peça, reconhecidos como no botão "Pilares pré-moldados").</summary>
+    public List<ConsoloLevantado> Consolos { get; set; } = new List<ConsoloLevantado>();
+    /// <summary>Pilar: seção do pilar sem os consolos (largura em x = face 2/4, em y = face 1/3), cm.</summary>
+    public double Bx { get; set; }
+    public double By { get; set; }
     /// <summary>Avisos do levantamento (corte que falhou, seção em mais de um pedaço…) e da conferência.</summary>
     public List<string> Avisos { get; set; } = new List<string>();
     public SituacaoPeca Situacao { get; set; }
@@ -34,6 +39,21 @@ public sealed class PecaLevantada
 
     /// <summary>Trecho mais longo (a seção "corrente").</summary>
     public TrechoPeca Principal => Trechos.OrderByDescending(t => t.Comprimento).FirstOrDefault();
+}
+
+/// <summary>
+/// Consolo de um pilar (2026-11-09): face (1 = +x, 2 = −y, 3 = −x, 4 = +y, como no template), trecho ao longo da face
+/// (<see cref="S0"/>–<see cref="S1"/>, cm no sistema do pilar: y nas faces 1 e 3, x nas 2 e 4) e o perfil exato cortado no meio
+/// da largura — Y = distância para fora da face, Z = altura a partir da base do pilar (com chanfros).
+/// </summary>
+public sealed class ConsoloLevantado
+{
+    public int Face { get; set; }
+    public double S0 { get; set; }
+    public double S1 { get; set; }
+    public SecaoPoligonal Perfil { get; set; }
+    public PerfilConsolo.Medidas Medidas => PerfilConsolo.Medir(Perfil.Contorno.Select(p => (p.Y, p.Z)));
+    public double Largura => S1 - S0;
 }
 
 /// <summary>Peças iguais (mesmos trechos; vigas invertidas também) — o representante é a primeira.</summary>
@@ -80,7 +100,7 @@ public static class ConferenciaPecas
         var grupos = new Dictionary<string, GrupoPecas>();
         foreach (var p in pecas)
         {
-            string a = Assinatura(p, false);
+            string a = p.Tipo == TipoPeca.Pilar ? AssinaturaPilar(p) : Assinatura(p, false);
             if (p.Tipo == TipoPeca.Viga) { string inv = Assinatura(p, true); if (string.CompareOrdinal(inv, a) < 0) a = inv; }
             if (!grupos.TryGetValue(a, out var g)) grupos[a] = g = new GrupoPecas();
             g.Pecas.Add(p);
@@ -99,12 +119,50 @@ public static class ConferenciaPecas
                 .ThenBy(g => g.Representante.Comprimento).ToList();
     }
 
+    /// <summary>
+    /// Pilar: girados 90/180/270° = iguais (decisão do usuário; quadrado testa os 4 giros, retangular só 0 e 180°). Trechos pela
+    /// altura, área e lados (sem orientação); consolos renumerados a cada giro — face 1→4, 2→1, 3→2, 4→3, com a posição ao longo
+    /// da face espelhada nas faces que trocam de eixo — e a menor assinatura vale.
+    /// </summary>
+    private static string AssinaturaPilar(PecaLevantada p)
+    {
+        string M(double cm) => Math.Round(cm * 10).ToString("0", CultureInfo.InvariantCulture);
+        string trechos = string.Join(";", p.Trechos.Select(x =>
+            $"{M(x.Comprimento)}:{M(Math.Min(x.Secao.B, x.Secao.H))}x{M(Math.Max(x.Secao.B, x.Secao.H))}:{Math.Round(x.Secao.Area):0}"));
+        var cs = p.Consolos.Select(c => (c.Face, c.S0, c.S1, c)).ToList();
+        double bx = p.Bx, by = p.By;
+        bool quadrado = Math.Abs(bx - by) < 0.1;
+        string melhor = null;
+        for (int k = 0; k < 4; k++)
+        {
+            if (quadrado || k % 2 == 0)
+            {
+                string a = $"Pilar|{M(Math.Min(bx, by))}x{M(Math.Max(bx, by))}|{M(p.Comprimento)}|{trechos}|" + string.Join(";", cs
+                    .OrderBy(c => c.Face).ThenBy(c => c.c.Perfil.ZMax).ThenBy(c => c.S0)
+                    .Select(c => $"{c.Face}:{M(c.S0)}-{M(c.S1)}:{M(c.c.Perfil.ZMax)}:{M(c.c.Medidas.Balanco)}:{M(c.c.Medidas.AlturaPonta)}"));
+                if (melhor == null || string.CompareOrdinal(a, melhor) < 0) melhor = a;
+            }
+            // gira 90°: (x, y) → (by − y, x)
+            cs = cs.Select(c => c.Face switch
+            {
+                1 => (4, by - c.S1, by - c.S0, c.c),
+                2 => (1, c.S0, c.S1, c.c),
+                3 => (2, by - c.S1, by - c.S0, c.c),
+                _ => (3, c.S0, c.S1, c.c),
+            }).ToList();
+            (bx, by) = (by, bx);
+        }
+        return melhor;
+    }
+
     /// <summary>Trechos (comprimento, caixa, área, CG) ao milímetro; invertida = trechos de trás para a frente.</summary>
     private static string Assinatura(PecaLevantada p, bool invertida)
     {
         string M(double cm) => Math.Round(cm * 10).ToString("0", CultureInfo.InvariantCulture);
         var t = invertida ? Enumerable.Reverse(p.Trechos) : p.Trechos;
-        return $"{p.Tipo}|{M(p.Comprimento)}|" + string.Join(";", t.Select(x =>
+        string consolos = string.Join(";", p.Consolos.OrderBy(c => c.Face).ThenBy(c => c.Perfil.ZMax).ThenBy(c => c.S0)
+            .Select(c => $"{c.Face}:{M(c.S0)}-{M(c.S1)}:{M(c.Perfil.ZMax)}:{M(c.Medidas.Balanco)}:{M(c.Medidas.AlturaPonta)}"));
+        return $"{p.Tipo}|{M(p.Comprimento)}|{consolos}|" + string.Join(";", t.Select(x =>
         {
             var s = x.Secao;
             double cgy = s.CG.Y - s.YMin;

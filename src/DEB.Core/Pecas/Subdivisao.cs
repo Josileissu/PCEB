@@ -10,8 +10,11 @@ namespace DEB.Core.Pecas;
 public static class FuncaoTrecho
 {
     public const string Dente = "Dente", ApoioLaje = "Apoio de laje", ApoioEscada = "Apoio de escada", ApoioViga = "Apoio de viga",
-        SemApoio = "Sem apoio";
+        SemApoio = "Sem apoio", Consolo = "Consolo", Corrente = "Corrente";
+    /// <summary>Funções dos trechos de viga.</summary>
     public static readonly string[] Todas = { Dente, ApoioLaje, ApoioEscada, ApoioViga, SemApoio };
+    /// <summary>Funções dos trechos de pilar.</summary>
+    public static readonly string[] Pilar = { Corrente, Consolo };
 }
 
 /// <summary>Trecho da peça com seção constante, de <see cref="X0"/> a <see cref="X1"/> ao longo do eixo (cm).</summary>
@@ -48,7 +51,7 @@ public static class Subdivisao
     }
 
     /// <summary>Junta os intervalos vizinhos com a mesma seção e sugere a função de cada trecho.</summary>
-    public static List<TrechoPeca> Juntar(IEnumerable<(double X0, double X1, SecaoPoligonal Secao)> cortes)
+    public static List<TrechoPeca> Juntar(IEnumerable<(double X0, double X1, SecaoPoligonal Secao)> cortes, TipoPeca tipo = TipoPeca.Viga)
     {
         var r = new List<TrechoPeca>();
         foreach (var (x0, x1, s) in cortes.OrderBy(c => c.X0))
@@ -58,6 +61,14 @@ public static class Subdivisao
             else r.Add(new TrechoPeca { X0 = x0, X1 = x1, Secao = s });
         }
         if (r.Count == 0) return r;
+        if (tipo == TipoPeca.Pilar)
+        {
+            // pilar: o trecho mais longo é o corrente; os de seção diferente (área maior) têm consolo
+            var corrente = r.OrderByDescending(t => t.Comprimento).First().Secao;
+            foreach (var t in r)
+                t.FuncaoSugerida = t.Secao.MesmaSecao(corrente) ? FuncaoTrecho.Corrente : t.Secao.Area > corrente.Area ? FuncaoTrecho.Consolo : "";
+            return r;
+        }
         double hMax = r.Max(t => t.Secao.H);
         for (int i = 0; i < r.Count; i++) r[i].FuncaoSugerida = Sugerir(r[i], hMax, i == 0 || i == r.Count - 1);
         return r;
