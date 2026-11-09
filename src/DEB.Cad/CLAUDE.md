@@ -189,7 +189,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   GstarCAD (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
   grava a chave para cada idioma em `R21\`, avisa se o gcad.exe estiver aberto). Testado: instala, carrega
   sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do DEB.GstarCAD.csproj
-  (0.1.32 em 2026-11-09: ARMIMPORTARPECAS (peças do Revit) com dentes/consolos que faltam criados no catálogo; 0.1.31 em 2026-11-09: viga pré-moldada completa — armaduras, dente Gerber com ARMDENTES, protensão, cantoneira; 0.1.30 em 2026-11-09: o aviso "feche o CAD" só conta os CADs da sessão do Windows de quem instala — o GstarCAD de
+  (0.1.32 em 2026-11-09: ARMIMPORTARPECAS (peças do Revit) com dentes/consolos que faltam criados no catálogo, quadro "ARMADURAS console" pelos prints do escritório; 0.1.31 em 2026-11-09: viga pré-moldada completa — armaduras, dente Gerber com ARMDENTES, protensão, cantoneira; 0.1.30 em 2026-11-09: o aviso "feche o CAD" só conta os CADs da sessão do Windows de quem instala — o GstarCAD de
   outro usuário conectado no computador travava a instalação; 0.1.29 em 2026-11-08: bloco pelo motor com variantes por nº de estacas, alça do pilar no fundo; 0.1.27 em 2026-11-06: reservatório e as novidades da main; 0.1.26 = instalador único com GstarCAD 2021-2027, AutoCAD e ZWCAD): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto NA SESSÃO do usuário: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
