@@ -102,7 +102,7 @@ public static class NomeTipo
         var d = Dimensoes(nome);
         if (d == null) return null;
         var (tipo, desc) = s.Classificar();
-        double b = tipo == TipoSecao.Retangular ? s.B : s.LarguraAlma, h = s.H;
+        double b = tipo == TipoSecao.Retangular ? s.B : s.LarguraAlma, h = s.H;   // com aba ou mísula: o nome dá a alma
         bool Bate(double x, double y) => Math.Abs(x - b) <= tol && Math.Abs(y - h) <= tol;
         if (Bate(d.Value.A, d.Value.B) || Bate(d.Value.B, d.Value.A)) return null;
         string N(double x) => x.ToString("0.#", CultureInfo.InvariantCulture);

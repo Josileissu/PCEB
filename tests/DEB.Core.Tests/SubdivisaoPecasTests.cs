@@ -100,11 +100,66 @@ public class SubdivisaoPecasTests
         Assert.Null(NomeTipo.Dimensoes("Consolo"));
         // com aba: o nome dá a alma × h — bate
         Assert.Null(NomeTipo.Conferir("seção retangular com aba laje : 26x170", ComAba()));
+        // mísula com o fundo inclinado (Projeto1): poligonal, mas o nome confere com a alma
+        var misula = Poli((0, 0), (26, 0), (26, 100), (51, 110), (51, 125), (26, 125), (26, 170), (0, 170));
+        Assert.Equal(TipoSecao.Poligonal, misula.Classificar().Tipo);
+        Assert.Equal(26, misula.LarguraAlma, 6);
+        Assert.Null(NomeTipo.Conferir("seção retangular com aba laje : 26x170", misula));
         // retangular nas duas ordens
         Assert.Null(NomeTipo.Conferir("40x20", SecaoPoligonal.Retangulo(20, 40)));
         // nome errado
         var msg = NomeTipo.Conferir("Viga 20x50", SecaoPoligonal.Retangulo(20, 60));
         Assert.NotNull(msg);
         Assert.Contains("20 × 60", msg);
+    }
+    private static PecaLevantada Viga(string id, string marca, string tipo, bool invertida = false, double hDente = 25)
+    {
+        // 20 x 50, L = 551, dente 25 x 25 na esquerda e aba de laje (45 de largura total) de 300 a 420
+        var dente = SecaoPoligonal.Retangulo(20, 50 - hDente, 0, hDente);
+        var cheia = SecaoPoligonal.Retangulo(20, 50);
+        var aba = Poli((0, 0), (45, 0), (45, 20), (20, 20), (20, 50), (0, 50));
+        var c = new List<(double, double, SecaoPoligonal)> { (0, 25, dente), (25, 300, cheia), (300, 420, aba), (420, 551, cheia) };
+        if (invertida)
+        {
+            var abaInv = Poli((-25, 0), (20, 0), (20, 50), (0, 50), (0, 20), (-25, 20));   // girada 180°: a aba vai para o outro lado
+            c = new List<(double, double, SecaoPoligonal)> { (0, 131, cheia), (131, 251, abaInv), (251, 526, cheia), (526, 551, dente) };
+        }
+        var p = new PecaLevantada { Id = id, Tipo = TipoPeca.Viga, Marca = marca, Familia = "Viga PM", TipoRevit = tipo, PreMoldada = true,
+                                    Comprimento = 551, Trechos = Subdivisao.Juntar(c) };
+        ConferenciaPecas.Avaliar(p);
+        return p;
+    }
+
+    [Fact]
+    public void AvaliaASituacaoDaPeca()
+    {
+        var v = Viga("1", "V1", "20x50");
+        Assert.Equal(SituacaoPeca.NaoSuportada, v.Situacao);      // trecho com aba: o CAD ainda não desenha
+        Assert.Contains(v.Avisos, a => a.StartsWith("trecho 300–420: L"));
+        var reta = new PecaLevantada { Tipo = TipoPeca.Viga, TipoRevit = "20x60", PreMoldada = false, Material = "Concreto moldado",
+            Comprimento = 500, Trechos = Subdivisao.Juntar(new[] { (0.0, 500.0, SecaoPoligonal.Retangulo(20, 50)) }) };
+        ConferenciaPecas.Avaliar(reta);
+        Assert.Equal(SituacaoPeca.Atencao, reta.Situacao);
+        Assert.Contains(reta.Avisos, a => a.Contains("não é concreto pré-moldado"));
+        Assert.Contains(reta.Avisos, a => a.StartsWith("nome do tipo: o nome indica 20 × 60"));
+        var pilar = new PecaLevantada { Tipo = TipoPeca.Pilar, TipoRevit = "40x40", PreMoldada = true, Comprimento = 600,
+            Trechos = Subdivisao.Juntar(new[] { (0.0, 600.0, SecaoPoligonal.Retangulo(40, 40)) }) };
+        ConferenciaPecas.Avaliar(pilar);
+        Assert.Equal(SituacaoPeca.Ok, pilar.Situacao);
+    }
+
+    [Fact]
+    public void AgrupaPelaGeometriaComInvertidasEAvisaNomesDiferentes()
+    {
+        var g = ConferenciaPecas.Agrupar(new[]
+        {
+            Viga("1", "V1", "20x50"), Viga("2", "V1", "20x50", invertida: true), Viga("3", "V2", "Viga 20x50 (cópia)"),
+            Viga("4", "V3", "20x50", hDente: 30),
+        });
+        Assert.Equal(2, g.Count);
+        var maior = g.Single(x => x.Quantidade == 3);
+        Assert.Equal("V1, V2", maior.Marcas);
+        Assert.Contains(maior.Avisos, a => a.StartsWith("peças iguais com tipos diferentes"));
+        Assert.Equal(1, g.Single(x => x.Quantidade == 1).Quantidade);
     }
 }

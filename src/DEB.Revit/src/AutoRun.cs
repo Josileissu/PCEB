@@ -53,6 +53,9 @@ namespace DEB.Revit
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
                         break;
+                    case "conferir":
+                        status = "OK " + ReviewAutoTest(uidoc.Document);
+                        break;
                     case "exportarpecas":
                         status = "OK " + ExportPiecesAutoTest(uidoc.Document);
                         break;
@@ -92,6 +95,38 @@ namespace DEB.Revit
                 path = Path.Combine(DetailingReport.LogDir, DEB.Core.Intercambio.ArquivoPecas.NomeArquivo(arq.Origem, DateTime.Now));
             arq.Gravar(path);
             return $"{path} (pilares: {arq.Pilares.Count} grupo(s), {arq.Pilares.Sum(p => p.Quantidade)} peça(s); vigas: {arq.Vigas.Count} grupo(s), {arq.Vigas.Sum(v => v.Quantidade)} peça(s))";
+        }
+
+        /// <summary>
+        /// Conferência das peças (etapa 2), sem mostrar a janela: grava o resumo dos grupos (situação, trechos, avisos) e a janela
+        /// em PNG para cada grupo (até 8 por aba) em logs\conferir_AAAAMMDD_HHMMSS.
+        /// </summary>
+        private static string ReviewAutoTest(Document doc)
+        {
+            string dir = Path.Combine(DetailingReport.LogDir, "conferir_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var notes = new List<string>();
+            var grupos = DEB.Core.Pecas.ConferenciaPecas.Agrupar(PieceReview.Run(doc, notes));
+            var sb = new StringBuilder();
+            foreach (string n in notes) sb.AppendLine("NOTA: " + n);
+            foreach (var g in grupos)
+            {
+                var r = g.Representante;
+                sb.AppendLine($"{r.Tipo} {g.Marcas} x{g.Quantidade} [{g.Situacao}] {r.FamiliaTipo} L={r.Comprimento:0.#}");
+                foreach (var t in r.Trechos)
+                    sb.AppendLine($"   {t.X0:0.#}-{t.X1:0.#} {t.FuncaoSugerida}: {t.Secao.Classificar().Descricao} A={t.Secao.Area:0.#} Iy={t.Secao.Iy:0}");
+                foreach (string a in g.Avisos) sb.AppendLine("   aviso: " + a);
+            }
+            try
+            {
+                var w = new Precast.UI.PieceReviewWindow(grupos, notes);
+                for (int tab = 0; tab < 2; tab++)
+                    for (int i = 0; i < Math.Min(8, w.Count(tab)); i++)
+                        w.RenderToPng(Path.Combine(dir, $"{(tab == 0 ? "vigas" : "pilares")}_{i + 1}.png"), tab, i);
+            }
+            catch (Exception ex) { sb.AppendLine("ERRO ao renderizar a janela: " + ex); }
+            File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString());
+            return $"{dir} ({grupos.Count} grupo(s), {grupos.Sum(g => g.Quantidade)} peça(s))";
         }
 
         /// <summary>

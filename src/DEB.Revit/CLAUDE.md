@@ -79,6 +79,18 @@ No PC2 (09/11/2026, Revit 2025, cópia do `EST_RVT_ThiagoAdriana-2025.rvt`): `ex
 (modelo sem material pré-moldado: todos os pilares considerados); 0 vigas (nenhuma com "Concreto pré-moldado"): vigas reais ainda
 não testadas.
 
+## Conferir peças (09/11/2026, PC2 — `docs/04_arquitetura/conferencia_e_subdivisao_pecas.md`)
+Botão "Conferir peças" (painel Pré-moldados, `Commands/ReviewPiecesCommand`): `Precast/PieceReview` levanta vigas e pilares
+(SuperComponent nulo), estações nos vértices ao longo do eixo/altura, corta o sólido no meio de cada intervalo
+(`BooleanOperationsUtils.CutWithHalfSpace`; a face com normal −eixo no plano = seção, com furos) e junta os trechos iguais
+(`DEB.Core/Pecas`: `SecaoPoligonal`, `Subdivisao`, `ConferenciaPecas` — grupos pela GEOMETRIA, invertidas iguais; nome do tipo só
+conferido). Janela `Precast/UI/PieceReviewWindow` (abas Vigas/Pilares, só leitura nesta etapa) + `PieceReviewPreview` (elevação
+com trechos coloridos pela função, seções cotadas, área/Iy/CG). AutoRun `conferir` → `logs/conferir_*/resultado.txt` + PNG por grupo.
+Testado no PC2: Teste_PM (3 grupos de vigas 20×50 com dentes 25×25, pilares 40×40 e 50×50, tudo ok) e Projeto1 (viga com mísula
+de 0 a 325 + trecho sem aba + dente: "seção que o CAD ainda não desenha"). Consolos dos pilares (famílias separadas) ainda não
+aparecem na janela; elevação dos pilares desenhada na horizontal. Próximo (etapa 3): marca editável gravada no Revit, função dos
+trechos, aceitar/ignorar, Extensible Storage, exportar pela janela, "Selecionar no modelo".
+
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.
 - `ToolCommand`: base de todos — barreira de exceções (mensagem + log `logs/ferramentas_AAAAMMDD.log`), `ToolCancelled`.
