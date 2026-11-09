@@ -71,7 +71,13 @@ Vigas: as de material "Concreto pré-moldado" (as moldadas no local ficam de for
 `PerfilViga` (Core) acha os dentes Gerber pelo perfil (x, z) de cada ponta — face da ponta mais baixa que h, com topo em h;
 comprimento = ponta → início do fundo; `AgrupadorVigas` junta as iguais e as invertidas (giro 180). Não depende dos parâmetros
 da família (dx_gerber etc.). Furos de pino ainda não são lidos (ficam os do PADRÃO do CAD).
+Seção (09/11/2026, PC2): volume da peça (HOST_VOLUME_COMPUTED) < 95% do de b × h com os dentes = aba/L/T invertido/I → viga NÃO
+exportada, com nota (`PerfilViga.ConferirSecao`; ex.: "seção retangular com aba laje 26x170" do Projeto1 media 51 × 170). Volume a
+mais (consolo aninhado) passa.
 Só lê o modelo. Em 09/11/2026 o AutoRun não rodou (Revit 2025 parado em "manage licensing"): exportação real ainda não testada.
+No PC2 (09/11/2026, Revit 2025, cópia do `EST_RVT_ThiagoAdriana-2025.rvt`): `exportarpecas` rodou — 9 grupos, 24 pilares
+(modelo sem material pré-moldado: todos os pilares considerados); 0 vigas (nenhuma com "Concreto pré-moldado"): vigas reais ainda
+não testadas.
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.

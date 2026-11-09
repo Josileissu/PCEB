@@ -53,6 +53,24 @@ public static class PerfilViga
         return new DentePeca { Altura = Math.Round(zMax - zMin, 2), Comprimento = Math.Round(fundo.Min(p => p.X), 2) };
     }
 
+    /// <summary>Folga do volume: furos de pino e chanfros tiram bem menos que isso.</summary>
+    public const double FolgaVolume = 0.05;
+
+    /// <summary>
+    /// Seção retangular? (2026-11-09) O volume real da peça tem de bater com o de uma seção b × h com os recortes dos dentes;
+    /// bem menor = aba, L, T invertido ou I (b é a largura total da caixa), que o template do CAD ainda não desenha (VP-4).
+    /// Volume a mais (consolo aninhado na viga, por exemplo) não muda a seção da viga e passa. Devolve o motivo, ou null se ok.
+    /// </summary>
+    public static string ConferirSecao(double volumeCm3, double b, double h, double l, DentePeca e, DentePeca d)
+    {
+        if (volumeCm3 <= 0 || b <= 0 || h <= 0 || l <= 0) return null;
+        double esperado = b * h * l - (e == null ? 0 : b * (h - e.Altura) * e.Comprimento) - (d == null ? 0 : b * (h - d.Altura) * d.Comprimento);
+        double r = volumeCm3 / esperado;
+        if (r >= 1 - FolgaVolume) return null;
+        return $"seção não retangular (volume = {(r * 100).ToString("0", CultureInfo.InvariantCulture)}% do de uma seção {N(b)} × {N(h)}: " +
+               "aba, L, T invertido ou I?); o template do CAD só desenha a seção retangular — viga não exportada.";
+    }
+
     private static string N(double x) => x.ToString("0.#", CultureInfo.InvariantCulture);
 }
 
@@ -107,8 +125,14 @@ public static class ConversorVigaPeca
     /// <summary>Valores do template; null se um dente não estiver no catálogo (não dá para desenhar a peça certa).</summary>
     public static ValoresTemplate Valores(VigaPeca p, ValoresTemplate valoresBase, IReadOnlyList<TipoDente> catalogo, List<string> avisos)
     {
-        string extE = Extremidade(p, p.DenteE, "esquerda", catalogo, avisos), extD = Extremidade(p, p.DenteD, "direita", catalogo, avisos);
-        if (extE == null || extD == null) return null;
+        // um aviso só por viga, com as pontas que faltam
+        var faltam = new List<string>();
+        string extE = Extremidade(p.DenteE, "esquerda", catalogo, faltam), extD = Extremidade(p.DenteD, "direita", catalogo, faltam);
+        if (faltam.Count > 0)
+        {
+            avisos.Add($"{p.Marca}: {string.Join("; ", faltam)} não está no catálogo (ARMDENTES); a viga não foi gerada.");
+            return null;
+        }
         var v = new ValoresTemplate();
         foreach (var kv in valoresBase.Todos) v[kv.Key] = kv.Value;
         v["Nome"] = p.Marca;
@@ -121,13 +145,16 @@ public static class ConversorVigaPeca
         return v;
     }
 
-    private static string Extremidade(VigaPeca p, DentePeca d, string lado, IReadOnlyList<TipoDente> catalogo, List<string> avisos)
+    /// <summary>O tipo do catálogo tem as medidas do dente do modelo (altura e comprimento, dentro da tolerância)?</summary>
+    public static bool Casa(TipoDente t, DentePeca d) =>
+        Math.Abs(t.Altura - d.Altura) <= Tolerancia && Math.Abs(t.Comprimento - d.Comprimento) <= Tolerancia;
+
+    private static string Extremidade(DentePeca d, string lado, IReadOnlyList<TipoDente> catalogo, List<string> faltam)
     {
         if (d == null) return TemplateVigaPreMoldada.Reta;
-        var t = catalogo.FirstOrDefault(x => Math.Abs(x.Altura - d.Altura) <= Tolerancia && Math.Abs(x.Comprimento - d.Comprimento) <= Tolerancia);
+        var t = catalogo.FirstOrDefault(x => Casa(x, d));
         if (t != null) return t.Nome;
-        avisos.Add($"{p.Marca}: dente da ponta {lado} ({TemplatePilarPreMoldado.Num(d.Altura, "0.#")} x {TemplatePilarPreMoldado.Num(d.Comprimento, "0.#")}: " +
-                   "altura × comprimento) não está no catálogo (ARMDENTES); a viga não foi gerada.");
+        faltam.Add($"dente da ponta {lado} ({TemplatePilarPreMoldado.Num(d.Altura, "0.#")} x {TemplatePilarPreMoldado.Num(d.Comprimento, "0.#")}: altura × comprimento)");
         return null;
     }
 

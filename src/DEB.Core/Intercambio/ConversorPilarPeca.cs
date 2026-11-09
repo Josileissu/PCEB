@@ -37,7 +37,9 @@ public static class ConversorPilarPeca
     }
 
     /// <summary>Linhas da tabela "Consolos" do template: tipo | faces | base → topo | deslocamento.</summary>
-    public static List<string[]> LinhasConsolos(PilarPeca p, IReadOnlyList<TipoConsolo> catalogo, List<string> avisos)
+    /// <param name="faltantes">Se dado, recebe os consolos sem tipo no catálogo e se têm par na face oposta (para criar o tipo).</param>
+    public static List<string[]> LinhasConsolos(PilarPeca p, IReadOnlyList<TipoConsolo> catalogo, List<string> avisos,
+        List<(ConsoloPeca C, bool ComPar)> faltantes = null)
     {
         var linhas = new List<string[]>();
         var usados = new HashSet<ConsoloPeca>();
@@ -60,6 +62,7 @@ public static class ConversorPilarPeca
             }
             var simples = catalogo.FirstOrDefault(t => !t.Duplo && Casa(t, c));
             if (simples != null) { linhas.Add(new[] { simples.Nome, c.Face.ToString(CultureInfo.InvariantCulture), N(c.Topo), N(desl) }); continue; }
+            faltantes?.Add((c, par != null));
             avisos.Add($"{p.Marca}: consolo da face {c.Face} com topo a {N(c.Topo)} cm da base ({Resumo(c)}) não está no catálogo " +
                        "(ARMCONSOLOS) e ficou de fora.");
         }
@@ -84,7 +87,7 @@ public static class ConversorPilarPeca
 
     public static int Oposta(int face) => (face + 1) % 4 + 1;
 
-    private static bool Casa(TipoConsolo t, ConsoloPeca c) =>
+    public static bool Casa(TipoConsolo t, ConsoloPeca c) =>
         Perto(t.B, c.Largura) && Perto(t.A, c.Balanco) && Perto(t.H, c.AlturaFace) && Perto(Math.Min(t.H1, t.H), c.AlturaPonta);
 
     private static bool MesmaForma(ConsoloPeca a, ConsoloPeca b) =>

@@ -97,6 +97,14 @@ namespace DEB.Revit.Precast
                 var avisos = new List<string>();
                 var (e, d) = PerfilViga.Dentes(perfil, l, h, avisos);
                 foreach (string a in avisos) notes.Add($"Viga {fi.Id.Value}: {a}");
+                // seção: o volume tem de bater com o de b × h com os dentes (aba, L, T invertido, I = fora, até o VP-4)
+                double vol = fi.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED)?.AsDouble() ?? 0;
+                string secao = PerfilViga.ConferirSecao(vol * Math.Pow(30.48, 3), Cm(info.LengthY), h, l, e, d);
+                if (secao != null)
+                {
+                    notes.Add($"Viga {fi.Id.Value} ({fi.Symbol?.FamilyName}: {fi.Name}): {secao}");
+                    continue;
+                }
                 medidas.Add(new VigaMedida
                 {
                     Id = fi.Id.Value.ToString(CultureInfo.InvariantCulture),
