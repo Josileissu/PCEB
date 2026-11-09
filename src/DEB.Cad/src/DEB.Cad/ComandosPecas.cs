@@ -7,6 +7,7 @@ using DEB.Core.Intercambio;
 using DEB.Core.Modelo;
 using DEB.Core.Templates;
 using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Templates.VigaPreMoldada;
 
 [assembly: Rt.CommandClass(typeof(DEB.Cad.ComandosPecas))]
 
@@ -14,14 +15,15 @@ namespace DEB.Cad;
 
 /// <summary>
 /// ARMIMPORTARPECAS (pedido do usuário, 2026-11-09): lê o .json exportado pelo DEB.Revit ("Exportar para o CAD") e gera um
-/// detalhamento por grupo de pilares iguais pelo template "pilar-premoldado", lado a lado. Os valores partem do PADRÃO do
-/// usuário (arquivo de modelos do template); o modelo do Revit troca seção, comprimento, níveis, embutimento e consolos.
-/// As repetições do detalhamento = número de peças do grupo (a relação do aço multiplica). Os modelos do template não
-/// são alterados (as marcas P1, P2… do Revit poderiam sobrescrever modelos do usuário com o mesmo nome).
+/// detalhamento por grupo de peças iguais — pilares pelo template "pilar-premoldado" numa fila e vigas pelo
+/// "viga-premoldada" na fila de baixo, lado a lado. Os valores partem do PADRÃO do usuário (arquivo de modelos de cada
+/// template); o modelo do Revit troca as medidas (pilar: seção, comprimento, níveis, embutimento, consolos; viga: seção,
+/// comprimento, dentes). As repetições do detalhamento = número de peças do grupo (a relação do aço multiplica). Os modelos
+/// dos templates não são alterados (as marcas P1, V1… do Revit poderiam sobrescrever modelos do usuário com o mesmo nome).
 /// </summary>
 public sealed class ComandosPecas
 {
-    public const string TemplatePilar = "pilar-premoldado";
+    public const string TemplatePilar = "pilar-premoldado", TemplateViga = "viga-premoldada";
 
     [Rt.CommandMethod("ARMIMPORTARPECAS")]
     public void ImportarPecas() => Comandos.Executar("ARMIMPORTARPECAS", (doc, ed, db, cfg) =>
@@ -36,8 +38,8 @@ public sealed class ComandosPecas
             ed.WriteMessage($"\nNão foi possível ler o arquivo: {ex.Message}");
             return;
         }
-        if (arq.Pilares.Count == 0) { ed.WriteMessage("\nO arquivo não tem pilares."); return; }
-        var rp = ed.GetPoint("\nPonto de inserção do primeiro pilar:");
+        if (arq.Pilares.Count == 0 && arq.Vigas.Count == 0) { ed.WriteMessage("\nO arquivo não tem pilares nem vigas."); return; }
+        var rp = ed.GetPoint("\nPonto de inserção (canto da primeira peça):");
         if (rp.Status != PromptStatus.OK) return;
 
         var rel = Importar(db, cfg, arq, rp.Value.TransformBy(ed.CurrentUserCoordinateSystem));
@@ -50,71 +52,132 @@ public sealed class ComandosPecas
     {
         public List<string> Linhas { get; } = new List<string>();
         public List<string> Avisos { get; } = new List<string>();
-        /// <summary>Nome do detalhamento criado por grupo (na ordem do arquivo; null = não gerado).</summary>
-        public List<string> Detalhamentos { get; } = new List<string>();
-        /// <summary>Retângulo ocupado por grupo (unidades do desenho), para conferência.</summary>
-        public List<Extents3d?> Regioes { get; } = new List<Extents3d?>();
+        /// <summary>Por grupo, na ordem do arquivo (pilares, depois vigas): marca, detalhamento criado (null = não gerado) e região.</summary>
+        public List<(string Marca, string Detalhamento, Extents3d? Regiao)> Grupos { get; } = new List<(string, string, Extents3d?)>();
     }
 
-    /// <summary>Gera os detalhamentos dos grupos lado a lado, a partir de <paramref name="origem"/>.</summary>
+    /// <summary>Gera os detalhamentos: pilares numa fila a partir de <paramref name="origem"/>, vigas na fila de baixo.</summary>
     internal static Relatorio Importar(Database db, ConfiguracaoArmadura cfg, ArquivoPecas arq, Point3d origem)
     {
         var rel = new Relatorio();
-        var t = CatalogoTemplates.Obter(TemplatePilar);
-        if (t == null) { rel.Avisos.Add($"O template \"{TemplatePilar}\" não está carregado."); return rel; }
-        var padrao = ModelosTemplates.Obter(t).Valores(t);
         double cpu = Desenho.CmPorUnidade(db, cfg);
         double folga = 300 / cpu;
-        var p0 = origem;
-
-        rel.Linhas.Add($"{arq.Pilares.Count} grupo(s) de pilares de {(arq.Origem.Length > 0 ? arq.Origem : "(origem não informada)")}" +
-                       (arq.Data.Length > 0 ? $", levantados em {arq.Data}" : "") + ":");
+        rel.Linhas.Add($"Peças de {(arq.Origem.Length > 0 ? arq.Origem : "(origem não informada)")}" +
+                       (arq.Data.Length > 0 ? $", levantadas em {arq.Data}" : "") + ":");
         foreach (var n in arq.Notas) rel.Avisos.Add("Revit: " + n);
 
-        foreach (var p in arq.Pilares)
+        // ---- pilares ----
+        double yBaixo = origem.Y;
+        if (arq.Pilares.Count > 0)
         {
-            var avisos = new List<string>();
-            var v = ConversorPilarPeca.Valores(p, padrao, TemplatePilarPreMoldado.Catalogo, avisos);
-            var erros = CatalogoTemplates.Validar(t, v);
-            if (erros.Count > 0)
+            var t = CatalogoTemplates.Obter(TemplatePilar);
+            if (t == null) rel.Avisos.Add($"O template \"{TemplatePilar}\" não está carregado: pilares não gerados.");
+            else
             {
-                rel.Avisos.Add($"{p.Marca}: não gerado — {string.Join(" ", erros)}");
-                rel.Detalhamentos.Add(null);
-                rel.Regioes.Add(null);
-                continue;
+                var padrao = ModelosTemplates.Obter(t).Valores(t);
+                var fila = arq.Pilares.Select(p =>
+                {
+                    var avisos = new List<string>();
+                    var v = ConversorPilarPeca.Valores(p, padrao, TemplatePilarPreMoldado.Catalogo, avisos);
+                    string resumo = $"{p.Quantidade} peça(s), {Num(p.B)}×{Num(p.H)}, L = {Num(p.L)} cm, {v.Tabela("Consolos").Count} consolo(s)";
+                    return new Grupo(p.Marca, v, p.Quantidade, p.Elementos, resumo, avisos);
+                });
+                yBaixo = Fila(db, cfg, t, fila, origem, folga, cpu, arq, rel);
             }
-            var r = t.Gerar(v, cfg);
-            r.DadosDetalhamento ??= new DadosDetalhamento();
-            r.DadosDetalhamento.Repeticoes = p.Quantidade;
-            r.DadosDetalhamento.Sistema = SistemaConstrutivo.PreMoldado;
-            r.DadosDetalhamento.Grupo = "Pilares";
-            var ids = string.Join(", ", p.Elementos.Select(e => e.Id).Where(s => s.Length > 0));
-            r.DadosDetalhamento.Comentarios = $"Importado de {arq.Origem} ({arq.Data})" + (ids.Length > 0 ? $"; elementos {ids}" : "") + ".";
+        }
 
-            Extents3d? ext;
-            var antes = Entidades(db);
-            using (var tr = db.TransactionManager.StartTransaction())
+        // ---- vigas: fila de baixo, com o topo abaixo dos pilares ----
+        if (arq.Vigas.Count > 0)
+        {
+            var t = CatalogoTemplates.Obter(TemplateViga);
+            if (t == null) rel.Avisos.Add($"O template \"{TemplateViga}\" não está carregado: vigas não gerados.");
+            else
             {
-                ComandosTemplate.Desenhar(tr, db, cfg, r, p0);
-                tr.Commit();
+                var padrao = ModelosTemplates.Obter(t).Valores(t);
+                var fila = arq.Vigas.Select(p =>
+                {
+                    var avisos = new List<string>();
+                    var v = ConversorVigaPeca.Valores(p, padrao, TemplateVigaPreMoldada.CatalogoDentes, avisos);
+                    string resumo = $"{p.Quantidade} peça(s), {Num(p.B)}×{Num(p.H)}, L = {Num(p.L)} cm, pontas: " +
+                                    (v == null ? "?" : $"{v["ExtE"]} / {v["ExtD"]}");
+                    return new Grupo(p.Marca, v, p.Quantidade, p.Elementos, resumo, avisos);
+                });
+                var y = arq.Pilares.Count > 0 ? yBaixo - folga : origem.Y;
+                Fila(db, cfg, t, fila, new Point3d(origem.X, y, origem.Z), folga, cpu, arq, rel, topoNaOrigem: true);
             }
-            ext = Extensao(db, Entidades(db).Except(antes));
-            rel.Detalhamentos.Add(r.Detalhamento);
-            rel.Regioes.Add(ext);
-
-            int nConsolos = v.Tabela("Consolos").Count;
-            rel.Linhas.Add($"  {p.Marca}: {p.Quantidade} peça(s), {TemplatePilarPreMoldado.Num(p.B, "0.#")}×{TemplatePilarPreMoldado.Num(p.H, "0.#")}, " +
-                           $"L = {TemplatePilarPreMoldado.Num(p.L, "0.#")} cm, {nConsolos} consolo(s) → detalhamento \"{r.Detalhamento}\"" +
-                           (p.Elementos.Any(e => e.Marca.Length > 0) ? $" (marcas no modelo: {string.Join(", ", p.Elementos.Select(e => e.Marca).Where(s => s.Length > 0).Distinct())})" : ""));
-            rel.Avisos.AddRange(avisos);
-            rel.Avisos.AddRange(r.Avisos.Select(a => $"{p.Marca}: {a}"));
-
-            // o próximo à direita do que foi desenhado
-            double x = ext.HasValue ? ext.Value.MaxPoint.X : p0.X + p.B * 10 / cpu;
-            p0 = new Point3d(x + folga, origem.Y, origem.Z);
         }
         return rel;
     }
+
+    private sealed class Grupo
+    {
+        public Grupo(string marca, ValoresTemplate v, int qtd, List<ElementoPeca> els, string resumo, List<string> avisos)
+        { Marca = marca; Valores = v; Quantidade = qtd; Elementos = els; Resumo = resumo; Avisos = avisos; }
+        public string Marca { get; }
+        /// <summary>null = não dá para gerar (motivo nos avisos).</summary>
+        public ValoresTemplate Valores { get; }
+        public int Quantidade { get; }
+        public List<ElementoPeca> Elementos { get; }
+        public string Resumo { get; }
+        public List<string> Avisos { get; }
+    }
+
+    /// <summary>
+    /// Desenha os grupos lado a lado a partir de <paramref name="p0"/>; devolve o y mais baixo desenhado.
+    /// <paramref name="topoNaOrigem"/>: o ponto é o TOPO da fila (cada peça descida pela altura do que o template gera).
+    /// </summary>
+    private static double Fila(Database db, ConfiguracaoArmadura cfg, ITemplateArmadura t, IEnumerable<Grupo> grupos, Point3d p0,
+        double folga, double cpu, ArquivoPecas arq, Relatorio rel, bool topoNaOrigem = false)
+    {
+        double x = p0.X, yMin = p0.Y;
+        foreach (var g in grupos)
+        {
+            rel.Avisos.AddRange(g.Avisos);
+            if (g.Valores == null) { rel.Grupos.Add((g.Marca, null, null)); continue; }
+            var erros = CatalogoTemplates.Validar(t, g.Valores);
+            if (erros.Count > 0)
+            {
+                rel.Avisos.Add($"{g.Marca}: não gerado — {string.Join(" ", erros)}");
+                rel.Grupos.Add((g.Marca, null, null));
+                continue;
+            }
+            var r = t.Gerar(g.Valores, cfg);
+            r.DadosDetalhamento ??= new DadosDetalhamento();
+            r.DadosDetalhamento.Repeticoes = g.Quantidade;
+            r.DadosDetalhamento.Sistema = SistemaConstrutivo.PreMoldado;
+            var ids = string.Join(", ", g.Elementos.Select(e => e.Id).Where(s => s.Length > 0));
+            r.DadosDetalhamento.Comentarios = $"Importado de {arq.Origem} ({arq.Data})" + (ids.Length > 0 ? $"; elementos {ids}" : "") + ".";
+
+            double y = topoNaOrigem ? p0.Y - Topo(r) / cpu : p0.Y;
+            var antes = Entidades(db);
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(x, y, p0.Z));
+                tr.Commit();
+            }
+            var ext = Extensao(db, Entidades(db).Except(antes));
+            rel.Grupos.Add((g.Marca, r.Detalhamento, ext));
+            var marcas = g.Elementos.Select(e => e.Marca).Where(s => s.Length > 0).Distinct().ToList();
+            rel.Linhas.Add($"  {g.Marca}: {g.Resumo} → detalhamento \"{r.Detalhamento}\"" +
+                           (marcas.Count > 0 ? $" (marcas no modelo: {string.Join(", ", marcas)})" : ""));
+            rel.Avisos.AddRange(r.Avisos.Select(a => $"{g.Marca}: {a}"));
+
+            // a próxima à direita do que foi desenhado
+            if (ext.HasValue) { x = ext.Value.MaxPoint.X + folga; yMin = Math.Min(yMin, ext.Value.MinPoint.Y); }
+            else x += 1000 / cpu;
+        }
+        return yMin;
+    }
+
+    /// <summary>Ponto mais alto (cm, relativo à origem do template) do que o template gerou: forma, textos, barras e relação do aço.</summary>
+    private static double Topo(ResultadoTemplate r) =>
+        r.Contornos.SelectMany(c => c.Vertices.Select(v => v.Y))
+            .Concat(r.Textos.Select(q => q.Y))
+            .Concat(r.Barras.SelectMany(b => b.Vertices.Select(v => v.Y)))
+            .Concat(r.PosicaoRA.HasValue ? new[] { r.PosicaoRA.Value.Y } : Array.Empty<double>())
+            .DefaultIfEmpty(0).Max();
+
+    private static string Num(double x) => TemplatePilarPreMoldado.Num(x, "0.#");
 
     private static HashSet<ObjectId> Entidades(Database db)
     {

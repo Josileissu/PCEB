@@ -68,6 +68,30 @@ public sealed class PilarPeca
     public int Quantidade => Math.Max(1, Elementos.Count);
 }
 
+/// <summary>Dente Gerber numa ponta da viga: altura do dente (a parte que fica sobre o apoio) e comprimento (ponta → recorte), cm.</summary>
+public sealed class DentePeca
+{
+    public double Altura { get; set; }
+    public double Comprimento { get; set; }
+}
+
+/// <summary>Grupo de vigas iguais (ou invertidas: ponta esquerda ↔ direita) do modelo.</summary>
+public sealed class VigaPeca
+{
+    public string Marca { get; set; } = "";
+    /// <summary>Giro 180 = a peça está invertida em relação ao representante.</summary>
+    public List<ElementoPeca> Elementos { get; set; } = new List<ElementoPeca>();
+    /// <summary>Seção b × h e comprimento total da peça (cm).</summary>
+    public double B { get; set; }
+    public double H { get; set; }
+    public double L { get; set; }
+    /// <summary>Dente nas pontas esquerda e direita; null = ponta reta.</summary>
+    public DentePeca DenteE { get; set; }
+    public DentePeca DenteD { get; set; }
+
+    public int Quantidade => Math.Max(1, Elementos.Count);
+}
+
 /// <summary>Arquivo de troca (JSON) com as peças levantadas de um modelo.</summary>
 public sealed class ArquivoPecas
 {
@@ -79,6 +103,7 @@ public sealed class ArquivoPecas
     /// <summary>Data e hora do levantamento (texto ISO).</summary>
     public string Data { get; set; } = "";
     public List<PilarPeca> Pilares { get; set; } = new List<PilarPeca>();
+    public List<VigaPeca> Vigas { get; set; } = new List<VigaPeca>();
     /// <summary>Observações do levantamento (peças ignoradas etc.).</summary>
     public List<string> Notas { get; set; } = new List<string>();
 
@@ -120,7 +145,21 @@ public sealed class ArquivoPecas
             jp.Definir("consolos", cs);
             pilares.Adicionar(jp);
         }
-        return o.Definir("pilares", pilares);
+        o.Definir("pilares", pilares);
+        var vigas = ValorJson.NovaLista();
+        foreach (var p in Vigas)
+        {
+            ValorJson Dente(DentePeca d) => d == null ? ValorJson.Nulo
+                : ValorJson.NovoObjeto().Definir("altura", R(d.Altura)).Definir("comprimento", R(d.Comprimento));
+            var els = ValorJson.NovaLista();
+            foreach (var e in p.Elementos)
+                els.Adicionar(ValorJson.NovoObjeto().Definir("id", e.Id).Definir("marca", e.Marca).Definir("giro", e.Giro));
+            vigas.Adicionar(ValorJson.NovoObjeto().Definir("marca", p.Marca).Definir("quantidade", p.Quantidade)
+                .Definir("elementos", els)
+                .Definir("b", R(p.B)).Definir("h", R(p.H)).Definir("l", R(p.L))
+                .Definir("dente_esquerda", Dente(p.DenteE)).Definir("dente_direita", Dente(p.DenteD)));
+        }
+        return o.Definir("vigas", vigas);
     }
 
     public void Gravar(string caminho) => Json.GravarArquivo(caminho, ParaJson());
@@ -198,6 +237,39 @@ public sealed class ArquivoPecas
                 p.Consolos.Add(c);
             }
             a.Pilares.Add(p);
+        }
+        var lv = LeitorJson.Lista(raiz, "vigas", c0);
+        for (int i = 0; lv != null && i < lv.Quantidade; i++)
+        {
+            string cv = $"{c0}.vigas[{i}]";
+            var jv = LeitorJson.Objeto(lv[i], cv);
+            DentePeca Dente(string k)
+            {
+                if (!LeitorJson.Presente(jv, k)) return null;
+                var jd = LeitorJson.Objeto(jv[k], $"{cv}.{k}");
+                return new DentePeca { Altura = LeitorJson.Num(jd, "altura", 0, $"{cv}.{k}"), Comprimento = LeitorJson.Num(jd, "comprimento", 0, $"{cv}.{k}") };
+            }
+            var v = new VigaPeca
+            {
+                Marca = LeitorJson.Txt(jv, "marca", "", cv),
+                B = LeitorJson.Num(jv, "b", 0, cv), H = LeitorJson.Num(jv, "h", 0, cv), L = LeitorJson.Num(jv, "l", 0, cv),
+                DenteE = Dente("dente_esquerda"), DenteD = Dente("dente_direita"),
+            };
+            if (v.B <= 0 || v.H <= 0 || v.L <= 0) throw new FormatException($"{cv}: b, h e l têm de ser maiores que zero.");
+            var le = LeitorJson.Lista(jv, "elementos", cv);
+            for (int k = 0; le != null && k < le.Quantidade; k++)
+            {
+                var je = LeitorJson.Objeto(le[k], $"{cv}.elementos[{k}]");
+                v.Elementos.Add(new ElementoPeca
+                {
+                    Id = LeitorJson.Txt(je, "id", "", $"{cv}.elementos[{k}]"),
+                    Marca = LeitorJson.Txt(je, "marca", "", $"{cv}.elementos[{k}]"),
+                    Giro = LeitorJson.Int(je, "giro", 0, $"{cv}.elementos[{k}]"),
+                });
+            }
+            if (v.Elementos.Count == 0)
+                for (int k = LeitorJson.Int(jv, "quantidade", 1, cv); k > 0; k--) v.Elementos.Add(new ElementoPeca());
+            a.Vigas.Add(v);
         }
         return a;
     }

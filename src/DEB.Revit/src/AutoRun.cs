@@ -91,7 +91,7 @@ namespace DEB.Revit
             if (string.IsNullOrWhiteSpace(path))
                 path = Path.Combine(DetailingReport.LogDir, DEB.Core.Intercambio.ArquivoPecas.NomeArquivo(arq.Origem, DateTime.Now));
             arq.Gravar(path);
-            return $"{path} ({arq.Pilares.Count} grupo(s), {arq.Pilares.Sum(p => p.Quantidade)} peça(s))";
+            return $"{path} (pilares: {arq.Pilares.Count} grupo(s), {arq.Pilares.Sum(p => p.Quantidade)} peça(s); vigas: {arq.Vigas.Count} grupo(s), {arq.Vigas.Sum(v => v.Quantidade)} peça(s))";
         }
 
         /// <summary>

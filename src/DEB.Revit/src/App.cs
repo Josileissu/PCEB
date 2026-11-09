@@ -68,11 +68,12 @@ namespace DEB.Revit
 
             var exportar = new PushButtonData("DEB_ExportarPecas", "Exportar\npara o CAD", dll, typeof(ExportPiecesCommand).FullName)
             {
-                ToolTip = "Grava os grupos de pilares pré-moldados iguais num arquivo .json para detalhar no CAD (ARMIMPORTARPECAS).",
+                ToolTip = "Grava os grupos de pilares e vigas pré-moldados iguais num arquivo .json para detalhar no CAD (ARMIMPORTARPECAS).",
                 LongDescription =
                     "Usa o mesmo levantamento do botão \"Pilares pré-moldados\" (peças iguais ou giradas = mesmo grupo) e grava, por " +
-                    "grupo: seção, comprimento, cota da base, níveis, embutimento e consolos. No GstarCAD/AutoCAD, o ARMIMPORTARPECAS " +
-                    "gera um detalhamento por grupo pelo template do pilar pré-moldado. Não altera o modelo.",
+                    "grupo: seção, comprimento, cota da base, níveis, embutimento e consolos; e as vigas pré-moldadas (seção, comprimento, " +
+                    "dentes Gerber; invertidas = iguais). No GstarCAD/AutoCAD, o ARMIMPORTARPECAS gera um detalhamento por grupo pelos " +
+                    "templates do pilar e da viga pré-moldados. Não altera o modelo.",
                 AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
                 LargeImage = IconFactory.Create(32, "CAD"),
                 Image = IconFactory.Create(16, "C")
