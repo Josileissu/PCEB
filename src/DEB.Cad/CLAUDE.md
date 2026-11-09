@@ -189,7 +189,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   GstarCAD (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
   grava a chave para cada idioma em `R21\`, avisa se o gcad.exe estiver aberto). Testado: instala, carrega
   sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do DEB.GstarCAD.csproj
-  (0.1.31 em 2026-11-09: viga pré-moldada completa — armaduras, dente Gerber com ARMDENTES, protensão, cantoneira; 0.1.30 em 2026-11-09: o aviso "feche o CAD" só conta os CADs da sessão do Windows de quem instala — o GstarCAD de
+  (0.1.32 em 2026-11-09: ARMIMPORTARPECAS (peças do Revit) com dentes/consolos que faltam criados no catálogo; 0.1.31 em 2026-11-09: viga pré-moldada completa — armaduras, dente Gerber com ARMDENTES, protensão, cantoneira; 0.1.30 em 2026-11-09: o aviso "feche o CAD" só conta os CADs da sessão do Windows de quem instala — o GstarCAD de
   outro usuário conectado no computador travava a instalação; 0.1.29 em 2026-11-08: bloco pelo motor com variantes por nº de estacas, alça do pilar no fundo; 0.1.27 em 2026-11-06: reservatório e as novidades da main; 0.1.26 = instalador único com GstarCAD 2021-2027, AutoCAD e ZWCAD): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto NA SESSÃO do usuário: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
@@ -328,4 +328,8 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   Repetições do detalhamento = peças do grupo; os modelos do template NÃO são gravados (P1, P2… sobrescreveriam os dele).
   Vigas (mesmo dia): fila de baixo, pelo template `viga-premoldada`; pontas pelo catálogo do ARMDENTES (altura × comprimento,
   ±0,6 cm); dente fora do catálogo = viga NÃO gerada, com aviso (desenhar reta seria a peça errada).
+  **Desde a 0.1.32 (opção b do usuário, 2026-11-09)**: antes de converter, `CatalogoAutomatico` (Core) CRIA nos catálogos do usuário os
+  dentes (DG AxC) e consolos (CS/CT/CD, duplo quando há par igual na face oposta) que faltam, com a geometria do modelo e a armadura
+  padrão (almofada reduzida para caber), com aviso "conferir no ARMDENTES/ARMCONSOLOS"; o comando grava a configuração. O autoteste
+  devolve os catálogos como estavam (não grava).
   Autoteste: `ARMTESTEPECAS` (3 pilares e 3 vigas de exemplo; `ARM_PECAS_ENTRADA` = um JSON real), `autoteste_pecas.dwg/.png`.

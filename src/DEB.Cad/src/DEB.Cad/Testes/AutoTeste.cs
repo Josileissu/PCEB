@@ -2546,7 +2546,7 @@ public sealed class AutoTeste
                     new Core.Intercambio.PilarPeca
                     {
                         Marca = "PX3", B = 40, H = 40, L = 600, Elementos = { new Core.Intercambio.ElementoPeca { Id = "6" } },
-                        Consolos = { C(4, 0, 40, 300, 40, 35, 40) },   // fora do catálogo: aviso
+                        Consolos = { C(4, 0, 40, 300, 40, 35, 40) },   // fora do catálogo: criado na importação, com aviso
                     },
                 },
                 Vigas =
@@ -2557,7 +2557,7 @@ public sealed class AutoTeste
                         Elementos = { new Core.Intercambio.ElementoPeca { Id = "7" }, new Core.Intercambio.ElementoPeca { Id = "8", Giro = 180 } },
                     },
                     new Core.Intercambio.VigaPeca { Marca = "VX2", B = 40, H = 50, L = 600, Elementos = { new Core.Intercambio.ElementoPeca { Id = "9" } } },
-                    new Core.Intercambio.VigaPeca   // dente fora do catálogo: não gerada, com aviso
+                    new Core.Intercambio.VigaPeca   // dente fora do catálogo: criado na importação, com aviso
                     {
                         Marca = "VX3", B = 20, H = 50, L = 600, DenteD = new Core.Intercambio.DentePeca { Altura = 30, Comprimento = 20 },
                         Elementos = { new Core.Intercambio.ElementoPeca { Id = "10" } },
@@ -2567,7 +2567,18 @@ public sealed class AutoTeste
         }
 
         var origem = new Point3d(12000, -20000, 0);
-        var rel = ComandosPecas.Importar(db, cfg, arq, origem);
+        // a importação acrescenta aos catálogos do usuário o que falta: o teste devolve os catálogos como estavam (nada é gravado)
+        var dentesAntes = Plugin.Config.Dentes.ToList();
+        var consolosAntes = Plugin.Config.Consolos.ToList();
+        ComandosPecas.Relatorio rel;
+        try { rel = ComandosPecas.Importar(db, cfg, arq, origem); }
+        finally
+        {
+            Plugin.Config.Dentes = dentesAntes;
+            Plugin.Config.Consolos = consolosAntes;
+            Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Plugin.Config.Dentes;
+            Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
+        }
         foreach (var l in rel.Linhas) Rel.AppendLine("        " + l);
         foreach (var a in rel.Avisos) Rel.AppendLine("        aviso: " + a);
         int nPilares = arq.Pilares.Count;
@@ -2596,9 +2607,10 @@ public sealed class AutoTeste
             Checar(regVig.Max(e => e.MaxPoint.Y) < regPil.Min(e => e.MinPoint.Y), "peças: fila das vigas abaixo da fila dos pilares");
         if (string.IsNullOrEmpty(entrada))
         {
-            Checar(rel.Grupos.Count(g => g.Detalhamento != null) == 5, $"peças: 3 pilares e 2 vigas gerados ({rel.Grupos.Count(g => g.Detalhamento != null)})");
-            Checar(rel.Avisos.Any(a => a.Contains("PX3") && a.Contains("catálogo")), "peças: consolo fora do catálogo avisado (PX3)");
-            Checar(rel.Avisos.Any(a => a.Contains("VX3") && a.Contains("ARMDENTES")), "peças: dente fora do catálogo avisado e viga não gerada (VX3)");
+            Checar(rel.Grupos.Count(g => g.Detalhamento != null) == 6, $"peças: 3 pilares e 3 vigas gerados ({rel.Grupos.Count(g => g.Detalhamento != null)})");
+            Checar(rel.Avisos.Any(a => a.Contains("CS 40x40x35") && a.Contains("ARMCONSOLOS")), "peças: consolo fora do catálogo criado com aviso (PX3: CS 40x40x35)");
+            Checar(rel.Avisos.Any(a => a.Contains("DG 30x20") && a.Contains("ARMDENTES")), "peças: dente fora do catálogo criado com aviso e VX3 gerada (DG 30x20)");
+            Checar(rel.CatalogosAlterados && Plugin.Config.Dentes.All(t => t.Nome != "DG 30x20"), "peças: catálogos do usuário devolvidos depois do teste");
             // detalhes típicos da biblioteca de DWGs dependem do computador: não contam
             Checar(!rel.Avisos.Where(a => !a.Contains("não está na biblioteca")).Any(a => a.Contains("PX1") || a.Contains("PX2") || a.Contains("VX1") || a.Contains("VX2")),
                 "peças: PX1 (duplo), PX2 (trapezoidal), VX1 (dente) e VX2 (reta) sem avisos");
