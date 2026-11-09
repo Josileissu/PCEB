@@ -24,13 +24,15 @@ namespace DEB.Revit.Commands
             try
             {
                 var notes = new List<string>();
-                List<GrupoPecas> grupos = ConferenciaPecas.Agrupar(PieceReview.Run(doc, notes));
+                List<PecaLevantada> pecas = PieceReview.Run(doc, notes);
+                List<GrupoPecas> grupos = ConferenciaPecas.Agrupar(pecas);
                 if (grupos.Count == 0)
                 {
                     TaskDialog.Show("Conferir peças", "Nenhuma viga nem pilar estrutural encontrado no modelo.");
                     return Result.Cancelled;
                 }
-                new PieceReviewWindow(grupos, notes).ShowDialog();
+                // "Exportar para o CAD…" da janela: o mesmo levantamento que ela mostra (não mede de novo)
+                new PieceReviewWindow(grupos, notes, () => ExportPiecesCommand.Save(doc, PrecastExport.Build(doc, pecas, notes))).ShowDialog();
                 return Result.Succeeded;
             }
             catch (Exception ex)

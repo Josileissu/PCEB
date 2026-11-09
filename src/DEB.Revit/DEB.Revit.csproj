@@ -61,6 +61,10 @@
     <Delete Files="$(AddinDir)StructuralDetailer.addin" ContinueOnError="true" />
     <RemoveDir Directories="$(AddinDir)StructuralDetailer" ContinueOnError="true" />
     <Copy SourceFiles="DEB.Revit.addin" DestinationFolder="$(AddinDir)" SkipUnchangedFiles="true" />
+    <!-- Assina as DLLs copiadas com o certificado "CN=PCEB DEB" do usuário (se existir e for confiável, o Revit carrega sem
+         perguntar "carregar sempre / uma vez"; sem assinatura ele pergunta de novo a cada build, e o Revit de teste fica parado
+         na pergunta). Sem o certificado no computador, só não assina. -->
+    <Exec ContinueOnError="true" Command="powershell -NoProfile -Command &quot;$c = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object Subject -eq 'CN=PCEB DEB' | Select-Object -First 1; if ($c) { Get-ChildItem '$(AddinDir)DEB.Revit\DEB.*.dll' | ForEach-Object { $r = Set-AuthenticodeSignature $_.FullName $c -HashAlgorithm SHA256; $_.Name + ': ' + $r.Status } } else { 'Certificado CN=PCEB DEB nao encontrado: DLLs nao assinadas.' }&quot;" />
     <Message Importance="high" Text="Plugin copiado para $(AddinDir)" />
   </Target>
 

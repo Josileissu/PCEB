@@ -31,7 +31,8 @@ namespace DEB.Revit.Precast.UI
         private readonly TabControl _tabs = new TabControl();
         private readonly List<(ListView List, PieceReviewPreview Preview, TextBlock Avisos)> _pages = new List<(ListView, PieceReviewPreview, TextBlock)>();
 
-        public PieceReviewWindow(List<GrupoPecas> grupos, List<string> notes)
+        /// <param name="export">Ação do botão "Exportar para o CAD…" (null = sem o botão, como no AutoRun).</param>
+        public PieceReviewWindow(List<GrupoPecas> grupos, List<string> notes, System.Action export = null)
         {
             Title = "Conferir peças — Detalhador Estrutural Brasileiro";
             Width = 1450; Height = 880;
@@ -44,10 +45,25 @@ namespace DEB.Revit.Precast.UI
             close.Click += (s, e) => Close();
             DockPanel.SetDock(close, Dock.Right);
             bottom.Children.Add(close);
+            if (export != null)
+            {
+                var exp = new Button
+                {
+                    Content = "Exportar para o CAD…", Width = 150, Margin = new Thickness(0, 0, 8, 0),
+                    ToolTip = "Grava o .json das peças que o CAD desenha (✔ e ⚠), com a marca do modelo como nome. As ✖ ficam de fora, com o motivo.",
+                };
+                exp.Click += (s, e) =>
+                {
+                    try { export(); }
+                    catch (System.Exception ex) { MessageBox.Show(this, "Não foi possível exportar: " + ex.Message, "Exportar para o CAD"); }
+                };
+                DockPanel.SetDock(exp, Dock.Right);
+                bottom.Children.Add(exp);
+            }
             int ok = grupos.Count(g => g.Situacao == SituacaoPeca.Ok), at = grupos.Count(g => g.Situacao == SituacaoPeca.Atencao),
                 ns = grupos.Count(g => g.Situacao == SituacaoPeca.NaoSuportada);
             string resumo = $"{grupos.Sum(g => g.Quantidade)} peça(s) em {grupos.Count} grupo(s): {ok} ok, {at} com atenção, {ns} com seção que o CAD ainda não desenha. " +
-                            "A geometria define a peça; o nome do tipo só é conferido. Só leitura nesta versão.";
+                            "A geometria define a peça; o nome do tipo só é conferido. A marca do modelo é o nome do detalhamento no CAD.";
             bottom.Children.Add(new TextBlock
             {
                 Text = resumo + (notes.Count > 0 ? "\nNotas: " + string.Join(" · ", notes.Take(6)) + (notes.Count > 6 ? " …" : "") : ""),

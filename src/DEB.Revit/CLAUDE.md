@@ -23,6 +23,10 @@ cd <raiz do PCEB>\src\DEB.Revit
 - **Com o Revit daquela versão aberto a DLL fica bloqueada**: confira com `Get-Process Revit` antes (pode ser de
   outro usuário do Windows); para só compilar use `-p:DeployToRevit=false`. Nunca feche o Revit do usuário à força.
 - Revit 2026: 18 avisos CS0618 (API obsoleta) conhecidos.
+- **Assinatura** (pedido do usuário, 09/11/2026): DLL sem assinatura faz o Revit perguntar "carregar sempre / uma vez" a CADA build
+  (e o Revit do AutoRun fica parado na pergunta). O alvo `DeployToRevitAddins` assina as DLLs copiadas com o certificado de
+  assinatura de código `CN=PCEB DEB` de `Cert:\CurrentUser\My` (no PC2 ele já está em Root e TrustedPublisher do usuário);
+  sem o certificado no computador, só não assina. Conferir: `Get-AuthenticodeSignature` nas DLLs dos Addins = `Valid`.
 
 ## Testar sem o usuário (AutoRun)
 `src/AutoRun.cs`: abrir o Revit 2025 com variáveis de ambiente roda uma tarefa no evento Idling e fecha o Revit.
@@ -62,22 +66,23 @@ para cada pilar: limpar → marca → barras → dados das barras → assembly (
 o 1º do grupo gera a prancha pelo padrão; os demais caem no mesmo tipo de assembly e reaproveitam a folha.
 
 ## Exportar para o CAD (decisão D22, 09/11/2026)
-Botão "Exportar para o CAD" (painel Pré-moldados, `Commands/ExportPiecesCommand` → `Precast/PrecastExport`): o mesmo
-levantamento/grupos do `PrecastSurvey` vira um `ArquivoPecas` (`DEB.Core/Intercambio`, JSON "DEB.Pecas") com seção, comprimento,
-cota da base, níveis entre a base e o topo, embutimento (parâmetro "Embutimento", null se a família não tiver) e consolos
-por face. Faces: PX→1, NY→2, NX→3, PY→4 (as do template do CAD); Bx = b (x), By = h (y). Cotas: `Elevation` dos níveis
-(o referencial mostrado); a base = Z do canto do pilar menos (`ProjectElevation − Elevation`). No CAD: ARMIMPORTARPECAS.
-Vigas: as de material "Concreto pré-moldado" (as moldadas no local ficam de fora); `PieceAnalyzer` dá eixo/seção/vértices e
-`PerfilViga` (Core) acha os dentes Gerber pelo perfil (x, z) de cada ponta — face da ponta mais baixa que h, com topo em h;
-comprimento = ponta → início do fundo; `AgrupadorVigas` junta as iguais e as invertidas (giro 180). Não depende dos parâmetros
-da família (dx_gerber etc.). Furos de pino ainda não são lidos (ficam os do PADRÃO do CAD).
-Seção (09/11/2026, PC2): volume da peça (HOST_VOLUME_COMPUTED) < 95% do de b × h com os dentes = aba/L/T invertido/I → viga NÃO
-exportada, com nota (`PerfilViga.ConferirSecao`; ex.: "seção retangular com aba laje 26x170" do Projeto1 media 51 × 170). Volume a
-mais (consolo aninhado) passa.
-Só lê o modelo. Em 09/11/2026 o AutoRun não rodou (Revit 2025 parado em "manage licensing"): exportação real ainda não testada.
-No PC2 (09/11/2026, Revit 2025, cópia do `EST_RVT_ThiagoAdriana-2025.rvt`): `exportarpecas` rodou — 9 grupos, 24 pilares
-(modelo sem material pré-moldado: todos os pilares considerados); 0 vigas (nenhuma com "Concreto pré-moldado"): vigas reais ainda
-não testadas.
+**Um levantamento só** (branch `pc2/exportar-pela-conferencia`): `Precast/PrecastExport.Build` = `PieceReview.Run` (o da conferência: seções
+exatas por corte, consolos pelo perfil) → `DEB.Core/Intercambio/ConversorLevantamento` → `ArquivoPecas` (JSON "DEB.Pecas", versão 1).
+O botão "Exportar para o CAD" do painel e o botão "Exportar para o CAD…" da janela "Conferir peças" gravam o MESMO arquivo
+(`ExportPiecesCommand.Save`); a janela exporta o levantamento que está mostrando. Não existe mais a medição pela caixa envolvente
+e pelo volume (`PerfilViga`, `AgrupadorVigas`, `PrecastExport.Beams` foram removidos).
+- **Marca = nome da peça**: vale a marca que as peças têm no modelo (`MarcasPecas`); só grupo sem marca recebe P1…/V1… (número livre).
+  Marcas diferentes no mesmo grupo, ou a mesma marca em peças diferentes = nota. Antes a exportação numerava pela ordem de tamanho.
+- **Pilar**: b × h = caixa do pilar sem os consolos, no sistema do representante (faces 1 = +x, 2 = −y, 3 = −x, 4 = +y); o trecho
+  corrente tem de ter ≥ 95% da área de b × h (chanfro de canto passa; L, circular etc. = não exportado, com nota); trecho mais fino
+  (cabeça reduzida, chaves) = exportado com nota "conferir". Embutimento (parâmetro "Embutimento") entra na assinatura do grupo.
+- **Viga**: só [dente] + corrente retangular + [dente] (dente = mesma largura, mais baixo, topo no topo da peça); trecho curto (≤ 20 cm)
+  de seção reduzida dentro da caixa = furo de pino/recorte local, ignorado com nota; aba, mísula, recorte em cima ou consolo de outra
+  viga = não exportada, com o motivo. Invertida = mesmo grupo (giro 180).
+- **Material**: o mesmo critério para pilares e vigas — as de "Concreto pré-moldado"; se o modelo não tem nenhuma do tipo, todas, com nota.
+- `uid` (UniqueId) de cada elemento vai no JSON como campo opcional (o DEB.Cad 0.1.32 instalado ignora e continua lendo).
+- `PrecastSurvey` lê a geometria de cada candidato a consolo uma vez (antes: de novo para cada pilar) e descarta os distantes pela caixa.
+AutoRun `exportarpecas` (`SD_EXPORT` = caminho). Só lê o modelo.
 
 ## Conferir peças (09/11/2026, PC2 — `docs/04_arquitetura/conferencia_e_subdivisao_pecas.md`)
 Botão "Conferir peças" (painel Pré-moldados, `Commands/ReviewPiecesCommand`): `Precast/PieceReview` levanta vigas e pilares

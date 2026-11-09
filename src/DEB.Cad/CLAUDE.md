@@ -332,4 +332,7 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   dentes (DG AxC) e consolos (CS/CT/CD, duplo quando há par igual na face oposta) que faltam, com a geometria do modelo e a armadura
   padrão (almofada reduzida para caber), com aviso "conferir no ARMDENTES/ARMCONSOLOS"; o comando grava a configuração. O autoteste
   devolve os catálogos como estavam (não grava).
+  **Marca do modelo** (branch `pc2/exportar-pela-conferencia`): o nome do grupo no JSON agora é a marca das peças no Revit; caracteres
+  inválidos para nome de bloco viram "-" (`ComandosTemplate.Desenhar`) e, se o desenho já tem um detalhamento com o nome, o novo entra
+  como "nome (2)" com aviso (reimportar não substitui o que existe).
   Autoteste: `ARMTESTEPECAS` (3 pilares e 3 vigas de exemplo; `ARM_PECAS_ENTRADA` = um JSON real), `autoteste_pecas.dwg/.png`.
