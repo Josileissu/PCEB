@@ -43,6 +43,7 @@ public sealed class ComandosPecas
         if (rp.Status != PromptStatus.OK) return;
 
         var rel = Importar(db, cfg, arq, rp.Value.TransformBy(ed.CurrentUserCoordinateSystem));
+        if (rel.CatalogosAlterados) Plugin.SalvarConfig();   // dentes/consolos criados na importação ficam no catálogo do usuário
         foreach (var l in rel.Linhas) ed.WriteMessage("\n" + l);
         foreach (var a in rel.Avisos) ed.WriteMessage("\nAviso: " + a);
     });
@@ -54,6 +55,8 @@ public sealed class ComandosPecas
         public List<string> Avisos { get; } = new List<string>();
         /// <summary>Por grupo, na ordem do arquivo (pilares, depois vigas): marca, detalhamento criado (null = não gerado) e região.</summary>
         public List<(string Marca, string Detalhamento, Extents3d? Regiao)> Grupos { get; } = new List<(string, string, Extents3d?)>();
+        /// <summary>A importação acrescentou dentes ou consolos aos catálogos (o comando grava a configuração).</summary>
+        public bool CatalogosAlterados { get; set; }
     }
 
     /// <summary>Gera os detalhamentos: pilares numa fila a partir de <paramref name="origem"/>, vigas na fila de baixo.</summary>
@@ -65,6 +68,7 @@ public sealed class ComandosPecas
         rel.Linhas.Add($"Peças de {(arq.Origem.Length > 0 ? arq.Origem : "(origem não informada)")}" +
                        (arq.Data.Length > 0 ? $", levantadas em {arq.Data}" : "") + ":");
         foreach (var n in arq.Notas) rel.Avisos.Add("Revit: " + n);
+        CompletarCatalogos(arq, rel);
 
         // ---- pilares ----
         double yBaixo = origem.Y;
@@ -107,6 +111,37 @@ public sealed class ComandosPecas
             }
         }
         return rel;
+    }
+
+    /// <summary>
+    /// Dentes e consolos do modelo que faltam nos catálogos: criados com a geometria do modelo e a armadura padrão (opção b do
+    /// usuário, 2026-11-09), com aviso para conferir no ARMDENTES/ARMCONSOLOS. Ficam na configuração do usuário (o comando grava).
+    /// </summary>
+    private static void CompletarCatalogos(ArquivoPecas arq, Relatorio rel)
+    {
+        var novosD = CatalogoAutomatico.Dentes(arq.Vigas, TemplateVigaPreMoldada.CatalogoDentes);
+        if (novosD.Count > 0)
+        {
+            Plugin.Config.Dentes.AddRange(novosD);
+            TemplateVigaPreMoldada.CatalogoDentes = Plugin.Config.Dentes;
+            rel.Avisos.Add($"Criado(s) no catálogo de dentes: {string.Join(", ", novosD.Select(t => t.Nome))} — armadura padrão: conferir no ARMDENTES.");
+        }
+        // a almofada do consolo novo cabe no cobrimento das faces do PADRÃO do pilar
+        double cob = 2.5;
+        var tp = CatalogoTemplates.Obter(TemplatePilar);
+        if (tp != null)
+        {
+            var vp = ModelosTemplates.Obter(tp).Valores(tp);
+            cob = new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4" }.Select(k => vp.Numero(k)).DefaultIfEmpty(2.5).Max();
+        }
+        var novosC = CatalogoAutomatico.Consolos(arq.Pilares, TemplatePilarPreMoldado.Catalogo, cob);
+        if (novosC.Count > 0)
+        {
+            Plugin.Config.Consolos.AddRange(novosC);
+            TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
+            rel.Avisos.Add($"Criado(s) no catálogo de consolos: {string.Join(", ", novosC.Select(t => t.Nome))} — armadura padrão: conferir no ARMCONSOLOS.");
+        }
+        rel.CatalogosAlterados = novosD.Count + novosC.Count > 0;
     }
 
     private sealed class Grupo
