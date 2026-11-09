@@ -175,8 +175,25 @@ public sealed class SecaoPoligonal
         return (TipoSecao.Poligonal, $"poligonal {N(B)} × {N(H)} (A = {N(Area)} cm²)");
     }
 
-    /// <summary>Largura da alma (a faixa mais estreita); a largura total se não houver faixas.</summary>
-    public double LarguraAlma => Faixas()?.Min(x => x.Largura) ?? B;
+    /// <summary>
+    /// Largura da alma: a faixa mais estreita; em seção com lado inclinado, a menor largura entre as horizontais que cortam a
+    /// seção num pedaço só (amostradas ao longo da altura); a largura total se nenhuma servir.
+    /// </summary>
+    public double LarguraAlma
+    {
+        get
+        {
+            var f = Faixas();
+            if (f != null && f.Count > 0) return f.Min(x => x.Largura);
+            double min = double.MaxValue;
+            for (int i = 1; i < 100; i++)
+            {
+                var c = Cortes(ZMin + H * i / 100.0);
+                if (c.Count == 2) min = Math.Min(min, c[1] - c[0]);
+            }
+            return min < double.MaxValue ? min : B;
+        }
+    }
 
     /// <summary>Mesma seção (posição relativa à caixa, área, inércias e caixa dentro da tolerância)?</summary>
     public bool MesmaSecao(SecaoPoligonal o, double tol = Tolerancia)

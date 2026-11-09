@@ -41,6 +41,10 @@ viga que recebe outra viga; o modelo prevê as duas.]
 - `PecaLevantada` (etapa 3): tipo do Revit, medidas da geometria, situação, decisões do usuário, trechos.
 Decisões gravadas no próprio elemento (Extensible Storage do plugin); geometria mudou = volta para "a conferir".
 
+## Estado
+- Etapa 1 (núcleo) feita em 09/11/2026 — `DEB.Core/Pecas`, testes `SubdivisaoPecasTests`.
+- Etapa 2 (Revit, só leitura) feita em 09/11/2026 — ver `src/DEB.Revit/CLAUDE.md` ("Conferir peças").
+
 ## 4. Etapas
 1. **Núcleo** (sem tela): seção poligonal (propriedades, faixas, classificação), junção dos trechos, conferência do nome do
    tipo × geometria, sugestão de função. Testes.

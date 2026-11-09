@@ -66,6 +66,20 @@ namespace DEB.Revit
             };
             precast.AddItem(pilares);
 
+            var conferir = new PushButtonData("DEB_ConferirPecas", "Conferir\npeças", dll, typeof(ReviewPiecesCommand).FullName)
+            {
+                ToolTip = "Confere vigas e pilares antes de exportar: seção medida na geometria × nome do tipo, trechos e seções cotadas.",
+                LongDescription =
+                    "Cada peça é cortada ao longo do eixo (viga) ou da altura (pilar) em trechos de seção constante — dentes, abas de laje " +
+                    "e de escada, trechos sem apoio. A janela mostra os grupos de peças iguais pela geometria, o tipo do Revit, a situação " +
+                    "(ok, atenção, seção que o CAD ainda não desenha), a elevação com os trechos e as seções em escala com as cotas. " +
+                    "Não altera o modelo.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "CF"),
+                Image = IconFactory.Create(16, "F")
+            };
+            precast.AddItem(conferir);
+
             var exportar = new PushButtonData("DEB_ExportarPecas", "Exportar\npara o CAD", dll, typeof(ExportPiecesCommand).FullName)
             {
                 ToolTip = "Grava os grupos de pilares e vigas pré-moldados iguais num arquivo .json para detalhar no CAD (ARMIMPORTARPECAS).",
