@@ -40,6 +40,17 @@ public sealed class TipoConsolo
     [DataMember(Order = 23)] public double AlmA { get; set; } = 15;
     [DataMember(Order = 24)] public double AlmB { get; set; } = 30;
     [DataMember(Order = 25)] public double AlmE { get; set; } = 1.5;
+    /// <summary>
+    /// Tirante do consolo simples: perna descendo junto à outra face do pilar (cm; print do escritório: 40). 0 = gancho de 90°
+    /// padrão. No duplo o tirante é reto.
+    /// </summary>
+    [DataMember(Order = 26)] public double TirPerna { get; set; } = 40;
+    /// <summary>
+    /// Armadura inferior: retorno em cima da perna da ponta, para dentro do consolo, e a descida no fim dele (cm). 0 = padrão
+    /// do escritório: duplo = gancho de 3 + 5; simples = retorno do tamanho da perna, sem descida (prints de 2026-11-09).
+    /// </summary>
+    [DataMember(Order = 27)] public double InfRetorno { get; set; }
+    [DataMember(Order = 28)] public double InfDescida { get; set; }
 
     public bool Trapezoidal => H1 < H - 1e-6;
 
