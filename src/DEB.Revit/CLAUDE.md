@@ -30,8 +30,8 @@ cd <raiz do PCEB>\src\DEB.Revit
 $env:SD_AUTORUN = "precast"   # diag | probe | precast | ferramentas
 $env:SD_COPYFROM = "<.rvt de origem>"   # só "ferramentas": testa as cópias entre arquivos
 $env:SD_AUTOEXIT = "1"
-$env:SD_SAVEAS = "<scratchpad>\Projeto1_teste.rvt"   # resultado vai para uma CÓPIA; o original nunca é salvo
-$p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"<pasta-mãe do PCEB>\Projeto1.rvt"' -PassThru
+$env:SD_SAVEAS = "<scratchpad>\Teste_PM_resultado.rvt"   # resultado vai para uma CÓPIA; o original nunca é salvo
+$p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"<pasta-mãe do PCEB>\Teste_PM.rvt"' -PassThru
 $p.WaitForExit(540000)
 ```
 - `exportarpecas`: grava o JSON das peças para o CAD (`SD_EXPORT` = caminho; senão vai para logs) — ver abaixo.
