@@ -320,3 +320,10 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
 - GstarCAD continua compilando e com o mesmo comportamento: os apelidos apontam para os mesmos tipos `GrxCAD.*`.
 - **Reservatório** (2026-11-05): template `reservatorio` + reconhecedor (Core) + ARMRESERVATORIO; regras e limites em `docs/TEMPLATES.md`.
   Faixa: `ServicoFaixa` chama `RecomputeDimensionBlock` ao mudar o texto (dentro de bloco o plot mostrava "N0").
+- **Peças do Revit** (D22, 2026-11-09): ARMIMPORTARPECAS (`ComandosPecas.cs`) lê o JSON do botão "Exportar para o CAD" do
+  DEB.Revit (`Core/Intercambio`: `ArquivoPecas`, `ConversorPilarPeca`) e gera um detalhamento por grupo de pilares iguais pelo
+  template `pilar-premoldado`, lado a lado (300 cm de folga). Valores = PADRÃO do usuário + o que o modelo traz (seção, L, cota
+  da base, níveis, embutimento, consolos). Consolos casados com o catálogo do ARMCONSOLOS pelas medidas (±0,6 cm); dois iguais
+  em faces opostas = tipo duplo (o duplo do template é simétrico pelo centro); fora do catálogo = aviso, fica de fora.
+  Repetições do detalhamento = peças do grupo; os modelos do template NÃO são gravados (P1, P2… sobrescreveriam os dele).
+  Autoteste: `ARMTESTEPECAS` (3 grupos de exemplo; `ARM_PECAS_ENTRADA` = um JSON real), `autoteste_pecas.dwg/.png`.

@@ -144,6 +144,7 @@ dimensionamento ficam registrados, mas sem aprofundar agora.
 | D19 | Prioridade (05/11/2026) | **motor de detalhamento antes das análises estruturais**: detalhar uma obra inteira primeiro — rotinas paramétricas + templates de dados, 5 motores; plano em `04_arquitetura/motor_detalhamento.md` |
 | D20 | Catálogo (05/11/2026) | aço (mCalc, Dimperfil), vento (Visual Ventos) e steel/wood frame **adiados** para a fase de análise; Tekla será estudado depois, no outro computador do usuário (onde está instalado) |
 | D21 | Ordem (05/11/2026) | **obra-piloto ainda não** (etapa B adiada); primeiro fazer o **detalhamento no Revit** (etapa E) |
+| D22 | Revit → CAD (09/11/2026) | as peças do modelo Revit vão para o CAD como **dados**, não como desenho: o DEB.Revit exporta os grupos de peças iguais (iguais ou giradas) num JSON (`DEB.Core/Intercambio`) e o DEB.Cad gera um detalhamento por grupo pelo template, com as repetições = nº de peças. 1º passo: pilares pré-moldados (botão "Exportar para o CAD" + ARMIMPORTARPECAS); vigas depois |
 
 ## Perguntas em aberto
 16. **Titular do copyright**: usei "Marquezin" (o mesmo nome do instalador do Armadura BR). Confirmar o nome correto.
