@@ -31,6 +31,7 @@ $env:SD_SAVEAS = "<scratchpad>\Projeto1_teste.rvt"   # resultado vai para uma C�
 $p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"<pasta-mãe do PCEB>\Projeto1.rvt"' -PassThru
 $p.WaitForExit(540000)
 ```
+- `exportarpecas`: grava o JSON das peças para o CAD (`SD_EXPORT` = caminho; senão vai para logs) — ver abaixo.
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela.
 - Resultados em `%AppData%\PCEB\DEB.Revit\logs\` (`autorun.txt` aponta para o arquivo gerado).
@@ -56,6 +57,18 @@ src/
 Fluxo dos pré-moldados: levantamento → grupos de peças iguais → janela (armadura por grupo) →
 para cada pilar: limpar → marca → barras → dados das barras → assembly (pilar + consolos + barras) →
 o 1º do grupo gera a prancha pelo padrão; os demais caem no mesmo tipo de assembly e reaproveitam a folha.
+
+## Exportar para o CAD (decisão D22, 09/11/2026)
+Botão "Exportar para o CAD" (painel Pré-moldados, `Commands/ExportPiecesCommand` → `Precast/PrecastExport`): o mesmo
+levantamento/grupos do `PrecastSurvey` vira um `ArquivoPecas` (`DEB.Core/Intercambio`, JSON "DEB.Pecas") com seção, comprimento,
+cota da base, níveis entre a base e o topo, embutimento (parâmetro "Embutimento", null se a família não tiver) e consolos
+por face. Faces: PX→1, NY→2, NX→3, PY→4 (as do template do CAD); Bx = b (x), By = h (y). Cotas: `Elevation` dos níveis
+(o referencial mostrado); a base = Z do canto do pilar menos (`ProjectElevation − Elevation`). No CAD: ARMIMPORTARPECAS.
+Vigas: as de material "Concreto pré-moldado" (as moldadas no local ficam de fora); `PieceAnalyzer` dá eixo/seção/vértices e
+`PerfilViga` (Core) acha os dentes Gerber pelo perfil (x, z) de cada ponta — face da ponta mais baixa que h, com topo em h;
+comprimento = ponta → início do fundo; `AgrupadorVigas` junta as iguais e as invertidas (giro 180). Não depende dos parâmetros
+da família (dx_gerber etc.). Furos de pino ainda não são lidos (ficam os do PADRÃO do CAD).
+Só lê o modelo. Em 09/11/2026 o AutoRun não rodou (Revit 2025 parado em "manage licensing"): exportação real ainda não testada.
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.

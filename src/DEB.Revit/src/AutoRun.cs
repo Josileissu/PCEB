@@ -53,6 +53,9 @@ namespace DEB.Revit
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
                         break;
+                    case "exportarpecas":
+                        status = "OK " + ExportPiecesAutoTest(uidoc.Document);
+                        break;
                     case "ferramentas":
                         status = "OK " + Tools.ToolsAutoTest.Run(uiapp, uidoc);
                         break;
@@ -76,6 +79,19 @@ namespace DEB.Revit
 
             if (_exit)
                 uiapp.PostCommand(RevitCommandId.LookupPostableCommandId(PostableCommand.ExitRevit));
+        }
+
+        /// <summary>
+        /// Exportação das peças para o CAD (ARMIMPORTARPECAS), sem janela. SD_EXPORT = caminho do .json (senão vai para logs).
+        /// </summary>
+        private static string ExportPiecesAutoTest(Document doc)
+        {
+            var arq = PrecastExport.Build(doc);
+            string path = Environment.GetEnvironmentVariable("SD_EXPORT");
+            if (string.IsNullOrWhiteSpace(path))
+                path = Path.Combine(DetailingReport.LogDir, DEB.Core.Intercambio.ArquivoPecas.NomeArquivo(arq.Origem, DateTime.Now));
+            arq.Gravar(path);
+            return $"{path} (pilares: {arq.Pilares.Count} grupo(s), {arq.Pilares.Sum(p => p.Quantidade)} peça(s); vigas: {arq.Vigas.Count} grupo(s), {arq.Vigas.Sum(v => v.Quantidade)} peça(s))";
         }
 
         /// <summary>
