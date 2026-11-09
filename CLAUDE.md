@@ -47,5 +47,6 @@ próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
 - Cada computador trabalha na sua branch (`pc1/...`, `pc2/...`); a `main` só recebe o que o usuário aprovar.
 - `escopo_organizado.md` e `matriz_funcionalidades.md` só o PC1 edita; o PC2 anota em `docs/notas/pc2_pendencias.md`.
 - A memória do Claude é local de cada computador: regra que precisa valer nos dois vai para este arquivo.
-- Arquivos privados (Projeto1.rvt, prancha PP127, padrões do escritório): no PC1 ficam em `desenvolvedor\` (pasta-mãe
+- Arquivos privados (Teste_PM.rvt = modelo-base dos testes desde 09/11/2026, Projeto1.rvt, prancha PP127, padrões do
+  escritório): no PC1 ficam em `desenvolvedor\` (pasta-mãe
   do PCEB); no PC2, numa pasta privada do Google Drive (a combinar). Normas: `S:\Meu Drive\Normas` nos dois.
