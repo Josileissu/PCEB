@@ -7,7 +7,10 @@ Mantidos por estarem gravados nos modelos: `Tag = "StructuralDetailer"` das barr
 `StructuralDetailer`, parâmetros `SD_*`; também os IDs de botão `SD_*` e as variáveis `SD_AUTORUN`/`SD_AUTOEXIT`/`SD_SAVEAS`.
 
 Arquivos do escritório (fora do Git — padrões não são públicos), na pasta-mãe do PCEB (`desenvolvedor\`; no PC2, ver
-`docs/04_arquitetura/trabalho_em_paralelo.md`): modelo de teste `Projeto1.rvt`; prancha-modelo
+`docs/04_arquitetura/trabalho_em_paralelo.md`): **modelo-base dos testes `Teste_PM.rvt`** (decisão do usuário, 09/11/2026;
+gerado pelo AutoRun `criarmodelo` em 05/11: pilares pré-moldados 40x40 e 50x50 com consolos — grupos de 4 e 2 peças — e vigas
+"Viga Pré-Moldada" 20x50 com consolos aninhados e parâmetros de dente Gerber); `Projeto1.rvt` (modelo antigo, obra real com
+peças moldadas no local); prancha-modelo
 `exemplo_armadura_pilar_pre_moldado.pdf` (PP127, A1, bilíngue PT/EN, cotas em cm).
 
 ## Compilar e instalar
