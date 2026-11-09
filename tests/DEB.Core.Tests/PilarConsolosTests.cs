@@ -123,21 +123,23 @@ public class PilarConsolosTests
         Assert.Equal(93, Comp(tir), 6);          // 25 + 50 + 25 − 2 × 3,5 (P61: 5 N13 ø16 C=93)
         Assert.Equal(5, tir.Quantidade);
         var tr = r.Barras.Single(b => b.Nome == "cons1tr");
-        Assert.Equal(2, tr.Quantidade);           // uma barra soldada em cada ponta (P61: 2 N14)
+        Assert.Equal((1, 2), (tr.Quantidade, tr.Repeticoes)); // uma barra soldada em cada ponta: "2x1 N22" (print duplo)
         Assert.Equal(33, Comp(tr), 6);
         var cost = r.Barras.Single(b => b.Nome == "cons1cost");
         Assert.True(cost.Estribo);
         Assert.Equal(4, cost.Quantidade);          // P61: 4 N5 (em volta dos dois consolos)
-        Assert.Equal(10, r.Barras.Single(b => b.Nome == "cons1vert").Quantidade);   // 2x5 N3
-        Assert.Equal(10, r.Barras.Single(b => b.Nome == "cons1inf").Quantidade);    // 5 N6 por consolo
+        var vert = r.Barras.Single(b => b.Nome == "cons1vert");
+        Assert.Equal((5, 2), (vert.Quantidade, vert.Repeticoes));   // 2x5 N7
+        // armadura inferior: uma forma de cada lado (espelhadas), com o gancho 3 + 5 em cima
+        Assert.Equal(10, r.Barras.Where(b => b.Nome == "cons1inf" || b.Nome == "cons1inf2").Sum(b => b.Quantidade * b.Repeticoes));
+        Assert.Equal(5, r.Barras.Single(b => b.Nome == "cons1inf").Vertices.Count);
         var pino = r.Barras.Single(b => b.Nome == "cons1pino");
-        Assert.Equal(4, pino.Quantidade);          // 2x2 N16
+        Assert.Equal((2, 2), (pino.Quantidade, pino.Repeticoes)); // 2x2 N16
         Assert.Equal(85, Comp(pino), 6);           // 47 + 18 + 20 (externo)
         Assert.Equal(2, r.Hachuras.Count(hc => hc.Layer == "ARM-HACHURA")); // corte B-B (o detalhe típico tem as suas)
         Assert.Contains(r.Textos, t => t.Texto == "CORTE B-B");
         Assert.Equal(2, r.Textos.Count(t => t.Texto == "B" && t.Layer == "ARM-CORTE"));
-        Assert.Contains(r.Textos, t => t.Texto == "ARMADURAS console 40x23.5x25 - 2un.");
-        Assert.Contains(r.Textos, t => t.Texto.StartsWith("NEOPRENE 15x30x15 mm"));
+        Assert.Contains(r.Textos, t => t.Texto == "ARMADURAS consoles 40x23.5x25 - duplo (x2)");
         Assert.Contains(r.Faixas, f => f.Tipo == TipoFaixa.Indicacao && f.Barra == "cons1tir");
         Assert.DoesNotContain(r.Avisos, a => a.StartsWith("Consolo"));
     }
@@ -146,7 +148,7 @@ public class PilarConsolosTests
     public void MesmoTipoEmDoisNiveisUmDetalheSo()
     {
         var r = Gerar(("Consolos", "CD 40x23,5x25|1,3|592.5|0;CD 40x23,5x25|2,4|1000|0"));
-        Assert.Single(r.Textos, t => t.Texto.StartsWith("ARMADURAS console 40x23.5x25"));
+        Assert.Single(r.Textos, t => t.Texto.StartsWith("ARMADURAS consoles 40x23.5x25 - duplo (x4)"));
         Assert.Equal(10, r.Barras.Single(b => b.Nome == "cons1tir").Quantidade); // 5 por par × 2 pares
         Assert.Contains(r.Textos, t => t.Texto == "CORTE C-C");
     }
@@ -163,7 +165,9 @@ public class PilarConsolosTests
             Assert.Contains(r.Textos, t => t.Texto == "CORTE C-C");
             Assert.Contains(r.Textos, t => t.Texto.StartsWith("ARMADURAS console 40x23.5/15x25"));
             var tirs = r.Barras.Single(b => b.Nome == "cons2tirs");
-            Assert.Contains(FormatoSegmento.Gancho90, tirs.Formatos);
+            // simples: o tirante desce 40 cm junto à outra face do pilar (print do consolo único)
+            Assert.Empty(tirs.Formatos);
+            Assert.Equal(40, tirs.Vertices[1].Y - tirs.Vertices[2].Y, 6);
         });
     }
 
