@@ -18,6 +18,17 @@ internal static class ConfigDesenho
     // null = o desenho não tem configuração própria (usa a do usuário)
     private static readonly Dictionary<Database, ConfiguracaoArmadura> Cache = new Dictionary<Database, ConfiguracaoArmadura>();
 
+    // ---- unidades do desenho (2026-11-10): registro pequeno e separado, sobreposto à configuração (do desenho ou do usuário) ----
+    public const string ChaveUnidades = "DEB_UNIDADES";
+    // null = o desenho não escolheu unidades (valem as da configuração)
+    private static readonly Dictionary<Database, (UnidadeDesenho Desenho, UnidadeApresentacao Apresentacao)?> Unidades =
+        new Dictionary<Database, (UnidadeDesenho, UnidadeApresentacao)?>();
+    // configuração com as unidades do desenho aplicadas: refeita quando a base ou a configuração do usuário mudam
+    private static readonly Dictionary<Database, (int Versao, ConfiguracaoArmadura Base, ConfiguracaoArmadura Cfg)> ComUnidades =
+        new Dictionary<Database, (int, ConfiguracaoArmadura, ConfiguracaoArmadura)>();
+    /// <summary>Muda quando a configuração do usuário é salva ou relida (as cópias com unidades são refeitas).</summary>
+    public static int Versao;
+
     /// <summary>Configuração efetiva do desenho.</summary>
     public static ConfiguracaoArmadura Obter(Database db)
     {
@@ -27,23 +38,88 @@ internal static class ConfigDesenho
             cfg = Ler(db);
             Cache[db] = cfg;
         }
-        return cfg ?? Plugin.Config;
+        if (!Unidades.ContainsKey(db)) Unidades[db] = LerUnidades(db);
+        return AplicarUnidades(db, cfg ?? Plugin.Config);
     }
 
     /// <summary>Só o que já está em cache (para o Overrule, que não deve abrir transações durante o desenho).</summary>
     public static ConfiguracaoArmadura ObterSemLer(Database db) =>
-        db != null && Cache.TryGetValue(db, out var cfg) && cfg != null ? cfg : Plugin.Config;
+        db == null ? Plugin.Config : AplicarUnidades(db, Cache.TryGetValue(db, out var cfg) && cfg != null ? cfg : Plugin.Config);
 
-    public static bool TemNoDesenho(Database db) => Obter(db) != Plugin.Config;
+    private static ConfiguracaoArmadura AplicarUnidades(Database db, ConfiguracaoArmadura baseCfg)
+    {
+        if (!Unidades.TryGetValue(db, out var u) || u == null) return baseCfg;
+        if (baseCfg.UnidadeDesenho == u.Value.Desenho && baseCfg.UnidadeApresentacao == u.Value.Apresentacao) return baseCfg;
+        if (ComUnidades.TryGetValue(db, out var c) && c.Versao == Versao && ReferenceEquals(c.Base, baseCfg)) return c.Cfg;
+        var copia = baseCfg.Clonar();
+        copia.UnidadeDesenho = u.Value.Desenho;
+        copia.UnidadeApresentacao = u.Value.Apresentacao;
+        ComUnidades[db] = (Versao, baseCfg, copia);
+        return copia;
+    }
 
-    public static void Esquecer(Database db) { if (db != null) Cache.Remove(db); }
+    /// <summary>As unidades gravadas no desenho; null = ele não tem.</summary>
+    public static (UnidadeDesenho Desenho, UnidadeApresentacao Apresentacao)? UnidadesDoDesenho(Database db)
+    {
+        if (db == null) return null;
+        if (!Unidades.ContainsKey(db)) Unidades[db] = LerUnidades(db);
+        return Unidades[db];
+    }
 
-    public static void EsquecerTodos() => Cache.Clear();
+    private static (UnidadeDesenho, UnidadeApresentacao)? LerUnidades(Database db)
+    {
+        try
+        {
+            (UnidadeDesenho, UnidadeApresentacao)? r = null;
+            using (var tr = db.TransacaoLeve())
+            {
+                var nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForRead);
+                if (nod.Contains(ChaveUnidades))
+                {
+                    var xr = (Xrecord)tr.GetObject(nod.GetAt(ChaveUnidades), OpenMode.ForRead);
+                    using var rb = xr.Data;
+                    var v = rb?.AsArray().Where(tv => tv.TypeCode == (short)DxfCode.Int16).Select(tv => Convert.ToInt32(tv.Value)).ToList();
+                    if (v != null && v.Count >= 2) r = ((UnidadeDesenho)v[0], (UnidadeApresentacao)v[1]);
+                }
+                tr.Commit();
+            }
+            return r;
+        }
+        catch (Exception ex) { Log.Erro("ConfigDesenho.LerUnidades", ex); return null; }
+    }
+
+    /// <summary>Grava as unidades no desenho (ARMUNIDADES).</summary>
+    public static void GravarUnidades(Database db, Transaction tr, UnidadeDesenho desenho, UnidadeApresentacao apresentacao)
+    {
+        var nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForWrite);
+        using var rb = new ResultBuffer(new TypedValue((short)DxfCode.Int16, (short)desenho), new TypedValue((short)DxfCode.Int16, (short)apresentacao));
+        if (nod.Contains(ChaveUnidades)) ((Xrecord)tr.GetObject(nod.GetAt(ChaveUnidades), OpenMode.ForWrite)).Data = rb;
+        else
+        {
+            var xr = new Xrecord { Data = rb };
+            nod.SetAt(ChaveUnidades, xr);
+            tr.AddNewlyCreatedDBObject(xr, true);
+        }
+        Unidades[db] = (desenho, apresentacao);
+        ComUnidades.Remove(db);
+    }
+
+    /// <summary>O desenho tem configuração PRÓPRIA (a completa, gravada no DWG) — as unidades sozinhas não contam.</summary>
+    public static bool TemNoDesenho(Database db)
+    {
+        Obter(db);
+        return db != null && Cache.TryGetValue(db, out var c) && c != null;
+    }
+
+    public static void Esquecer(Database db) { if (db != null) { Cache.Remove(db); Unidades.Remove(db); ComUnidades.Remove(db); } }
+
+    public static void EsquecerTodos() { Cache.Clear(); Unidades.Clear(); ComUnidades.Clear(); }
 
     /// <summary>Copia os valores correntes do usuário para as configurações de desenho em memória.</summary>
     public static void SincronizarCorrentes()
     {
         foreach (var c in Cache.Values.Where(c => c != null)) CopiarCorrentes(Plugin.Config, c);
+        foreach (var c in ComUnidades.Values) CopiarCorrentes(Plugin.Config, c.Cfg);
     }
 
     private static void CopiarCorrentes(ConfiguracaoArmadura de, ConfiguracaoArmadura para)

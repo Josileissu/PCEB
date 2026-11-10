@@ -7,11 +7,11 @@ namespace DEB.Cad.Infra;
 internal static class Desenho
 {
     /// <summary>
-    /// Quantos cm vale 1 unidade do desenho. Padrão do escritório: sempre cm (1).
+    /// Quantos cm vale 1 unidade do desenho. Padrão do escritório: cm (1); metro = 100, milímetro = 0,1 (ARMUNIDADES, 2026-11-10).
     /// Com UnidadeDesenho = Automática, segue o INSUNITS (indefinido → configuração).
     /// </summary>
     public static double CmPorUnidade(Database db, ConfiguracaoArmadura cfg) =>
-        cfg.UnidadeDesenho == UnidadeDesenho.Centimetro ? 1.0 : PorInsunits(db, cfg);
+        Core.Calculo.CalculoComprimento.CmPorUnidade(cfg.UnidadeDesenho) ?? PorInsunits(db, cfg);
 
     private static double PorInsunits(Database db, ConfiguracaoArmadura cfg) => db.Insunits switch
     {

@@ -305,7 +305,7 @@ public sealed class ComandosTemplate
             var dim = Add(new RotatedDimension(c.Angulo, P3(c.P1.X, c.P1.Y), P3(c.P2.X, c.P2.Y), P3(c.Posicao.X, c.Posicao.Y), c.Texto, db.Dimstyle),
                 Layer("ARM-COTA-FORMA", 8));
             // estilo de cota do escritório (ESTRUT50, ESTRUT25…) na escala da cota
-            dim.DimensionStyle = EstilosCota.Garantir(db, tr, c.Escala > 0 ? c.Escala : r.Escala, cpu);
+            dim.DimensionStyle = EstilosCota.Garantir(db, tr, c.Escala > 0 ? c.Escala : r.Escala, cpu, cfg);
         }
         foreach (var t in r.Tabelas) Tabela(tr, db, esp, t, P3(t.X, t.Y), cfg, cpu, r.Escala, todos);
 
