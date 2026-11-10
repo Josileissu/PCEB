@@ -23,10 +23,12 @@ cd <raiz do PCEB>\src\DEB.Revit
 - **Com o Revit daquela versão aberto a DLL fica bloqueada**: confira com `Get-Process Revit` antes (pode ser de
   outro usuário do Windows); para só compilar use `-p:DeployToRevit=false`. Nunca feche o Revit do usuário à força.
 - Revit 2026: 18 avisos CS0618 (API obsoleta) conhecidos.
-- **Assinatura** (pedido do usuário, 09/11/2026): DLL sem assinatura faz o Revit perguntar "carregar sempre / uma vez" a CADA build
-  (e o Revit do AutoRun fica parado na pergunta). O alvo `DeployToRevitAddins` assina as DLLs copiadas com o certificado de
-  assinatura de código `CN=PCEB DEB` de `Cert:\CurrentUser\My` (no PC2 ele já está em Root e TrustedPublisher do usuário);
-  sem o certificado no computador, só não assina. Conferir: `Get-AuthenticodeSignature` nas DLLs dos Addins = `Valid`.
+- **Assinatura**: o build assina `DEB.Revit.dll`/`DEB.Core.dll` com o certificado `CN=PCEB DEB` do usuário, se existir
+  (`Cert:\CurrentUser\My`). Sem assinatura o Revit pede "Sempre carregar" a cada build — e a instância de teste do
+  AutoRun fica parada nessa janela (era a demora "irregular" dos testes no PC2). No PC2 o certificado foi criado pelo
+  usuário em 05/11/2026 (raiz e editor confiáveis do usuário). Outro computador: exportar o .pfx com senha ou criar um
+  igual (`New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=PCEB DEB"` + importar o .cer em TrustedPublisher e Root).
+- **PC2**: testes no Revit 2026 (o 2025 é o do usuário). Modelo de teste com embutimento: `criarmodelo` (base −1,00 m).
 
 ## Testar sem o usuário (AutoRun)
 `src/AutoRun.cs`: abrir o Revit 2025 com variáveis de ambiente roda uma tarefa no evento Idling e fecha o Revit.
@@ -39,6 +41,15 @@ $p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"<pasta-mã
 $p.WaitForExit(540000)
 ```
 - `exportarpecas`: grava o JSON das peças para o CAD (`SD_EXPORT` = caminho; senão vai para logs) — ver abaixo.
+- Sem projeto aberto (`src/Precast/TestModel.cs`): `familias` (relatório de `SD_FAMILIAS`, .rfa separados por `;`) e
+  `criarmodelo` (projeto novo de `SD_TEMPLATE` com grade 3×2 de `SD_PILAR` + vigas `SD_VIGA`, gravado em `SD_SAVEAS`).
+  Famílias do usuário em `S:\Meu Drive\Arquivos\Familias Revit` (copiar antes; `.000N.rfa` são backups). O template do
+  escritório `EST_RVT_Residência.rte` traz uma residência modelada — para teste use `Structural Analysis-DefaultBRAPTB.rte`.
+- Vigas pré-moldadas com consolos aninhados: a folga vem de `folga_esq`/`folga_dir` da família; **recuo da junta
+  (START/END_JOIN_CUTBACK, ½" padrão) e extensões inicial/final da instância têm de ser 0**, senão os consolos se afastam
+  do pilar e o levantamento não os encontra.
+- `criarmodelo` com `SD_NIVEIS` = "cota_mm:direções;..." (ex.: "3000:X;6000:XY;9000:Y") cria vigas/consolos em vários níveis
+  (modelo de teste do PC2: `Teste_PM_niveis.rvt`, pilar de 10 m com 4 consolos em 3 níveis).
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela.
 - Resultados em `%AppData%\PCEB\DEB.Revit\logs\` (`autorun.txt` aponta para o arquivo gerado).
@@ -140,6 +151,16 @@ Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário e
 - Pranchas guiadas por padrões de apresentação (pilar, viga, laje, fundação).
 - Parâmetros `SD_Aço` / `SD_Peso (kg)` mantêm o nome (modelos já detalhados).
 - Escopo e regras gerais do PCEB: ver `CLAUDE.md` da raiz do repositório.
+
+## Detalhes padrão (legendas)
+- DXFs em `%AppData%\PCEB\DEB.Revit\Padroes\Detalhes\` (fora do Git), extraídos do DWG do P56 com
+  `tools/detalhes_dxf` (README lá). `LegendFactory` cria a legenda que falta (linhas/textos/regiões nativas; estilos
+  "PCEB - Detalhe …") duplicando uma legenda do projeto; sem nenhuma, copia uma do `Folha.ArquivoLegendaBase`
+  (`EST_RVT_Residência.rte` tem 5) — a API não cria legenda do zero. Legenda existente nunca é refeita.
+- AutoRun: fecha sozinho as janelas do Revit (`DialogBoxShowing`, ex.: aviso do modelo analítico ao abrir um .rte
+  antigo) e `contarlegendas` lista as legendas de arquivos (`SD_FAMILIAS`). Abrir arquivo antigo pela API: use
+  `LegendFactory.OpenQuietly` (descarta os avisos da atualização, que senão param numa janela).
+- AutoCAD 2026 está no PC2: `accoreconsole.exe` converte DWG↔DXF e plota PNG sem janela (ver o README).
 
 ## Armadilhas já encontradas
 - Guardar `Solid` sem o `GeometryElement` dono → SEHException (GC libera a memória nativa).

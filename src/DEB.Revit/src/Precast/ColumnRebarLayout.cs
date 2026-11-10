@@ -4,7 +4,8 @@ using System.Linq;
 
 namespace DEB.Revit.Precast
 {
-    internal enum BarRole { Longitudinal, Stirrup, CrossTie, CorbelTie, CorbelSew, LiftLoop }
+    internal enum BarRole { Longitudinal, Stirrup, CrossTie, CorbelTie, CorbelSew, LiftLoop,
+                            CorbelAnchor, CorbelStirrup, CorbelBottom, CorbelPin }
 
     /// <summary>
     /// Uma barra (ou conjunto de barras iguais) em coordenadas locais do pilar.
@@ -93,24 +94,95 @@ namespace DEB.Revit.Precast
                     bars.AddRange(CorbelBars(f, k, s));
 
             // ---------------- Alças de içamento ----------------
+            // Numa face, nos dois pontos da regra dos 20% (0,2 H e 0,8 H): o pilar é içado e transportado deitado, com a
+            // face das alças para cima. A face é escolhida em LiftFace (consolos para cima).
             if (s.LiftLoops > 0)
+                bars.AddRange(LiftLoops(f, corbels, s, dl, dt));
+            return bars;
+        }
+
+        /// <summary>
+        /// Face das alças. Com consolos em até 3 faces: a face com mais consolos (desempate: consolos maiores, depois a
+        /// face mais estreita), para os consolos ficarem para cima no transporte. Com consolos nas 4 faces: a face oposta
+        /// ao consolo mais armado (maior), e no empate a face mais estreita. "Alça no maior lado" = alça na face menor:
+        /// o pilar deitado fica com o lado maior na vertical (maior inércia no sentido do maior momento do transporte).
+        /// Regra combinada com o usuário em 06/11/2026 (ver docs/notas/pc2_pendencias.md).
+        /// </summary>
+        public static ColumnFace LiftFace(ColumnFrame f, IList<Corbel> corbels)
+        {
+            var faces = new[] { ColumnFace.PX, ColumnFace.NX, ColumnFace.PY, ColumnFace.NY };
+            double Width(ColumnFace fc) => fc == ColumnFace.PX || fc == ColumnFace.NX ? f.By : f.Bx;
+            double Size(Corbel k) => k.Width * k.HeightAtFace * k.Projection;
+            ColumnFace Opposite(ColumnFace fc) => fc switch
             {
-                double w = U_.Mm(s.LiftWidthMm) / 2, emb = U_.Mm(s.LiftEmbedMm), pr = U_.Mm(s.LiftProtrusionMm);
-                double sp = U_.Mm(s.LiftSpacingMm);
-                IEnumerable<double> bs = s.LiftLoops == 1 ? new[] { f.By / 2 } : new[] { f.By / 2 - sp / 2, f.By / 2 + sp / 2 };
-                foreach (double b in bs)
+                ColumnFace.PX => ColumnFace.NX, ColumnFace.NX => ColumnFace.PX,
+                ColumnFace.PY => ColumnFace.NY, _ => ColumnFace.PY
+            };
+            var used = corbels.Select(k => k.Face).Distinct().ToList();
+            if (used.Count == 4)
+            {
+                Corbel big = corbels.OrderByDescending(Size).First();
+                double max = Size(big);
+                // consolos "mais armados" empatados: entre as faces opostas a eles, a mais estreita
+                return corbels.Where(k => Size(k) > max * 0.999).Select(k => Opposite(k.Face)).Distinct()
+                    .OrderBy(Width).First();
+            }
+            if (used.Count == 0) return faces.OrderBy(Width).First();
+            return used.OrderByDescending(fc => corbels.Count(k => k.Face == fc))
+                .ThenByDescending(fc => corbels.Where(k => k.Face == fc).Sum(Size))
+                .ThenBy(Width).First();
+        }
+
+        /// <summary>
+        /// Alças em U saindo da face (plano U × Z, no meio da face): as pernas atravessam o cobrimento, dobram por dentro
+        /// das longitudinais e seguem ao longo do pilar até completar o comprimento embutido. Fogem dos consolos da face.
+        /// </summary>
+        private static IEnumerable<BarDef> LiftLoops(ColumnFrame f, IList<Corbel> corbels, ColumnRebarSpec s, double dl, double dt)
+        {
+            ColumnFace face = LiftFace(f, corbels);
+            var g = new Corbel { Face = face };            // só para os eixos da face (U, T, At)
+            double width = face == ColumnFace.PX || face == ColumnFace.NX ? f.By : f.Bx;
+            double dLift = U_.Mm(s.LiftDiameterMm), w = U_.Mm(s.LiftWidthMm), pr = U_.Mm(s.LiftProtrusionMm);
+            double dIn = -(U_.Mm(s.CoverMm) + dt + dl + dLift / 2);
+            double leg = Math.Max(10 * dLift, U_.Mm(s.LiftEmbedMm) - (pr - dIn));
+            double margin = U_.Mm(100);
+            var busy = corbels.Where(k => k.Face == face)
+                .Select(k => (A: k.ZBottom - margin, B: k.ZTop + U_.Mm(s.CorbelPinAboveMm) + margin)).ToList();
+            double half = w / 2 + leg;
+            double Free(double z)
+            {
+                // desloca para longe do consolo, o mínimo necessário (para cima ou para baixo)
+                for (int it = 0; it < 4; it++)
                 {
-                    double a0 = f.Bx / 2 - w, a1 = f.Bx / 2 + w;
-                    bars.Add(new BarDef
+                    var hit = busy.FirstOrDefault(r => z + half > r.A && z - half < r.B);
+                    if (hit == default) break;
+                    double down = hit.A - half, up = hit.B + half;
+                    z = Math.Abs(z - down) <= Math.Abs(up - z) && down - half > 0 ? down : up;
+                }
+                return Math.Min(Math.Max(z, half + U_.Mm(50)), f.H - half - U_.Mm(50));
+            }
+            double sp = U_.Mm(s.LiftSpacingMm);
+            IEnumerable<double> ss = s.LiftLoops == 1 ? new[] { width / 2 } : new[] { width / 2 - sp / 2, width / 2 + sp / 2 };
+            foreach (double z0 in new[] { 0.2 * f.H, 0.8 * f.H })
+            {
+                double z = Free(z0);
+                foreach (double t in ss)
+                    yield return new BarDef
                     {
                         Role = BarRole.LiftLoop,
                         DiameterMm = s.LiftDiameterMm,
-                        Points = { new Loc(a0, b, f.H - emb), new Loc(a0, b, f.H + pr), new Loc(a1, b, f.H + pr), new Loc(a1, b, f.H - emb) },
-                        Normal = Loc.UnitB
-                    });
-                }
+                        Points =
+                        {
+                            g.At(f, dIn, t, z - w / 2 - leg),
+                            g.At(f, dIn, t, z - w / 2),
+                            g.At(f, pr, t, z - w / 2),
+                            g.At(f, pr, t, z + w / 2),
+                            g.At(f, dIn, t, z + w / 2),
+                            g.At(f, dIn, t, z + w / 2 + leg)
+                        },
+                        Normal = g.T
+                    };
             }
-            return bars;
         }
 
         private static BarDef Tie(Loc a, Loc b, ColumnRebarSpec s, int n, double sp) => new BarDef
@@ -125,8 +197,9 @@ namespace DEB.Revit.Precast
         };
 
         /// <summary>
-        /// Tirante em "U" invertido (perna de ancoragem dentro do pilar + perna na ponta do consolo)
-        /// e estribos horizontais de costura em 2/3 d abaixo do tirante.
+        /// Barras do consolo como o quadro "ARMADURAS console" do escritório: tirante (perna de ancoragem dentro do pilar;
+        /// na ponta, barra soldada ou perna para baixo), estribos horizontais de costura em 2/3 d abaixo do tirante,
+        /// estribos verticais, armadura inferior em U e pinos em L.
         /// </summary>
         private static IEnumerable<BarDef> CorbelBars(ColumnFrame f, Corbel k, ColumnRebarSpec s)
         {
@@ -147,7 +220,7 @@ namespace DEB.Revit.Precast
             double step = n > 1 ? (s1 - s0) / (n - 1) : 0;
             double sStart = n > 1 ? s0 : (k.S0 + k.S1) / 2;
 
-            yield return new BarDef
+            var tie = new BarDef
             {
                 Role = BarRole.CorbelTie,
                 DiameterMm = s.TieDiameterMm,
@@ -155,13 +228,103 @@ namespace DEB.Revit.Precast
                 {
                     k.At(f, dIn, sStart, zTie - innerLeg),
                     k.At(f, dIn, sStart, zTie),
-                    k.At(f, dTip, sStart, zTie),
-                    k.At(f, dTip, sStart, zTie - tipLeg)
+                    k.At(f, dTip, sStart, zTie)
                 },
                 Normal = k.T,
                 Count = n,
                 Spacing = step
             };
+            if (!s.TieWeldedBar) tie.Points.Add(k.At(f, dTip, sStart, zTie - tipLeg));
+            yield return tie;
+
+            // Barra de ancoragem soldada: transversal, na ponta, logo abaixo do tirante.
+            if (s.TieWeldedBar)
+                yield return new BarDef
+                {
+                    Role = BarRole.CorbelAnchor,
+                    DiameterMm = s.TieDiameterMm,
+                    Points = { k.At(f, dTip, k.S0 + cover, zTie - dTie), k.At(f, dTip, k.S1 - cover, zTie - dTie) },
+                    Normal = Loc.UnitC
+                };
+
+            // Estribos verticais: fechados no plano transversal (T × Z), do tirante até o fundo do consolo na ponta,
+            // repetidos ao longo do balanço.
+            double dV = U_.Mm(s.CorbelStirrupDiameterMm);
+            double zBottomTip = k.ZTop - k.TipHeight;           // fundo do consolo na ponta (vale também se trapezoidal)
+            double zvTop = zTie - dTie / 2 - dV / 2, zvBot = zBottomTip + cover + dV / 2;
+            if (s.CorbelStirrupCount > 0 && zvTop - zvBot > 4 * dV)
+            {
+                int nv = s.CorbelStirrupCount;
+                double d0 = cover + dV / 2, d1 = k.Projection - cover - dV / 2;
+                double va = k.S0 + cover + dV / 2, vb = k.S1 - cover - dV / 2;
+                yield return new BarDef
+                {
+                    Role = BarRole.CorbelStirrup,
+                    DiameterMm = s.CorbelStirrupDiameterMm,
+                    Points =
+                    {
+                        k.At(f, d0, va, zvBot),
+                        k.At(f, d0, vb, zvBot),
+                        k.At(f, d0, vb, zvTop),
+                        k.At(f, d0, va, zvTop)
+                    },
+                    Closed = true,
+                    Normal = k.U,
+                    Hooks135 = true,
+                    Count = nv,
+                    Spacing = nv > 1 ? (d1 - d0) / (nv - 1) : 0
+                };
+            }
+
+            // Armadura inferior: U com as pernas para cima, do pilar até a ponta, acima do fundo dos estribos verticais.
+            double dB = U_.Mm(s.CorbelBottomDiameterMm);
+            if (s.CorbelBottomCount > 0)
+            {
+                int nb = s.CorbelBottomCount;
+                double zb = zvBot + dV / 2 + dB / 2;
+                double leg = Math.Max(10 * dB, 0.75 * (k.TipHeight - 2 * cover));
+                double dInB = -(depth - cover - dt - dl - dB / 2), dTipB = k.Projection - cover - dV - dB / 2;
+                double ba = k.S0 + cover + dV + dB / 2, bb = k.S1 - cover - dV - dB / 2;
+                yield return new BarDef
+                {
+                    Role = BarRole.CorbelBottom,
+                    DiameterMm = s.CorbelBottomDiameterMm,
+                    Points =
+                    {
+                        k.At(f, dInB, nb > 1 ? ba : (ba + bb) / 2, zb + leg),
+                        k.At(f, dInB, nb > 1 ? ba : (ba + bb) / 2, zb),
+                        k.At(f, dTipB, nb > 1 ? ba : (ba + bb) / 2, zb),
+                        k.At(f, dTipB, nb > 1 ? ba : (ba + bb) / 2, zb + leg)
+                    },
+                    Normal = k.T,
+                    Count = nb,
+                    Spacing = nb > 1 ? (bb - ba) / (nb - 1) : 0
+                };
+            }
+
+            // Pinos em L no meio do balanço (centro da almofada): acima do topo, embutidos, pé voltado para o pilar.
+            if (s.CorbelPinCount > 0)
+            {
+                int np = s.CorbelPinCount;
+                double dPin = k.Projection / 2;
+                double above = U_.Mm(s.CorbelPinAboveMm), emb = U_.Mm(s.CorbelPinEmbedMm), foot = U_.Mm(s.CorbelPinFootMm);
+                double pa = np > 1 ? k.S0 + k.Width / 4 : (k.S0 + k.S1) / 2;
+                double pb = np > 1 ? k.S1 - k.Width / 4 : pa;
+                yield return new BarDef
+                {
+                    Role = BarRole.CorbelPin,
+                    DiameterMm = s.CorbelPinDiameterMm,
+                    Points =
+                    {
+                        k.At(f, dPin, pa, k.ZTop + above),
+                        k.At(f, dPin, pa, k.ZTop - emb),
+                        k.At(f, dPin - foot, pa, k.ZTop - emb)
+                    },
+                    Normal = k.T,
+                    Count = np,
+                    Spacing = np > 1 ? (pb - pa) / (np - 1) : 0
+                };
+            }
 
             // Costura: estribos horizontais fechados, abaixo do tirante, em 2/3 d.
             int m = Math.Max(0, s.SewCount);

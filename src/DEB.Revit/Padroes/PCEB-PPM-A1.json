@@ -1,0 +1,118 @@
+{
+  "Codigo": "PCEB-PPM-A1",
+  "Versao": 35,
+  "Nome": "Pilar pré-moldado – prancha A1 (padrão PP127)",
+  "Elemento": "PilarPreMoldado",
+  "Descricao": "Prancha A1 como a PP127 e o template pilar-premoldado do DEB.Cad: vistas das 4 faces e elevação da armadura (1:50) à esquerda; seções com armadura e cortes (1:25) no alto, ao centro; relação/resumo do aço, informações de produção e notas à direita; detalhes padrão embaixo; carimbo no canto inferior direito.",
+  "Folha": {
+    "FamiliaCarimbo": "Folhas Revit",
+    "Carimbo": "A1",
+    "ArquivoCarimbo": "S:\\Meu Drive\\Arquivos\\Familias Revit\\Carimbo e Folhas\\Folhas Revit.rfa",
+    "ArquivoLegendaBase": "S:\\Meu Drive\\Arquivos\\Familias Revit\\Template\\EST_RVT_Residência.rte",
+    "NumeroFolha": "{Marca}",
+    "NomeFolha": "ARMADURA DO PILAR / COLUMN REINFORCEMENT - {Marca}",
+    "ParametrosCarimbo": {},
+    "MargemEsquerdaMm": 25,
+    "MargemDireitaMm": 10,
+    "MargemSuperiorMm": 10,
+    "MargemInferiorMm": 10,
+    "EspacamentoMm": 4,
+    "TituloVistaMm": 14,
+    "LarguraCaractereTituloMm": 4.3,
+    "TituloAcima": true,
+    "TituloEscala": "Esc. 1:{Escala}",
+    "EscalasAlternativas": [ 20, 25, 50, 75, 100 ]
+  },
+  "Unidades": {
+    "Cotas": "cm",
+    "Precisao": 0.5,
+    "TipoDeCota": "SD - Cota cm",
+    "AfastamentoCotaMm": 8
+  },
+  "Textos": {
+    "Fonte": "Arial",
+    "AlturaTextoMm": 2.5,
+    "TituloPeca": "{Marca}",
+    "AlturaTituloPecaMm": 10,
+    "RegiaoTituloPeca": "Titulo",
+    "AlturaTituloVistaMm": 3.5
+  },
+  "Armadura": {
+    "Particao": "{Marca}",
+    "RotuloBarra": "{Qtd} N{N} ø{Diam} C={Comp}",
+    "RotuloEstribos": "{Qtd} N{N} c/{Espacamento}",
+    "DesenhoDeDobramento": true,
+    "DensidadeAco": 7850,
+    "ArquivoEtiqueta": "S:\\Meu Drive\\Arquivos\\Familias Revit\\Anotação\\Identificador Vergalhão.rfa",
+    "FamiliaEtiqueta": "Identificador Vergalhão",
+    "EtiquetaLongitudinal": "1 N1 Ø C",
+    "EtiquetaEstribo": "1 N1 c/",
+    "EtiquetaEstriboQuebra": "1 N1 c/ - Quebra",
+    "LongitudinaisComoDetalhe": true
+  },
+  "Regioes": {
+    "Titulo":   { "X": 0.00,  "Y": 0.94, "L": 0.12,  "A": 0.06 },
+    "Vistas":   { "X": 0.00,  "Y": 0.44, "L": 0.49,  "A": 0.50 },
+    "Cortes":   { "X": 0.493, "Y": 0.00, "L": 0.082, "A": 1.00 },
+    "Secoes":   { "X": 0.578, "Y": 0.00, "L": 0.10,  "A": 1.00 },
+    "Padrao":   { "X": 0.681, "Y": 0.00, "L": 0.115, "A": 1.00 },
+    "Tabelas":  { "X": 0.80,  "Y": 0.62, "L": 0.20,  "A": 0.38 },
+    "Producao": { "X": 0.80,  "Y": 0.49, "L": 0.20,  "A": 0.12 },
+    "Notas":    { "X": 0.80,  "Y": 0.37, "L": 0.20,  "A": 0.11 },
+    "Padrao2":  { "X": 0.80,  "Y": 0.00, "L": 0.20,  "A": 0.36 },
+    "Detalhes": { "X": 0.00,  "Y": 0.00, "L": 0.49,  "A": 0.41 }
+  },
+
+  "Vistas": [
+    { "Tipo": "Face", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "VISTA 1\n(VIEW 1)", "Escala": 50, "Regiao": "Vistas", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-FACE" },
+    { "Tipo": "Face", "Ativa": true, "Face": 2, "Posicao": "Corrente", "Titulo": "VISTA 2\n(VIEW 2)", "Escala": 50, "Regiao": "Vistas", "Cotas": true, "CotaTotal": false, "MostrarArmadura": false, "Template": "PCEB-PPM-FACE" },
+    { "Tipo": "Face", "Ativa": true, "Face": 3, "Posicao": "Corrente", "Titulo": "VISTA 3\n(VIEW 3)", "Escala": 50, "Regiao": "Vistas", "Cotas": true, "CotaTotal": false, "MostrarArmadura": false, "Template": "PCEB-PPM-FACE" },
+    { "Tipo": "Face", "Ativa": true, "Face": 4, "Posicao": "Corrente", "Titulo": "VISTA 4\n(VIEW 4)", "Escala": 50, "Regiao": "Vistas", "Cotas": true, "CotaTotal": false, "MostrarArmadura": false, "Template": "PCEB-PPM-FACE" },
+    { "Tipo": "Armadura", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "ARMADURA\n(REINFORCEMENT)", "Escala": 50, "Regiao": "Vistas", "Cotas": false, "MostrarArmadura": true, "Esquematica": true, "Template": "PCEB-PPM-ARMADURA" },
+    { "Tipo": "SecaoArmadura", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "SEÇÃO {Numero}-{Numero}\n(SECTION {Numero}-{Numero})", "Escala": 25, "Regiao": "Secoes", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-SECAO" },
+    { "Tipo": "SecaoArmadura", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "SEÇÃO {Numero}-{Numero}\n(SECTION {Numero}-{Numero})", "Escala": 25, "Regiao": "Secoes", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-SECAO" },
+    { "Tipo": "Corte", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "CORTE {Letra}-{Letra}\n(SECTION {Letra}-{Letra})", "Escala": 25, "Regiao": "Cortes", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-CORTE" },
+    { "Tipo": "Corte", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "CORTE {Letra}-{Letra}\n(SECTION {Letra}-{Letra})", "Escala": 25, "Regiao": "Cortes", "Cotas": true, "MostrarArmadura": false, "Template": "PCEB-PPM-CORTE" },
+    { "Tipo": "AlcaIcamento", "Ativa": true, "Face": 1, "Posicao": "Corrente", "Titulo": "ALÇA DE IÇAMENTO\n(LIFTING HANDLE)", "Escala": 20, "Regiao": "Padrao", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-DETALHE" },
+    { "Tipo": "Vista3D", "Ativa": false, "Face": 1, "Posicao": "Corrente", "Titulo": "VISTA 3D", "Escala": 50, "Regiao": "Detalhes", "Cotas": false, "MostrarArmadura": true, "Template": "PCEB-PPM-3D" },
+    { "Tipo": "ConsoloPlanta", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "ARMADURAS CONSOLE {Consolo} - {Qtd} UN.\nPLANTA (PLAN)", "Escala": 10, "Regiao": "Detalhes", "Cotas": true, "MostrarArmadura": true, "Template": "PCEB-PPM-DETALHE" },
+    { "Tipo": "ConsoloCorte", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "CONSOLE {Consolo} - CORTE B-B\n(CORBEL - SECTION B-B)", "Escala": 10, "Regiao": "Detalhes", "Cotas": true, "MostrarArmadura": true, "Template": "PCEB-PPM-DETALHE" },
+    { "Tipo": "ConsoloCorteTransversal", "Ativa": true, "Face": 1, "Posicao": "Consolos", "Titulo": "CONSOLE {Consolo} - CORTE A-A\n(CORBEL - SECTION A-A)", "Escala": 10, "Regiao": "Detalhes", "Cotas": true, "MostrarArmadura": true, "Template": "PCEB-PPM-DETALHE" }
+  ],
+  "Tabelas": [
+    { "Tipo": "RelacaoDoAco", "Ativa": true, "Titulo": "RELAÇÃO DO AÇO - (REBAR SCHEDULE)", "Regiao": "Tabelas" },
+    { "Tipo": "ResumoDoAco", "Ativa": true, "Titulo": "RESUMO DO AÇO (REBAR SUMMARY)", "Regiao": "Tabelas" },
+    { "Tipo": "DobraDoAco", "Ativa": true, "Titulo": "DOBRAMENTO DO AÇO (BAR BENDING SCHEDULE)", "Regiao": "Padrao2" }
+  ],
+  "Quadros": [
+    {
+      "Nome": "Informações para produção",
+      "Texto": "INFORMAÇÕES P/ PRODUÇÃO\nRESISTÊNCIA AO SAQUE: fcj = {fcjSaque} MPa\nRESISTÊNCIA MONTAGEM: fcj = {fcjMontagem} MPa\nRESISTÊNCIA 28 DIAS: fck = {fck} MPa\nVOLUME DE CONCRETO: {Volume} m³\nPESO: {Peso} ton\nQUANTIDADE: {Quantidade} unidades\n\nMANUFACTURING INFORMATION\nSTRENGTH DEMOLDING: fcj = {fcjSaque} MPa\nSTRENGTH ERECTION: fcj = {fcjMontagem} MPa\nSTRENGTH AT 28 DAYS: fck = {fck} MPa\nCONCRETE VOLUME: {Volume} m³\nWEIGHT: {Peso} ton\nQUANTITY: {Quantidade} unit",
+      "Regiao": "Producao",
+      "Moldura": true
+    },
+    {
+      "Nome": "Notas",
+      "Texto": "NOTA:\n1) DIMENSÕES EM CM;\n2) PARA INFORMAÇÕES GERAIS, VER PRANCHA: ----;\n3) UTILIZAR NEOPRENE 15 mm.\n\nNOTE:\n1) DIMENSIONS IN CM;\n2) FOR GENERAL INFORMATION, SEE SHEET: ----;\n3) USE 15 mm NEOPRENE.",
+      "Regiao": "Notas",
+      "Moldura": false
+    }
+  ],
+  "Legendas": [
+    { "Nome": "RAIO DE CURVATURA PARA GANCHOS", "Regiao": "Padrao2", "Arquivo": "raio_curvatura.dxf", "Escala": 10 },
+    { "Nome": "COMPRIMENTO DAS BARRAS", "Regiao": "Padrao", "Arquivo": "comprimento_barras.dxf", "Escala": 10 },
+    { "Nome": "EMENDAS POR TRASPASSE", "Regiao": "Padrao", "Arquivo": "emendas_traspasse.dxf", "Escala": 10 },
+    { "Nome": "EMENDAS POR SOLDA POR TRASPASSE", "Regiao": "Padrao2", "Arquivo": "emendas_solda.dxf", "Escala": 10 },
+    { "Nome": "CHAVES DE CISALHAMENTO", "Regiao": "Padrao", "Arquivo": "chaves_cisalhamento.dxf", "Escala": 10 },
+    { "Nome": "ESPAÇAMENTO DAS BARRAS", "Regiao": "Padrao", "Arquivo": "espacamento_barras.dxf", "Escala": 5 },
+    { "Nome": "ALÇA DE IÇAMENTO", "Regiao": "Padrao", "Arquivo": "alca_icamento.dxf", "Escala": 20, "Vista": "AlcaIcamento" },
+    { "Nome": "REFORÇO NOS FUROS DOS PILARES", "Regiao": "Padrao", "Arquivo": "reforco_furos.dxf", "Escala": 50, "Ativa": false },
+    { "Nome": "ATERRAMENTO ESTRUTURAL PILARES", "Regiao": "Padrao", "Arquivo": "aterramento.dxf", "Escala": 10, "Ativa": false }
+  ],
+  "Producao": {
+    "fcjSaque": "30",
+    "fcjMontagem": "35",
+    "fck": "40",
+    "DensidadeConcreto_t_m3": "2.5"
+  }
+}

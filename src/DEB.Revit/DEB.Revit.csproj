@@ -48,11 +48,19 @@
     <ProjectReference Include="..\DEB.Core\DEB.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Padrões de apresentação do PCEB (fonte: Padroes\; convenção de nomes em docs/04_arquitetura/padroes_apresentacao.md) -->
+    <EmbeddedResource Include="Padroes\*.json" LogicalName="DEB.Revit.Padroes.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- Copia a DLL e o manifesto para %AppData%\Autodesk\Revit\Addins\<versão>\ -->
   <Target Name="DeployToRevitAddins" AfterTargets="Build" Condition="'$(DeployToRevit)' == 'true'">
     <PropertyGroup>
       <AddinDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)\</AddinDir>
     </PropertyGroup>
+    <!-- Assina DEB.Revit.dll e DEB.Core.dll com o certificado "CN=PCEB DEB" do usuário, se existir (o Revit deixa de
+         pedir "Sempre carregar" a cada build). Sem o certificado, segue sem assinar. Ver src/DEB.Revit/CLAUDE.md. -->
+    <Exec ContinueOnError="true" Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$c = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object Subject -eq 'CN=PCEB DEB' | Select-Object -First 1; if ($c) { Get-Item '$(OutputPath)DEB.Revit.dll','$(OutputPath)DEB.Core.dll' | Set-AuthenticodeSignature -Certificate $c -HashAlgorithm SHA256 | Out-Null; Write-Host 'DLLs assinadas (PCEB DEB)' } else { Write-Host 'Sem certificado PCEB DEB: DLLs sem assinatura' }&quot;" />
     <ItemGroup>
       <_SdBuilt Include="$(OutputPath)*.dll;$(OutputPath)*.pdb;$(OutputPath)*.deps.json" />
     </ItemGroup>
@@ -61,10 +69,6 @@
     <Delete Files="$(AddinDir)StructuralDetailer.addin" ContinueOnError="true" />
     <RemoveDir Directories="$(AddinDir)StructuralDetailer" ContinueOnError="true" />
     <Copy SourceFiles="DEB.Revit.addin" DestinationFolder="$(AddinDir)" SkipUnchangedFiles="true" />
-    <!-- Assina as DLLs copiadas com o certificado "CN=PCEB DEB" do usuário (se existir e for confiável, o Revit carrega sem
-         perguntar "carregar sempre / uma vez"; sem assinatura ele pergunta de novo a cada build, e o Revit de teste fica parado
-         na pergunta). Sem o certificado no computador, só não assina. -->
-    <Exec ContinueOnError="true" Command="powershell -NoProfile -Command &quot;$c = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Where-Object Subject -eq 'CN=PCEB DEB' | Select-Object -First 1; if ($c) { Get-ChildItem '$(AddinDir)DEB.Revit\DEB.*.dll' | ForEach-Object { $r = Set-AuthenticodeSignature $_.FullName $c -HashAlgorithm SHA256; $_.Name + ': ' + $r.Status } } else { 'Certificado CN=PCEB DEB nao encontrado: DLLs nao assinadas.' }&quot;" />
     <Message Importance="high" Text="Plugin copiado para $(AddinDir)" />
   </Target>
 

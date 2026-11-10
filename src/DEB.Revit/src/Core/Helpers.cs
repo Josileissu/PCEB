@@ -60,8 +60,21 @@ namespace DEB.Revit.Core
             {
                 if (f.GetSeverity() == FailureSeverity.Warning)
                     failuresAccessor.DeleteWarning(f);
+                else
+                    LastError = f.GetDescriptionText();   // vai para o log quando a transação não é confirmada
             }
             return FailureProcessingResult.Continue;
+        }
+
+        /// <summary>Último erro do Revit numa transação com este pré-processador (para explicar "não confirmada").</summary>
+        [ThreadStatic] public static string LastError;
+
+        /// <summary>" (motivo)" do último erro, e limpa.</summary>
+        public static string TakeReason()
+        {
+            string r = LastError;
+            LastError = null;
+            return string.IsNullOrEmpty(r) ? "" : $" ({r})";
         }
 
         public static void Attach(Transaction t)
