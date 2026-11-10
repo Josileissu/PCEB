@@ -34,10 +34,10 @@ public static class FormatadorDescricao
             : cfg.SimboloDiametro + d.Bitola.ToString("0.0", CultureInfo.InvariantCulture);
         // cordoalha: o aço faz parte da designação ("ø12.7 CP-190")
         if (Tabelas.TabelaBarras.EhCordoalha(d.Aco)) bitola += " " + d.Aco.Trim().ToUpperInvariant();
-        string esp = "c/" + CalculoComprimento.NumeroCompacto(d.Espacamento);
+        string esp = "c/" + CalculoComprimento.Espacamento(d.Espacamento, cfg);
         string comp = d.TemVar ? cfg.PrefixoComprimento + "=VAR"
             : d.Corrido ? "CORRIDO"
-            : cfg.PrefixoComprimento + "=" + CalculoComprimento.Numero(comprimentoUnitarioCm, cfg.CasasDecimais);
+            : cfg.PrefixoComprimento + "=" + CalculoComprimento.Comprimento(comprimentoUnitarioCm, cfg);
 
         var partes = new List<string>();
         switch (cfg.PadraoDescricao)

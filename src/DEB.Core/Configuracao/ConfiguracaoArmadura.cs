@@ -22,7 +22,14 @@ public enum PadraoDescricao
 
 public enum ModoArredondamento { Proximo, ParaCima }
 
-public enum UnidadeDesenho { Centimetro = 0, Automatica = 1 }
+/// <summary>Em que unidade o desenho é feito (1 unidade do CAD = 1 cm, 1 m, 1 mm; Automática = pelo INSUNITS).</summary>
+public enum UnidadeDesenho { Centimetro = 0, Automatica = 1, Metro = 2, Milimetro = 3 }
+
+/// <summary>
+/// Em que unidade as medidas das barras são ESCRITAS (2026-11-10, pedido do usuário: "desenho no CAD em metros e a apresentação das
+/// dimensões em milímetros"): cotas dos segmentos, C=, c/, comprimento das faixas e a relação do aço. Independe da unidade do desenho.
+/// </summary>
+public enum UnidadeApresentacao { Centimetro = 0, Metro = 1, Milimetro = 2 }
 
 /// <summary>Configuração do plugin. Valores normativos ficam em tabelas, nunca fixos no código.</summary>
 [DataContract]
@@ -141,6 +148,9 @@ public sealed class ConfiguracaoArmadura
     [DataMember(Order = 72)] public List<double> EscalasUsuais { get; set; } = EscalasPadrao();
 
     public static List<double> EscalasPadrao() => new List<double> { 1, 2, 5, 10, 20, 25, 50, 75, 100 };
+
+    /// <summary>Unidade em que as medidas das barras são escritas (padrão dos desenhos sem unidade própria; ver ARMUNIDADES).</summary>
+    [DataMember(Order = 73)] public UnidadeApresentacao UnidadeApresentacao { get; set; } = UnidadeApresentacao.Centimetro;
 
     [DataMember(Order = 100)] public int VersaoConfig { get; set; } = VersaoAtual;
     public const int VersaoAtual = 4;
