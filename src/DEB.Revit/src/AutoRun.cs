@@ -179,6 +179,10 @@ namespace DEB.Revit
                 for (int tab = 0; tab < 2; tab++)
                     for (int i = 0; i < Math.Min(8, w.Count(tab)); i++)
                         w.RenderToPng(Path.Combine(dir, $"{(tab == 0 ? "vigas" : "pilares")}_{i + 1}.png"), tab, i);
+                // SD_CONFERIR_INDICES = "16,18,31": grupos de vigas escolhidos (posição na lista, a partir de 1), além dos 8 primeiros
+                foreach (string s in (Environment.GetEnvironmentVariable("SD_CONFERIR_INDICES") ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                    if (int.TryParse(s.Trim(), out int ix) && ix >= 1 && ix <= w.Count(0))
+                        w.RenderToPng(Path.Combine(dir, $"vigas_{ix}.png"), 0, ix - 1);
                 // vigas com consolo de outra viga (viga apoiada em viga), até 6
                 var vigas = grupos.Where(g => g.Representante.Tipo == DEB.Core.Pecas.TipoPeca.Viga).ToList();
                 int n = 0;

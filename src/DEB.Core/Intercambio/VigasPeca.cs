@@ -33,6 +33,18 @@ public static class ConversorVigaPeca
         v["L"] = N(p.L);
         v["ExtE"] = extE;
         v["ExtD"] = extD;
+        // aba (L / T invertido): a geometria vem do modelo; a armadura da aba fica a do PADRÃO do usuário
+        if (p.Aba == null) v["Aba"] = TemplateVigaPreMoldada.AbaSem;
+        else
+        {
+            v["Aba"] = p.Aba.Lado == AbaPeca.DoisLados ? TemplateVigaPreMoldada.AbaDois : p.Aba.Lado == AbaPeca.Esquerda ? TemplateVigaPreMoldada.AbaEsq : TemplateVigaPreMoldada.AbaDir;
+            v["AbaLargura"] = N(p.Aba.Largura);
+            v["AbaAltura"] = N(p.Aba.Altura);
+            v["AbaAlturaPonta"] = p.Aba.AlturaPonta > 0 && p.Aba.AlturaPonta < p.Aba.Altura - 0.05 ? N(p.Aba.AlturaPonta) : "0";
+            v["AbaBase"] = N(p.Aba.Base);
+            v["AbaIni"] = N(p.Aba.Inicio);
+            v["AbaFim"] = N(p.Aba.Fim);
+        }
         return v;
     }
 

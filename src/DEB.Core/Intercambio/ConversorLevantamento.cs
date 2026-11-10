@@ -167,6 +167,16 @@ public static class ConversorLevantamento
 
     private enum Parte { Corrente, Dente, Local }
 
+    private sealed class Pedaco
+    {
+        public double X0, X1, H;
+        public Parte P;
+        /// <summary>Chave da aba do trecho corrente ("" = sem aba).</summary>
+        public string Aba = "";
+        public SecaoComAba Secao;
+        public bool Igual(Pedaco o) => P == o.P && Aba == o.Aba && Math.Abs(H - o.H) <= SecaoPoligonal.Tolerancia;
+    }
+
     private static VigaPeca Viga(GrupoPecas g, out string motivo, List<string> notas)
     {
         motivo = null;
@@ -174,27 +184,34 @@ public static class ConversorLevantamento
         if (r.Trechos.Count == 0) { motivo = "a geometria não pôde ser cortada."; return null; }
         if (r.Consolos.Count > 0) { motivo = "tem consolo de apoio de outra viga, que o CAD ainda não desenha."; return null; }
         var s0 = r.Principal.Secao;
-        if (s0.Classificar().Tipo != TipoSecao.Retangular)
+        var i0 = SecaoComAba.Ler(s0);
+        if (i0 == null || i0.AlturaToda)
         {
-            motivo = $"seção {s0.Classificar().Descricao} — o template do CAD só desenha a seção retangular (VP-4).";
+            motivo = $"seção {s0.Classificar().Descricao} — o CAD desenha a retangular e a com aba lateral (L, T invertido, aba elevada ou no topo); I, duas abas no mesmo lado e mísula ainda não.";
             return null;
         }
         const double tol = SecaoPoligonal.Tolerancia;
+        // caixa da peça (para reconhecer furo/recorte local): a maior entre os trechos
+        double yMin = r.Trechos.Min(t => t.Secao.YMin), yMax = r.Trechos.Max(t => t.Secao.YMax),
+               zMin = r.Trechos.Min(t => t.Secao.ZMin), zMax = r.Trechos.Max(t => t.Secao.ZMax);
 
-        // cada trecho: corrente, dente (mesma largura, mais baixo, com o topo no topo da peça = recorte embaixo) ou local
-        var partes = new List<(double X0, double X1, Parte P, double H)>();
+        // cada trecho: corrente (a alma da peça, com ou sem aba), dente (só a alma, mais baixo, topo no topo = recorte embaixo) ou local
+        var partes = new List<Pedaco>();
         foreach (var t in r.Trechos)
         {
             var s = t.Secao;
-            bool ret = s.Classificar().Tipo == TipoSecao.Retangular, mesmaB = Math.Abs(s.B - s0.B) <= tol && Math.Abs(s.YMin - s0.YMin) <= tol;
-            if (ret && mesmaB && Math.Abs(s.H - s0.H) <= tol) partes.Add((t.X0, t.X1, Parte.Corrente, s0.H));
-            else if (ret && mesmaB && s.H < s0.H - tol && Math.Abs(s.ZMax - s0.ZMax) <= tol) partes.Add((t.X0, t.X1, Parte.Dente, R(s.H)));
-            else if (t.Comprimento <= TrechoLocal && s.YMin >= s0.YMin - tol && s.YMax <= s0.YMax + tol && s.ZMin >= s0.ZMin - tol && s.ZMax <= s0.ZMax + tol)
-                partes.Add((t.X0, t.X1, Parte.Local, 0));
+            var i = SecaoComAba.Ler(s);
+            bool mesmaAlma = i != null && !i.AlturaToda && Math.Abs(i.B - i0.B) <= tol && Math.Abs(i.Y0 - i0.Y0) <= tol;
+            if (mesmaAlma && Math.Abs(i.H - i0.H) <= tol && Math.Abs(i.Z0 - i0.Z0) <= tol)
+                partes.Add(new Pedaco { X0 = t.X0, X1 = t.X1, P = Parte.Corrente, H = i0.H, Aba = i.Chave, Secao = i });
+            else if (mesmaAlma && i.H < i0.H - tol && Math.Abs(s.ZMax - s0.ZMax) <= tol)   // a aba acima do recorte passa pelo dente
+                partes.Add(new Pedaco { X0 = t.X0, X1 = t.X1, P = Parte.Dente, H = R(i.H), Aba = i.Chave, Secao = i });
+            else if (t.Comprimento <= TrechoLocal && s.YMin >= yMin - tol && s.YMax <= yMax + tol && s.ZMin >= zMin - tol && s.ZMax <= zMax + tol)
+                partes.Add(new Pedaco { X0 = t.X0, X1 = t.X1, P = Parte.Local });
             else
             {
                 motivo = $"de {N(t.X0)} a {N(t.X1)} cm a seção é {s.Classificar().Descricao} (a corrente é {s0.Classificar().Descricao}) — " +
-                         "aba, mísula, recorte em cima ou seção variável, que o CAD ainda não desenha (VP-4).";
+                         "mísula, recorte em cima, I ou seção variável, que o CAD ainda não desenha.";
                 return null;
             }
         }
@@ -203,38 +220,59 @@ public static class ConversorLevantamento
         {
             notas.Add($"Viga {g.Marcas}: furo ou recorte local em " + string.Join(", ", partes.Where(x => x.P == Parte.Local).Select(x => $"{N(x.X0)}–{N(x.X1)}")) +
                       " cm não é lido (ficam os furos do PADRÃO do CAD) — conferir.");
-            for (int i = 0; i < partes.Count; i++)
+            for (int k = 0; k < partes.Count; k++)
             {
-                if (partes[i].P != Parte.Local) continue;
-                int viz = i > 0 ? i - 1 : partes.FindIndex(x => x.P != Parte.Local);
+                if (partes[k].P != Parte.Local) continue;
+                int viz = k > 0 ? k - 1 : partes.FindIndex(x => x.P != Parte.Local);
                 if (viz < 0) { motivo = "seção não reconhecida."; return null; }
-                partes[i] = (partes[i].X0, partes[i].X1, partes[viz].P, partes[viz].H);
+                var o = partes[viz];
+                partes[k] = new Pedaco { X0 = partes[k].X0, X1 = partes[k].X1, P = o.P, H = o.H, Aba = o.Aba, Secao = o.Secao };
             }
         }
-        // junta os vizinhos iguais; o que vale: [dente] corrente [dente]
-        var j = new List<(double X0, double X1, Parte P, double H)>();
+        // junta os vizinhos iguais
+        var j = new List<Pedaco>();
         foreach (var x in partes)
         {
-            if (j.Count > 0 && j[j.Count - 1].P == x.P && Math.Abs(j[j.Count - 1].H - x.H) <= tol) j[j.Count - 1] = (j[j.Count - 1].X0, x.X1, x.P, x.H);
+            if (j.Count > 0 && j[j.Count - 1].Igual(x)) j[j.Count - 1].X1 = x.X1;
             else j.Add(x);
         }
-        int ic = j.FindIndex(x => x.P == Parte.Corrente);
-        bool forma = j.Count(x => x.P == Parte.Corrente) == 1 && j.Count <= 3 && (ic == 0 || (ic == 1 && j[0].P == Parte.Dente)) &&
-                     (ic == j.Count - 1 || (ic == j.Count - 2 && j[j.Count - 1].P == Parte.Dente));
-        if (!forma)
+        string Resumo() => string.Join(" | ", j.Select(x => $"{N(x.X0)}–{N(x.X1)} {(x.P == Parte.Dente ? "dente h " + N(x.H) + " " : "")}{(x.Aba.Length > 0 ? "com aba" : "sem aba")}"));
+        // o que vale: [dente] + corrente (com um trecho de aba, no máximo) + [dente]
+        bool denteE = j[0].P == Parte.Dente, denteD = j.Count > 1 && j[j.Count - 1].P == Parte.Dente;
+        var meio = j.Skip(denteE ? 1 : 0).Take(j.Count - (denteE ? 1 : 0) - (denteD ? 1 : 0)).ToList();
+        if (meio.Count == 0 || meio.Any(x => x.P != Parte.Corrente))
         {
-            motivo = "os trechos não formam [dente] + corrente + [dente] (" +
-                     string.Join(" | ", j.Select(x => $"{N(x.X0)}–{N(x.X1)} {(x.P == Parte.Dente ? "h " + N(x.H) : "corrente")}")) + ").";
+            motivo = $"os trechos não formam [dente] + corrente + [dente] ({Resumo()}).";
             return null;
         }
-        DentePeca Dente((double X0, double X1, Parte P, double H) x) => new DentePeca { Altura = x.H, Comprimento = R(x.X1 - x.X0) };
-        return new VigaPeca
+        // a aba (a mesma, medida a partir do topo) num trecho contínuo — que pode pegar os dentes
+        var comAba = j.Where(x => x.Aba.Length > 0).ToList();
+        int ia = j.FindIndex(x => x.Aba.Length > 0);
+        if (comAba.Count > 0 && (comAba.Select(x => x.Aba).Distinct().Count() > 1 || j.Skip(ia).Take(comAba.Count).Any(x => x.Aba.Length == 0)))
         {
-            B = R(s0.B), H = R(s0.H), L = R(r.Comprimento),
-            DenteE = ic == 1 ? Dente(j[0]) : null,
-            DenteD = ic == j.Count - 2 ? Dente(j[j.Count - 1]) : null,
+            motivo = $"a aba muda ao longo da viga ou tem mais de um trecho ({Resumo()}) — o CAD desenha uma aba, num trecho só.";
+            return null;
+        }
+        DentePeca Dente(Pedaco x) => new DentePeca { Altura = x.H, Comprimento = R(x.X1 - x.X0) };
+        var v = new VigaPeca
+        {
+            B = R(i0.B), H = R(i0.H), L = R(r.Comprimento),
+            DenteE = denteE ? Dente(j[0]) : null,
+            DenteD = denteD ? Dente(j[j.Count - 1]) : null,
             Elementos = Elementos(g),
         };
+        if (comAba.Count > 0)
+        {
+            var a = comAba[0].Secao;
+            v.Aba = new AbaPeca
+            {
+                Lado = a.AbaEsquerda > 0 && a.AbaDireita > 0 ? AbaPeca.DoisLados : a.AbaEsquerda > 0 ? AbaPeca.Esquerda : AbaPeca.Direita,
+                Largura = R(a.AbaLargura), Altura = R(a.AbaAltura), AlturaPonta = R(a.AbaAlturaPonta),
+                Base = R(Math.Max(0, i0.H - a.DistanciaDoTopo - a.AbaAltura)),   // a partir do fundo da viga (a seção do dente começa mais alto)
+                Inicio = R(comAba[0].X0), Fim = R(comAba[comAba.Count - 1].X1),
+            };
+        }
+        return v;
     }
 
     private static double R(double cm) => Math.Round(cm, 2);

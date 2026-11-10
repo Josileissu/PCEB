@@ -199,8 +199,12 @@ public class SubdivisaoPecasTests
     public void AvaliaASituacaoDaPeca()
     {
         var v = Viga("1", "V1", "20x50");
-        Assert.Equal(SituacaoPeca.NaoSuportada, v.Situacao);      // trecho com aba: o CAD ainda não desenha
-        Assert.Contains(v.Avisos, a => a.StartsWith("trecho 300–420: L"));
+        Assert.Equal(SituacaoPeca.Ok, v.Situacao);                // trecho com aba lateral (L): o CAD desenha desde o VP-4 (2026-11-09)
+        var mesa = new PecaLevantada { Tipo = TipoPeca.Viga, TipoRevit = "20x50", PreMoldada = true, Comprimento = 500,
+            Trechos = Subdivisao.Juntar(new[] { (0.0, 500.0, Poli((0, 0), (40, 0), (40, 10), (30, 10), (30, 40), (40, 40), (40, 50), (0, 50), (0, 40), (10, 40), (10, 10), (0, 10))) }) };
+        ConferenciaPecas.Avaliar(mesa);
+        Assert.Equal(SituacaoPeca.NaoSuportada, mesa.Situacao);   // seção I: ainda não
+        Assert.Contains(mesa.Avisos, a => a.StartsWith("trecho 0–500: I"));
         var reta = new PecaLevantada { Tipo = TipoPeca.Viga, TipoRevit = "20x60", PreMoldada = false, Material = "Concreto moldado",
             Comprimento = 500, Trechos = Subdivisao.Juntar(new[] { (0.0, 500.0, SecaoPoligonal.Retangulo(20, 50)) }) };
         ConferenciaPecas.Avaliar(reta);

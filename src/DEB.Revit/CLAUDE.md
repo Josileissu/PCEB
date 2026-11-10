@@ -76,13 +76,17 @@ e pelo volume (`PerfilViga`, `AgrupadorVigas`, `PrecastExport.Beams` foram remov
 - **Pilar**: b × h = caixa do pilar sem os consolos, no sistema do representante (faces 1 = +x, 2 = −y, 3 = −x, 4 = +y); o trecho
   corrente tem de ter ≥ 95% da área de b × h (chanfro de canto passa; L, circular etc. = não exportado, com nota); trecho mais fino
   (cabeça reduzida, chaves) = exportado com nota "conferir". Embutimento (parâmetro "Embutimento") entra na assinatura do grupo.
-- **Viga**: só [dente] + corrente retangular + [dente] (dente = mesma largura, mais baixo, topo no topo da peça); trecho curto (≤ 20 cm)
-  de seção reduzida dentro da caixa = furo de pino/recorte local, ignorado com nota; aba, mísula, recorte em cima ou consolo de outra
-  viga = não exportada, com o motivo. Invertida = mesmo grupo (giro 180).
+- **Viga**: [dente] + corrente + [dente], com alma retangular e, desde o VP-4 (09/11/2026), UMA aba lateral num trecho contínuo
+  (`DEB.Core/Pecas/SecaoComAba`: L, T invertido, aba elevada, aba rente ao topo, fundo inclinado; a aba acima do recorte passa pelo
+  dente) → `VigaPeca.Aba`, JSON versão 2 só quando há aba. Trecho curto (≤ 20 cm) de seção reduzida dentro da caixa = furo de
+  pino/recorte local, ignorado com nota. I, duas saliências no mesmo lado, mísula em toda a altura ou consolo de outra viga = não
+  exportada, com o motivo. Invertida = mesmo grupo (giro 180). Detalhes em `src/DEB.Cad/docs/TEMPLATES.md` (VP-4).
 - **Material**: o mesmo critério para pilares e vigas — as de "Concreto pré-moldado"; se o modelo não tem nenhuma do tipo, todas, com nota.
 - `uid` (UniqueId) de cada elemento vai no JSON como campo opcional (o DEB.Cad 0.1.32 instalado ignora e continua lendo).
 - `PrecastSurvey` lê a geometria de cada candidato a consolo uma vez (antes: de novo para cada pilar) e descarta os distantes pela caixa.
-AutoRun `exportarpecas` (`SD_EXPORT` = caminho). Só lê o modelo.
+AutoRun `exportarpecas` (`SD_EXPORT` = caminho). Só lê o modelo. `conferir` aceita `SD_CONFERIR_INDICES="16,18"` (PNG de grupos de vigas escolhidos).
+O modelo Nordika é do Revit 2026 (o 2025 para no aviso "versão posterior"); no 2026 o AutoRun roda, mas o Revit não fecha sozinho
+depois (encerre só a instância que você abriu, pelo PID). Revit do usuário aberto = DLL presa: renomeie para `.antigo`, copie e assine.
 **Edições na janela (etapa 3, 09/11/2026)** — as únicas gravações da conferência no modelo (`Precast/PieceReviewEdits`, comando em
 `TransactionMode.Manual`): "Gravar marca no modelo" (parâmetro Marca de todas as peças do grupo; a janela recusa a marca que já é de
 outro grupo) e "Não exportar este grupo" (Extensible Storage, schema `DEB_ConferenciaPeca`, campo `NaoExportar`, no próprio elemento:

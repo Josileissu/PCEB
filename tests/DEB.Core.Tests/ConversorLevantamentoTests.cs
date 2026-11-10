@@ -101,17 +101,136 @@ public class ConversorLevantamentoTests
     }
 
     [Fact]
-    public void VigaComAbaOuRecorteEmCimaFicaDeFora()
+    public void VigaComMisulaOuRecorteEmCimaFicaDeFora()
     {
-        var aba = Viga("10", "V1", false, false);
-        aba.Trechos.Insert(0, T(0, 100, new SecaoPoligonal { Contorno = { (0, 0), (40, 0), (40, 15), (20, 15), (20, 50), (0, 50) } }));
-        aba.Trechos[1].X0 = 100;
+        var misula = Viga("10", "V1", false, false);
+        misula.Trechos.Insert(0, T(0, 100, new SecaoPoligonal { Contorno = { (0, 0), (20, 0), (40, 30), (40, 50), (0, 50) } }));   // lado inclinado
+        misula.Trechos[1].X0 = 100;
         var emCima = Viga("11", "V2", false, false);
         emCima.Trechos.Insert(0, T(0, 25, SecaoPoligonal.Retangulo(20, 25)));   // dente com o recorte EM CIMA
         emCima.Trechos[1].X0 = 25;
-        var arq = ConversorLevantamento.Converter(new[] { aba, emCima }, "m.rvt", "");
+        var mesa = Viga("12", "V3", false, false);                               // I: mesas em cima e embaixo
+        mesa.Trechos[0].Secao = new SecaoPoligonal { Contorno = { (0, 0), (40, 0), (40, 10), (30, 10), (30, 40), (40, 40), (40, 50), (0, 50), (0, 40), (10, 40), (10, 10), (0, 10) } };
+        var arq = ConversorLevantamento.Converter(new[] { misula, emCima, mesa }, "m.rvt", "");
         Assert.Empty(arq.Vigas);
-        Assert.Equal(2, arq.Notas.Count(n => n.Contains("não exportada")));
+        Assert.Equal(3, arq.Notas.Count(n => n.Contains("não exportada")));
+    }
+
+    /// <summary>L: alma 20 × 50 (y de 0 a 20) com aba 15 × 20 para o y maior (esquerda), no fundo.</summary>
+    private static SecaoPoligonal SecaoL() => new SecaoPoligonal { Contorno = { (0, 0), (35, 0), (35, 20), (20, 20), (20, 50), (0, 50) } };
+
+    [Fact]
+    public void VigaLComAbaEntreOsDentesVaiComAAba()
+    {
+        var p = Viga("10", "V129", true, true);
+        p.Trechos[1].Secao = SecaoL();
+        ConferenciaPecas.Avaliar(p);
+        Assert.NotEqual(SituacaoPeca.NaoSuportada, p.Situacao);
+        var arq = ConversorLevantamento.Converter(new[] { p }, "m.rvt", "");
+        var v = Assert.Single(arq.Vigas);
+        Assert.Equal((20.0, 50.0), (v.B, v.H));   // b = a alma
+        Assert.NotNull(v.DenteE);
+        Assert.Equal((AbaPeca.Esquerda, 15.0, 20.0, 0.0, 25.0, 521.0), (v.Aba.Lado, v.Aba.Largura, v.Aba.Altura, v.Aba.Base, v.Aba.Inicio, v.Aba.Fim));
+        // com aba o arquivo sai na versão 2 (um CAD antigo recusa em vez de desenhar sem a aba) e a aba volta na leitura
+        var json = arq.ParaJson();
+        Assert.Equal(2, LeitorJson.Int(json, "versao", 0, "t"));
+        var lido = ArquivoPecas.DeJson(Json.Ler(Json.Gravar(json)));
+        Assert.Equal((AbaPeca.Esquerda, 15.0, 25.0, 521.0), (lido.Vigas[0].Aba.Lado, lido.Vigas[0].Aba.Largura, lido.Vigas[0].Aba.Inicio, lido.Vigas[0].Aba.Fim));
+    }
+
+    [Fact]
+    public void TInvertidoComAbaSoNumTrechoEAbaElevada()
+    {
+        // 0–200 T invertido (alma 20 em y 15..35, abas de 15 dos dois lados, 20 de altura); 200–546 só a alma
+        var p = Viga("10", "VT", false, false);
+        var t = new SecaoPoligonal { Contorno = { (0, 0), (50, 0), (50, 20), (35, 20), (35, 50), (15, 50), (15, 20), (0, 20) } };
+        p.Trechos = new List<TrechoPeca> { T(0, 200, t), T(200, 546, SecaoPoligonal.Retangulo(20, 50, 15, 0)) };
+        var v = Assert.Single(ConversorLevantamento.Converter(new[] { p }, "m.rvt", "").Vigas);
+        Assert.Equal((AbaPeca.DoisLados, 15.0, 0.0, 200.0), (v.Aba.Lado, v.Aba.Largura, v.Aba.Inicio, v.Aba.Fim));
+        Assert.Equal(20, v.B);
+        // aba elevada (consolo corrido a 60 do fundo), para o y menor = direita
+        var e = SecaoComAba.Ler(new SecaoPoligonal { Contorno = { (25, 0), (51, 0), (51, 170), (25, 170), (25, 80), (0, 80), (0, 60), (25, 60) } });
+        Assert.Equal((26.0, 25.0, 0.0, 20.0, 60.0), (e.B, e.AbaDireita, e.AbaEsquerda, e.AbaAltura, e.AbaBase));
+        // dois trechos de aba separados: o CAD desenha um só
+        p.Trechos = new List<TrechoPeca> { T(0, 100, t), T(100, 400, SecaoPoligonal.Retangulo(20, 50, 15, 0)), T(400, 546, t) };
+        var arq = ConversorLevantamento.Converter(new[] { p }, "m.rvt", "");
+        Assert.Empty(arq.Vigas);
+        Assert.Contains(arq.Notas, n => n.Contains("mais de um trecho"));
+    }
+
+    /// <summary>
+    /// Vigas do modelo Nordika ("19x65 com aba"): aba elevada com o fundo inclinado (22 junto da alma, 15 na ponta), à esquerda,
+    /// que passa pelos dentes — a seção do dente é a parte de cima (40) com a mesma aba.
+    /// </summary>
+    [Fact]
+    public void AbaInclinadaElevadaQuePassaPelosDentes()
+    {
+        var vao = new SecaoPoligonal { Contorno = { (0, 0), (19, 0), (19, 25), (39, 32), (39, 47), (19, 47), (19, 65), (0, 65) } };
+        var dente = new SecaoPoligonal { Contorno = { (0, 25), (19, 25), (39, 32), (39, 47), (19, 47), (19, 65), (0, 65) } };
+        var i = SecaoComAba.Ler(vao);
+        Assert.Equal((19.0, 20.0, 0.0, 22.0, 15.0, 25.0), (i.B, i.AbaEsquerda, i.AbaDireita, i.AbaAltura, i.AbaAlturaPonta, i.AbaBase));
+        Assert.Equal(i.Chave, SecaoComAba.Ler(dente).Chave);   // a mesma aba, medida a partir do topo
+        var p = new PecaLevantada
+        {
+            Id = "1", Marca = "V119", Tipo = TipoPeca.Viga, PreMoldada = true, Comprimento = 295.5,
+            Trechos = { T(0, 25, dente), T(25, 270.5, vao), T(270.5, 295.5, dente) },
+        };
+        ConferenciaPecas.Avaliar(p);
+        Assert.NotEqual(SituacaoPeca.NaoSuportada, p.Situacao);
+        var v = Assert.Single(ConversorLevantamento.Converter(new[] { p }, "m.rvt", "").Vigas);
+        Assert.Equal((19.0, 65.0, 40.0, 40.0), (v.B, v.H, v.DenteE.Altura, v.DenteD.Altura));
+        Assert.Equal((AbaPeca.Esquerda, 20.0, 22.0, 15.0, 25.0, 0.0, 295.5),
+            (v.Aba.Lado, v.Aba.Largura, v.Aba.Altura, v.Aba.AlturaPonta, v.Aba.Base, v.Aba.Inicio, v.Aba.Fim));
+        // duas abas no mesmo lado (aba de laje + aba superior): ainda não
+        Assert.Null(SecaoComAba.Ler(new SecaoPoligonal { Contorno = { (0, 0), (19, 0), (19, 20), (39, 20), (39, 30), (19, 30), (19, 50), (39, 50), (39, 60), (19, 60), (19, 65), (0, 65) } }));
+    }
+
+    /// <summary>Vigas "30x50 com aba esq e dir laje" do Nordika: abas dos dois lados rentes ao TOPO, com o fundo inclinado, inclusive nos dentes.</summary>
+    [Fact]
+    public void AbasDosDoisLadosRentesAoTopo()
+    {
+        var vao = new SecaoPoligonal { Contorno = { (15, 0), (45, 0), (45, 35), (60, 38), (60, 50), (0, 50), (0, 38), (15, 35) } };
+        var dente = new SecaoPoligonal { Contorno = { (15, 25), (45, 25), (45, 35), (60, 38), (60, 50), (0, 50), (0, 38), (15, 35) } };
+        var p = new PecaLevantada
+        {
+            Id = "1", Marca = "V121", Tipo = TipoPeca.Viga, PreMoldada = true, Comprimento = 597,
+            Trechos = { T(0, 25, dente), T(25, 572, vao), T(572, 597, dente) },
+        };
+        ConferenciaPecas.Avaliar(p);
+        Assert.NotEqual(SituacaoPeca.NaoSuportada, p.Situacao);
+        var v = Assert.Single(ConversorLevantamento.Converter(new[] { p }, "m.rvt", "").Vigas);
+        Assert.Equal((30.0, 50.0, 25.0), (v.B, v.H, v.DenteE.Altura));
+        Assert.Equal((AbaPeca.DoisLados, 15.0, 15.0, 12.0, 35.0, 0.0, 597.0),
+            (v.Aba.Lado, v.Aba.Largura, v.Aba.Altura, v.Aba.AlturaPonta, v.Aba.Base, v.Aba.Inicio, v.Aba.Fim));
+        // e o template desenha: a aba no topo passa pelos dentes
+        var t = new DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
+        var cat = DEB.Core.Templates.VigaPreMoldada.TipoDente.Padrao();
+        cat.AddRange(CatalogoAutomatico.Dentes(new[] { v }, cat));
+        var avisos = new List<string>();
+        var antes = DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes;
+        try
+        {
+            DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = cat;
+            var val = ConversorVigaPeca.Valores(v, new DEB.Core.Templates.ValoresTemplate(t.Parametros), cat, avisos);
+            Assert.Empty(avisos);
+            var r = t.Gerar(val, new DEB.Core.Configuracao.ConfiguracaoArmadura());
+            Assert.DoesNotContain(r.Avisos, a => a.Contains("entra no dente"));
+            Assert.Equal(4, r.Barras.Single(b => b.Nome == "abalong").Quantidade);
+        }
+        finally { DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = antes; }
+    }
+
+    [Fact]
+    public void AbaDoModeloViraParametrosDoTemplate()
+    {
+        var t = new DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
+        var p = new VigaPeca { Marca = "V129", B = 40, H = 50, L = 600, Aba = new AbaPeca { Lado = AbaPeca.DoisLados, Largura = 15, Altura = 20, Inicio = 0, Fim = 600 } };
+        var avisos = new List<string>();
+        var v = ConversorVigaPeca.Valores(p, new DEB.Core.Templates.ValoresTemplate(t.Parametros), DEB.Core.Templates.VigaPreMoldada.TipoDente.Padrao(), avisos);
+        Assert.Equal((DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaDois, "15", "20", "600"), (v["Aba"], v["AbaLargura"], v["AbaAltura"], v["AbaFim"]));
+        Assert.Empty(DEB.Core.Templates.CatalogoTemplates.Validar(t, v));
+        var r = t.Gerar(v, new DEB.Core.Configuracao.ConfiguracaoArmadura());
+        Assert.Contains(r.Barras, b => b.Nome == "abaestribo");
     }
 
     [Fact]
@@ -162,7 +281,7 @@ public class ConversorLevantamentoTests
         var lido = ArquivoPecas.DeJson(Json.Ler(Json.Gravar(arq.ParaJson())));
         Assert.Equal("u10", lido.Vigas[0].Elementos[0].Uid);
         Assert.Equal("u1", lido.Pilares[0].Elementos[0].Uid);
-        Assert.Equal(ArquivoPecas.VersaoAtual, 1);   // campo opcional: o DEB.Cad já instalado continua lendo
+        Assert.Equal(1, LeitorJson.Int(arq.ParaJson(), "versao", 0, "t"));   // sem aba: versão 1, o DEB.Cad já instalado continua lendo
         arq.Vigas[0].Elementos[0].Uid = "";
         Assert.DoesNotContain("uid", Json.Gravar(new ArquivoPecas { Vigas = arq.Vigas }.ParaJson()));
     }

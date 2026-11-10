@@ -225,3 +225,30 @@ Usa o contexto de desenho do pilar (`TemplatePilarPreMoldado.Ctx`, agora `intern
   × 1,25 se a liberação não for gradual); nota no desenho. **Taxas** passiva e ativa (kg/m³) no quadro de produção da protendida
   (pesos pelas regras da RA, `MedidaBarra`; alças fora).
 - Falta: VP-4 (L, T invertido, I).
+
+### Viga com aba — VP-4, 1ª parte (Templates/VigaPreMoldada/AbaViga.cs, 2026-11-09, PC2) — PROPOSTA, aguardando os padrões do usuário
+Pedido do usuário: "pode propor o detalhamento das vigas com seções diferentes; depois eu te passo padrões para ajustarmos".
+Formato tirado das vigas reais do modelo Nordika (janela "Conferir peças"): a aba é um CONSOLO CORRIDO lateral.
+- Grupo de parâmetros "10. Aba (apoio de laje)": `Aba` (sem / esquerda (L) / direita (L) / dois lados (T invertido)), `AbaLargura`
+  (balanço a partir da alma), `AbaAltura` (junto da alma), `AbaAlturaPonta` (0 = retangular; menor = fundo inclinado, topo plano),
+  `AbaBase` (fundo acima do fundo da viga: 0 = L/T invertido; maior = aba elevada; base + altura = h = aba rente ao topo),
+  `AbaIni`/`AbaFim` (0 = automático), `AbaEstBitola`/`AbaEstEsp`, `AbaLongQtd`/`AbaLongBitola`. **b continua sendo a ALMA.**
+- Esquerda = lado de cima da planta e lado esquerdo das seções; direita = lado de baixo da planta = frente da elevação (aba só do
+  outro lado sai em linha oculta na elevação).
+- Dente Gerber: a aba que fica ACIMA do recorte passa pelo dente (padrão do trecho = de ponta a ponta, e a seção do dente sai com
+  a aba); a que fica abaixo para na face do dente.
+- Forma: aba na planta (com o balanço cotado), na elevação e nas seções (contorno poligonal, cotas do balanço, da ponta, da altura
+  junto da alma e do fundo). A seção do vão é cortada dentro do trecho da aba. Volume, peso e CG (alças) contam a aba.
+- Armadura (como consolo corrido): ESTRIBO DA ABA fechado, abraçando a alma e a(s) aba(s), ramo de cima reto (tirante) e ramo de
+  baixo acompanhando o fundo inclinado (`PoligonoEstriboAba` + `GeradorEstribo.FechadoPadrao`), em faixa própria embaixo das faixas
+  dos estribos da alma (barra `abaestribo`); LONGITUDINAIS na ponta de cada aba (barra `abalong`, rótulo "ARMADURA ABA LAJE").
+  Avisos: suspensão pelos estribos da alma (conferir) e aba de um lado só (CG fora do eixo: içamento e torção).
+- Fora desta parte: seção I, duas abas no mesmo lado (ex.: "aba laje + aba superior" do Nordika, alma que estreita em cima), mísula
+  em toda a altura, consolo de apoio de outra viga, estribos de suspensão próprios da aba.
+- Prévia sem CAD nesta máquina (sem matplotlib): `ARM_PREVIA=<pasta>` + teste `GravarPreviaDaVigaComAba` → JSON; desenhado com
+  System.Drawing (script de sessão). Testes: `VigaAbaTests`.
+- Revit → CAD: `DEB.Core/Pecas/SecaoComAba` lê a seção cortada como alma + aba (trapézio de topo plano, medidas como as do consolo);
+  `ConversorLevantamento` aceita [dente] + corrente + [dente] com UMA aba num trecho contínuo (que pode pegar os dentes);
+  `VigaPeca.Aba` (`AbaPeca`) vai no JSON como "aba" e o arquivo sai na **versão 2** só quando alguma viga tem aba (o DEB.Cad 0.1.32
+  instalado recusa o arquivo em vez de desenhar sem a aba; sem aba continua versão 1). Nordika (Revit 2026): 150 vigas em 35 grupos
+  exportadas (97 em 28 antes da aba); ficam fora 4 grupos com consolo de outra viga e 4 com duas saliências.
