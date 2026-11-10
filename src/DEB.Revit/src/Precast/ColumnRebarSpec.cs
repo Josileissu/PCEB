@@ -51,6 +51,21 @@ namespace DEB.Revit.Precast
         public double SewDiameterMm { get; set; } = 8;
         /// <summary>Estribos horizontais de costura, distribuídos em 2/3 d abaixo do tirante.</summary>
         public int SewCount { get; set; } = 3;
+        /// <summary>Barra de ancoragem soldada na ponta do tirante (padrão do escritório; tirante em L). Sem ela, o tirante
+        /// desce na ponta (U invertido).</summary>
+        public bool TieWeldedBar { get; set; } = true;
+        /// <summary>Estribos verticais do consolo (fechados no plano transversal, repetidos ao longo do balanço).</summary>
+        public int CorbelStirrupCount { get; set; } = 5;
+        public double CorbelStirrupDiameterMm { get; set; } = 6.3;
+        /// <summary>Armadura inferior do consolo (U com as pernas para cima, entrando no pilar).</summary>
+        public int CorbelBottomCount { get; set; } = 2;
+        public double CorbelBottomDiameterMm { get; set; } = 10;
+        /// <summary>Pinos (chumbadores em L) no meio da almofada: acima do topo, embutido e pé.</summary>
+        public int CorbelPinCount { get; set; } = 1;
+        public double CorbelPinDiameterMm { get; set; } = 20;
+        public double CorbelPinAboveMm { get; set; } = 420;
+        public double CorbelPinEmbedMm { get; set; } = 180;
+        public double CorbelPinFootMm { get; set; } = 200;
 
         // ---- Içamento / insertos ----
         public int LiftLoops { get; set; } = 1;
@@ -105,6 +120,16 @@ namespace DEB.Revit.Precast
             double clear = Math.Min(gapX, gapY) - LongDiameterMm;
             if (LongBarsAlongX > 1 && LongBarsAlongY > 1 && clear < Math.Max(20, LongDiameterMm))
                 w.Add($"Espaçamento livre entre barras {clear:0} mm < max(20 mm; Ø) (18.4.2.2).");
+
+            // alça: o vão interno (largura − Ø) tem de comportar o pino de dobramento (NBR 6118 tab. 9.1, CA-50: 5Ø se Ø < 20,
+            // 8Ø se Ø ≥ 20); senão o Revit não resolve a forma ("Não é possível solucionar o formato do vergalhão")
+            if (LiftLoops > 0)
+            {
+                double mandrel = (LiftDiameterMm >= 20 ? 8 : 5) * LiftDiameterMm;
+                if (LiftWidthMm - LiftDiameterMm < mandrel - 1e-6)
+                    w.Add($"Alça Ø{LiftDiameterMm:0.#}: largura {LiftWidthMm:0} mm não comporta o pino de dobramento ({mandrel:0} mm; " +
+                          $"largura mínima {mandrel + LiftDiameterMm:0} mm, NBR 6118 tab. 9.1).");
+            }
 
             double ac = bx * by;
             double asTot = LongBarCount * Math.PI * LongDiameterMm * LongDiameterMm / 4;

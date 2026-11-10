@@ -111,7 +111,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                 P(G6, "ModuloE", "Módulo de elasticidade adotado (0 = sem nota)", "0", "GPa", min: 0,
                   descricao: "NBR 9062, 5.6.1.2: o desenho informa o E adotado."),
                 P(G6, "Estocagem", "Estocagem: apoios a partir das pontas (0 = nas alças)", "0", "cm", min: 0),
-            }.Concat(ParametrosCantoneira()).Concat(ParametrosArmadura()).Concat(ParametrosProtensao()).ToArray();
+            }.Concat(ParametrosCantoneira()).Concat(ParametrosArmadura()).Concat(ParametrosProtensao()).Concat(ParametrosAba()).ToArray();
         }
     }
 
@@ -164,6 +164,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         var d = LerExtremidade(v, false, CatalogoDentes, r.Avisos);
         ValidarExtremidades(r, b, h, L, e, d, v.Numero("FuroDiam") / 10);
         ValidarCantoneiras(v, b, h, e, d, r.Avisos);
+        var aba = LerAba(v, h, L, e, d, r.Avisos);   // VP-4: aba de apoio de laje (L / T invertido)
         int qtd = Math.Max(1, v.Inteiro("Quantidade"));
 
         // ---------------- título ----------------
@@ -175,17 +176,19 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         // ---------------- fôrmas em planta ----------------
         y -= 7 * hv;
         TituloVista(c, "FÔRMAS EM PLANTA", "FORMWORK PLAN", 0, y, escV);
-        double yP = y - 10 * hv - b; // fundo da planta (face de y = 0); folga para a 2ª linha da cadeia dos furos
-        DesenharPlanta(c, v, b, L, e, d, yP);
+        double yP = y - 10 * hv - b - aba.LargE; // fundo da planta (face de y = 0); folga para a 2ª linha da cadeia dos furos
+        DesenharPlanta(c, v, b, L, e, d, yP, aba);
 
         // ---------------- fôrmas em elevação ----------------
-        y = yP - 13 * hv;
+        y = yP - 13 * hv - aba.LargD - (AbaParcial(aba, L, e, d) ? 3 * hv : 0);
         TituloVista(c, "FÔRMAS EM ELEVAÇÃO", "FORMWORK ELEVATION", 0, y, escV);
         bool alcas = v.SimNao("Alcas");
         double acima = alcas ? v.Numero("AlcaAcima") : 0;
         double yE = y - (alcas ? 12 : 8) * hv - acima - h; // folga para a cadeia e o rótulo das alças
-        var cortes = CortesForma(e, d, L);
+        // a seção do vão passa pela aba (se a aba não pega o meio da viga, o corte vai para o meio dela)
+        var cortes = CortesForma(e, d, L, aba.Existe && !aba.Em(L / 2) ? (aba.Ini + aba.Fim) / 2 : (double?)null);
         DesenharElevacao(c, v, b, h, L, e, d, yE, cortes, alcas);
+        AbaEmElevacao(c, aba, L, yE, cotar: true);
 
         // ---------------- armaduras em elevação (etapa 2) ----------------
         var longs = LerLongitudinais(v, L, v.Numero("CobPontas"), e, d, r.Avisos);
@@ -195,7 +198,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         // fretagem: estribos das pontas até o fim da transferência das cordoalhas aderentes (NBR 6118 9.4.5.2)
         var fret = Fretagem(cords, h, L, e, d, v.Numero("FcjSaque"), v.SimNao("LiberacaoGradual"));
         var zonas = ZonasEstribos(v, cfg, L, e, d, fret.E, fret.D);
-        double yArm = ArmadurasEmElevacao(c, v, cfg, b, h, L, e, d, longs, zonas, cortes, yE - 16 * hv, cords.Where(g => Superior(g, h)).ToList());
+        double yArm = ArmadurasEmElevacao(c, v, cfg, b, h, L, e, d, longs, zonas, cortes, yE - 16 * hv, cords.Where(g => Superior(g, h)).ToList(), aba);
 
         VerificarCordoalhas(cords, b, h, v.Numero("CobLateral"), v.Numero("CobFundo"), v.Numero("CobTopo"), v.Numero("EstBitola"),
             prot ? v.Numero("FcjSaque") : 99, e, d, r.Avisos);
@@ -203,18 +206,21 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         CordoalhasEmElevacao(c, cords.Where(g => !Superior(g, h)).ToList(), h, L, e, d, yArm - 2 * hv);
 
         // ---------------- seções de forma e de armadura (coluna à direita das vistas) ----------------
-        double xS = L + 25 * hv, yS = 0, xSA = xS + b + 25 * hc;
+        double wAba = aba.LargE + aba.LargD;
+        double xS = L + 25 * hv, yS = 0, xSA = xS + b + wAba + 25 * hc;
         double ySVao = 0;
         foreach (var (id, xc) in cortes)
         {
             var ext = xc < L / 2 && e.TemDente && xc < e.CompDente ? e : xc > L / 2 && d.TemDente && xc > L - d.CompDente ? d : null;
-            SecaoArmadura(c, v, id, xc, b, h, L, ext, longs, zonas, xSA, yS);
-            if (cords.Count > 0) CordoalhasNaSecao(c, cords, xc, h, L, e, d, b, xSA + 4 * hc, SecaoBase(c, yS, ext, h));
+            // as seções ficam alinhadas pela alma (deslocadas da aba esquerda); no dente, só a aba que fica acima do recorte
+            var abaSec = !aba.Em(xc) ? null : ext?.TemDente == true ? aba.NoDente(h - ext.Dente.Altura) : aba;
+            SecaoArmadura(c, v, id, xc, b, h, L, ext, longs, zonas, xSA + aba.LargE, yS, abaSec);
+            if (cords.Count > 0) CordoalhasNaSecao(c, cords, xc, h, L, e, d, b, xSA + aba.LargE + 4 * hc, SecaoBase(c, yS, ext, h));
             if (ext == null) ySVao = yS;
-            yS = SecaoForma(c, id, b, h, ext, xS, yS) - 8 * hc;
+            yS = SecaoForma(c, id, b, h, ext, xS + aba.LargE, yS, abaSec) - 8 * hc;
         }
         // forma do estribo ao lado da seção do vão (descrição embaixo)
-        double xEst = xSA + b + 22 * hc;
+        double xEst = xSA + b + wAba + 22 * hc;
         var est = FormaEstribo(v, cfg, b, h, xEst, ySVao - 7 * hc - (h - v.Numero("CobFundo") - v.Numero("CobTopo")));
         est.Escala = escC;
         var ex = est.Vertices;
@@ -233,6 +239,17 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                 yForma -= (fy1 - fy0) + 9 * hc;
             }
 
+        // forma do estribo da aba, embaixo das outras
+        int nEstAba = PosicoesEstribosAba(v, cfg, aba).Count;
+        if (nEstAba > 0 && FormaEstriboAba(v, cfg, aba, b, xEst, 0) is { } fa)
+        {
+            double fy1 = fa.Vertices.Max(q => q.Y), fy0 = fa.Vertices.Min(q => q.Y);
+            for (int i = 0; i < fa.Vertices.Count; i++) fa.Vertices[i] = (fa.Vertices[i].X, fa.Vertices[i].Y - fy1 + yForma);
+            fa.Escala = escC;
+            fa.PosicaoDescricao = ((fa.Vertices.Min(q => q.X) + fa.Vertices.Max(q => q.X)) / 2, yForma - (fy1 - fy0) - 3 * hc);
+            r.Barras.Add(fa);
+        }
+
         // ---------------- detalhe da alça (embaixo das seções) e estabilidade lateral ----------------
         double yItens = alcas ? DetalheAlca(c, v, xS, yS - 4 * hc) : yS - 4 * hc;
         NomenclaturaCordoalhas(c, cords, b, h, xS, yItens);
@@ -243,12 +260,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                          $"L·h/b² = {Num(ind, "0")} (≤ 500) — verificar a carga crítica, travar ou mudar as alças (6.1.4, 6.1.7).");
 
         // ---------------- notas e informações para produção ----------------
-        double xD = xEst + b + 30 * hc, yD = 0;
+        double xD = xEst + b + wAba + 30 * hc, yD = 0;
         yD = Notas(c, v, L, xD, yD, fret.Lbpt);
-        double vol = Volume(b, h, L, e, d), peso = vol * v.Numero("PesoEspecifico") / 1000;
+        double vol = Volume(b, h, L, e, d) + aba.VolumeCm3 / 1e6, peso = vol * v.Numero("PesoEspecifico") / 1000;
         r.Tabelas.Add(TemplatePilarPreMoldado.TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"),
             vol, peso, qtd, xD, yD, escV, protendida: prot,
-            taxaPassiva: prot ? PesoPassivo(r, cfg, zonas) / vol : 0, taxaAtiva: prot ? PesoAtivo(r, cfg) / vol : 0));
+            taxaPassiva: prot ? PesoPassivo(r, cfg, zonas, nEstAba) / vol : 0, taxaAtiva: prot ? PesoAtivo(r, cfg) / vol : 0));
         r.PosicaoRA = (xD + 75 * hv, 0);
 
         // ---------------- detalhes típicos da biblioteca do escritório (DWG; coluna à direita, o usuário ajusta) ----------------
@@ -322,10 +339,15 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         return p;
     }
 
-    private static void DesenharPlanta(Ctx c, ValoresTemplate v, double b, double L, ExtremidadeViga e, ExtremidadeViga d, double yP)
+    /// <summary>A aba não vai de dente a dente (ou de ponta a ponta): o trecho dela ganha uma cadeia própria na planta.</summary>
+    private static bool AbaParcial(AbaViga a, double L, ExtremidadeViga e, ExtremidadeViga d) =>
+        a.Existe && (Math.Abs(a.Ini - (e.TemDente ? e.CompDente : 0)) > 1e-6 || Math.Abs(a.Fim - (L - (d.TemDente ? d.CompDente : 0))) > 1e-6);
+
+    private static void DesenharPlanta(Ctx c, ValoresTemplate v, double b, double L, ExtremidadeViga e, ExtremidadeViga d, double yP, AbaViga a)
     {
         double hv = c.hV, esc = c.escV, rf = v.Numero("FuroDiam") / 20;
         c.Retangulo(0, yP, L, yP + b);
+        AbaEmPlanta(c, a, b, L, yP);
         // face dos recortes dos dentes (embaixo): oculta na planta
         if (e.TemDente) c.Linha(e.CompDente, yP, e.CompDente, yP + b, "ARM-FURO-OCULTO");
         if (d.TemDente) c.Linha(L - d.CompDente, yP, L - d.CompDente, yP + b, "ARM-FURO-OCULTO");
@@ -358,28 +380,29 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
             var p = pontosFuros.Distinct().OrderBy(q => q).ToList();
             var pe = p.Where(q => q <= Math.Max(e.CompDente, e.DistFuro) + 1e-6).ToList();
             var pd = p.Where(q => q >= L - Math.Max(d.CompDente, d.DistFuro) - 1e-6).ToList();
-            if (pe.Count > 1) CadeiaH(c, pe, yP + b, yP + b + 2.5 * hv, esc);
-            if (pd.Count > 1) CadeiaH(c, pd, yP + b, yP + b + 2.5 * hv, esc);
+            if (pe.Count > 1) CadeiaH(c, pe, yP + b, yP + b + a.LargE + 2.5 * hv, esc);
+            if (pd.Count > 1) CadeiaH(c, pd, yP + b, yP + b + a.LargE + 2.5 * hv, esc);
         }
-        if (e.TemDente || d.TemDente) CadeiaH(c, PontosComprimento(L, e, d), yP, yP - 3 * hv, esc);
-        c.Cota(0, yP, L, yP, L / 2, yP - 6 * hv, 0, esc);
+        if (e.TemDente || d.TemDente) CadeiaH(c, PontosComprimento(L, e, d), yP, yP - a.LargD - 3 * hv, esc);
+        c.Cota(0, yP, L, yP, L / 2, yP - a.LargD - 6 * hv, 0, esc);
+        if (AbaParcial(a, L, e, d)) CadeiaH(c, new[] { 0, a.Ini, a.Fim, L }, yP, yP - a.LargD - 9 * hv, esc);
         CantoneirasEmPlanta(c, v, b, L, yP);
     }
 
     /// <summary>Posições das duas alças (cm da ponta esquerda): simétricas ao CG, como no pilar; valores digitados mandam.</summary>
     public static double[] PosicaoAlcas(ValoresTemplate v, double b, double L, ExtremidadeViga e, ExtremidadeViga d)
     {
-        double cg = CentroDeGravidade(b, v.Numero("H"), L, e, d);
+        double cg = CentroDeGravidade(b, v.Numero("H"), L, e, d, LerAba(v, v.Numero("H"), L, e, d, null));
         var (x1, x2) = TemplatePilarPreMoldado.PosicaoAlcas(L, cg, v.Numero("AlcaPct"), v.Numero("AlcaX1"), v.Numero("AlcaX2"));
         return new[] { x1, x2 };
     }
 
     /// <summary>Seções de forma: o dente de cada ponta (no meio do dente) e o vão; letras da esquerda para a direita.</summary>
-    public static List<(string Id, double X)> CortesForma(ExtremidadeViga e, ExtremidadeViga d, double L)
+    public static List<(string Id, double X)> CortesForma(ExtremidadeViga e, ExtremidadeViga d, double L, double? xVao = null)
     {
         var xs = new List<double>();
         if (e.TemDente) xs.Add(e.CompDente / 2);
-        xs.Add(L / 2);
+        xs.Add(xVao ?? L / 2);
         if (d.TemDente) xs.Add(L - d.CompDente / 2);
         return xs.Select((x, i) => (((char)('A' + i)).ToString(), x)).ToList();
     }
@@ -465,24 +488,29 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
     /// Seção de forma (escala das seções) com o topo em <paramref name="yTopo"/>; devolve o y abaixo dela. No dente, a parte
     /// cortada é o dente (b × altura do dente) e o recorte aparece atrás, em vista.
     /// </summary>
-    private static double SecaoForma(Ctx c, string id, double b, double h, ExtremidadeViga ext, double x0, double yTopo)
+    private static double SecaoForma(Ctx c, string id, double b, double h, ExtremidadeViga ext, double x0, double yTopo, AbaViga a = null)
     {
         double hc = c.hC, esc = c.escC, y = yTopo;
         foreach (var t in c.Linhas($"SEÇÃO {id}-{id}", $"SECTION {id}-{id}")) { c.Texto(t, x0, y, 1.2 * hc); y -= 2 * hc; }
         c.Texto($"ESC 1:{esc:0}", x0, y, 0.8 * hc);
         double sx0 = x0 + 4 * hc, sy1 = y - 5 * hc, sy0 = sy1 - h;
         double hCorte = ext?.TemDente == true ? ext.Dente.Altura : h;
-        c.Retangulo(sx0, sy1 - hCorte, sx0 + b, sy1, "ARM-PILAR-SECAO");
+        if (a != null) c.R.Contornos.Add(new ContornoTemplate { Vertices = ContornoSecao(b, hCorte, a, sx0, sy1 - hCorte), Fechado = true, Layer = "ARM-PILAR-SECAO" });
+        else c.Retangulo(sx0, sy1 - hCorte, sx0 + b, sy1, "ARM-PILAR-SECAO");
         if (hCorte < h - 1e-6) c.Retangulo(sx0, sy0, sx0 + b, sy1 - hCorte); // recorte do dente, em vista
         c.Cota(sx0, sy0, sx0 + b, sy0, sx0 + b / 2, sy0 - 3 * hc, 0, esc);
-        c.Cota(sx0 + b, sy1 - hCorte, sx0 + b, sy1, sx0 + b + 3 * hc, sy1 - hCorte / 2, Math.PI / 2, esc);
+        // com aba só à direita, a cota da altura da aba fica junto dela e a da viga vai uma linha para fora
+        double xh = sx0 + b + (a?.LargD ?? 0) + (a != null && !a.Esquerda ? (a.Inclinada ? 9 : 6) : 3) * hc;
+        c.Cota(sx0 + b, sy1 - hCorte, sx0 + b, sy1, xh, sy1 - hCorte / 2, Math.PI / 2, esc);
+        if (a != null) CotasAbaNaSecao(c, a, b, sx0, sy1 - hCorte, sy0 - 3 * hc);
         return sy0 - 6 * hc;
     }
 
     /// <summary>Peso (kg) da armadura passiva de uma peça pelas regras da RA (estribos: um por posição das zonas; sem as alças).</summary>
-    public static double PesoPassivo(ResultadoTemplate r, ConfiguracaoArmadura cfg, List<ZonaEstriboViga> zonas) =>
+    public static double PesoPassivo(ResultadoTemplate r, ConfiguracaoArmadura cfg, List<ZonaEstriboViga> zonas, int estribosAba = 1) =>
         r.Barras.Where(b => !Tabelas.TabelaBarras.EhCordoalha(b.Aco))
-                .Sum(b => MedidaBarra.Peso(b, cfg) * (b.Nome == "estribo" ? Math.Max(1, zonas.Sum(z => z.Posicoes.Count)) : 1));
+                .Sum(b => MedidaBarra.Peso(b, cfg) * (b.Nome == "estribo" ? Math.Max(1, zonas.Sum(z => z.Posicoes.Count))
+                                                  : b.Nome == "abaestribo" ? Math.Max(1, estribosAba) : 1));
 
     /// <summary>Peso (kg) das cordoalhas de protensão de uma peça (sem as alças, que também são CP).</summary>
     public static double PesoAtivo(ResultadoTemplate r, ConfiguracaoArmadura cfg) =>

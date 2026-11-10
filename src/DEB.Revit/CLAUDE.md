@@ -23,6 +23,13 @@ cd <raiz do PCEB>\src\DEB.Revit
 - **Com o Revit daquela versão aberto a DLL fica bloqueada**: confira com `Get-Process Revit` antes (pode ser de
   outro usuário do Windows); para só compilar use `-p:DeployToRevit=false`. Nunca feche o Revit do usuário à força.
 - Revit 2026: 18 avisos CS0618 (API obsoleta) conhecidos.
+- **Assinatura**: o build assina `DEB.Revit.dll`/`DEB.Core.dll` com o certificado `CN=PCEB DEB` do usuário, se existir
+  (`Cert:\CurrentUser\My`). Sem assinatura o Revit pede "Sempre carregar" a cada build — e a instância de teste do
+  AutoRun fica parada nessa janela (era a demora "irregular" dos testes no PC2). No PC2 o certificado foi criado pelo
+  usuário em 05/11/2026 (raiz e editor confiáveis do usuário). Outro computador: exportar o .pfx com senha ou criar um
+  igual (`New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=PCEB DEB"` + importar o .cer em TrustedPublisher e Root).
+- **PC2** (decisão do usuário, 10/11/2026): pode testar no Revit **2025 e no 2026**, e implementar aqui. O modelo Nordika é arquivo
+  do 2026 (o 2025 para no aviso "versão posterior"). Com o Revit do usuário aberto a DLL fica presa: use o procedimento do `.antigo`. Modelo de teste com embutimento: `criarmodelo` (base −1,00 m).
 
 ## Testar sem o usuário (AutoRun)
 `src/AutoRun.cs`: abrir o Revit 2025 com variáveis de ambiente roda uma tarefa no evento Idling e fecha o Revit.
@@ -35,6 +42,15 @@ $p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"<pasta-mã
 $p.WaitForExit(540000)
 ```
 - `exportarpecas`: grava o JSON das peças para o CAD (`SD_EXPORT` = caminho; senão vai para logs) — ver abaixo.
+- Sem projeto aberto (`src/Precast/TestModel.cs`): `familias` (relatório de `SD_FAMILIAS`, .rfa separados por `;`) e
+  `criarmodelo` (projeto novo de `SD_TEMPLATE` com grade 3×2 de `SD_PILAR` + vigas `SD_VIGA`, gravado em `SD_SAVEAS`).
+  Famílias do usuário em `S:\Meu Drive\Arquivos\Familias Revit` (copiar antes; `.000N.rfa` são backups). O template do
+  escritório `EST_RVT_Residência.rte` traz uma residência modelada — para teste use `Structural Analysis-DefaultBRAPTB.rte`.
+- Vigas pré-moldadas com consolos aninhados: a folga vem de `folga_esq`/`folga_dir` da família; **recuo da junta
+  (START/END_JOIN_CUTBACK, ½" padrão) e extensões inicial/final da instância têm de ser 0**, senão os consolos se afastam
+  do pilar e o levantamento não os encontra.
+- `criarmodelo` com `SD_NIVEIS` = "cota_mm:direções;..." (ex.: "3000:X;6000:XY;9000:Y") cria vigas/consolos em vários níveis
+  (modelo de teste do PC2: `Teste_PM_niveis.rvt`, pilar de 10 m com 4 consolos em 3 níveis).
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela.
 - Resultados em `%AppData%\PCEB\DEB.Revit\logs\` (`autorun.txt` aponta para o arquivo gerado).
@@ -62,22 +78,33 @@ para cada pilar: limpar → marca → barras → dados das barras → assembly (
 o 1º do grupo gera a prancha pelo padrão; os demais caem no mesmo tipo de assembly e reaproveitam a folha.
 
 ## Exportar para o CAD (decisão D22, 09/11/2026)
-Botão "Exportar para o CAD" (painel Pré-moldados, `Commands/ExportPiecesCommand` → `Precast/PrecastExport`): o mesmo
-levantamento/grupos do `PrecastSurvey` vira um `ArquivoPecas` (`DEB.Core/Intercambio`, JSON "DEB.Pecas") com seção, comprimento,
-cota da base, níveis entre a base e o topo, embutimento (parâmetro "Embutimento", null se a família não tiver) e consolos
-por face. Faces: PX→1, NY→2, NX→3, PY→4 (as do template do CAD); Bx = b (x), By = h (y). Cotas: `Elevation` dos níveis
-(o referencial mostrado); a base = Z do canto do pilar menos (`ProjectElevation − Elevation`). No CAD: ARMIMPORTARPECAS.
-Vigas: as de material "Concreto pré-moldado" (as moldadas no local ficam de fora); `PieceAnalyzer` dá eixo/seção/vértices e
-`PerfilViga` (Core) acha os dentes Gerber pelo perfil (x, z) de cada ponta — face da ponta mais baixa que h, com topo em h;
-comprimento = ponta → início do fundo; `AgrupadorVigas` junta as iguais e as invertidas (giro 180). Não depende dos parâmetros
-da família (dx_gerber etc.). Furos de pino ainda não são lidos (ficam os do PADRÃO do CAD).
-Seção (09/11/2026, PC2): volume da peça (HOST_VOLUME_COMPUTED) < 95% do de b × h com os dentes = aba/L/T invertido/I → viga NÃO
-exportada, com nota (`PerfilViga.ConferirSecao`; ex.: "seção retangular com aba laje 26x170" do Projeto1 media 51 × 170). Volume a
-mais (consolo aninhado) passa.
-Só lê o modelo. Em 09/11/2026 o AutoRun não rodou (Revit 2025 parado em "manage licensing"): exportação real ainda não testada.
-No PC2 (09/11/2026, Revit 2025, cópia do `EST_RVT_ThiagoAdriana-2025.rvt`): `exportarpecas` rodou — 9 grupos, 24 pilares
-(modelo sem material pré-moldado: todos os pilares considerados); 0 vigas (nenhuma com "Concreto pré-moldado"): vigas reais ainda
-não testadas.
+**Um levantamento só** (branch `pc2/exportar-pela-conferencia`): `Precast/PrecastExport.Build` = `PieceReview.Run` (o da conferência: seções
+exatas por corte, consolos pelo perfil) → `DEB.Core/Intercambio/ConversorLevantamento` → `ArquivoPecas` (JSON "DEB.Pecas", versão 1).
+O botão "Exportar para o CAD" do painel e o botão "Exportar para o CAD…" da janela "Conferir peças" gravam o MESMO arquivo
+(`ExportPiecesCommand.Save`); a janela exporta o levantamento que está mostrando. Não existe mais a medição pela caixa envolvente
+e pelo volume (`PerfilViga`, `AgrupadorVigas`, `PrecastExport.Beams` foram removidos).
+- **Marca = nome da peça**: vale a marca que as peças têm no modelo (`MarcasPecas`); só grupo sem marca recebe P1…/V1… (número livre).
+  Marcas diferentes no mesmo grupo, ou a mesma marca em peças diferentes = nota. Antes a exportação numerava pela ordem de tamanho.
+- **Pilar**: b × h = caixa do pilar sem os consolos, no sistema do representante (faces 1 = +x, 2 = −y, 3 = −x, 4 = +y); o trecho
+  corrente tem de ter ≥ 95% da área de b × h (chanfro de canto passa; L, circular etc. = não exportado, com nota); trecho mais fino
+  (cabeça reduzida, chaves) = exportado com nota "conferir". Embutimento (parâmetro "Embutimento") entra na assinatura do grupo.
+- **Viga**: [dente] + corrente + [dente], com alma retangular e, desde o VP-4 (09/11/2026), UMA aba lateral num trecho contínuo
+  (`DEB.Core/Pecas/SecaoComAba`: L, T invertido, aba elevada, aba rente ao topo, fundo inclinado; a aba acima do recorte passa pelo
+  dente) → `VigaPeca.Aba`, JSON versão 2 só quando há aba. Trecho curto (≤ 20 cm) de seção reduzida dentro da caixa = furo de
+  pino/recorte local, ignorado com nota. I, duas saliências no mesmo lado, mísula em toda a altura ou consolo de outra viga = não
+  exportada, com o motivo. Invertida = mesmo grupo (giro 180). Detalhes em `src/DEB.Cad/docs/TEMPLATES.md` (VP-4).
+- **Material**: o mesmo critério para pilares e vigas — as de "Concreto pré-moldado"; se o modelo não tem nenhuma do tipo, todas, com nota.
+- `uid` (UniqueId) de cada elemento vai no JSON como campo opcional (o DEB.Cad 0.1.32 instalado ignora e continua lendo).
+- `PrecastSurvey` lê a geometria de cada candidato a consolo uma vez (antes: de novo para cada pilar) e descarta os distantes pela caixa.
+AutoRun `exportarpecas` (`SD_EXPORT` = caminho). Só lê o modelo. `conferir` aceita `SD_CONFERIR_INDICES="16,18"` (PNG de grupos de vigas escolhidos).
+O modelo Nordika é do Revit 2026 (o 2025 para no aviso "versão posterior"); no 2026 o AutoRun roda, mas o Revit não fecha sozinho
+depois (encerre só a instância que você abriu, pelo PID). Revit do usuário aberto = DLL presa: renomeie para `.antigo`, copie e assine.
+**Edições na janela (etapa 3, 09/11/2026)** — as únicas gravações da conferência no modelo (`Precast/PieceReviewEdits`, comando em
+`TransactionMode.Manual`): "Gravar marca no modelo" (parâmetro Marca de todas as peças do grupo; a janela recusa a marca que já é de
+outro grupo) e "Não exportar este grupo" (Extensible Storage, schema `DEB_ConferenciaPeca`, campo `NaoExportar`, no próprio elemento:
+vale nas próximas conferências; ⊘ na lista). AutoRun `conferireditar`: grava VT1/PT1 e um "não exportar", levanta de novo, exporta e
+DESFAZ tudo (TransactionGroup.RollBack) → `logs/conferireditar_*/resultado.txt` + PNG. Testado no Teste_PM. Falta: função dos
+trechos (sem uso no CAD até o JSON v2), "Selecionar no modelo" e voltar para "a conferir" quando a geometria muda.
 
 ## Conferir peças (09/11/2026, PC2 — `docs/04_arquitetura/conferencia_e_subdivisao_pecas.md`)
 Botão "Conferir peças" (painel Pré-moldados, `Commands/ReviewPiecesCommand`): `Precast/PieceReview` levanta vigas e pilares
@@ -125,6 +152,16 @@ Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário e
 - Pranchas guiadas por padrões de apresentação (pilar, viga, laje, fundação).
 - Parâmetros `SD_Aço` / `SD_Peso (kg)` mantêm o nome (modelos já detalhados).
 - Escopo e regras gerais do PCEB: ver `CLAUDE.md` da raiz do repositório.
+
+## Detalhes padrão (legendas)
+- DXFs em `%AppData%\PCEB\DEB.Revit\Padroes\Detalhes\` (fora do Git), extraídos do DWG do P56 com
+  `tools/detalhes_dxf` (README lá). `LegendFactory` cria a legenda que falta (linhas/textos/regiões nativas; estilos
+  "PCEB - Detalhe …") duplicando uma legenda do projeto; sem nenhuma, copia uma do `Folha.ArquivoLegendaBase`
+  (`EST_RVT_Residência.rte` tem 5) — a API não cria legenda do zero. Legenda existente nunca é refeita.
+- AutoRun: fecha sozinho as janelas do Revit (`DialogBoxShowing`, ex.: aviso do modelo analítico ao abrir um .rte
+  antigo) e `contarlegendas` lista as legendas de arquivos (`SD_FAMILIAS`). Abrir arquivo antigo pela API: use
+  `LegendFactory.OpenQuietly` (descarta os avisos da atualização, que senão param numa janela).
+- AutoCAD 2026 está no PC2: `accoreconsole.exe` converte DWG↔DXF e plota PNG sem janela (ver o README).
 
 ## Armadilhas já encontradas
 - Guardar `Solid` sem o `GeometryElement` dono → SEHException (GC libera a memória nativa).

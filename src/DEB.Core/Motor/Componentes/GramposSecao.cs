@@ -101,7 +101,7 @@ public sealed class GramposSecao : ComponenteBase
             var m0 = new P3((b0[1].X + b0[2].X) / 2, (b0[1].Y + b0[2].Y) / 2, zs[0]);
             p.Distribuicao = new Distribuicao
             {
-                Inicio = m0, Fim = new P3(m0.X, m0.Y, zs[zs.Count - 1]), Quantidade = zs.Count, Espacamento = esp, Repeticoes = linhas.Count,
+                Inicio = m0, Fim = new P3(m0.X, m0.Y, zs[zs.Count - 1]), Quantidade = zs.Count, Espacamento = ContextoMotor.EspacamentoReal(zs, esp), Repeticoes = linhas.Count,
             };
             ctx.Adicionar(p);
         }

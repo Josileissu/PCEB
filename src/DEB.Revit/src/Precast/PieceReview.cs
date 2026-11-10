@@ -29,13 +29,16 @@ namespace DEB.Revit.Precast
             catch (Exception ex) { notes.Add("consolos dos pilares não reconhecidos: " + ex.Message); }
             try { BeamCorbels(doc, consolos); }
             catch (Exception ex) { notes.Add("consolos das vigas não reconhecidos: " + ex.Message); }
+            // níveis: a cota mostrada (Elevation) e a altura geométrica (ProjectElevation, mesmo referencial das coordenadas)
+            List<Level> levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(l => l.ProjectElevation).ToList();
             foreach (BuiltInCategory cat in new[] { BuiltInCategory.OST_StructuralFraming, BuiltInCategory.OST_StructuralColumns })
             {
                 IEnumerable<FamilyInstance> els = new FilteredElementCollector(doc).OfCategory(cat)
                     .WhereElementIsNotElementType().OfType<FamilyInstance>().Where(fi => fi.SuperComponent == null);
                 foreach (FamilyInstance fi in els)
                 {
-                    try { r.Add(Survey(fi, consolos.TryGetValue(fi.Id.Value, out var cs) ? cs : new List<FamilyInstance>())); }
+                    try { r.Add(Survey(fi, consolos.TryGetValue(fi.Id.Value, out var cs) ? cs : new List<FamilyInstance>(), levels)); }
                     catch (PieceNotSupportedException ex) { notes.Add($"{fi.Name} [{fi.Id.Value}] ignorado: {ex.Message}"); }
                     catch (Exception ex) { notes.Add($"{fi.Name} [{fi.Id.Value}]: erro no levantamento — {ex.Message}"); }
                 }
@@ -123,7 +126,8 @@ namespace DEB.Revit.Precast
             return r;
         }
 
-        public static PecaLevantada Survey(FamilyInstance fi, List<FamilyInstance> corbels)
+        /// <param name="levels">Níveis do modelo por altura (para a cota da base e os níveis que cortam o pilar); null = não informar.</param>
+        public static PecaLevantada Survey(FamilyInstance fi, List<FamilyInstance> corbels, List<Level> levels = null)
         {
             PieceInfo info = PieceAnalyzer.Analyze(fi);
             bool beam = info.Kind == PieceKind.Beam;
@@ -135,6 +139,8 @@ namespace DEB.Revit.Precast
             var p = new PecaLevantada
             {
                 Id = fi.Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                Uid = fi.UniqueId ?? "",
+                NaoExportar = PieceReviewEdits.IsSkipped(fi),
                 Tipo = beam ? TipoPeca.Viga : TipoPeca.Pilar,
                 Marca = fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "",
                 Familia = fi.Symbol?.FamilyName ?? "",
@@ -157,6 +163,18 @@ namespace DEB.Revit.Precast
             {
                 p.Bx = Cm(info.LengthX);
                 p.By = Cm(info.LengthY);
+                // dados que o detalhamento do CAD usa: embutimento no cálice (parâmetro da família), cota da base e níveis
+                Parameter emb = fi.LookupParameter("Embutimento");
+                if (emb != null && emb.StorageType == StorageType.Double) p.Embutimento = Round(Cm(emb.AsDouble()));
+                if (levels != null)
+                {
+                    double zBase = info.Origin.Z, zTop = (info.Origin + info.AxisZ * info.LengthZ).Z, tol = U.Mm(10);
+                    if (zTop < zBase) (zBase, zTop) = (zTop, zBase);
+                    double offset = levels.Count > 0 ? levels[0].ProjectElevation - levels[0].Elevation : 0;
+                    p.CotaBase = Math.Round(U.ToMm(zBase - offset) / 1000.0, 4);
+                    p.Niveis = levels.Where(l => l.ProjectElevation > zBase + tol && l.ProjectElevation < zTop - tol)
+                        .Select(l => (l.Name, Math.Round(U.ToMm(l.Elevation) / 1000.0, 4))).ToList();
+                }
             }
             {
                 foreach (FamilyInstance c in corbels)

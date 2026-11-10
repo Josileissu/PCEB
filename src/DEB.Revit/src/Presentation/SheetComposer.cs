@@ -23,6 +23,8 @@ namespace DEB.Revit.Presentation
         {
             public Element Element;
             public Viewport Viewport;           // null para tabelas, textos e título
+            public TextNote Heading;            // título acima da vista (TituloAcima)
+            public string HeadingText;          // título sem a linha da escala
             public double W, H, LabelH;
             public double LabelW;               // largura estimada do título da vista
             public Rect2 Target;
@@ -59,14 +61,53 @@ namespace DEB.Revit.Presentation
 
             // Vistas
             double label = U.Mm(Std.Folha.TituloVistaMm);
+            ElementId noLabel = null;
+            var byView = new Dictionary<ElementId, Item>();
+            // vistas que ocupam o lugar de uma legenda (ex.: detalhe da alça no lugar da legenda fixa da alça)
+            var slotKinds = new HashSet<string>(Std.Legendas.Where(l => l.Ativa && !string.IsNullOrWhiteSpace(l.Vista))
+                .Select(l => l.Vista.Trim()), StringComparer.OrdinalIgnoreCase);
+            var slotItems = new Dictionary<string, List<Item>>(StringComparer.OrdinalIgnoreCase);
+            void PutView(PlacedView pv, Item it)
+            {
+                byView[pv.View.Id] = it;
+                string k = pv.Spec.Tipo.ToString();
+                if (slotKinds.Contains(k))
+                {
+                    if (!slotItems.TryGetValue(k, out var l)) slotItems[k] = l = new List<Item>();
+                    l.Add(it);
+                }
+                else Put(pv.Spec.Regiao, it);
+            }
             foreach (PlacedView pv in views)
             {
                 if (!Viewport.CanAddViewToSheet(_doc, sheet.Id, pv.View.Id)) { _log.Warn($"{pv.Title.Split('\n')[0]}: não pôde ir para a prancha."); continue; }
                 Viewport vp = Viewport.Create(_doc, sheet.Id, pv.View.Id, center);
-                double labelW = pv.Title.Replace("\n", " ").Length * U.Mm(Std.Folha.LarguraCaractereTituloMm);
+                if (Std.Folha.TituloAcima)
+                {
+                    noLabel ??= ViewportTypeWithoutLabel(vp);
+                    if (noLabel != ElementId.InvalidElementId) vp.ChangeTypeId(noLabel);
+                    var opt = new TextNoteOptions(_styles.ViewTitle.Id) { HorizontalAlignment = HorizontalTextAlignment.Center };
+                    // largura da caixa = linha mais longa (sem largura, a caixa do texto fica bem maior que o texto e
+                    // o arranjo acha que a vista não cabe)
+                    // largura média medida na prancha (Arial): ~0,78 × altura por caractere na 1ª linha (negrito, maiúsculas)
+                    // e ~0,62 nas outras; + 2 caracteres de folga
+                    string[] tl = pv.Title.Split('\n').Concat(new[] { Std.Folha.TituloEscala ?? "" }).ToArray();
+                    double em = Std.Textos.AlturaTituloVistaMm;
+                    double hw = U.Mm(Math.Max(tl[0].Length * 0.78 * em, tl.Skip(1).DefaultIfEmpty("").Max(l => l.Length) * 0.62 * em) + 2 * 0.62 * em);
+                    // caixa 40% mais larga que a estimativa (centrada): o Revit nunca quebra a linha; o arranjo usa a estimativa
+                    TextNote h = TextNote.Create(_doc, sheet.Id, center, hw * 1.4, pv.Title, opt);
+                    PutView(pv, new Item { Element = vp, Viewport = vp, Heading = h, HeadingText = pv.Title, LabelW = hw });
+                    continue;
+                }
+                // o Revit quebra o título na largura da linha: conta a linha mais longa (PT ou EN), não o título inteiro
+                double labelW = pv.Title.Split('\n').Max(l => l.Length) * U.Mm(Std.Folha.LarguraCaractereTituloMm);
                 try { vp.LabelLineLength = labelW; } catch { /* tipo de viewport sem linha de título */ }
-                Put(pv.Spec.Regiao, new Item { Element = vp, Viewport = vp, LabelH = label, LabelW = labelW });
+                PutView(pv, new Item { Element = vp, Viewport = vp, LabelH = label, LabelW = labelW });
             }
+
+            // Legenda dos níveis da obra: fora do arranjo (não toma largura das vistas); vai para a folha depois do arranjo,
+            // na escala final das elevações, colada às linhas de nível da 1ª elevação
+            PlacedView firstElev = views.FirstOrDefault(v => v.Anchor != null && byView.ContainsKey(v.View.Id));
 
             // Tabelas de aço
             foreach (TableSpec ts in Std.Tabelas.Where(t => t.Ativa))
@@ -91,14 +132,27 @@ namespace DEB.Revit.Presentation
             }
 
             // Legendas (detalhes padrão do escritório)
-            foreach (LegendSpec ls in Std.Legendas)
+            LegendFactory legends = null;
+            foreach (LegendSpec ls in Std.Legendas.Where(l => l.Ativa))
             {
-                View legend = new FilteredElementCollector(_doc).OfClass(typeof(View)).Cast<View>()
-                    .FirstOrDefault(v => v.ViewType == ViewType.Legend && !v.IsTemplate &&
-                                         string.Equals(v.Name, ls.Nome, StringComparison.OrdinalIgnoreCase));
-                if (legend == null) { _log.Warn($"Legenda \"{ls.Nome}\" não existe no projeto (crie-a em Vistas → Legendas para ela entrar na prancha)."); continue; }
+                if (!string.IsNullOrWhiteSpace(ls.Vista))
+                {
+                    // a vista da peça no lugar da legenda; sem a vista (peça sem alça...), o lugar fica vazio
+                    if (slotItems.TryGetValue(ls.Vista.Trim(), out var its)) foreach (Item it in its) Put(ls.Regiao, it);
+                    continue;
+                }
+                View legend = LegendFactory.Find(_doc, ls.Nome)
+                              ?? (legends ??= new LegendFactory(_doc, _styles, _log, Std.Folha.ArquivoLegendaBase)).Create(ls);
+                if (legend == null) continue;
                 Viewport vp = Viewport.Create(_doc, sheet.Id, legend.Id, center);
-                Put(ls.Regiao, new Item { Element = vp, Viewport = vp, LabelH = label });
+                // detalhe vindo do DXF já traz o título desenhado: viewport sem a etiqueta do Revit
+                bool ownTitle = LegendFactory.PathOf(ls) != null;
+                if (ownTitle)
+                {
+                    noLabel ??= ViewportTypeWithoutLabel(vp);
+                    if (noLabel != ElementId.InvalidElementId) vp.ChangeTypeId(noLabel);
+                }
+                Put(ls.Regiao, new Item { Element = vp, Viewport = vp, LabelH = ownTitle ? 0 : label });
             }
 
             // Arranjo por região, com aumento de escala das vistas quando não couber.
@@ -111,9 +165,17 @@ namespace DEB.Revit.Presentation
                 bool fits = false;
                 for (int attempt = 0; attempt < 6; attempt++)
                 {
+                    UpdateHeadings(kv.Value);
                     _doc.Regenerate();
                     Measure(sheet, kv.Value, r.W);
                     if (Pack(kv.Value, r, strict: true)) { fits = true; break; }
+                    if (attempt == 0)
+                    {
+                        // diagnóstico: o que não coube na escala do padrão (larguras e alturas em mm de papel)
+                        string sizes = string.Join("; ", kv.Value.Select(i =>
+                            $"{(i.Heading != null ? i.HeadingText.Split('\n')[0] : i.Element.Name)} {U.ToMm(i.W):0}x{U.ToMm(i.H):0}"));
+                        _log.Info($"Região \"{kv.Key}\" ({U.ToMm(r.W):0}x{U.ToMm(r.H):0} mm) não coube na escala do padrão: {sizes}");
+                    }
                     if (!IncreaseScales(kv.Value)) break;
                 }
                 if (!fits)
@@ -121,6 +183,7 @@ namespace DEB.Revit.Presentation
                     // Não coube nem reduzindo: volta às escalas do padrão e arranja assim mesmo.
                     foreach (var o in original)
                         try { ((View)_doc.GetElement(o.Key)).Scale = o.Value; } catch { /* escala do template */ }
+                    UpdateHeadings(kv.Value);
                     _doc.Regenerate();
                     Measure(sheet, kv.Value, r.W);
                     Pack(kv.Value, r, strict: false);
@@ -128,23 +191,167 @@ namespace DEB.Revit.Presentation
                 }
                 Apply(sheet, kv.Value);
             }
+            AlignElevations(views, byView);
+            if (Std.Folha.LegendaNiveis && firstElev?.LevelLineStart != null)
+                try { PlaceLevelsLegend(sheet, firstElev, byView[firstElev.View.Id].Viewport, center, ref noLabel); }
+                catch (Exception ex) { _log.Warn($"Legenda de níveis não criada: {ex.Message}"); _log.Trace("Legenda de níveis", ex); }
             return sheet;
         }
+
+        /// <summary>
+        /// Elevações (faces e armadura) com a base do pilar na mesma altura da folha: o arranjo alinha o topo das caixas,
+        /// e a caixa de cada vista tem anotações diferentes (a 1ª vista, com os nomes dos níveis, descia o pilar). As vistas
+        /// só descem (os títulos ficam onde estão).
+        /// </summary>
+        private void AlignElevations(List<PlacedView> views, Dictionary<ElementId, Item> byView)
+        {
+            _doc.Regenerate();
+            var rows = new List<(Item It, double Y, int Scale)>();
+            foreach (PlacedView pv in views.Where(v => v.Anchor != null && byView.ContainsKey(v.View.Id)))
+            {
+                double? y = SheetY(byView[pv.View.Id].Viewport, pv.View, pv.Anchor);
+                if (y != null) rows.Add((byView[pv.View.Id], y.Value, pv.View.Scale));
+            }
+            double moved = 0;
+            foreach (var g in rows.GroupBy(r => r.Scale).Where(g => g.Count() > 1))   // escalas diferentes: o topo não alinharia
+            {
+                double target = g.Min(r => r.Y);
+                foreach (var r in g)
+                {
+                    double dy = target - r.Y;
+                    if (Math.Abs(dy) < U.Mm(0.1)) continue;
+                    r.It.Viewport.SetBoxCenter(r.It.Viewport.GetBoxCenter() + new XYZ(0, dy, 0));
+                    moved = Math.Max(moved, -dy);
+                }
+            }
+            if (rows.Select(r => r.Scale).Distinct().Count() > 1)
+                _log.Warn("Elevações em escalas diferentes na folha: niveladas só as de mesma escala.");
+            else if (moved > 0) _log.Info($"Elevações niveladas pela base do pilar (maior ajuste {U.ToMm(moved):0} mm na folha).");
+
+        }
+
+        /// <summary>
+        /// Legenda dos níveis da obra na escala final da 1ª elevação: o fim das linhas da legenda encosta no começo das
+        /// linhas de nível da vista (à esquerda do pilar), e a linha do nível mais baixo fica na altura dele.
+        /// </summary>
+        private void PlaceLevelsLegend(ViewSheet sheet, PlacedView first, Viewport fvp, XYZ center, ref ElementId noLabel)
+        {
+            _doc.Regenerate();
+            View lv = new LegendFactory(_doc, _styles, _log, Std.Folha.ArquivoLegendaBase).LevelsLegend(first.View.Scale);
+            Level low = new FilteredElementCollector(_doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).FirstOrDefault();
+            if (lv == null || low == null) return;
+            XYZ start = first.LevelLineStart;
+            XYZ want = SheetPoint(fvp, first.View, new XYZ(start.X, start.Y, low.Elevation));
+            if (want == null) { _log.Warn("Legenda de níveis: posição na folha não calculada."); return; }
+            Viewport vp = Viewport.Create(_doc, sheet.Id, lv.Id, center);
+            noLabel ??= ViewportTypeWithoutLabel(vp);
+            if (noLabel != ElementId.InvalidElementId) vp.ChangeTypeId(noLabel);
+            _doc.Regenerate();
+            // legenda não tem transformação de projeção: pela caixa do viewport — a linha do nível mais baixo é o pé da
+            // caixa (os textos ficam acima das linhas) e o fim das linhas é o lado direito (os textos começam no início)
+            Outline o = vp.GetBoxOutline();
+            vp.SetBoxCenter(vp.GetBoxCenter() + new XYZ(want.X - o.MaximumPoint.X, want.Y - o.MinimumPoint.Y, 0));
+        }
+
+        /// <summary>Ponto na folha de um ponto do modelo visto no viewport.</summary>
+        private static XYZ SheetPoint(Viewport vp, View v, XYZ p)
+        {
+            try
+            {
+                IList<TransformWithBoundary> tw = v.GetModelToProjectionTransforms();
+                if (tw == null || tw.Count == 0) return null;
+                XYZ q = tw[0].GetModelToProjectionTransform().OfPoint(p);
+                return vp.GetProjectionToSheetTransform().OfPoint(q);
+            }
+            catch { return null; }
+        }
+
+        private static double? SheetY(Viewport vp, View v, XYZ p) => SheetPoint(vp, v, p)?.Y;
 
         // ------------------------------------------------------------------
 
         private string Fill(string s) => PresentationStandard.Fill(s, _ctx.Values);
 
+        /// <summary>Tipo de viewport igual ao atual, mas sem o título do Revit ("PCEB - Sem título").</summary>
+        private ElementId ViewportTypeWithoutLabel(Viewport vp)
+        {
+            const string name = "PCEB - Sem título";
+            try
+            {
+                if (!(_doc.GetElement(vp.GetTypeId()) is ElementType cur)) return ElementId.InvalidElementId;
+                ElementType t = new FilteredElementCollector(_doc).OfClass(typeof(ElementType)).Cast<ElementType>()
+                    .FirstOrDefault(e => e.FamilyName == cur.FamilyName && e.Name == name)
+                    ?? cur.Duplicate(name);
+                t.get_Parameter(BuiltInParameter.VIEWPORT_ATTR_SHOW_LABEL)?.Set(0);
+                return t.Id;
+            }
+            catch (Exception ex) { _log.Warn($"Tipo de viewport sem título não criado: {ex.Message}"); return ElementId.InvalidElementId; }
+        }
+
+        /// <summary>Texto do título acima de cada vista: título + linha da escala atual (a escala muda no arranjo).
+        /// A 1ª linha vai em negrito sublinhado.</summary>
+        private void UpdateHeadings(List<Item> items)
+        {
+            foreach (Item it in items.Where(i => i.Heading != null))
+            {
+                View v = _doc.GetElement(it.Viewport.ViewId) as View;
+                string scale = string.IsNullOrWhiteSpace(Std.Folha.TituloEscala) || v == null ? ""
+                    : "\n" + Std.Folha.TituloEscala.Replace("{Escala}", v.Scale.ToString());
+                it.Heading.Text = it.HeadingText + scale;
+                try
+                {
+                    FormattedText ft = it.Heading.GetFormattedText();
+                    var range = new TextRange(0, it.HeadingText.Split('\n')[0].Length);
+                    ft.SetBoldStatus(range, true);
+                    ft.SetUnderlineStatus(range, true);
+                    it.Heading.SetFormattedText(ft);
+                }
+                catch { /* formatação é só estética */ }
+            }
+        }
+
         private ElementId TitleBlock()
         {
-            List<FamilySymbol> tbs = new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_TitleBlocks)
+            string family = Std.Folha.FamiliaCarimbo?.Trim() ?? "";
+            string want = Std.Folha.Carimbo?.Trim() ?? "";
+            List<FamilySymbol> All() => new FilteredElementCollector(_doc).OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .WhereElementIsElementType().OfType<FamilySymbol>().ToList();
+            FamilySymbol Find(List<FamilySymbol> l) => l
+                .Where(s => family == "" || string.Equals(s.FamilyName, family, StringComparison.OrdinalIgnoreCase))
+                .Where(s => want == "" || (family == "" ? s.FamilyName + " " + s.Name : s.Name).IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0)
+                // "A1" antes de "A1++": o nome mais curto que contém o trecho
+                .OrderBy(s => s.Name.Length).FirstOrDefault();
+
+            List<FamilySymbol> tbs = All();
+            FamilySymbol pick = Find(tbs);
+            string file = Std.Folha.ArquivoCarimbo?.Trim() ?? "";
+            if (pick == null && file != "")
+            {
+                if (!System.IO.File.Exists(file)) _log.Warn($"Arquivo do carimbo não encontrado: {file}");
+                else
+                {
+                    try
+                    {
+                        if (_doc.LoadFamily(file, new OverwriteNothing(), out Family _)) _log.Info($"Carimbo carregado de {file}.");
+                        tbs = All();
+                        pick = Find(tbs);
+                    }
+                    catch (Exception ex) { _log.Warn($"Carimbo não carregado de {file}: {ex.Message}"); }
+                }
+            }
             if (tbs.Count == 0) { _log.Warn("Nenhum carimbo carregado no projeto."); return ElementId.InvalidElementId; }
-            string want = Std.Folha.Carimbo?.Trim();
-            FamilySymbol pick = string.IsNullOrEmpty(want) ? null
-                : tbs.FirstOrDefault(s => (s.FamilyName + " " + s.Name).IndexOf(want, StringComparison.OrdinalIgnoreCase) >= 0);
-            if (pick == null && !string.IsNullOrEmpty(want)) _log.Warn($"Carimbo \"{want}\" não encontrado; usado \"{tbs[0].FamilyName} - {tbs[0].Name}\".");
-            return (pick ?? tbs[0]).Id;
+            if (pick == null) _log.Warn($"Carimbo \"{(family + " " + want).Trim()}\" não encontrado; usado \"{tbs[0].FamilyName} - {tbs[0].Name}\".");
+            pick ??= tbs[0];
+            if (!pick.IsActive) pick.Activate();
+            return pick.Id;
+        }
+
+        /// <summary>Carrega a família só se ela ainda não existe (não sobrescreve a do projeto).</summary>
+        private sealed class OverwriteNothing : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues) { overwriteParameterValues = false; return false; }
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            { source = FamilySource.Project; overwriteParameterValues = false; return false; }
         }
 
         /// <summary>Preenche parâmetros do carimbo; se o carimbo não tiver o parâmetro, tenta a própria folha.</summary>
@@ -157,7 +364,12 @@ namespace DEB.Revit.Presentation
                 Parameter p = tb?.LookupParameter(kv.Key) ?? sheet.LookupParameter(kv.Key);
                 if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
                 {
-                    _log.Warn($"Parâmetro \"{kv.Key}\" não encontrado (ou só leitura) no carimbo/folha.");
+                    // lista os parâmetros de texto editáveis, para acertar o nome no padrão
+                    string avail = string.Join(", ", (tb?.Parameters.Cast<Parameter>() ?? Enumerable.Empty<Parameter>())
+                        .Concat(sheet.Parameters.Cast<Parameter>())
+                        .Where(x => x.StorageType == StorageType.String && !x.IsReadOnly)
+                        .Select(x => x.Definition.Name).Distinct().OrderBy(n => n));
+                    _log.Warn($"Parâmetro \"{kv.Key}\" não encontrado (ou só leitura) no carimbo/folha. Disponíveis: {avail}");
                     continue;
                 }
                 p.Set(Fill(kv.Value));
@@ -182,11 +394,20 @@ namespace DEB.Revit.Presentation
         }
 
         /// <summary>Tamanhos na folha. O título da vista conta na largura, mas no máximo a largura da região (ele quebra linha).</summary>
-        private static void Measure(ViewSheet sheet, List<Item> items, double regionWidth)
+        private void Measure(ViewSheet sheet, List<Item> items, double regionWidth)
         {
             foreach (Item it in items)
             {
-                if (it.Viewport != null)
+                if (it.Heading != null)
+                {
+                    Outline o = it.Viewport.GetBoxOutline();
+                    // altura pelo número de linhas (a caixa medida pelo Revit sai bem maior que o texto)
+                    int lines = it.HeadingText.Split('\n').Length + (string.IsNullOrWhiteSpace(Std.Folha.TituloEscala) ? 0 : 1);
+                    it.LabelH = lines * U.Mm(Std.Textos.AlturaTituloVistaMm * 1.55) + U.Mm(3);
+                    it.W = Math.Max(o.MaximumPoint.X - o.MinimumPoint.X, it.LabelW);
+                    it.H = o.MaximumPoint.Y - o.MinimumPoint.Y + it.LabelH;
+                }
+                else if (it.Viewport != null)
                 {
                     Outline o = it.Viewport.GetBoxOutline();
                     it.W = Math.Max(o.MaximumPoint.X - o.MinimumPoint.X, Math.Min(it.LabelW, regionWidth));
@@ -245,8 +466,11 @@ namespace DEB.Revit.Presentation
                     Outline o = it.Viewport.GetBoxOutline();
                     XYZ oc = (o.MinimumPoint + o.MaximumPoint) / 2;
                     double boxH = it.H - it.LabelH;
-                    var target = new XYZ(it.Target.L + it.W / 2, it.Target.T - boxH / 2, 0);
+                    // título acima: a vista desce o espaço do título; etiqueta do Revit: a vista fica no alto
+                    double top = it.Heading != null ? it.Target.T - it.LabelH : it.Target.T;
+                    var target = new XYZ(it.Target.L + it.W / 2, top - boxH / 2, 0);
                     it.Viewport.SetBoxCenter(it.Viewport.GetBoxCenter() + (target - oc));
+                    if (it.Heading != null) it.Heading.Coord = new XYZ(it.Target.L + it.W / 2, it.Target.T, 0);
                 }
                 else if (it.Element is ScheduleSheetInstance si)
                 {

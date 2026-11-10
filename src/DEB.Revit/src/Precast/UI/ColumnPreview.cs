@@ -37,7 +37,11 @@ namespace DEB.Revit.Precast.UI
             [BarRole.CrossTie] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x6B, 0xB2, 0x6B)), 1.0)),
             [BarRole.CorbelTie] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xC0, 0x1F, 0x1F)), 1.8)),
             [BarRole.CorbelSew] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xE0, 0x6C, 0x1A)), 1.2)),
-            [BarRole.LiftLoop] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x8E, 0x44, 0xAD)), 1.8))
+            [BarRole.LiftLoop] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x8E, 0x44, 0xAD)), 1.8)),
+            [BarRole.CorbelAnchor] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xC0, 0x1F, 0x1F)), 1.4)),
+            [BarRole.CorbelStirrup] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0xD4, 0x8A, 0x1A)), 1.0)),
+            [BarRole.CorbelBottom] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x9C, 0x2A, 0x2A)), 1.2)),
+            [BarRole.CorbelPin] = Frozen(new Pen(new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x99)), 1.8))
         };
 
         public static IReadOnlyDictionary<BarRole, Pen> Legend => Pens;
@@ -56,7 +60,7 @@ namespace DEB.Revit.Precast.UI
             // Espaço: 2 elevações (largas o bastante para os consolos) + coluna de seções.
             double maxProj = rep.Corbels.Select(k => k.Projection).DefaultIfEmpty(0).Max();
             double lift = _group.Spec.LiftLoops > 0 ? U_.Mm(_group.Spec.LiftProtrusionMm) : 0;
-            double elevW = Math.Max(f.Bx, f.By) + 2 * maxProj;
+            double elevW = Math.Max(f.Bx, f.By) + 2 * Math.Max(maxProj, lift);   // alças saem de uma face
             double elevH = f.H + lift;
             double pad = 34;
             double sectionsW = ActualWidth * 0.32;
