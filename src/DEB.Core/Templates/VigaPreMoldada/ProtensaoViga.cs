@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Modelo;
 using DEB.Core.Templates.PilarPreMoldado;
-using Ctx = DEB.Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Ctx;
 
 namespace DEB.Core.Templates.VigaPreMoldada;
 
