@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PCEB — Programa de Cálculo Estrutural Brasileiro</title>
 <meta name="description" content="Programa livre de cálculo estrutural brasileiro. O DEB — Detalhador Estrutural Brasileiro já detalha, numera e quantifica armaduras no CAD e no Revit; o módulo de cálculo está em desenvolvimento.">
-<link rel="canonical" href="https://pceb.com.br/">
+<link rel="canonical" href="https://josileissu.github.io/PCEB/">
 <meta name="theme-color" content="#0e171c">
 <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
@@ -13,14 +13,14 @@
 <meta property="og:site_name" content="PCEB">
 <meta property="og:title" content="PCEB — Programa de Cálculo Estrutural Brasileiro">
 <meta property="og:description" content="Cálculo estrutural com padrão brasileiro. O DEB já detalha, numera e quantifica armaduras no CAD e no Revit.">
-<meta property="og:url" content="https://pceb.com.br/">
-<meta property="og:image" content="https://pceb.com.br/assets/img/og.png">
+<meta property="og:url" content="https://josileissu.github.io/PCEB/">
+<meta property="og:image" content="https://josileissu.github.io/PCEB/assets/img/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="PCEB — Programa de Cálculo Estrutural Brasileiro">
 <meta name="twitter:description" content="Cálculo estrutural com padrão brasileiro. O DEB já detalha, numera e quantifica armaduras no CAD e no Revit.">
-<meta name="twitter:image" content="https://pceb.com.br/assets/img/og.png">
+<meta name="twitter:image" content="https://josileissu.github.io/PCEB/assets/img/og.png">
 <link rel="stylesheet" href="assets/css/style.css">
 <script type="application/ld+json">
 {
@@ -31,14 +31,14 @@
   "applicationCategory": "EngineeringApplication",
   "operatingSystem": "Windows",
   "description": "Programa livre de cálculo estrutural brasileiro. O DEB — Detalhador Estrutural Brasileiro detalha, numera e quantifica armaduras no CAD e no Revit.",
-  "url": "https://pceb.com.br/",
+  "url": "https://josileissu.github.io/PCEB/",
   "license": "https://www.gnu.org/licenses/gpl-3.0.html",
   "author": {
     "@type": "Person",
     "name": "Projeto PCEB",
     "url": "https://github.com/Josileissu"
   },
-  "softwareVersion": "0.1.26",
+  "softwareVersion": "0.1.36",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
 }
 </script>
@@ -101,7 +101,7 @@
             </div>
             <div>
               <dt>Núcleo comum</dt>
-              <dd>193 testes</dd>
+              <dd>530+ testes</dd>
             </div>
             <div>
               <dt>Licença</dt>
@@ -212,7 +212,7 @@
               <g font-size="7" fill="#7fa6b3">
                 <text x="40" y="474">OBRA: ESTUDO PCEB</text>
                 <text x="40" y="488">PEÇA: V12 · 1 un.</text>
-                <text x="240" y="474">DESENHO: DEB 0.1.26</text>
+                <text x="240" y="474">DESENHO: DEB</text>
                 <text x="240" y="488">DATA: 04/11/2026</text>
                 <text x="440" y="474">ESCALA: 1:25</text>
                 <text x="440" y="488" fill="#e58a63">FOLHA: 01/01</text>
@@ -549,7 +549,7 @@
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6h16v12H4z" stroke="currentColor" stroke-width="1.6"/><path d="M8 10h8M8 14h5M16 14l2 2" stroke="currentColor" stroke-width="1.2"/></svg>
           </div>
           <h3>Templates e importação</h3>
-          <p>Templates de elementos (base de reservatório e pilar pré-moldado), importação de <code>.cad</code> do QiArmaduras e camadas padrão.</p>
+          <p>Templates de elementos (pilar e viga pré-moldados, blocos sobre estacas, reservatório), peças importadas do Revit, <code>.cad</code> do QiArmaduras e camadas padrão.</p>
           <span class="card__tag">CAD</span>
         </article>
 
@@ -558,7 +558,7 @@
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20V8l8-4 8 4v12" stroke="currentColor" stroke-width="1.6"/><path d="M8 20v-6h8v6M8 10h2M14 10h2" stroke="currentColor" stroke-width="1.2"/></svg>
           </div>
           <h3>Do CAD para o Revit</h3>
-          <p>No Revit, o DEB cria assembly, vistas, cortes, cotas e folha da peça — com o padrão de apresentação do escritório.</p>
+          <p>No Revit, o DEB confere a geometria de vigas e pilares, grava as marcas e exporta as peças para o CAD, onde viram detalhamentos prontos. Também monta assembly, vistas, cotas e folha da peça.</p>
           <span class="card__tag">Revit</span>
         </article>
       </div>
@@ -576,7 +576,7 @@
             testado fora do CAD. Se o plugin não estiver instalado, o arquivo abre legível.
           </p>
           <div class="stats">
-            <div class="stat"><b>193</b><span>testes de núcleo</span></div>
+            <div class="stat"><b>530+</b><span>testes de núcleo</span></div>
             <div class="stat"><b>3</b><span>CADs suportados</span></div>
             <div class="stat"><b>2</b><span>plataformas: CAD e Revit</span></div>
             <div class="stat"><b>1</b><span>núcleo comum</span></div>
@@ -621,7 +621,7 @@
         <article class="roadmap__item roadmap__item--live">
           <span class="roadmap__phase">Agora</span>
           <h3>Detalhamento</h3>
-          <p>DEB.Cad 0.1.26 em uso no CAD; DEB.Revit em fase 1, gerando assembly, vistas, cotas e folha.</p>
+          <p>DEB.Cad em uso no CAD, com templates de pilar, viga pré-moldada, bloco e reservatório; DEB.Revit confere as peças do modelo e as exporta para o CAD.</p>
           <span class="tag tag--live">disponível</span>
         </article>
         <article class="roadmap__item roadmap__item--wip">
