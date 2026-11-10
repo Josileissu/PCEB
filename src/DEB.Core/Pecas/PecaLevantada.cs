@@ -213,5 +213,5 @@ public static class ConferenciaPecas
         }));
     }
 
-    private static string N(double x) => x.ToString("0.#", CultureInfo.InvariantCulture);
+    private static string N(double x) => Fmt.N(x);
 }

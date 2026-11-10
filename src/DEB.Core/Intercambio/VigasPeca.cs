@@ -60,9 +60,9 @@ public static class ConversorVigaPeca
         if (d == null) return TemplateVigaPreMoldada.Reta;
         var t = catalogo.FirstOrDefault(x => Casa(x, d));
         if (t != null) return t.Nome;
-        faltam.Add($"dente da ponta {lado} ({TemplatePilarPreMoldado.Num(d.Altura, "0.#")} x {TemplatePilarPreMoldado.Num(d.Comprimento, "0.#")}: altura × comprimento)");
+        faltam.Add($"dente da ponta {lado} ({KitDesenho.Num(d.Altura, "0.#")} x {KitDesenho.Num(d.Comprimento, "0.#")}: altura × comprimento)");
         return null;
     }
 
-    private static string N(double x) => x.ToString("0.##", CultureInfo.InvariantCulture);
+    private static string N(double x) => Fmt.N(x, "0.##");
 }

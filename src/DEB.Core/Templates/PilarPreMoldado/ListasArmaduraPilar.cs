@@ -49,12 +49,7 @@ public sealed partial class TemplatePilarPreMoldado
 
     private static bool ArranjoDeCanto(string a) => a == ArrCantos || a == ArrAoLado;
 
-    /// <summary>"12,5" → "12.5", "8.0" → "8" (a lista de bitolas aceita o que vem do Excel).</summary>
-    public static string NormalizarBitola(string s)
-    {
-        s = (s ?? "").Trim().Replace("ø", "").Replace("Ø", "").Replace(',', '.');
-        return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out var d) ? d.ToString("0.##", CultureInfo.InvariantCulture) : s;
-    }
+    public static string NormalizarBitola(string s) => KitDesenho.NormalizarBitola(s);
 
     private static ParametroTemplate ParametroLongitudinais() => new ParametroTemplate
     {

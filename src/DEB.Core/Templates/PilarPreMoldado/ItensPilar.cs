@@ -72,18 +72,7 @@ public sealed partial class TemplatePilarPreMoldado
 
     // ======================== cálculos (testáveis) ========================
 
-    /// <summary>
-    /// Alturas das alças (cm da base): simétricas ao CG, a (50 − pct) % do comprimento dele (regra do escritório:
-    /// CG centralizado e alças a ~20 % das pontas). Valores &gt; 0 em z1/z2 mandam.
-    /// </summary>
-    public static (double Z1, double Z2) PosicaoAlcas(double L, double cg, double pct, double z1 = 0, double z2 = 0)
-    {
-        double d = (0.5 - pct / 100) * L;
-        double a = z1 > 0 ? z1 : cg - d, b = z2 > 0 ? z2 : cg + d;
-        a = Math.Max(0.05 * L, Math.Min(a, 0.95 * L));
-        b = Math.Max(0.05 * L, Math.Min(b, 0.95 * L));
-        return (Math.Round(a, 1), Math.Round(b, 1));
-    }
+    public static (double Z1, double Z2) PosicaoAlcas(double L, double cg, double pct, double z1 = 0, double z2 = 0) => KitDesenho.PosicaoAlcas(L, cg, pct, z1, z2);
 
     /// <summary>Raio do grampo de reforço em volta do furo (do P61: ø100 → C=125 com pernas de 50 → r ≈ 8 cm).</summary>
     public static double RaioGrampoFuro(double furoMm) => furoMm / 20 + 3;

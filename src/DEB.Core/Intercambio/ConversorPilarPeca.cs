@@ -97,9 +97,9 @@ public static class ConversorPilarPeca
 
     /// <summary>"largura 40 × altura 23,5 (ponta 23,5) × balanço 25".</summary>
     public static string Resumo(ConsoloPeca c) =>
-        $"largura {TemplatePilarPreMoldado.Num(c.Largura, "0.#")} × altura {TemplatePilarPreMoldado.Num(c.AlturaFace, "0.#")}" +
-        (Math.Abs(c.AlturaPonta - c.AlturaFace) > Tolerancia ? $" (ponta {TemplatePilarPreMoldado.Num(c.AlturaPonta, "0.#")})" : "") +
-        $" × balanço {TemplatePilarPreMoldado.Num(c.Balanco, "0.#")}";
+        $"largura {KitDesenho.Num(c.Largura, "0.#")} × altura {KitDesenho.Num(c.AlturaFace, "0.#")}" +
+        (Math.Abs(c.AlturaPonta - c.AlturaFace) > Tolerancia ? $" (ponta {KitDesenho.Num(c.AlturaPonta, "0.#")})" : "") +
+        $" × balanço {KitDesenho.Num(c.Balanco, "0.#")}";
 
-    private static string N(double x, string formato = "0.##") => x.ToString(formato, CultureInfo.InvariantCulture);
+    private static string N(double x, string formato = "0.##") => Fmt.N(x, formato);
 }
