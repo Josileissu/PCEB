@@ -132,6 +132,16 @@ public sealed class ConfiguracaoArmadura
     [DataMember(Order = 70)] public List<Templates.VigaPreMoldada.TipoDente> Dentes { get; set; } = Templates.VigaPreMoldada.TipoDente.Padrao();
 
     /// <summary>Versão do formato da configuração (migrações automáticas).</summary>
+    /// <summary>Coluna do detalhamento (ELEMENTO) das tabelas da relação do aço NOVAS (pedido do usuário, 2026-11-10: "Nunca").</summary>
+    [DataMember(Order = 71)] public RelacaoAco.ColunaElemento ColunaElementoPadrao { get; set; } = RelacaoAco.ColunaElemento.Nunca;
+    /// <summary>
+    /// Escalas oferecidas nas listas da paleta (barras, faixas, tabelas, configuração), pedido do usuário de 2026-11-10: "quero poder
+    /// definir as escalas que existem". Denominadores (25 = 1:25). Uma escala digitada fora da lista continua valendo.
+    /// </summary>
+    [DataMember(Order = 72)] public List<double> EscalasUsuais { get; set; } = EscalasPadrao();
+
+    public static List<double> EscalasPadrao() => new List<double> { 1, 2, 5, 10, 20, 25, 50, 75, 100 };
+
     [DataMember(Order = 100)] public int VersaoConfig { get; set; } = VersaoAtual;
     public const int VersaoAtual = 4;
 
@@ -170,6 +180,7 @@ public sealed class ConfiguracaoArmadura
         if (Consolos == null || Consolos.Count == 0) Consolos = Templates.PilarPreMoldado.TipoConsolo.Padrao();
         if (Insertos == null || Insertos.Count == 0) Insertos = Templates.PilarPreMoldado.TipoInserto.Padrao();
         if (Dentes == null || Dentes.Count == 0) Dentes = Templates.VigaPreMoldada.TipoDente.Padrao();
+        if (EscalasUsuais == null || EscalasUsuais.Count == 0) EscalasUsuais = EscalasPadrao();
         if (VersaoConfig < 2)
         {
             // v2 (2026-10-26): desenho em cm e escala base 1:10, pedidos pelo usuário

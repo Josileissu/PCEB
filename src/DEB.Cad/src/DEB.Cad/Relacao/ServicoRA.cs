@@ -365,12 +365,15 @@ internal static class ServicoRA
         int n = Math.Max(1, conteudo.Linhas.Count);
         t.SetSize(n, cols);
         int colsBase = conteudo.ColunaDetalhe >= 0 ? cols - 1 : cols;
-        double[] larg = colsBase == 7 ? new double[] { 9, 8, 7, 8, 6, 8, 9 } : new double[] { 8, 7, 8, 6, 8, 9 };
+        // ELEMENTO com 11 alturas de texto: com 9 o cabeçalho quebrava em "ELEMENT / O" (2026-11-10)
+        double[] larg = colsBase == 7 ? new double[] { 11, 8, 7, 8, 7, 8, 9 } : new double[] { 8, 7, 8, 7, 8, 9 };   // QUANT com 7: com 6 quebrava em "QUAN / T"
         for (int c = 0; c < colsBase; c++) t.SetColumnWidth(c, larg[c] * h);
         if (conteudo.ColunaDetalhe >= 0) t.SetColumnWidth(conteudo.ColunaDetalhe, 34 * h);
         // mescla ANTES de escrever: no GstarCAD, mesclar depois zera a altura de texto da linha anterior
         foreach (var (l, c1, c2) in conteudo.Mesclas)
             t.MergeCells(CellRange.Create(t, l, c1, l, c2));
+        foreach (var (c, l1, l2) in conteudo.MesclasVerticais)
+            t.MergeCells(CellRange.Create(t, l1, c, l2, c));
         for (int i = 0; i < n; i++)
         {
             // linhas com detalhe de dobra ficam mais altas para caber a forma; o cabeçalho da relação
@@ -387,6 +390,8 @@ internal static class ServicoRA
                 t.SetTextString(i, c, txt);
             }
         }
+        // nome do detalhamento no alto da célula mesclada: na altura da linha do N1
+        foreach (var (c, l1, _) in conteudo.MesclasVerticais) t.SetAlignment(l1, c, CellAlignment.TopCenter);
         t.GenerateLayout();
         try { t.RecomputeTableBlock(true); } catch (Rt.Exception ex) { Log.Erro("RecomputeTableBlock", ex); }
         DesenharDetalhes(tr, t, conteudo, op, cfg, h);
