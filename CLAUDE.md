@@ -1,6 +1,6 @@
 # PCEB — Programa de Cálculo Estrutural Brasileiro
 
-Repositório único (GPL-3 + `LICENSE-EXCEPTION.md`; GitHub privado `Josileissu/PCEB`). O usuário é engenheiro
+Repositório único (GPL-3 + `LICENSE-EXCEPTION.md`; GitHub **público** `Josileissu/PCEB`). O usuário é engenheiro
 estrutural (pré-moldados, in loco, metálicas). Converse, comente o código e escreva interfaces em **português**.
 Ele autorizou instalar o que for preciso e prefere que eu teste sozinho (Revit/CAD), sem tocar nas janelas dele.
 
@@ -29,6 +29,11 @@ próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
 - **Devagar e organizado**: passos pequenos; registrar pedidos e decisões em `docs/00_escopo/escopo_organizado.md`;
   não baixar, codar nem decidir arquitetura sem o usuário pedir.
 - **Git**: o usuário controla o que entra e sai; nada de push sem ele pedir.
+- **O repositório é público** (decisão do usuário, 10/11/2026: "deixar público"): nada de nomes de clientes, obras, escritórios ou
+  pessoas no que vai para o Git (código, comentários, docs, commits). Use descrições neutras ("modelo real com 168 vigas", "padrão do
+  escritório"). Os arquivos privados continuam fora do Git.
+- **Verificação automática**: `.github/workflows/verificar.yml` roda os testes do núcleo (pt-BR e en-US) e compila o plugin do CAD
+  (AutoCAD 2026, GstarCAD 2021, ZWCAD 2026) a cada envio. O DEB.Revit fica de fora (precisa do Revit instalado).
 - **Fora do Git**: normas, livros, artigos, padrões do escritório (`docs/02_biblioteca/*`), SDKs baixados,
   `info_auxiliar/` e `auxiliar_cad/` do DEB.Cad.
 - **Robustez**: um comando que falha não pode fechar o Revit/CAD nem perder trabalho (`docs/00_escopo/robustez_e_estabilidade.md`).

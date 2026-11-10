@@ -274,6 +274,9 @@ public static class ConversorLevantamento
                 notas.Add($"Viga {g.Marcas}: o consolo de apoio de outra viga ({N(v.Aba.Inicio)}–{N(v.Aba.Fim)} cm) vai como aba curta — conferir a armadura do consolo no CAD.");
         }
         else if (r.Consolos.Count > 0) { motivo = "tem consolo de apoio de outra viga com forma que o CAD ainda não desenha."; return null; }
+        // ressalto sobre a alma: o mesmo em todos os trechos (está na chave da aba), lido do trecho corrente
+        if (i0.TemRessalto)
+            v.Ressalto = new RessaltoPeca { Lado = i0.RessaltoEsquerda ? AbaPeca.Esquerda : AbaPeca.Direita, Largura = R(i0.RessaltoLargura), Altura = R(i0.RessaltoAltura) };
         return v;
     }
 

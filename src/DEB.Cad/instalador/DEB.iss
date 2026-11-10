@@ -20,7 +20,7 @@ AppName=Detalhador Estrutural Brasileiro (demonstração)
 AppName=Detalhador Estrutural Brasileiro
 #endif
 AppVersion={#Versao}
-AppPublisher=escritório
+AppPublisher=Projeto PCEB
 DefaultDirName={autopf}\ArmaduraBR
 DisableProgramGroupPage=yes
 DisableDirPage=yes

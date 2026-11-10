@@ -10,7 +10,7 @@ namespace DEB.Core.Motor.Perfis;
 /// </summary>
 public static class PerfisFabrica
 {
-    /// <summary>Bloco sobre estacas no padrão escritório A/escritório (folhas 104, 115, 128, 131; BLOCOS_REQUISITOS.md).</summary>
+    /// <summary>Bloco sobre estacas no padrão escritório A (folhas 104, 115, 128, 131; BLOCOS_REQUISITOS.md).</summary>
     public const string IdBlocoPadrao = "bloco_padrao";
 
     private static readonly Dictionary<string, Func<PerfilDetalhamento>> _fabrica =
@@ -40,7 +40,7 @@ public static class PerfisFabrica
         var p = new PerfilDetalhamento
         {
             Id = IdBlocoPadrao,
-            Nome = "Bloco sobre estacas — padrão escritório A/escritório",
+            Nome = "Bloco sobre estacas — padrão escritório A",
             TipoElemento = ElementoBloco.TipoId,
             Padroes = new Dictionary<string, double>
             {

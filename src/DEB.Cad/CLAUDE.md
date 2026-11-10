@@ -189,7 +189,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   GstarCAD (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
   grava a chave para cada idioma em `R21\`, avisa se o gcad.exe estiver aberto). Testado: instala, carrega
   sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do DEB.GstarCAD.csproj
-  (0.1.33 em 2026-11-10: viga com aba (L, T invertido, elevada, no topo, fundo inclinado, pendurada no dente) e consolo lateral, reimportação das peças do Revit (mantém o que não mudou, substitui no lugar o que mudou), marca "conferir" na prancha, JSON versão 2 quando há aba, blocos do motor atualizados; 0.1.32 em 2026-11-09: ARMIMPORTARPECAS (peças do Revit) com dentes/consolos que faltam criados no catálogo, quadro "ARMADURAS console" pelos prints do escritório; 0.1.31 em 2026-11-09: viga pré-moldada completa — armaduras, dente Gerber com ARMDENTES, protensão, cantoneira; 0.1.30 em 2026-11-09: o aviso "feche o CAD" só conta os CADs da sessão do Windows de quem instala — o GstarCAD de
+  (0.1.34 em 2026-11-10: viga com ressalto sobre a alma (estribo do ressalto e barra em L de ligação com a capa), arquivo de peças versão 3, escolha dos grupos a exportar no Revit; 0.1.33 em 2026-11-10: viga com aba (L, T invertido, elevada, no topo, fundo inclinado, pendurada no dente) e consolo lateral, reimportação das peças do Revit (mantém o que não mudou, substitui no lugar o que mudou), marca "conferir" na prancha, JSON versão 2 quando há aba, blocos do motor atualizados; 0.1.32 em 2026-11-09: ARMIMPORTARPECAS (peças do Revit) com dentes/consolos que faltam criados no catálogo, quadro "ARMADURAS console" pelos prints do escritório; 0.1.31 em 2026-11-09: viga pré-moldada completa — armaduras, dente Gerber com ARMDENTES, protensão, cantoneira; 0.1.30 em 2026-11-09: o aviso "feche o CAD" só conta os CADs da sessão do Windows de quem instala — o GstarCAD de
   outro usuário conectado no computador travava a instalação; 0.1.29 em 2026-11-08: bloco pelo motor com variantes por nº de estacas, alça do pilar no fundo; 0.1.27 em 2026-11-06: reservatório e as novidades da main; 0.1.26 = instalador único com GstarCAD 2021-2027, AutoCAD e ZWCAD): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto NA SESSÃO do usuário: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
@@ -268,7 +268,7 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
 - Repositório local em `armadura/` (branch `main`), 1º commit 0.1.14. Fora do repositório (decisão do usuário):
   `auxiliar_cad/` (projetos do escritório) e `info_auxiliar/` (especificação); bin/obj e `instalador/saida/` também.
   O `sdk/` VAI (o build referencia `sdk\grxsdk\inc\gmap.dll`/`gmdb.dll`).
-- Remoto (2026-11-02): `origin` = https://github.com/Josileissu/PCEB (privado, conta Josileissu via `gh`; renomeado de armadura-gstarcad em 2026-11-03 — será o repositório único do PCEB);
+- Remoto (2026-11-02): `origin` = https://github.com/Josileissu/PCEB (público, conta Josileissu via `gh`; renomeado de armadura-gstarcad em 2026-11-03 — será o repositório único do PCEB);
   e-mail dos commits: josileissu@gmail.com. Enviar com `git push`.
 - O csproj do plugin tem `IncludeSourceRevisionInInformationalVersion=false`: sem isso, com o Git, a ProductVersion
   ganha "+hash" e o nome do Setup sai errado.
