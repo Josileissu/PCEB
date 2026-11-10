@@ -7,7 +7,7 @@ namespace DEB.Core.Pecas;
 /// <summary>
 /// Leitura de uma seção de viga como ALMA retangular + ABA lateral (2026-11-09, VP-4): L (aba de um lado), T invertido (dos dois
 /// lados) ou aba elevada (consolo corrido acima do fundo), retangular ou com o fundo inclinado (mais alta junto da alma, com o
-/// topo plano — as vigas do modelo Nordika). É a forma que o template da viga do CAD desenha; o que não couber nela (I, mesa
+/// topo plano — as vigas de um modelo real). É a forma que o template da viga do CAD desenha; o que não couber nela (I, mesa
 /// superior, mísula em toda a altura, duas abas no mesmo lado, abas diferentes dos dois lados) continua "seção que o CAD ainda não desenha".
 /// Lados: "esquerda" = y maior (à esquerda de quem olha ao longo do eixo da viga), "direita" = y menor.
 /// </summary>
@@ -31,7 +31,7 @@ public sealed class SecaoComAba
     public double DistanciaDoTopo => H - AbaBase - AbaAltura;
     /// <summary>
     /// A "aba" toma TODA a altura da seção (do fundo ao topo): é um alargamento ou uma mísula, não uma aba — o CAD ainda não
-    /// desenha. A aba rente ao topo (abas de laje dos dois lados em cima, como as 30x50 do Nordika) é aba e é desenhada.
+    /// desenha. A aba rente ao topo (abas de laje dos dois lados em cima, como as 30x50 do modelo real) é aba e é desenhada.
     /// </summary>
     public bool AlturaToda { get; private set; }
 
@@ -39,16 +39,96 @@ public sealed class SecaoComAba
     public double AbaLargura => Math.Max(AbaEsquerda, AbaDireita);
 
     /// <summary>
+    /// Ressalto sobre a alma (2026-11-10): faixa estreita acima do topo da alma, rente a uma das faces dela — o "aba laje + aba
+    /// superior" de um modelo real (a capa da laje encosta nele). 0 = sem ressalto. <see cref="H"/> é a altura da ALMA, sem ele.
+    /// </summary>
+    public double RessaltoLargura { get; private set; }
+    public double RessaltoAltura { get; private set; }
+    /// <summary>Rente à face de y maior (esquerda) ou de y menor (direita).</summary>
+    public bool RessaltoEsquerda { get; private set; }
+    public bool TemRessalto => RessaltoLargura > 0 && RessaltoAltura > 0;
+
+    /// <summary>
     /// Chave da aba ao milímetro, medida a partir do TOPO (trechos com a mesma aba têm a mesma chave, no vão e no dente);
     /// "" = sem aba.
     /// </summary>
-    public string Chave => !TemAba ? "" : FormattableString.Invariant(
-        $"{M(AbaEsquerda)}|{M(AbaDireita)}|{M(AbaAltura)}|{M(AbaAlturaPonta)}|{M(DistanciaDoTopo)}");
+    public string Chave => !TemAba && !TemRessalto ? "" : FormattableString.Invariant(
+        $"{M(AbaEsquerda)}|{M(AbaDireita)}|{M(AbaAltura)}|{M(AbaAlturaPonta)}|{M(DistanciaDoTopo)}") +
+        (TemRessalto ? FormattableString.Invariant($"|R{(RessaltoEsquerda ? "E" : "D")}{M(RessaltoLargura)}x{M(RessaltoAltura)}") : "");
+
+    /// <summary>Diferença de largura (cm) que ainda conta como a mesma face: modelos reais têm degraus de 1 cm entre famílias.</summary>
+    public const double FolgaFace = 1.5;
 
     private static string M(double cm) => Fmt.Mm(cm);
 
-    /// <summary>Lê a seção; null se ela não é alma retangular com (ou sem) uma aba lateral.</summary>
-    public static SecaoComAba Ler(SecaoPoligonal s, double tol = SecaoPoligonal.Tolerancia)
+    /// <summary>Lê a seção; null se ela não é alma retangular com (ou sem) uma aba lateral e (ou sem) um ressalto em cima.</summary>
+    public static SecaoComAba Ler(SecaoPoligonal s, double tol = SecaoPoligonal.Tolerancia) => LerSimples(s, tol) ?? LerComRessalto(s, tol);
+
+    /// <summary>
+    /// Seção com uma faixa mais estreita no topo (2026-11-10): separa a faixa de cima (o ressalto) e lê o que fica embaixo como
+    /// alma + aba. Faixa de cima tão larga quanto a alma (até <see cref="FolgaFace"/>) = é a própria alma continuando (degrau de
+    /// modelagem: a viga de escada do modelo real tem a alma 1 cm mais larga acima da aba). Faixa mais estreita rente a uma face
+    /// da alma = ressalto. No meio da alma ou em mais de um degrau = null.
+    /// </summary>
+    private static SecaoComAba LerComRessalto(SecaoPoligonal s, double tol)
+    {
+        if (s == null || s.Furos.Count > 0 || s.Contorno.Count < 3) return null;
+        double h = s.H, zMin = s.ZMin;
+        const int n = 80;
+        var cortes = new List<(double A, double B)>();
+        for (int k = 0; k < n; k++)
+        {
+            var c = s.CortesHorizontais(zMin + h * (k + 0.5) / n);
+            if (c.Count != 2) return null;
+            cortes.Add((c[0], c[1]));
+        }
+        var topo = cortes[n - 1];
+        int k0 = n - 1;
+        while (k0 > 0 && Math.Abs(cortes[k0 - 1].A - topo.A) <= tol && Math.Abs(cortes[k0 - 1].B - topo.B) <= tol) k0--;
+        if (k0 == 0) return null;
+        var abaixo = cortes[k0 - 1];
+        if (abaixo.A > topo.A + tol || abaixo.B < topo.B - tol || abaixo.B - abaixo.A <= topo.B - topo.A + tol) return null;
+        // base da faixa de cima: os vértices da face dela que não continua para baixo
+        double borda = Math.Abs(topo.B - abaixo.B) > tol ? topo.B : topo.A;
+        var naBorda = s.Contorno.Where(p => Math.Abs(p.Y - borda) <= tol).Select(p => p.Z).ToList();
+        if (naBorda.Count == 0) return null;
+        double zBase = naBorda.Min();
+        if (zBase <= zMin + tol || zBase >= s.ZMax - tol) return null;
+        var embaixo = new SecaoPoligonal { Contorno = CortarAcima(s.Contorno, zBase) };
+        if (embaixo.Contorno.Count < 3) return null;
+        var b = LerSimples(embaixo, tol);
+        if (b == null || b.AlturaToda) return null;
+        double hr = s.ZMax - zBase, br = topo.B - topo.A;
+        var r = (SecaoComAba)b.MemberwiseClone();
+        if (br >= b.B - FolgaFace && topo.A <= b.Y0 + FolgaFace && topo.B >= b.Y0 + b.B - FolgaFace)
+        {
+            r.H = b.H + hr;   // a alma continua (degrau de modelagem): a aba fica mais longe do topo
+            return r;
+        }
+        bool direita = Math.Abs(topo.A - b.Y0) <= tol, esquerda = Math.Abs(topo.B - (b.Y0 + b.B)) <= tol;
+        if (direita == esquerda) return null;                                 // no meio da alma (ou da largura toda)
+        r.RessaltoLargura = br;
+        r.RessaltoAltura = hr;
+        r.RessaltoEsquerda = esquerda;
+        return r;
+    }
+
+    /// <summary>A parte do polígono com z ≤ <paramref name="z"/> (Sutherland–Hodgman), sem vértices repetidos ou colineares.</summary>
+    private static List<(double Y, double Z)> CortarAcima(List<(double Y, double Z)> p, double z)
+    {
+        var r = new List<(double Y, double Z)>();
+        for (int i = 0; i < p.Count; i++)
+        {
+            var a = p[i];
+            var c = p[(i + 1) % p.Count];
+            bool da = a.Z <= z + 1e-9, dc = c.Z <= z + 1e-9;
+            if (da) r.Add(a);
+            if (da != dc && Math.Abs(c.Z - a.Z) > 1e-12) r.Add((a.Y + (z - a.Z) / (c.Z - a.Z) * (c.Y - a.Y), z));
+        }
+        return Limpar(r);
+    }
+
+    private static SecaoComAba LerSimples(SecaoPoligonal s, double tol)
     {
         if (s == null || s.Furos.Count > 0 || s.Contorno.Count < 3) return null;
         double h = s.H, zMin = s.ZMin;
@@ -147,8 +227,15 @@ public sealed class SecaoComAba
                 r.Add((limite, a.Z + t * (b.Z - a.Z)));
             }
         }
-        // o recorte deixa "espinhos" sem área ao longo da face da alma (idas e voltas sobre a linha do limite): tira os vértices
-        // repetidos e os colineares até sobrar só o contorno da saliência
+        return Limpar(r);
+    }
+
+    /// <summary>
+    /// Tira os "espinhos" sem área que os recortes deixam (idas e voltas sobre a linha do limite): vértices repetidos e colineares,
+    /// até sobrar só o contorno.
+    /// </summary>
+    private static List<(double Y, double Z)> Limpar(List<(double Y, double Z)> r)
+    {
         bool mudou = true;
         while (mudou && r.Count >= 3)
         {

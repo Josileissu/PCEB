@@ -147,7 +147,7 @@ dimensionamento ficam registrados, mas sem aprofundar agora.
 | D22 | Revit → CAD (09/11/2026) | as peças do modelo Revit vão para o CAD como **dados**, não como desenho: o DEB.Revit exporta os grupos de peças iguais (iguais ou giradas) num JSON (`DEB.Core/Intercambio`) e o DEB.Cad gera um detalhamento por grupo pelo template, com as repetições = nº de peças. 1º passo: pilares pré-moldados (botão "Exportar para o CAD" + ARMIMPORTARPECAS); 2º: vigas pré-moldadas (dentes Gerber pela geometria, invertidas = iguais) |
 
 ## Perguntas em aberto
-16. **Titular do copyright**: usei "Marquezin" (o mesmo nome do instalador do Armadura BR). Confirmar o nome correto.
+16. **Titular do copyright**: "Projeto PCEB" (10/11/2026: o usuário pediu para tirar o nome do escritório do repositório público).
 17. **Versão demo de 1 hora do Armadura BR**: num programa livre deixa de fazer sentido. Remover?
 18. ~~StructuralDetailer no Git~~ — respondida por D16 (entra no repositório do PCEB).
 19. ~~Etapa 0~~ — **feita pelo usuário** (commits c599805 e 667a25a no armadura, já no GitHub).

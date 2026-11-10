@@ -36,7 +36,7 @@ namespace DEB.Revit
                 Dialogs.Add(e.DialogId);
                 if (e is TaskDialogShowingEventArgs)
                 {
-                    // Ao sair com um arquivo LOCAL de modelo compartilhado (o Nordika), o Revit pergunta o que fazer com as alterações
+                    // Ao sair com um arquivo LOCAL de modelo compartilhado (o modelo real de teste), o Revit pergunta o que fazer com as alterações
                     // não sincronizadas e essa janela não tem botão "Fechar": a resposta genérica era recusada e o Revit de teste
                     // nunca fechava (10/11/2026). Respostas próprias: não salvar, e manter a propriedade dos elementos (não fala com
                     // o modelo central). O teste nunca salva o modelo aberto.
@@ -162,7 +162,8 @@ namespace DEB.Revit
                         var grupos2 = DEB.Core.Pecas.ConferenciaPecas.Agrupar(pecas2);
                         var w = new Precast.UI.PieceReviewWindow(grupos2, notes2, new Precast.UI.ReviewActions
                         {
-                            Export = () => { }, SetMark = (g, m) => null, SetSkip = (g, v) => null,
+                            Export = (p, n) => { }, SetMark = (g, m) => null, SetSkip = (g, v) => null,
+                            SelecaoRevit = new HashSet<string>(pecas2.Take(1).Select(p => p.Id)),   // como se a 1ª peça estivesse selecionada no Revit
                         });
                         w.RenderToPng(Path.Combine(dir, "vigas_1.png"), 0, 0);
                         w.RenderToPng(Path.Combine(dir, "vigas_2.png"), 0, 1);
@@ -207,6 +208,8 @@ namespace DEB.Revit
                 sb.AppendLine($"{r.Tipo} {g.Marcas} x{g.Quantidade} [{g.Situacao}] {r.FamiliaTipo} L={r.Comprimento:0.#}");
                 foreach (var t in r.Trechos)
                     sb.AppendLine($"   {t.X0:0.#}-{t.X1:0.#} {t.FuncaoSugerida}: {t.Secao.Classificar().Descricao} A={t.Secao.Area:0.#} Iy={t.Secao.Iy:0}");
+                foreach (var t in r.Trechos.Where(t => g.Situacao == DEB.Core.Pecas.SituacaoPeca.NaoSuportada && t.Secao.Classificar().Tipo == DEB.Core.Pecas.TipoSecao.Poligonal))
+                    sb.AppendLine("      contorno " + string.Join(" ", t.Secao.Contorno.Select(q => FormattableString.Invariant($"{q.Y:0.##},{q.Z:0.##}"))));
                 foreach (string a in g.Avisos) sb.AppendLine("   aviso: " + a);
             }
             try

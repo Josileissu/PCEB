@@ -42,7 +42,7 @@ Aço/Projeto de Norma/PN_ABNT_NBR16775_2019_consulta-nacional.pdf
 Aço/v15.1_vol-1_design-examples.pdf
 Aço/v15.1_vol-2_design-tables.pdf
 Cargas, Ações-Comb, Vento, Sismos/Antigos/Consulta Nacional - NBR 6120.pdf
-Cargas, Ações-Comb, Vento, Sismos/Antigos/NBR 06120 - 2000 - Cargas para o cálculo de estruturas de edificações - Marquezin.pdf
+Cargas, Ações-Comb, Vento, Sismos/Antigos/NBR 06120 - 2000 - Cargas para o cálculo de estruturas de edificações.pdf
 Cargas, Ações-Comb, Vento, Sismos/Antigos/NBR 06123 - Carga de Vento - ACIR Corrigida.pdf
 Cargas, Ações-Comb, Vento, Sismos/NBR 06120 - 2019 - Cargas para o cálculo de estruturas de edificações.pdf
 Cargas, Ações-Comb, Vento, Sismos/NBR 06123 - 2023 - Força Devido aos Ventos.pdf
@@ -60,7 +60,7 @@ Concreto/NBR 12655 - 2022 - Concreto de cimento Portland - Preparo, controle rec
 Concreto/NBR 14931 - 2004 - Execucao de Estruturas de Concreto - Procedimento.pdf
 Concreto/NBR 15900-1 - 2009 - Água para amassamento do concreto Parte 1 - Requisitos.pdf
 Concreto/NBR 16697 - 2018 - Cimento Portland - Requisitos.pdf
-Concreto/NBR 6118 - 2023 - Projeto de estruturas concreto - MARQUEZIN - EMENTA 1 - 11-03-2026.pdf
+Concreto/NBR 6118 - 2023 - Projeto de estruturas concreto - EMENTA 1 - 11-03-2026.pdf
 Concreto/NBR 6118 - 2023 - Projeto de estruturas concreto - Procedimento.pdf
 Concreto/NBR 6118 - 2023 - Projeto de estruturas de concreto - Procedimento.pdf
 Concreto/NBR 7212 - 2012 - Execução de concreto dosado em central - Procedimento.pdf
@@ -129,4 +129,4 @@ Proteção contra quedas/Databooks - MEPI/site.txt
 Proteção contra quedas/Guia pratico para calculo de linha de vida e restricao para industria da construcao.pdf
 Pré-Moldado/NBR 14589 - 2016 - Lajes pré-fabricada de concreto - Parte 1.pdf
 Pré-Moldado/NBR 14861 - 2002 - Laje Pré-Fabricada - Painel Alveolar de Concreto Protendido - Requisitos.pdf
-Pré-Moldado/NBR 9062 - 2017 - Projeto e execução de estruturas de concreto pré-moldado - Marquezin.pdf
+Pré-Moldado/NBR 9062 - 2017 - Projeto e execução de estruturas de concreto pré-moldado.pdf

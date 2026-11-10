@@ -62,7 +62,7 @@ Para o PCEB como programa:
 | Norma de referência do detalhamento: NBR 6118 (pinos/dobramento) e NBR 9062 (pré-moldados) | `docs/*`, `CLAUDE.md` |
 | 178 testes de núcleo; autoteste no CAD com 200+ verificações | `README.md`, `docs/PROGRESSO.md` |
 | Licença GPL-3.0 + exceção da seção 7 para APIs de CAD | `README.md`, `LICENSE*` |
-| Autor: Marquezin · GitHub: `Josileissu/PCEB` | `README.md` |
+| Autor: Projeto PCEB · GitHub: `Josileissu/PCEB` | `README.md` |
 | Domínio planejado: `pceb.com.br` (+ `.app`/`.dev` redirecionando) | `docs/DOMINIO.md` |
 
 ### O que NÃO afirmar

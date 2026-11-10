@@ -54,7 +54,7 @@ internal static class Demo
 
     public static bool Expirada => Ativa && Restante <= TimeSpan.Zero;
 
-    public const string Mensagem = "A demonstração do Detalhador Estrutural Brasileiro terminou (1 hora de uso). Para continuar, fale com a Marquezin.";
+    public const string Mensagem = "A demonstração do Detalhador Estrutural Brasileiro terminou (1 hora de uso). Para continuar, veja https://github.com/Josileissu/PCEB.";
 
     public static string TextoRestante => $"Detalhador Estrutural Brasileiro — DEMONSTRAÇÃO: restam {Math.Max(0, (int)Math.Ceiling(Restante.TotalMinutes))} min.";
 

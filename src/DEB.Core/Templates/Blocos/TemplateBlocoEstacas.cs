@@ -15,7 +15,7 @@ namespace DEB.Core.Templates.Blocos;
 /// <summary>
 /// Bloco de fundação sobre estacas (pedidos do usuário, 2026-11-06): retangular com estacas em grade (1, 2, 3 em linha,
 /// 4, 6…) ou triangular de 3 estacas; ligação do pilar por cálice com colarinho, cálice embutido ou arranque.
-/// Apresentação no padrão das folhas BPM/Marquezin (decisão do usuário: "BPM para todos") — ver
+/// Apresentação no padrão das folhas BPM (decisão do usuário: "BPM para todos") — ver
 /// <c>src/DEB.Cad/docs/BLOCOS_REQUISITOS.md</c>:
 /// <list type="bullet">
 /// <item>FORMA: "BLOCO B15 - 24x - 3 ø 50" + pilares, PLANTA cotada (estacas com quadrantes hachurados, colarinho,

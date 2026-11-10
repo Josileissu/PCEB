@@ -48,7 +48,7 @@ namespace DEB.Revit.Precast
 
         /// <summary>
         /// Consolos nas vigas (viga apoiada em viga, 2026-11-09): o consolo é uma família aninhada na viga que SE APOIA, mas fica
-        /// encostado na face lateral da viga que RECEBE (Nordika, V245). Cada consolo ainda sem dono (os dos pilares já foram
+        /// encostado na face lateral da viga que RECEBE (modelo real, V245). Cada consolo ainda sem dono (os dos pilares já foram
         /// atribuídos) vai para a viga cuja face lateral ele toca, dentro do comprimento e da altura dela, saindo para fora.
         /// </summary>
         private static void BeamCorbels(Document doc, Dictionary<long, List<FamilyInstance>> owner)

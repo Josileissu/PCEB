@@ -28,7 +28,7 @@ cd <raiz do PCEB>\src\DEB.Revit
   AutoRun fica parada nessa janela (era a demora "irregular" dos testes no PC2). No PC2 o certificado foi criado pelo
   usuário em 05/11/2026 (raiz e editor confiáveis do usuário). Outro computador: exportar o .pfx com senha ou criar um
   igual (`New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=PCEB DEB"` + importar o .cer em TrustedPublisher e Root).
-- **PC2** (decisão do usuário, 10/11/2026): pode testar no Revit **2025 e no 2026**, e implementar aqui. O modelo Nordika é arquivo
+- **PC2** (decisão do usuário, 10/11/2026): pode testar no Revit **2025 e no 2026**, e implementar aqui. O modelo real de teste (168 vigas) é arquivo
   do 2026 (o 2025 para no aviso "versão posterior"). Com o Revit do usuário aberto a DLL fica presa: use o procedimento do `.antigo`. Modelo de teste com embutimento: `criarmodelo` (base −1,00 m).
 
 ## Testar sem o usuário (AutoRun)
@@ -97,7 +97,10 @@ e pelo volume (`PerfilViga`, `AgrupadorVigas`, `PrecastExport.Beams` foram remov
 - `uid` (UniqueId) de cada elemento vai no JSON como campo opcional (o DEB.Cad 0.1.32 instalado ignora e continua lendo).
 - `PrecastSurvey` lê a geometria de cada candidato a consolo uma vez (antes: de novo para cada pilar) e descarta os distantes pela caixa.
 AutoRun `exportarpecas` (`SD_EXPORT` = caminho). Só lê o modelo. `conferir` aceita `SD_CONFERIR_INDICES="16,18"` (PNG de grupos de vigas escolhidos).
-O modelo Nordika é do Revit 2026 (o 2025 para no aviso "versão posterior"); no 2026 o AutoRun roda e, desde 10/11/2026, o Revit de teste fecha sozinho também com arquivo LOCAL de modelo compartilhado (o AutoRun responde "não salvar" e "manter a propriedade" às duas janelas da saída; antes a resposta genérica era recusada e a instância ficava aberta). Revit do usuário aberto = DLL presa: renomeie para `.antigo`, copie e assine.
+O modelo real de teste (168 vigas) é do Revit 2026 (o 2025 para no aviso "versão posterior"); no 2026 o AutoRun roda e, desde 10/11/2026, o Revit de teste fecha sozinho também com arquivo LOCAL de modelo compartilhado (o AutoRun responde "não salvar" e "manter a propriedade" às duas janelas da saída; antes a resposta genérica era recusada e a instância ficava aberta). Revit do usuário aberto = DLL presa: renomeie para `.antigo`, copie e assine.
+**Escolher o que exportar** (pedido do usuário, 10/11/2026): 1ª coluna da janela = caixa "exportar" por grupo (só desta exportação),
+botões Todos / Nenhum / Só ✔ / Seleção do Revit por aba e a contagem embaixo. Com peças selecionadas no Revit ao abrir a janela, ela começa
+marcando só os grupos delas. "Nunca exportar" (gravado no modelo) continua valendo e desmarca o grupo. Desmarcados = nota no JSON.
 **Edições na janela (etapa 3, 09/11/2026)** — as únicas gravações da conferência no modelo (`Precast/PieceReviewEdits`, comando em
 `TransactionMode.Manual`): "Gravar marca no modelo" (parâmetro Marca de todas as peças do grupo; a janela recusa a marca que já é de
 outro grupo) e "Não exportar este grupo" (Extensible Storage, schema `DEB_ConferenciaPeca`, campo `NaoExportar`, no próprio elemento:
@@ -121,10 +124,10 @@ atrás), coluna "CONSOLOS (perfil)" ampliada com cotas e chanfros, seções empi
 **Chanfro do consolo** (relato do usuário): `Describe` media a altura da ponta nos vértices da ponta — o chanfro 2 × 2 do Teste_PM
 virava "ponta 21,5" (trapezoidal, CT no catálogo). Agora `PerfilConsolo.Medir` (Core): envoltórias convexas do perfil, chanfro =
 último trecho ≤ 5 cm com outra inclinação, altura pelas retas principais → 23,5 (o JSON do CAD também).
-**Viga apoiada em viga** (relato do usuário, modelo Nordika 26049, V245): o consolo é aninhado na viga que SE APOIA e encosta na
+**Viga apoiada em viga** (relato do usuário, modelo real de uma obra, V245): o consolo é aninhado na viga que SE APOIA e encosta na
 face lateral da viga que RECEBE. `PieceReview.BeamCorbels` dá cada consolo sem dono (os dos pilares saem antes) à viga cuja face
 lateral REAL (planar, normal ±y — inclui a da alma dentro das abas) ele toca e da qual sai; perfil cortado no meio do consolo;
-trecho = "Apoio de viga" (situação ✖: o CAD ainda não desenha consolo em viga). Na cópia do Nordika: V112/V212, V237, V312 e 3
+trecho = "Apoio de viga" (situação ✖: o CAD ainda não desenha consolo em viga). Na cópia do modelo real: V112/V212, V237, V312 e 3
 sem marca. "encostaEm" do diagnóstico NÃO serve para isso (consolos de pilar encostam nas vigas vizinhas).
 Revit do usuário aberto segura a DLL: renomeie `DEB.Revit.dll`/`DEB.Core.dll` para `.antigo` (o Windows deixa) e copie as novas —
 o Revit dele segue com a carregada; os abertos depois pegam a nova. Próximo (etapa 3): marca editável gravada no Revit, função dos

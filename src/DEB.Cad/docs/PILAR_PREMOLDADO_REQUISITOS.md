@@ -75,7 +75,7 @@ Fontes usadas neste levantamento:
 ## 2. Normas e regras que afetam o DESENHO
 
 Conferido em 2026-10-29 no índice local (`tools/normas/buscar.py`). Página = página do PDF. **NBR 9062:2017**
-= `Pré-Moldado\NBR 9062 - 2017 … Marquezin.pdf`. **NBR 6118**: as duas cópias de 2023 da pasta têm o texto
+= `Pré-Moldado\NBR 9062 - 2017 ….pdf`. **NBR 6118**: as duas cópias de 2023 da pasta têm o texto
 embaralhado (fonte com codificação própria) — conferido na **edição 2014** (`Concreto\Antigos`), cujos itens de
 detalhamento de pilares se mantêm; [CONFERIR na 2023 impressa] se algum valor mudou.
 

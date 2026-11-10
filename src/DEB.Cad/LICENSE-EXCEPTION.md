@@ -5,7 +5,7 @@ This file supplements `LICENSE` (GNU General Public License, version 3).
 
 ## English (authoritative text)
 
-Copyright (C) 2026 Marquezin
+Copyright (C) 2026 Projeto PCEB (https://github.com/Josileissu/PCEB)
 
 Additional permission under GNU GPL version 3 section 7
 

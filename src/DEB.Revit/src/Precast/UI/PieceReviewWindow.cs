@@ -9,9 +9,17 @@ using DEB.Core.Pecas;
 namespace DEB.Revit.Precast.UI
 {
     /// <summary>Linha da lista de grupos (pública: o WPF só faz binding em tipos públicos).</summary>
-    public sealed class ReviewRow
+    public sealed class ReviewRow : System.ComponentModel.INotifyPropertyChanged
     {
         internal GrupoPecas Grupo { get; set; }
+        private bool _exportar;
+        /// <summary>Marcado para ir nesta exportação (caixa da 1ª coluna; não é gravado no modelo).</summary>
+        public bool Exportar
+        {
+            get => _exportar;
+            set { if (_exportar == value) return; _exportar = value; PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(Exportar))); }
+        }
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
         public string Situacao { get; set; } = "";
         public string Marcas { get; set; } = "";
         public int Qtd { get; set; }
@@ -24,8 +32,10 @@ namespace DEB.Revit.Precast.UI
     /// <summary>O que a janela pode fazer no modelo (null = sem aquele controle; o AutoRun de leitura não passa nada).</summary>
     internal sealed class ReviewActions
     {
-        /// <summary>Botão "Exportar para o CAD…".</summary>
-        public System.Action Export { get; set; }
+        /// <summary>Botão "Exportar para o CAD…": as peças dos grupos marcados e quantos grupos ficaram desmarcados.</summary>
+        public System.Action<List<PecaLevantada>, int> Export { get; set; }
+        /// <summary>Ids das peças selecionadas no Revit quando a janela abriu (vazio = nada selecionado).</summary>
+        public HashSet<string> SelecaoRevit { get; set; } = new HashSet<string>();
         /// <summary>Grava a marca nas peças do grupo; devolve a mensagem de erro ou null.</summary>
         public System.Func<GrupoPecas, string, string> SetMark { get; set; }
         /// <summary>Grava "não exportar" nas peças do grupo; devolve a mensagem de erro ou null.</summary>
@@ -44,12 +54,14 @@ namespace DEB.Revit.Precast.UI
         private readonly List<(ListView List, PieceReviewPreview Preview, TextBlock Avisos)> _pages = new List<(ListView, PieceReviewPreview, TextBlock)>();
         private readonly List<GrupoPecas> _grupos;
         private readonly ReviewActions _actions;
+        private readonly List<ReviewRow> _rows = new List<ReviewRow>();
+        private readonly TextBlock _contagem = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), FontWeight = FontWeights.SemiBold };
 
         public PieceReviewWindow(List<GrupoPecas> grupos, List<string> notes, ReviewActions actions = null)
         {
             _grupos = grupos;
             _actions = actions ?? new ReviewActions();
-            System.Action export = _actions.Export;
+            var export = _actions.Export;
             Title = "Conferir peças — Detalhador Estrutural Brasileiro";
             Width = 1450; Height = 880;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -66,15 +78,19 @@ namespace DEB.Revit.Precast.UI
                 var exp = new Button
                 {
                     Content = "Exportar para o CAD…", Width = 150, Margin = new Thickness(0, 0, 8, 0),
-                    ToolTip = "Grava o .json das peças que o CAD desenha (✔ e ⚠), com a marca do modelo como nome. As ✖ ficam de fora, com o motivo.",
+                    ToolTip = "Grava o .json dos grupos MARCADOS (1ª coluna) que o CAD desenha, com a marca do modelo como nome. As ✖ ficam de fora, com o motivo.",
                 };
                 exp.Click += (s, e) =>
                 {
-                    try { export(); }
+                    var marcados = _rows.Where(r => r.Exportar).ToList();
+                    if (marcados.Count == 0) { MessageBox.Show(this, "Nenhum grupo marcado para exportar (1ª coluna das abas Vigas e Pilares).", "Exportar para o CAD"); return; }
+                    try { export(marcados.SelectMany(r => r.Grupo.Pecas).ToList(), _rows.Count - marcados.Count); }
                     catch (System.Exception ex) { MessageBox.Show(this, "Não foi possível exportar: " + ex.Message, "Exportar para o CAD"); }
                 };
                 DockPanel.SetDock(exp, Dock.Right);
                 bottom.Children.Add(exp);
+                DockPanel.SetDock(_contagem, Dock.Right);
+                bottom.Children.Add(_contagem);
             }
             int ok = grupos.Count(g => g.Situacao == SituacaoPeca.Ok), at = grupos.Count(g => g.Situacao == SituacaoPeca.Atencao),
                 ns = grupos.Count(g => g.Situacao == SituacaoPeca.NaoSuportada);
@@ -92,12 +108,31 @@ namespace DEB.Revit.Precast.UI
 
             AddPage("Vigas", grupos.Where(g => g.Representante.Tipo == TipoPeca.Viga).ToList());
             AddPage("Pilares", grupos.Where(g => g.Representante.Tipo == TipoPeca.Pilar).ToList());
+            Contar();
+        }
+
+        /// <summary>Marcação inicial: com peças selecionadas no Revit, só os grupos delas; senão todos os que o CAD desenha e não estão "nunca exportar".</summary>
+        private bool MarcadoNoInicio(GrupoPecas g) =>
+            !g.Pecas.All(p => p.NaoExportar) && g.Situacao != SituacaoPeca.NaoSuportada &&
+            (_actions.SelecaoRevit.Count == 0 || g.Pecas.Any(p => _actions.SelecaoRevit.Contains(p.Id)));
+
+        private void Contar()
+        {
+            int m = _rows.Count(r => r.Exportar);
+            _contagem.Text = $"{m} de {_rows.Count} grupo(s) marcados ({_rows.Where(r => r.Exportar).Sum(r => r.Grupo.Quantidade)} peça(s))" +
+                             (_actions.SelecaoRevit.Count > 0 ? " — começou pela seleção do Revit" : "");
         }
 
         private void AddPage(string name, List<GrupoPecas> grupos)
         {
-            var list = new ListView { Width = 600, Margin = new Thickness(0, 0, 8, 0) };
+            var list = new ListView { Width = 630 };
             var gv = new GridView();
+            // 1ª coluna: caixa "exportar" (só desta exportação; o "nunca exportar" gravado no modelo fica embaixo, à direita)
+            var caixa = new FrameworkElementFactory(typeof(CheckBox));
+            caixa.SetBinding(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty,
+                new System.Windows.Data.Binding(nameof(ReviewRow.Exportar)) { Mode = System.Windows.Data.BindingMode.TwoWay, UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged });
+            caixa.SetValue(FrameworkElement.ToolTipProperty, "Exportar este grupo agora");
+            gv.Columns.Add(new GridViewColumn { Header = "⇪", Width = 30, CellTemplate = new DataTemplate { VisualTree = caixa } });
             void Col(string h, string path, double w) => gv.Columns.Add(new GridViewColumn
             {
                 Header = h, Width = w, DisplayMemberBinding = new System.Windows.Data.Binding(path),
@@ -110,21 +145,44 @@ namespace DEB.Revit.Precast.UI
             Col("L (cm)", nameof(ReviewRow.L), 56);
             Col("Trechos", nameof(ReviewRow.Trechos), 52);
             list.View = gv;
-            list.ItemsSource = grupos.Select(g => Fill(new ReviewRow
+            var rows = grupos.Select(g => Fill(new ReviewRow
             {
-                Grupo = g,
+                Grupo = g, Exportar = MarcadoNoInicio(g),
                 Qtd = g.Quantidade, Tipo = g.Representante.FamiliaTipo,
                 Secao = g.Representante.Principal?.Secao.Classificar().Descricao ?? "—",
                 L = g.Representante.Comprimento.ToString("0.#", CultureInfo.GetCultureInfo("pt-BR")),
                 Trechos = g.Representante.Trechos.Count,
             })).ToList();
+            foreach (var r in rows) r.PropertyChanged += (s, e) => Contar();
+            _rows.AddRange(rows);
+            list.ItemsSource = rows;
+
+            // marcar em conjunto: todos, nenhum, só os que o CAD desenha sem atenção, só a seleção do Revit
+            var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            Button Botao(string t, string dica, System.Func<ReviewRow, bool> marcar)
+            {
+                var b = new Button { Content = t, Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(8, 1, 8, 1), ToolTip = dica };
+                b.Click += (s, e) => { foreach (var r in rows) r.Exportar = marcar(r); };
+                barra.Children.Add(b);
+                return b;
+            }
+            Botao("Todos", "Marca todos os grupos desta aba", r => true);
+            Botao("Nenhum", "Desmarca todos os grupos desta aba (exportar só a outra aba)", r => false);
+            Botao("Só ✔", "Só os grupos sem nenhum aviso", r => r.Grupo.Situacao == SituacaoPeca.Ok && !r.Grupo.Pecas.All(p => p.NaoExportar));
+            var bSel = Botao("Seleção do Revit", "Só os grupos com peças que estavam selecionadas no Revit ao abrir a janela",
+                r => r.Grupo.Pecas.Any(p => _actions.SelecaoRevit.Contains(p.Id)));
+            bSel.IsEnabled = _actions.SelecaoRevit.Count > 0;
+            var esquerda = new DockPanel { Margin = new Thickness(0, 0, 8, 0) };
+            DockPanel.SetDock(barra, Dock.Top);
+            esquerda.Children.Add(barra);
+            esquerda.Children.Add(list);
 
             var preview = new PieceReviewPreview();
             var avisos = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0), MinHeight = 40 };
             // ---- edições do grupo escolhido: marca (gravada no modelo) e "não exportar" ----
             var markBox = new TextBox { Width = 110, VerticalContentAlignment = VerticalAlignment.Center };
             var markBtn = new Button { Content = "Gravar marca no modelo", Margin = new Thickness(6, 0, 14, 0), Padding = new Thickness(8, 1, 8, 1) };
-            var skipBox = new CheckBox { Content = "Não exportar este grupo", VerticalAlignment = VerticalAlignment.Center };
+            var skipBox = new CheckBox { Content = "Nunca exportar este grupo (gravado no modelo)", VerticalAlignment = VerticalAlignment.Center };
             var editMsg = new TextBlock { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.DarkRed, TextWrapping = TextWrapping.Wrap };
             var edit = new DockPanel { Margin = new Thickness(0, 6, 0, 0), LastChildFill = true };
             foreach (UIElement c in new UIElement[] { new TextBlock { Text = "Marca do grupo: ", VerticalAlignment = VerticalAlignment.Center }, markBox, markBtn, skipBox })
@@ -156,6 +214,7 @@ namespace DEB.Revit.Precast.UI
                 if (loading || !(list.SelectedItem is ReviewRow row)) return;
                 try { editMsg.Text = _actions.SetSkip(row.Grupo, v) ?? ""; }
                 catch (System.Exception ex) { editMsg.Text = "Não gravado: " + ex.Message; }
+                if (v) row.Exportar = false;
                 Refresh(row);
             }
             skipBox.Checked += (s, e) => Skip(true);
@@ -182,8 +241,8 @@ namespace DEB.Revit.Precast.UI
             right.Children.Add(edit);
             right.Children.Add(new Border { BorderBrush = Brushes.LightGray, BorderThickness = new Thickness(1), Child = preview });
             var grid = new DockPanel { Margin = new Thickness(4) };
-            DockPanel.SetDock(list, Dock.Left);
-            grid.Children.Add(list);
+            DockPanel.SetDock(esquerda, Dock.Left);
+            grid.Children.Add(esquerda);
             grid.Children.Add(right);
             _tabs.Items.Add(new TabItem { Header = $"{name} ({grupos.Sum(g => g.Quantidade)})", Content = grid });
             _pages.Add((list, preview, avisos));
