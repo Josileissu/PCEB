@@ -135,9 +135,34 @@ internal sealed class ConfiguracaoEditavel
             .Where(s => s.Length > 0).Distinct().ToList();
     }
 
+    [Category(GRA), DisplayName("Coluna do detalhamento (tabelas novas)"), TypeConverter(typeof(ColunaElementoConverter)),
+     Description("Coluna ELEMENTO das relações do aço novas. Com ela, o nome do detalhamento aparece só na linha do N1, com as de baixo mescladas. " +
+                 "Cada tabela pode trocar na paleta.")]
+    public Core.RelacaoAco.ColunaElemento ColunaElementoPadrao { get => _c.ColunaElementoPadrao; set => _c.ColunaElementoPadrao = value; }
+
     // 4. Desenho
     [Category(GDes), DisplayName("Escala base"), TypeConverter(typeof(EscalaConverter)), Description("Escala das barras e tabelas novas.")]
     public double Escala { get => _c.Escala; set { if (value > 0) _c.Escala = value; } }
+
+    [Category(GDes), DisplayName("Escalas da lista"),
+     Description("Escalas oferecidas nas listas de escala da paleta, separadas por ponto e vírgula (ex.: 1:10; 1:20; 1:25; 1:50). " +
+                 "Uma escala fora da lista ainda pode ser digitada. Vazio = a lista de fábrica.")]
+    public string EscalasUsuais
+    {
+        get => string.Join("; ", _c.EscalasUsuais.Select(x => "1:" + x.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture)));
+        set
+        {
+            var l = new System.Collections.Generic.List<double>();
+            foreach (var p in (value ?? "").Split(new[] { ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string s = p.Trim().Replace(',', '.');
+                int sep = s.IndexOfAny(new[] { ':', '/' });
+                if (sep >= 0) s = s.Substring(sep + 1);
+                if (double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) && d > 0) l.Add(d);
+            }
+            _c.EscalasUsuais = l.Count > 0 ? l.Distinct().OrderBy(x => x).ToList() : Core.Configuracao.ConfiguracaoArmadura.EscalasPadrao();
+        }
+    }
 
     [Category(GDes), DisplayName("Altura do texto (mm no papel)"), Description("2 mm = 2 un em 1:10, 5 un em 1:25.")]
     public double AlturaTextoMm { get => _c.AlturaTextoMm; set { if (value > 0) _c.AlturaTextoMm = value; } }

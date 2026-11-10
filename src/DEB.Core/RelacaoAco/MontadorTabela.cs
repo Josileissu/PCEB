@@ -75,6 +75,7 @@ public sealed class OpcoesTabelaRA
 
     public static OpcoesTabelaRA Padrao(ConfiguracaoArmadura cfg) => new OpcoesTabelaRA
     {
+        ColunaElemento = cfg.ColunaElementoPadrao,
         Apresentacao = cfg.ApresentacaoRA,
         Resumo = cfg.ApresentacaoResumo,
         MostrarPesoTotal = cfg.MostrarPesoTotal,
@@ -91,6 +92,12 @@ public sealed class ConteudoTabela
     public List<string[]> Linhas { get; } = new List<string[]>();
     /// <summary>Mesclas horizontais: (linha, coluna inicial, coluna final).</summary>
     public List<(int Linha, int C1, int C2)> Mesclas { get; } = new List<(int, int, int)>();
+    /// <summary>
+    /// Mesclas verticais: (coluna, linha inicial, linha final). Usadas na coluna ELEMENTO (pedido do usuário, 2026-11-10): o nome do
+    /// detalhamento fica só na 1ª linha dele (a do N1) e as de baixo ficam mescladas, até o próximo detalhamento. O texto da célula
+    /// mesclada fica no ALTO, na altura da 1ª linha.
+    /// </summary>
+    public List<(int Coluna, int L1, int L2)> MesclasVerticais { get; } = new List<(int, int, int)>();
     /// <summary>Linhas de título (texto em destaque).</summary>
     public HashSet<int> Titulos { get; } = new HashSet<int>();
     /// <summary>Coluna do detalhe de dobra (−1 = sem).</summary>
@@ -154,6 +161,21 @@ public static class MontadorTabela
                 };
                 if (comElemento) c.Insert(0, string.IsNullOrEmpty(l.Elemento) ? "-" : l.Elemento);
                 t.Add(c.ToArray());
+            }
+            // coluna ELEMENTO: o nome só na 1ª linha de cada detalhamento; as de baixo em branco, mescladas com ela
+            if (comElemento)
+            {
+                int ini = -1;
+                for (int i = cabecalhoRelacao + 1; i <= t.Ultima + 1; i++)
+                {
+                    bool dado = i <= t.Ultima && linhasDados.ContainsKey(i);
+                    if (ini >= 0 && (!dado || t.Linhas[i][0] != t.Linhas[ini][0]))
+                    {
+                        if (i - 1 > ini) { for (int k = ini + 1; k < i; k++) t.Linhas[k][0] = ""; t.MesclasVerticais.Add((0, ini, i - 1)); }
+                        ini = -1;
+                    }
+                    if (dado && ini < 0) ini = i;
+                }
             }
             if (r.Linhas.Any(l => l.Nova))
             {
