@@ -62,8 +62,23 @@ public sealed class SecaoComAba
             if (c.Count != 2) return null;
             cortes.Add((c[0], c[1]));
         }
-        var alma = cortes.OrderBy(c => c.B - c.A).First();
-        if (cortes.Any(c => c.A > alma.A + tol || c.B < alma.B - tol)) return null;
+        // a alma chega ao topo: é o corte do topo estreitado pelos cortes que a contêm. Embaixo, a seção pode continuar só com a aba
+        // (no dente, a aba que desce abaixo do recorte fica pendurada): esses cortes ficam inteiros de um lado da alma.
+        var topo = cortes[n - 1];
+        var alma = cortes.Where(c => c.A <= topo.A + tol && c.B >= topo.B - tol || (c.A >= topo.A - tol && c.B <= topo.B + tol))
+                         .OrderBy(c => c.B - c.A).First();
+        bool Contem((double A, double B) c) => c.A <= alma.A + tol && c.B >= alma.B - tol;
+        bool DeLado((double A, double B) c) => c.B <= alma.A + tol || c.A >= alma.B - tol;
+        if (cortes.Any(c => !Contem(c) && !DeLado(c))) return null;
+        int k0 = cortes.FindIndex(Contem);
+        if (k0 < 0 || cortes.Skip(k0).Any(c => !Contem(c))) return null;        // a alma é um trecho só, até o topo
+        // fundo da alma: a altura dos vértices do contorno na face da alma mais próxima do 1º corte que a contém
+        double zAlma = k0 == 0 ? zMin : s.Contorno.Where(p => p.Y >= alma.A - tol && p.Y <= alma.B + tol).Select(p => p.Z)
+            .Where(z => z <= zMin + h * (k0 + 0.5) / n + 1e-9).DefaultIfEmpty(zMin).Max();
+        double zMinTotal = zMin;
+        zMin = zAlma;
+        h = s.ZMax - zAlma;
+        if (h <= tol) return null;
         var r = new SecaoComAba { B = alma.B - alma.A, Y0 = alma.A, H = h, Z0 = zMin };
 
         // o que sobra de cada lado da alma
@@ -86,7 +101,7 @@ public sealed class SecaoComAba
         r.AbaAltura = m.AlturaNaFace;
         r.AbaAlturaPonta = Math.Min(m.AlturaPonta, m.AlturaNaFace);
         r.AbaBase = m.BaseNaFace;
-        r.AlturaToda = r.DistanciaDoTopo <= tol && r.AbaBase <= tol;
+        r.AlturaToda = r.DistanciaDoTopo <= tol && r.AbaBase <= tol && zMinTotal >= zMin - tol;
         return r;
     }
 

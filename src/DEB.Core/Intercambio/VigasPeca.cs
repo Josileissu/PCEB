@@ -42,6 +42,9 @@ public static class ConversorVigaPeca
             v["AbaAltura"] = N(p.Aba.Altura);
             v["AbaAlturaPonta"] = p.Aba.AlturaPonta > 0 && p.Aba.AlturaPonta < p.Aba.Altura - 0.05 ? N(p.Aba.AlturaPonta) : "0";
             v["AbaBase"] = N(p.Aba.Base);
+            // o trecho é o do modelo: se ele entra num dente, a aba passa pelos dentes (mesmo descendo abaixo do recorte)
+            bool entra = (p.DenteE != null && p.Aba.Inicio < p.DenteE.Comprimento - 0.5) || (p.DenteD != null && p.Aba.Fim > p.L - p.DenteD.Comprimento + 0.5);
+            v["AbaDentes"] = entra ? TemplateVigaPreMoldada.AbaDentesPassa : TemplateVigaPreMoldada.AbaDentesPara;
             v["AbaIni"] = N(p.Aba.Inicio);
             v["AbaFim"] = N(p.Aba.Fim);
         }

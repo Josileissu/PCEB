@@ -42,7 +42,16 @@ public sealed class ComandosPecas
         var rp = ed.GetPoint("\nPonto de inserção (canto da primeira peça):");
         if (rp.Status != PromptStatus.OK) return;
 
-        var rel = Importar(db, cfg, arq, rp.Value.TransformBy(ed.CurrentUserCoordinateSystem));
+        var rel = Importar(db, cfg, arq, rp.Value.TransformBy(ed.CurrentUserCoordinateSystem), mudaram =>
+        {
+            // reimportação: peças que já estão no desenho e mudaram no modelo
+            ed.WriteMessage($"\n{mudaram.Count} detalhamento(s) deste desenho mudaram no modelo: {string.Join(", ", mudaram)}.");
+            var op = new PromptKeywordOptions("\nSubstituir pelos novos (o que foi ajustado à mão neles se perde) ou manter os dois? [Substituir/Manter]", "Substituir Manter")
+            { AllowNone = true };
+            op.Keywords.Default = "Manter";
+            var rk = ed.GetKeywords(op);
+            return rk.Status == PromptStatus.OK && rk.StringResult == "Substituir";
+        });
         if (rel.CatalogosAlterados) Plugin.SalvarConfig();   // dentes/consolos criados na importação ficam no catálogo do usuário
         foreach (var l in rel.Linhas) ed.WriteMessage("\n" + l);
         foreach (var a in rel.Avisos) ed.WriteMessage("\nAviso: " + a);
@@ -57,12 +66,26 @@ public sealed class ComandosPecas
         public List<(string Marca, string Detalhamento, Extents3d? Regiao)> Grupos { get; } = new List<(string, string, Extents3d?)>();
         /// <summary>A importação acrescentou dentes ou consolos aos catálogos (o comando grava a configuração).</summary>
         public bool CatalogosAlterados { get; set; }
+        /// <summary>Reimportação: grupos sem mudança no modelo (não redesenhados) e grupos substituídos no lugar.</summary>
+        public List<string> Mantidos { get; } = new List<string>();
+        public List<string> Substituidos { get; } = new List<string>();
+        /// <summary>Resposta do usuário para os que mudaram: substituir (true) ou manter os dois.</summary>
+        public bool Substituir { get; set; }
     }
 
     /// <summary>Gera os detalhamentos: pilares numa fila a partir de <paramref name="origem"/>, vigas na fila de baixo.</summary>
-    internal static Relatorio Importar(Database db, ConfiguracaoArmadura cfg, ArquivoPecas arq, Point3d origem)
+    /// <param name="perguntarSubstituir">
+    /// Reimportação: chamado UMA vez com os detalhamentos importados antes que mudaram no modelo; true = substituir no lugar,
+    /// false (ou null) = manter os dois (o novo entra como "nome (2)"). Os que não mudaram nunca são redesenhados.
+    /// </param>
+    internal static Relatorio Importar(Database db, ConfiguracaoArmadura cfg, ArquivoPecas arq, Point3d origem,
+        Func<IReadOnlyList<string>, bool> perguntarSubstituir = null)
     {
         var rel = new Relatorio();
+        var mudaram = arq.Pilares.Select(p => (p.Marca, A: AssinaturaPeca.De(p))).Concat(arq.Vigas.Select(v => (v.Marca, A: AssinaturaPeca.De(v))))
+            .Where(x => { var ex = Existente(db, ComandosTemplate.NomeDeBloco(x.Marca)); return ex.Existe && AssinaturaPeca.Importado(ex.Comentarios) && AssinaturaPeca.DoComentario(ex.Comentarios) != x.A; })
+            .Select(x => x.Marca).ToList();
+        rel.Substituir = mudaram.Count > 0 && perguntarSubstituir != null && perguntarSubstituir(mudaram);
         double cpu = Desenho.CmPorUnidade(db, cfg);
         double folga = 300 / cpu;
         rel.Linhas.Add($"Peças de {(arq.Origem.Length > 0 ? arq.Origem : "(origem não informada)")}" +
@@ -84,7 +107,7 @@ public sealed class ComandosPecas
                     var avisos = new List<string>();
                     var v = ConversorPilarPeca.Valores(p, padrao, TemplatePilarPreMoldado.Catalogo, avisos);
                     string resumo = $"{p.Quantidade} peça(s), {Num(p.B)}×{Num(p.H)}, L = {Num(p.L)} cm, {v.Tabela("Consolos").Count} consolo(s)";
-                    return new Grupo(p.Marca, v, p.Quantidade, p.Elementos, resumo, avisos);
+                    return new Grupo(p.Marca, v, p.Quantidade, p.Elementos, resumo, avisos) { Assinatura = AssinaturaPeca.De(p) };
                 });
                 yBaixo = Fila(db, cfg, t, fila, origem, folga, cpu, arq, rel);
             }
@@ -104,7 +127,7 @@ public sealed class ComandosPecas
                     var v = ConversorVigaPeca.Valores(p, padrao, TemplateVigaPreMoldada.CatalogoDentes, avisos);
                     string resumo = $"{p.Quantidade} peça(s), {Num(p.B)}×{Num(p.H)}, L = {Num(p.L)} cm, pontas: " +
                                     (v == null ? "?" : $"{v["ExtE"]} / {v["ExtD"]}");
-                    return new Grupo(p.Marca, v, p.Quantidade, p.Elementos, resumo, avisos);
+                    return new Grupo(p.Marca, v, p.Quantidade, p.Elementos, resumo, avisos) { Assinatura = AssinaturaPeca.De(p) };
                 });
                 var y = arq.Pilares.Count > 0 ? yBaixo - folga : origem.Y;
                 Fila(db, cfg, t, fila, new Point3d(origem.X, y, origem.Z), folga, cpu, arq, rel, topoNaOrigem: true);
@@ -155,6 +178,8 @@ public sealed class ComandosPecas
         public List<ElementoPeca> Elementos { get; }
         public string Resumo { get; }
         public List<string> Avisos { get; }
+        /// <summary>Assinatura dos dados do modelo (<see cref="AssinaturaPeca"/>), gravada no comentário do detalhamento.</summary>
+        public string Assinatura { get; set; } = "";
     }
 
     /// <summary>
@@ -167,6 +192,17 @@ public sealed class ComandosPecas
         double x = p0.X, yMin = p0.Y;
         foreach (var g in grupos)
         {
+            // reimportação: o que já está no desenho com os mesmos dados do modelo fica como está (com os ajustes do usuário)
+            string nomeBloco = ComandosTemplate.NomeDeBloco(g.Marca);
+            var ex = Existente(db, nomeBloco);
+            bool importado = ex.Existe && AssinaturaPeca.Importado(ex.Comentarios);
+            if (importado && AssinaturaPeca.DoComentario(ex.Comentarios) == g.Assinatura)
+            {
+                rel.Linhas.Add($"  {g.Marca}: sem mudança no modelo — detalhamento \"{nomeBloco}\" mantido como está");
+                rel.Grupos.Add((g.Marca, nomeBloco, null));
+                rel.Mantidos.Add(g.Marca);
+                continue;
+            }
             rel.Avisos.AddRange(g.Avisos);
             if (g.Valores == null) { rel.Grupos.Add((g.Marca, null, null)); continue; }
             var erros = CatalogoTemplates.Validar(t, g.Valores);
@@ -180,32 +216,123 @@ public sealed class ComandosPecas
             r.DadosDetalhamento ??= new DadosDetalhamento();
             r.DadosDetalhamento.Repeticoes = g.Quantidade;
             r.DadosDetalhamento.Sistema = SistemaConstrutivo.PreMoldado;
-            var ids = string.Join(", ", g.Elementos.Select(e => e.Id).Where(s => s.Length > 0));
-            r.DadosDetalhamento.Comentarios = $"Importado de {arq.Origem} ({arq.Data})" + (ids.Length > 0 ? $"; elementos {ids}" : "") + ".";
+            r.DadosDetalhamento.Comentarios = AssinaturaPeca.Comentario(arq.Origem, arq.Data, g.Elementos.Select(e => e.Id), g.Assinatura);
 
             double y = topoNaOrigem ? p0.Y - Topo(r) / cpu : p0.Y;
+            double xDesenho = x;
+            // mudou no modelo e o usuário mandou substituir: apaga o antigo (com a relação do aço dele) e desenha o novo com o canto
+            // superior esquerdo no mesmo lugar — a posição que o usuário tinha dado na prancha se mantém
+            Point3d? canto = null;
+            if (importado && rel.Substituir)
+            {
+                canto = Apagar(db, cfg, nomeBloco);
+                rel.Substituidos.Add(g.Marca);
+            }
+            bool noLugar = canto.HasValue;
             var antes = Entidades(db);
             using (var tr = db.TransactionManager.StartTransaction())
             {
-                ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(x, y, p0.Z));
+                ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(xDesenho, y, p0.Z));
                 tr.Commit();
             }
-            var ext = Extensao(db, Entidades(db).Except(antes));
+            var novas = Entidades(db).Except(antes).ToList();
+            if (noLugar) Reposicionar(db, cfg, novas, r.Detalhamento, canto.Value);
+            var ext = Extensao(db, novas);
             rel.Grupos.Add((g.Marca, r.Detalhamento, ext));
             var marcas = g.Elementos.Select(e => e.Marca).Where(s => s.Length > 0).Distinct().ToList();
-            rel.Linhas.Add($"  {g.Marca}: {g.Resumo} → detalhamento \"{r.Detalhamento}\"" +
+            rel.Linhas.Add($"  {g.Marca}: {g.Resumo} → detalhamento \"{r.Detalhamento}\"" + (rel.Substituidos.Contains(g.Marca) ? " (substituiu o anterior)" : "") +
                            (marcas.Count > 0 ? $" (marcas no modelo: {string.Join(", ", marcas)})" : ""));
             rel.Avisos.AddRange(r.Avisos.Select(a => $"{g.Marca}: {a}"));
             // a marca é a do modelo: importar de novo depois de mudar o modelo NÃO substitui o detalhamento que já existe
-            if (r.Detalhamento.EndsWith(")", StringComparison.Ordinal) && !g.Marca.TrimEnd().EndsWith(")", StringComparison.Ordinal))
-                rel.Avisos.Add($"{g.Marca}: o desenho já tinha um detalhamento com esse nome; o novo entrou como \"{r.Detalhamento}\" — " +
-                               "confira e apague o que não vale mais.");
+            if (!string.Equals(r.Detalhamento, nomeBloco, StringComparison.OrdinalIgnoreCase))
+                rel.Avisos.Add(importado
+                    ? $"{g.Marca}: MUDOU no modelo desde a última importação; o novo entrou como \"{r.Detalhamento}\" e o antigo continua no desenho — confira e apague o que não vale mais."
+                    : $"{g.Marca}: o desenho já tinha um detalhamento com esse nome (não veio de uma importação); o novo entrou como \"{r.Detalhamento}\".");
+            // o que foi posto no lugar do antigo não entra na fila
+            if (noLugar) continue;
 
             // a próxima à direita do que foi desenhado
             if (ext.HasValue) { x = ext.Value.MaxPoint.X + folga; yMin = Math.Min(yMin, ext.Value.MinPoint.Y); }
             else x += 1000 / cpu;
         }
         return yMin;
+    }
+
+    /// <summary>O detalhamento (bloco) com este nome: existe? com que comentário?</summary>
+    private static (bool Existe, string Comentarios) Existente(Database db, string nome)
+    {
+        using var tr = db.TransactionManager.StartTransaction();
+        var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+        (bool, string) r = (false, "");
+        if (nome.Length > 0 && bt.Has(nome) && !bt[nome].IsErased)
+            r = (true, Relacao.ServicoDetalhamento.Ler((BlockTableRecord)tr.GetObject(bt[nome], OpenMode.ForRead))?.Comentarios ?? "");
+        tr.Commit();
+        return r;
+    }
+
+    /// <summary>
+    /// Apaga um detalhamento importado antes: as inserções do bloco, as relações do aço que eram SÓ dele e a definição.
+    /// Devolve o canto superior esquerdo da primeira inserção (para o novo entrar no mesmo lugar); null se não havia inserção.
+    /// </summary>
+    private static Point3d? Apagar(Database db, ConfiguracaoArmadura cfg, string nome)
+    {
+        Point3d? canto = null;
+        using var tr = db.TransactionManager.StartTransaction();
+        var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+        if (!bt.Has(nome)) { tr.Commit(); return null; }
+        var btr = (BlockTableRecord)tr.GetObject(bt[nome], OpenMode.ForWrite);
+        foreach (ObjectId rid in btr.GetBlockReferenceIds(true, false))
+        {
+            if (rid.IsErased || !(tr.GetObject(rid, OpenMode.ForWrite) is BlockReference br)) continue;
+            if (!canto.HasValue)
+                try { var e = br.GeometricExtents; canto = new Point3d(e.MinPoint.X, e.MaxPoint.Y, br.Position.Z); }
+                catch { canto = br.Position; }
+            br.Erase();
+        }
+        foreach (ObjectId lid in bt)
+        {
+            var espaco = (BlockTableRecord)tr.GetObject(lid, OpenMode.ForRead);
+            if (!espaco.IsLayout) continue;
+            foreach (ObjectId id in espaco)
+            {
+                if (id.IsErased || !(tr.GetObject(id, OpenMode.ForRead) is Table t)) continue;
+                var op = Relacao.ServicoRA.Opcoes(t, cfg);
+                if (op == null || op.Blocos.Count != 1 || !string.Equals(op.Blocos[0], nome, StringComparison.OrdinalIgnoreCase)) continue;
+                t.UpgradeOpen();
+                Relacao.ServicoRA.ApagarDetalhes(tr, t, cfg);
+                t.Erase();
+            }
+        }
+        // o conteúdo antes da definição: assim cada barra e cada parte fica marcada como apagada (o Sincronizador pula as apagadas;
+        // apagando só a definição, ele ainda tentava atualizar as barras de dentro e parava num eWasErased)
+        foreach (ObjectId id in btr)
+            if (!id.IsErased) tr.GetObject(id, OpenMode.ForWrite).Erase();
+        btr.Erase();
+        tr.Commit();
+        return canto;
+    }
+
+    /// <summary>
+    /// Leva o detalhamento recém-desenhado (a inserção do bloco e a relação do aço dele) para o lugar do antigo: o canto superior
+    /// esquerdo da inserção nova vai para <paramref name="canto"/>, o da antiga.
+    /// </summary>
+    private static void Reposicionar(Database db, ConfiguracaoArmadura cfg, List<ObjectId> novas, string nomeBloco, Point3d canto)
+    {
+        using var tr = db.TransactionManager.StartTransaction();
+        BlockReference br = null;
+        foreach (var id in novas)
+            if (!id.IsErased && tr.GetObject(id, OpenMode.ForRead) is BlockReference b && string.Equals(b.Name, nomeBloco, StringComparison.OrdinalIgnoreCase)) { br = b; break; }
+        if (br == null) { tr.Commit(); return; }
+        Extents3d e;
+        try { e = br.GeometricExtents; } catch { tr.Commit(); return; }
+        var desloc = Matrix3d.Displacement(new Vector3d(canto.X - e.MinPoint.X, canto.Y - e.MaxPoint.Y, 0));
+        foreach (var id in novas)
+        {
+            if (id.IsErased || !(tr.GetObject(id, OpenMode.ForWrite) is Entity ent)) continue;
+            ent.TransformBy(desloc);
+            if (ent is Table t) Relacao.ServicoRA.AcompanharMovimento(tr, t, cfg);
+        }
+        tr.Commit();
     }
 
     /// <summary>Ponto mais alto (cm, relativo à origem do template) do que o template gerou: forma, textos, barras e relação do aço.</summary>

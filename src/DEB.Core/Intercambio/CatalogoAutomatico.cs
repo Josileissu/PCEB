@@ -14,7 +14,7 @@ namespace DEB.Core.Intercambio;
 /// </summary>
 public static class CatalogoAutomatico
 {
-    public const string Origem = "Criado na importação do Revit: armadura padrão, conferir";
+    public const string Origem = DEB.Core.Templates.MarcaConferir.Origem;
 
     /// <summary>Tipos de dente a acrescentar ao catálogo para que todas as vigas tenham as pontas reconhecidas.</summary>
     public static List<TipoDente> Dentes(IEnumerable<VigaPeca> vigas, IReadOnlyList<TipoDente> catalogo)

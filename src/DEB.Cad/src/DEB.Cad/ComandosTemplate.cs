@@ -439,7 +439,7 @@ public sealed class ComandosTemplate
         // ---- detalhamento (bloco) com tudo, e a relação do aço parcial dele ----
         foreach (var id in ids) todos.AddRange(PartesDaBarra(tr, db, (Polyline)tr.GetObject(id, OpenMode.ForRead)));
         // o nome pode vir da marca do modelo do Revit ("V1/2"): caracteres que o CAD não aceita em nome de bloco viram "-"
-        string nomeBase = string.Concat(r.Detalhamento.Trim().Select(ch => "<>/\\\":;?*|,=`".IndexOf(ch) >= 0 ? '-' : ch));
+        string nomeBase = NomeDeBloco(r.Detalhamento);
         string nome = nomeBase;
         for (int k = 2; Relacao.ServicoDetalhamento.ValidarNome(db, tr, nome) != null && k < 1000; k++) nome = $"{nomeBase} ({k})";
         var dadosDet = r.DadosDetalhamento ?? new DadosDetalhamento();
@@ -458,6 +458,10 @@ public sealed class ComandosTemplate
         else Relacao.ServicoRA.Atualizar(db, tr, cfg);
         return ids;
     }
+
+    /// <summary>Nome de bloco para um detalhamento: sem as pontas em branco e com "-" no lugar dos caracteres que o CAD não aceita.</summary>
+    internal static string NomeDeBloco(string nome) =>
+        string.Concat((nome ?? "").Trim().Select(ch => "<>/\\\":;?*|,=`".IndexOf(ch) >= 0 ? '-' : ch));
 
     /// <summary>Descrição, cotas, faixas (e partes) e desenho gerado de uma barra.</summary>
     private static IEnumerable<ObjectId> PartesDaBarra(Transaction tr, Database db, Polyline pl)
