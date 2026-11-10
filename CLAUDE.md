@@ -41,8 +41,9 @@ próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
   (`docs/04_arquitetura/motor_detalhamento.md`). Lembre o usuário disso se o assunto for começar análise.
 
 ## Dois computadores (ver `docs/04_arquitetura/trabalho_em_paralelo.md`)
-- **PC1**: código (motor de detalhamento, DEB.Revit, DEB.Cad). **PC2**: estudo (Tekla, IDEA StatiCa, matriz de
-  detalhamento, regras por elemento) e testes do DEB.Revit no Revit de lá.
+- **Os dois computadores implementam e testam** (decisão do usuário, 10/11/2026: "podemos remover a restrição de que no PC2 não
+  pode ser feito testes e implementações"). Antes: PC1 = código, PC2 = estudo. O PC2 também tem os programas de estudo (Tekla, IDEA
+  StatiCa) e o Revit 2025 e 2026, os dois liberados para teste.
 - Leia `docs/00_escopo/coordenacao.md` no início da sessão e atualize no fim.
 - Cada computador trabalha na sua branch (`pc1/...`, `pc2/...`); a `main` só recebe o que o usuário aprovar.
 - `escopo_organizado.md` e `matriz_funcionalidades.md` só o PC1 edita; o PC2 anota em `docs/notas/pc2_pendencias.md`.
