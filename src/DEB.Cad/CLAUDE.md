@@ -268,7 +268,7 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
 - Repositório local em `armadura/` (branch `main`), 1º commit 0.1.14. Fora do repositório (decisão do usuário):
   `auxiliar_cad/` (projetos do escritório) e `info_auxiliar/` (especificação); bin/obj e `instalador/saida/` também.
   O `sdk/` VAI (o build referencia `sdk\grxsdk\inc\gmap.dll`/`gmdb.dll`).
-- Remoto (2026-11-02): `origin` = https://github.com/Josileissu/PCEB (privado, conta Josileissu via `gh`; renomeado de armadura-gstarcad em 2026-11-03 — será o repositório único do PCEB);
+- Remoto (2026-11-02): `origin` = https://github.com/Josileissu/PCEB (público, conta Josileissu via `gh`; renomeado de armadura-gstarcad em 2026-11-03 — será o repositório único do PCEB);
   e-mail dos commits: josileissu@gmail.com. Enviar com `git push`.
 - O csproj do plugin tem `IncludeSourceRevisionInInformationalVersion=false`: sem isso, com o Git, a ProductVersion
   ganha "+hash" e o nome do Setup sai errado.

@@ -1,0 +1,49 @@
+# Verificação automática a cada envio (pedido do usuário, 10/11/2026).
+# Roda os testes do núcleo (inclusive a regressão visual dos templates) em português e em inglês, e compila o plugin do CAD
+# para AutoCAD, GstarCAD e ZWCAD. O DEB.Revit NÃO entra: ele referencia as DLLs do Revit instalado (RevitAPI.dll), que não
+# existem no servidor do GitHub — continua sendo compilado e testado nas máquinas do projeto.
+name: Verificar
+
+on:
+  push:
+    branches: [main, 'pc1/**', 'pc2/**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  nucleo-e-cad:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Testes do núcleo (pt-BR, como nas máquinas do projeto)
+        env:
+          ARM_CULTURA: pt-BR
+        run: dotnet test tests/DEB.Core.Tests -c Release --nologo
+
+      - name: Testes do núcleo (en-US, Windows noutro idioma)
+        env:
+          ARM_CULTURA: en-US
+        run: dotnet test tests/DEB.Core.Tests -c Release --nologo --no-build
+
+      - name: Plugin para AutoCAD 2026
+        run: dotnet build src/DEB.Cad/src/DEB.AutoCAD -c Release --nologo -p:AutoCadVersao=2026
+
+      - name: Plugin para GstarCAD 2021
+        run: dotnet build src/DEB.Cad/src/DEB.GstarCAD -c Release --nologo
+
+      - name: Plugin para ZWCAD 2026
+        run: dotnet build src/DEB.Cad/src/DEB.ZWCAD -c Release --nologo
+
+      - name: Desenhos que mudaram (quando a regressão visual falha)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: desenhos-que-mudaram
+          path: ${{ runner.temp }}/deb_regressao/
+          if-no-files-found: ignore
