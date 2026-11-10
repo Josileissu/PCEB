@@ -36,6 +36,9 @@ internal sealed class PropriedadesConsolo
     [Category(G3), DisplayName("Ancoragem na ponta em laço"), TypeConverter(typeof(SimNaoConverter)),
      Description("Não = barra transversal soldada (padrão do escritório).")]
     public bool Laco { get => T.Laco; set => T.Laco = value; }
+    [Category(G3), DisplayName("Perna junto à outra face (cm)"),
+     Description("Só no consolo simples: o tirante desce junto à face oposta do pilar. 0 = gancho de 90° padrão.")]
+    public double TirPerna { get => T.TirPerna; set => T.TirPerna = Math.Max(0, value); }
 
     [Category(G4), DisplayName("Costura: estribos horizontais")] public int CostN { get => T.CostN; set => T.CostN = Math.Max(0, value); }
     [Category(G4), DisplayName("Costura: bitola (mm)")] public double CostPhi { get => T.CostPhi; set => T.CostPhi = value; }
@@ -45,6 +48,10 @@ internal sealed class PropriedadesConsolo
     [Category(G5), DisplayName("Barras (por consolo)")] public int InfN { get => T.InfN; set => T.InfN = Math.Max(0, value); }
     [Category(G5), DisplayName("Bitola (mm)")] public double InfPhi { get => T.InfPhi; set => T.InfPhi = value; }
     [Category(G5), DisplayName("Comprimento dentro do pilar (cm)")] public double InfAnc { get => T.InfAnc; set => T.InfAnc = Math.Max(0, value); }
+    [Category(G5), DisplayName("Retorno em cima (cm)"), Description("0 = padrão: duplo = 3 cm; simples = do tamanho da perna.")]
+    public double InfRetorno { get => T.InfRetorno; set => T.InfRetorno = Math.Max(0, value); }
+    [Category(G5), DisplayName("Descida no fim do retorno (cm)"), Description("0 = padrão: duplo = 5 cm; simples = sem descida.")]
+    public double InfDescida { get => T.InfDescida; set => T.InfDescida = Math.Max(0, value); }
 
     [Category(G6), DisplayName("Pinos (por consolo)")] public int PinoN { get => T.PinoN; set => T.PinoN = Math.Max(0, value); }
     [Category(G6), DisplayName("Bitola (mm)")] public double PinoPhi { get => T.PinoPhi; set => T.PinoPhi = value; }

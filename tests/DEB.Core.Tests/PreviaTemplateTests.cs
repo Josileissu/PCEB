@@ -24,12 +24,16 @@ public class PreviaTemplateTests
         if (string.IsNullOrEmpty(pasta)) return;
         var t = new TemplatePilarPreMoldado();
         var v = new ValoresTemplate(t.Parametros);
+        // consolos da prévia (ex.: "CS 20x28,5x25|1|300|0"); vazio = o padrão do template
+        var consolos = Environment.GetEnvironmentVariable("ARM_PREVIA_CONSOLOS");
+        if (!string.IsNullOrEmpty(consolos)) v["Consolos"] = consolos;
         var r = t.Gerar(v, new ConfiguracaoArmadura());
         string P((double X, double Y) p) => FormattableString.Invariant($"[{p.X:0.###},{p.Y:0.###}]");
         string Ps(System.Collections.Generic.IEnumerable<(double X, double Y)> ps) => "[" + string.Join(",", ps.Select(P)) + "]";
         string S(string s) => "\"" + (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", " ") + "\"";
         var sb = new StringBuilder("{");
         sb.Append("\"barras\":[" + string.Join(",", r.Barras.Select(b => Ps(b.Vertices))) + "],");
+        sb.Append("\"nomes\":[" + string.Join(",", r.Barras.Select(b => S(b.Nome))) + "],");
         sb.Append("\"contornos\":[" + string.Join(",", r.Contornos.Select(c => Ps(c.Fechado ? c.Vertices.Concat(c.Vertices.Take(1)) : c.Vertices))) + "],");
         sb.Append("\"layers\":[" + string.Join(",", r.Contornos.Select(c => S(c.Layer))) + "],");
         sb.Append("\"textos\":[" + string.Join(",", r.Textos.Select(x => FormattableString.Invariant(
