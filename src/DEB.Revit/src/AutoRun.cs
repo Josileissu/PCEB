@@ -208,6 +208,8 @@ namespace DEB.Revit
                 sb.AppendLine($"{r.Tipo} {g.Marcas} x{g.Quantidade} [{g.Situacao}] {r.FamiliaTipo} L={r.Comprimento:0.#}");
                 foreach (var t in r.Trechos)
                     sb.AppendLine($"   {t.X0:0.#}-{t.X1:0.#} {t.FuncaoSugerida}: {t.Secao.Classificar().Descricao} A={t.Secao.Area:0.#} Iy={t.Secao.Iy:0}");
+                foreach (var t in r.Trechos.Where(t => g.Situacao == DEB.Core.Pecas.SituacaoPeca.NaoSuportada && t.Secao.Classificar().Tipo == DEB.Core.Pecas.TipoSecao.Poligonal))
+                    sb.AppendLine("      contorno " + string.Join(" ", t.Secao.Contorno.Select(q => FormattableString.Invariant($"{q.Y:0.##},{q.Z:0.##}"))));
                 foreach (string a in g.Avisos) sb.AppendLine("   aviso: " + a);
             }
             try

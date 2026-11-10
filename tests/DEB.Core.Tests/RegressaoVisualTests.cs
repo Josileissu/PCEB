@@ -40,7 +40,7 @@ public class RegressaoVisualTests
     public static IEnumerable<object[]> Casos() => new[]
     {
         "pilar_padrao", "viga_padrao_dentes", "viga_reta_protendida", "viga_aba_topo_dois_lados", "viga_aba_elevada_um_lado", "viga_L_aba_no_fundo",
-        "viga_consolo_lateral", "bloco_motor_padrao", "bloco_motor_b28", "base_reservatorio_padrao", "reservatorio_padrao",
+        "viga_consolo_lateral", "viga_aba_e_ressalto", "bloco_motor_padrao", "bloco_motor_b28", "base_reservatorio_padrao", "reservatorio_padrao",
     }.Select(c => new object[] { c });
 
     private static ResultadoTemplate Caso(string nome)
@@ -66,6 +66,7 @@ public class RegressaoVisualTests
             case "viga_consolo_lateral":
                 return Gerar(viga, ("Nome", "V12"), ("B", "19"), ("H", "70"), ("L", "500"), ("Aba", TemplateVigaPreMoldada.AbaDir), ("AbaLargura", "25"),
                     ("AbaAltura", "23.5"), ("AbaBase", "7.5"), ("AbaIni", "142.5"), ("AbaFim", "161.5"));
+            case "viga_aba_e_ressalto": { var t = new TemplateVigaPreMoldada(); var v = new ValoresTemplate(t.Parametros); VigaRessaltoTests.V119(v); return t.Gerar(v, new ConfiguracaoArmadura()); }
             case "bloco_motor_padrao": return Gerar(new TemplateBlocoMotor());
             case "bloco_motor_b28": return new TemplateBlocoMotor().Gerar(ConversorBloco.Valores(ImportadorBlocos.ExemploB28()), new ConfiguracaoArmadura());
             case "base_reservatorio_padrao": return Gerar(new TemplateBaseReservatorio());

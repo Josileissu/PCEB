@@ -29,7 +29,11 @@ public static class AssinaturaPeca
     {
         string D(DentePeca d) => d == null ? "R" : N(d.Altura) + "x" + N(d.Comprimento);
         string a = v.Aba == null ? "-" : $"{v.Aba.Lado}:{N(v.Aba.Largura)}:{N(v.Aba.Altura)}:{N(v.Aba.AlturaPonta > 0 ? v.Aba.AlturaPonta : v.Aba.Altura)}:{N(v.Aba.Base)}:{N(v.Aba.Inicio)}:{N(v.Aba.Fim)}";
-        return Hash(string.Join("|", new[] { "V", N(v.B), N(v.H), N(v.L), D(v.DenteE), D(v.DenteD), a, I(v.Quantidade) }));
+        string r = v.Ressalto == null ? "-" : $"{v.Ressalto.Lado}:{N(v.Ressalto.Largura)}:{N(v.Ressalto.Altura)}";
+        // sem ressalto, a assinatura é a mesma de antes (o que já foi importado não conta como "mudou")
+        var partes = new List<string> { "V", N(v.B), N(v.H), N(v.L), D(v.DenteE), D(v.DenteD), a, I(v.Quantidade) };
+        if (v.Ressalto != null) partes.Add(r);
+        return Hash(string.Join("|", partes));
     }
 
     /// <summary>Comentário do detalhamento importado: origem, elementos do modelo e a assinatura dos dados.</summary>

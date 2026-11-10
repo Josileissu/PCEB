@@ -111,6 +111,17 @@ public sealed class AbaPeca
     public double Fim { get; set; }
 }
 
+/// <summary>
+/// Ressalto sobre a alma da viga (2026-11-10): faixa estreita acima do topo, rente a uma das faces, em todo o comprimento — a capa
+/// da laje encosta nele. Lado como o da aba (esquerda = lado de cima da planta do CAD).
+/// </summary>
+public sealed class RessaltoPeca
+{
+    public string Lado { get; set; } = AbaPeca.Direita;
+    public double Largura { get; set; }
+    public double Altura { get; set; }
+}
+
 /// <summary>Grupo de vigas iguais (ou invertidas: ponta esquerda ↔ direita) do modelo.</summary>
 public sealed class VigaPeca
 {
@@ -123,6 +134,8 @@ public sealed class VigaPeca
     public double L { get; set; }
     /// <summary>Aba lateral (L / T invertido); null = seção retangular.</summary>
     public AbaPeca Aba { get; set; }
+    /// <summary>Ressalto sobre a alma; null = sem.</summary>
+    public RessaltoPeca Ressalto { get; set; }
     /// <summary>Dente nas pontas esquerda e direita; null = ponta reta.</summary>
     public DentePeca DenteE { get; set; }
     public DentePeca DenteD { get; set; }
@@ -134,14 +147,14 @@ public sealed class VigaPeca
 public sealed class ArquivoPecas
 {
     public const string Formato = "DEB.Pecas";
-    /// <summary>Versão mais nova que esta biblioteca lê. A 2 (2026-11-09) trouxe a aba das vigas.</summary>
-    public const int VersaoAtual = 2;
+    /// <summary>Versão mais nova que esta biblioteca lê. A 2 (2026-11-09) trouxe a aba das vigas; a 3 (2026-11-10), o ressalto.</summary>
+    public const int VersaoAtual = 3;
 
     /// <summary>
     /// Versão gravada = a menor que representa o conteúdo: 1 se nenhuma viga tem aba (um DEB.Cad antigo continua lendo), 2 se
     /// tem — o antigo então RECUSA o arquivo em vez de desenhar a viga sem a aba.
     /// </summary>
-    public int VersaoNecessaria => Vigas.Any(v => v.Aba != null) ? 2 : 1;
+    public int VersaoNecessaria => Vigas.Any(v => v.Ressalto != null) ? 3 : Vigas.Any(v => v.Aba != null) ? 2 : 1;
 
     /// <summary>Arquivo do modelo de onde vieram as peças.</summary>
     public string Origem { get; set; } = "";
@@ -206,6 +219,9 @@ public sealed class ArquivoPecas
                     .Definir("largura", R(p.Aba.Largura)).Definir("altura", R(p.Aba.Altura))
                     .Definir("altura_ponta", R(p.Aba.AlturaPonta > 0 ? p.Aba.AlturaPonta : p.Aba.Altura)).Definir("base", R(p.Aba.Base))
                     .Definir("inicio", R(p.Aba.Inicio)).Definir("fim", R(p.Aba.Fim)));
+            if (p.Ressalto != null)
+                jv.Definir("ressalto", ValorJson.NovoObjeto().Definir("lado", p.Ressalto.Lado)
+                    .Definir("largura", R(p.Ressalto.Largura)).Definir("altura", R(p.Ressalto.Altura)));
             vigas.Adicionar(jv);
         }
         return o.Definir("vigas", vigas);
@@ -313,6 +329,18 @@ public sealed class ArquivoPecas
                 if (v.Aba.Lado != AbaPeca.Esquerda && v.Aba.Lado != AbaPeca.Direita && v.Aba.Lado != AbaPeca.DoisLados)
                     throw new FormatException($"{ca}.lado: use \"esquerda\", \"direita\" ou \"dois\".");
                 if (v.Aba.Largura <= 0 || v.Aba.Altura <= 0 || v.Aba.Fim <= v.Aba.Inicio) throw new FormatException($"{ca}: largura, altura e trecho (inicio < fim) têm de ser positivos.");
+            }
+            if (LeitorJson.Presente(jv, "ressalto"))
+            {
+                string cr = $"{cv}.ressalto";
+                var jr = LeitorJson.Objeto(jv["ressalto"], cr);
+                v.Ressalto = new RessaltoPeca
+                {
+                    Lado = LeitorJson.Txt(jr, "lado", AbaPeca.Direita, cr),
+                    Largura = LeitorJson.Num(jr, "largura", 0, cr), Altura = LeitorJson.Num(jr, "altura", 0, cr),
+                };
+                if (v.Ressalto.Lado != AbaPeca.Esquerda && v.Ressalto.Lado != AbaPeca.Direita) throw new FormatException($"{cr}.lado: use \"esquerda\" ou \"direita\".");
+                if (v.Ressalto.Largura <= 0 || v.Ressalto.Altura <= 0) throw new FormatException($"{cr}: largura e altura têm de ser positivas.");
             }
             var le = LeitorJson.Lista(jv, "elementos", cv);
             for (int k = 0; le != null && k < le.Quantidade; k++)
