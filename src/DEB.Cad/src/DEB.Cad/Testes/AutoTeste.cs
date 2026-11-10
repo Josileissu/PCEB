@@ -2549,6 +2549,104 @@ public sealed class AutoTeste
     /// exemplo) e confere um detalhamento por grupo, lado a lado, com as repetições = peças do grupo.
     /// Uso: script NETLOAD + ARMTESTEPECAS numa instância nova, com ARM_AUTOTESTE_SAIDA.
     /// </summary>
+    /// <summary>
+    /// Unidades (2026-11-10, pedido do usuário): o desenho em METROS e as medidas escritas em MILÍMETROS. Desenha uma barra em L de
+    /// 1,50 m + 0,40 m (unidades do CAD = m), confere as cotas ("1500", "400"), o C= e o c/ da descrição em mm, a altura do texto em m e a
+    /// relação do aço em mm; depois volta a apresentação para cm e confere "150". Desfaz as unidades no fim (o desenho é de teste).
+    /// Uso: tools\autoteste_autocad.ps1 -Comando ARMTESTEUNIDADES.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEUNIDADES")]
+    public void Unidades() => Comandos.Executar("ARMTESTEUNIDADES", (doc, ed, db, cfg0) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0;
+        ComandosUnidades.Aplicar(db, Core.Configuracao.UnidadeDesenho.Metro, Core.Configuracao.UnidadeApresentacao.Milimetro);
+        var cfg = ConfigDesenho.Obter(db);
+        Checar(cfg.UnidadeDesenho == Core.Configuracao.UnidadeDesenho.Metro && cfg.UnidadeApresentacao == Core.Configuracao.UnidadeApresentacao.Milimetro
+               && Desenho.CmPorUnidade(db, cfg) == 100, "unidades: o desenho em metro e as medidas em milímetro (1 unidade = 100 cm)");
+        Checar(Plugin.Config.UnidadeDesenho != Core.Configuracao.UnidadeDesenho.Metro || Plugin.Config.UnidadeApresentacao != Core.Configuracao.UnidadeApresentacao.Milimetro,
+               "unidades: gravadas só no desenho (a configuração do usuário não mudou)");
+        Polyline pl;
+        using (Sincronizador.Suspender(doc))
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+            pl = new Polyline();
+            pl.SetDatabaseDefaults(db);
+            pl.AddVertexAt(0, new Point2d(120, -50), 0, 0, 0);
+            pl.AddVertexAt(1, new Point2d(121.5, -50), 0, 0, 0);
+            pl.AddVertexAt(2, new Point2d(121.5, -49.6), 0, 0, 0);
+            esp.AppendEntity(pl);
+            tr.AddNewlyCreatedDBObject(pl, true);
+            Comandos.CriarBarra(tr, pl, cfg, estribo: false);   // devolve se virou estribo (aqui, não)
+            Checar(XDataCad.LerBarra(pl) != null, "unidades: polilinha de 1,5 m + 0,4 m convertida em barra");
+            var d = XDataCad.LerBarra(pl);
+            d.Espacamento = 15;
+            pl.UpgradeOpen();
+            XDataCad.Gravar(pl, d);
+            Relacao.ServicoRA.Atualizar(db, tr, cfg);
+            d = XDataCad.LerBarra(pl);
+            var cotas = d.Segmentos.Select(sg => XDataCad.IdDoHandle(db, sg.HandleCota)).Where(id => !id.IsNull)
+                .Select(id => (tr.GetObject(id, OpenMode.ForRead) as DBText)?.TextString ?? "").ToList();
+            var idDesc = XDataCad.IdDoHandle(db, d.HandleDescricao);
+            var desc = idDesc.IsNull ? null : tr.GetObject(idDesc, OpenMode.ForRead) as Entity;
+            string txt = desc is MText m ? m.Contents : desc is DBText t0 ? t0.TextString : "";
+            double hTxt = desc is MText m2 ? m2.TextHeight : desc is DBText t1 ? t1.Height : 0;
+            Rel.AppendLine("        cotas: " + string.Join(" | ", cotas) + "   descrição: " + txt + FormattableString.Invariant($"   altura do texto: {hTxt:0.###}"));
+            Checar(cotas.Contains("1500") && cotas.Contains("400"), "unidades: cotas dos segmentos em mm (1500, 400)");
+            Checar(txt.Contains("C=") && !txt.Contains("C=190") && System.Text.RegularExpressions.Regex.IsMatch(txt, @"C=1[89]\d0"), "unidades: C= em mm (cerca de 1900)");
+            Checar(!txt.Contains("c/") || txt.Contains("c/150"), "unidades: espaçamento em mm (c/150)");
+            Checar(hTxt > 0 && hTxt < 0.1, "unidades: altura do texto na unidade do desenho (metro: centímetros viram centésimos)");
+            var idTab = Relacao.ServicoRA.Inserir(db, tr, new Point3d(120, -52, 0), cfg, Core.RelacaoAco.OpcoesTabelaRA.Padrao(cfg));
+            var tab = (Table)tr.GetObject(idTab, OpenMode.ForRead);
+            bool mm = false;
+            for (int c = 0; c < tab.Columns.Count; c++) if ((tab.Cells[1, c].TextString ?? "").Contains("(mm)") && (tab.Cells[1, c].TextString ?? "").StartsWith("UNIT")) mm = true;
+            Checar(mm, "unidades: relação do aço com UNIT (mm)");
+            tr.Commit();
+        }
+        // template desenhado no desenho em metros: as cotas do CAD medem em m e escrevem em mm (DIMLFAC = 1000)
+        {
+            var t = new Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
+            var v = new Core.Templates.ValoresTemplate(t.Parametros);
+            v["Nome"] = "VUN"; v["L"] = "308";
+            var r = t.Gerar(v, cfg);
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(130, -60, 0));
+                tr.Commit();
+            }
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                var btr = bt.Has("VUN") ? (BlockTableRecord)tr.GetObject(bt["VUN"], OpenMode.ForRead) : null;
+                var dims = btr == null ? new List<RotatedDimension>() : btr.Cast<ObjectId>().Select(id => tr.GetObject(id, OpenMode.ForRead) as RotatedDimension).Where(x => x != null).ToList();
+                var total = dims.FirstOrDefault(x => Math.Abs(x.XLine1Point.DistanceTo(x.XLine2Point) - 3.08) < 1e-6);   // a cota do comprimento (o Measurement já vem com o DIMLFAC)
+                var est = total == null ? null : (DimStyleTableRecord)tr.GetObject(total.DimensionStyle, OpenMode.ForRead);
+                Rel.AppendLine(FormattableString.Invariant($"        template em metros: {dims.Count} cotas; a de 3,08 m com o estilo {est?.Name} (DIMLFAC {est?.Dimlfac}, DIMDEC {est?.Dimdec}), valor escrito {total?.Measurement}"));
+                Checar(est != null && Math.Abs(est.Dimlfac - 1000) < 1e-9 && est.Dimdec == 0 && Math.Abs(total.Measurement - 3080) < 0.5, "unidades: cotas do template medem em metro e escrevem em milímetro (3,08 m → 3080)");
+                tr.Commit();
+            }
+        }
+        // a mesma barra com as medidas em cm
+        ComandosUnidades.Aplicar(db, Core.Configuracao.UnidadeDesenho.Metro, Core.Configuracao.UnidadeApresentacao.Centimetro);
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var d = XDataCad.LerBarra((Polyline)tr.GetObject(pl.ObjectId, OpenMode.ForRead));
+            var cotas = d.Segmentos.Select(sg => XDataCad.IdDoHandle(db, sg.HandleCota)).Where(id => !id.IsNull)
+                .Select(id => (tr.GetObject(id, OpenMode.ForRead) as DBText)?.TextString ?? "").ToList();
+            Checar(cotas.Contains("150") && cotas.Contains("40"), "unidades: as mesmas cotas em cm (150, 40) depois de trocar a apresentação");
+            tr.Commit();
+        }
+        Gravar();
+        Log.Info($"autoteste: ARMTESTEUNIDADES fim ({_ok} ok, {_falhas} falha(s))");
+        var saida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+        if (!string.IsNullOrEmpty(saida))
+        {
+            try { db.SaveAs(Path.Combine(Path.GetDirectoryName(saida), "autoteste_unidades.dwg"), DwgVersion.Current); }
+            catch (Exception ex) { Log.Erro("ARMTESTEUNIDADES salvar", ex); }
+            doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
+        }
+    }, suspender: false);
+
     [Rt.CommandMethod("ARMTESTEPECAS")]
     public void Pecas() => Comandos.Executar("ARMTESTEPECAS", (doc, ed, db, cfg) =>
     {

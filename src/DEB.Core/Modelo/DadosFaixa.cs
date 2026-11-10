@@ -280,7 +280,7 @@ public static class TextoFaixa
         if (f.TextoTemDiametroEspacamento && f.DiametroNoTexto) campos.Add(bit);
         double sEsp = indic ? barra.Espacamento : f.Espacamento;
         if (f.TextoTemDiametroEspacamento && f.EspacamentoNoTexto && (!indic || sEsp > 0))
-            campos.Add("c/" + Calculo.CalculoComprimento.NumeroCompacto(sEsp));
+            campos.Add("c/" + Calculo.CalculoComprimento.Espacamento(sEsp, cfg));
         // texto vazio deixaria a faixa invisível e impossível de selecionar: fica ao menos a posição
         string texto = campos.Count > 0 ? string.Join(" ", campos) : n;
         // sem a quantidade no texto, a repetição vai na frente: "2x N1 ø10.0 c/15"

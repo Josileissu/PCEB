@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using DEB.Core.Configuracao;
 using DEB.Core.RelacaoAco;
 
 namespace DEB.Cad.Paleta;
@@ -175,4 +176,21 @@ internal sealed class ApresentacaoResumoConverter : NomesEnumConverter<Apresenta
         (ApresentacaoResumo.Peso, "Peso (kg)"),
         (ApresentacaoResumo.Barras, "Barras"),
         (ApresentacaoResumo.BarrasEPeso, "Barras e peso")) { }
+}
+
+internal sealed class UnidadeDesenhoConverter : NomesEnumConverter<UnidadeDesenho>
+{
+    public UnidadeDesenhoConverter() : base(
+        (UnidadeDesenho.Centimetro, "Centímetro"),
+        (UnidadeDesenho.Metro, "Metro"),
+        (UnidadeDesenho.Milimetro, "Milímetro"),
+        (UnidadeDesenho.Automatica, "Automática (INSUNITS)")) { }
+}
+
+internal sealed class UnidadeApresentacaoConverter : NomesEnumConverter<UnidadeApresentacao>
+{
+    public UnidadeApresentacaoConverter() : base(
+        (UnidadeApresentacao.Centimetro, "Centímetro"),
+        (UnidadeApresentacao.Metro, "Metro"),
+        (UnidadeApresentacao.Milimetro, "Milímetro")) { }
 }
