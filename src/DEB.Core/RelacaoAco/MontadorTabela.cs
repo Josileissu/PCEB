@@ -145,7 +145,8 @@ public static class MontadorTabela
             sufixo = "";
             t.Mesclas.Add((t.Ultima, 0, ultima));
             t.Titulos.Add(t.Ultima);
-            var cab = new List<string> { "AÇO", "N", "DIAM (mm)", "QUANT", "UNIT (cm)", "C.TOTAL (cm)" };
+            string un = CalculoComprimento.Sufixo(cfg);
+            var cab = new List<string> { "AÇO", "N", "DIAM (mm)", "QUANT", $"UNIT ({un})", $"C.TOTAL ({un})" };
             if (comElemento) cab.Insert(0, "ELEMENTO");
             t.Add(cab.ToArray());
             cabecalhoRelacao = t.Ultima;
@@ -156,8 +157,8 @@ public static class MontadorTabela
                 {
                     l.Aco, l.Numero.ToString(CultureInfo.InvariantCulture) + (l.Nova ? MarcaNova : ""), l.EhTrelica ? "-" : F(l.Bitola, "0.0"),
                     l.Quantidade.ToString(CultureInfo.InvariantCulture),
-                    l.Var ? "VAR" : CalculoComprimento.Numero(l.ComprimentoUnitario, cfg.CasasDecimais),
-                    CalculoComprimento.Numero(l.ComprimentoTotal, cfg.CasasDecimais),
+                    l.Var ? "VAR" : CalculoComprimento.Comprimento(l.ComprimentoUnitario, cfg),
+                    CalculoComprimento.Comprimento(l.ComprimentoTotal, cfg),
                 };
                 if (comElemento) c.Insert(0, string.IsNullOrEmpty(l.Elemento) ? "-" : l.Elemento);
                 t.Add(c.ToArray());

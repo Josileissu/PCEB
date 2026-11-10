@@ -91,6 +91,7 @@ public sealed class Plugin : Rt.IExtensionApplication
 
     public static void RecarregarConfig()
     {
+        ConfigDesenho.Versao++;
         Config = ConfiguracaoArmadura.Carregar(CaminhoConfig, aviso =>
         {
             Log.Info(aviso);
@@ -105,6 +106,7 @@ public sealed class Plugin : Rt.IExtensionApplication
 
     public static void SalvarConfig()
     {
+        ConfigDesenho.Versao++;   // as cópias com as unidades de cada desenho são refeitas
         try { Config.Salvar(CaminhoConfig); }
         catch (Exception ex) { Log.Erro("SalvarConfig", ex); }
     }

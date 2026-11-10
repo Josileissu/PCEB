@@ -97,9 +97,55 @@ public static class CalculoComprimento
         _ => Math.PI / 2,
     };
 
-    /// <summary>Texto da cota de um segmento ("150", "12.5" ou "VAR").</summary>
+    /// <summary>Texto da cota de um segmento ("150", "12.5" ou "VAR"), na unidade de apresentação.</summary>
     public static string TextoCota(double comprimentoCm, bool var, ConfiguracaoArmadura cfg) =>
-        var ? "VAR" : Numero(Arredondar(comprimentoCm, cfg.CasasDecimais, cfg.Arredondamento), cfg.CasasDecimais);
+        var ? "VAR" : Comprimento(comprimentoCm, cfg);
+
+    // ------------------------------------------------------------------ unidades (2026-11-10)
+
+    /// <summary>Quantos cm vale 1 unidade do desenho, quando ela é fixa (Automática = null: depende do INSUNITS do desenho).</summary>
+    public static double? CmPorUnidade(UnidadeDesenho u) => u switch
+    {
+        UnidadeDesenho.Centimetro => 1.0,
+        UnidadeDesenho.Metro => 100.0,
+        UnidadeDesenho.Milimetro => 0.1,
+        _ => null,
+    };
+
+    /// <summary>Quantas unidades de apresentação há em 1 cm (cm 1, m 0,01, mm 10).</summary>
+    public static double FatorApresentacao(ConfiguracaoArmadura cfg) => cfg.UnidadeApresentacao switch
+    {
+        UnidadeApresentacao.Metro => 0.01,
+        UnidadeApresentacao.Milimetro => 10.0,
+        _ => 1.0,
+    };
+
+    /// <summary>Casas decimais na unidade de apresentação: as da configuração valem para cm; m tem 2 a mais, mm 1 a menos.</summary>
+    public static int CasasApresentacao(ConfiguracaoArmadura cfg) => cfg.UnidadeApresentacao switch
+    {
+        UnidadeApresentacao.Metro => cfg.CasasDecimais + 2,
+        UnidadeApresentacao.Milimetro => Math.Max(0, cfg.CasasDecimais - 1),
+        _ => cfg.CasasDecimais,
+    };
+
+    /// <summary>"cm", "m" ou "mm".</summary>
+    public static string Sufixo(ConfiguracaoArmadura cfg) => cfg.UnidadeApresentacao switch
+    {
+        UnidadeApresentacao.Metro => "m",
+        UnidadeApresentacao.Milimetro => "mm",
+        _ => "cm",
+    };
+
+    /// <summary>
+    /// Comprimento (dado em cm) escrito na unidade de apresentação. O arredondamento continua sendo o da configuração, em cm (1 cm
+    /// para cima, por exemplo): o número em m ou mm é o mesmo comprimento — 147 cm = "1.47" m = "1470" mm.
+    /// </summary>
+    public static string Comprimento(double cm, ConfiguracaoArmadura cfg) =>
+        Numero(Arredondar(cm, cfg.CasasDecimais, cfg.Arredondamento) * FatorApresentacao(cfg), CasasApresentacao(cfg));
+
+    /// <summary>Espaçamento (dado em cm) na unidade de apresentação, sem zeros à direita ("15", "0.15", "150").</summary>
+    public static string Espacamento(double cm, ConfiguracaoArmadura cfg) =>
+        Math.Round(cm * FatorApresentacao(cfg), 4).ToString("0.####", CultureInfo.InvariantCulture);
 
     /// <summary>Número com ponto decimal e as casas configuradas.</summary>
     public static string Numero(double valor, int casas) =>

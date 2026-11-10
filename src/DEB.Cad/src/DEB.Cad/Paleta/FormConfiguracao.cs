@@ -144,6 +144,16 @@ internal sealed class ConfiguracaoEditavel
     [Category(GDes), DisplayName("Escala base"), TypeConverter(typeof(EscalaConverter)), Description("Escala das barras e tabelas novas.")]
     public double Escala { get => _c.Escala; set { if (value > 0) _c.Escala = value; } }
 
+    [Category(GDes), DisplayName("Unidade do desenho (padrão)"), TypeConverter(typeof(UnidadeDesenhoConverter)),
+     Description("Em que unidade os desenhos são feitos: 1 unidade do CAD = 1 cm, 1 m ou 1 mm (Automática = pelo INSUNITS). " +
+                 "Vale para os desenhos que não escolheram a sua com o ARMUNIDADES.")]
+    public UnidadeDesenho UnidadeDesenho { get => _c.UnidadeDesenho; set => _c.UnidadeDesenho = value; }
+
+    [Category(GDes), DisplayName("Apresentação das medidas (padrão)"), TypeConverter(typeof(UnidadeApresentacaoConverter)),
+     Description("Unidade em que as medidas das barras são escritas: cotas, C=, c/, comprimento das faixas e a relação do aço. " +
+                 "Vale para os desenhos que não escolheram a sua com o ARMUNIDADES.")]
+    public UnidadeApresentacao UnidadeApresentacao { get => _c.UnidadeApresentacao; set => _c.UnidadeApresentacao = value; }
+
     [Category(GDes), DisplayName("Escalas da lista"),
      Description("Escalas oferecidas nas listas de escala da paleta, separadas por ponto e vírgula (ex.: 1:10; 1:20; 1:25; 1:50). " +
                  "Uma escala fora da lista ainda pode ser digitada. Vazio = a lista de fábrica.")]
