@@ -132,6 +132,9 @@ public sealed class SecaoPoligonal
         return r;
     }
 
+    /// <summary>y onde a horizontal z corta o contorno, em ordem (2 valores = a seção num pedaço só naquela altura).</summary>
+    public List<double> CortesHorizontais(double z) => Cortes(z);
+
     /// <summary>y onde a horizontal z corta o contorno, em ordem.</summary>
     private List<double> Cortes(double z)
     {

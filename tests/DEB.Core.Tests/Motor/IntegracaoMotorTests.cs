@@ -83,14 +83,12 @@ public class IntegracaoPranchaTests
         Assert.Contains(r.Cotas, k => Math.Abs(Math.Abs(k.P2.X - k.P1.X) - 190) < 1e-6);
         Assert.Contains(r.Tabelas, t => t.Titulo.StartsWith("INFORMAÇÕES"));
 
-        // aço total igual ao do template atual (mesmas entradas)
+        // mesmas bitolas do template atual (as quantidades mudaram com a divisão igual de 2026-11-08)
         var t0 = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
         var v = new DEB.Core.Templates.ValoresTemplate(t0.Parametros);
         DEB.Core.Motor.Entrada.ConversorBloco.ParaValores(b28, v);
         var antigo = t0.Gerar(v, new DEB.Core.Configuracao.ConfiguracaoArmadura());
-        double Peso(System.Collections.Generic.IEnumerable<DEB.Core.Templates.BarraTemplate> bs) =>
-            bs.Sum(b => b.Bitola * b.Bitola * b.Quantidade * Math.Max(1, b.Repeticoes));
-        Assert.Equal(Peso(antigo.Barras), Peso(r.Barras), 0);
+        Assert.Equal(antigo.Barras.Select(b => b.Bitola).Distinct().OrderBy(x => x), r.Barras.Select(b => b.Bitola).Distinct().OrderBy(x => x));
     }
 
     [Fact]

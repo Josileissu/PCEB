@@ -36,6 +36,29 @@ namespace DEB.Revit.Presentation
                 if (fN != null) def.AddSortGroupField(new ScheduleSortGroupField(fN.FieldId));
                 def.ShowGrandTotal = false;
             }
+            else if (spec.Tipo == TableKind.DobraDoAco)
+            {
+                // teste do "bar bending schedule": a forma é a do Revit (Forma = código; Imagem da forma só aparece se o
+                // tipo de forma tiver imagem); os trechos A–E são os parâmetros da forma
+                ScheduleField fN = Add(def, new ElementId(BuiltInParameter.REBAR_NUMBER), "N");
+                Add(def, new ElementId(BuiltInParameter.REBAR_BAR_DIAMETER), "DIAM\n(mm)", mm);
+                Add(def, new ElementId(BuiltInParameter.REBAR_ELEM_QUANTITY_OF_BARS), "QUANT", totals: true);
+                Add(def, new ElementId(BuiltInParameter.REBAR_SHAPE), "FORMA\n(SHAPE)");
+                Add(def, new ElementId(BuiltInParameter.REBAR_SHAPE_IMAGE), "DESENHO\n(SKETCH)");
+                foreach (string seg in new[] { "A", "B", "C", "D", "E" })
+                    AddByName(doc, def, seg, seg + "\n(cm)", cm);
+                Add(def, new ElementId(BuiltInParameter.REBAR_ELEM_LENGTH), "C.UNIT\n(U. LENGTH)\n(cm)", cm);
+                if (fN != null) def.AddSortGroupField(new ScheduleSortGroupField(fN.FieldId));
+                def.ShowGrandTotal = false;
+                // colunas estreitas (a largura padrão do Revit passava da folha)
+                for (int i = 0; i < def.GetFieldCount(); i++)
+                {
+                    ScheduleField f = def.GetField(i);
+                    string h = f.ColumnHeading ?? "";
+                    double w = h.StartsWith("FORMA") || h.StartsWith("DESENHO") ? 16 : h.StartsWith("C.UNIT") ? 16 : h.StartsWith("N") && h.Length == 1 ? 7 : h.StartsWith("DIAM") ? 12 : 10;
+                    try { f.GridColumnWidth = UnitUtils.ConvertToInternalUnits(w, UnitTypeId.Millimeters); } catch { /* largura fixa */ }
+                }
+            }
             else
             {
                 ScheduleField fSteel = Add(def, steel, "AÇO\n(STEEL)");
@@ -58,6 +81,17 @@ namespace DEB.Revit.Presentation
             }
             catch { /* título padrão do Revit */ }
             return vs;
+        }
+
+        /// <summary>Campo pelo nome (parâmetros compartilhados das formas: A, B, C...). Sem o campo, não acrescenta.</summary>
+        private static ScheduleField AddByName(Document doc, ScheduleDefinition def, string name, string heading, FormatOptions fmt)
+        {
+            SchedulableField sf = def.GetSchedulableFields().FirstOrDefault(f => f.GetName(doc) == name);
+            if (sf == null) return null;
+            ScheduleField field = def.AddField(sf);
+            field.ColumnHeading = heading;
+            try { field.SetFormatOptions(fmt); } catch { /* campo sem unidade */ }
+            return field;
         }
 
         private static ScheduleField Add(ScheduleDefinition def, ElementId paramId, string heading,

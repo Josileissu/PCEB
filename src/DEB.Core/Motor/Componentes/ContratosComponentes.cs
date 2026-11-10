@@ -105,10 +105,36 @@ public sealed class ContextoMotor
 
     public void Aviso(string texto) { if (!Modelo.Avisos.Contains(texto)) Modelo.Avisos.Add(texto); }
 
-    public int Quantidade(double vao, double esp) =>
-        CalculoFaixa.Quantidade(vao, esp, Cfg.EspacamentoInicialFaixa, Cfg.ModoQuantidadeFaixa);
+    /// <summary>
+    /// Distribuição do motor (decisão do usuário, 2026-11-08): a 1ª e a última barra no cobrimento (as pontas do vão) e o
+    /// vão dividido por igual no menor número de espaços que não passa do espaçamento proposto.
+    /// </summary>
+    public int Quantidade(double vao, double esp)
+    {
+        if (vao <= 1e-9) return vao >= 0 ? 1 : 0;
+        if (esp <= 0) return 1;
+        return (int)Math.Ceiling(vao / esp - 1e-6) + 1;
+    }
 
-    public List<double> Posicoes(double vao, int n, double esp) => CalculoFaixa.Posicoes(vao, n, esp, Cfg.EspacamentoInicialFaixa);
+    /// <summary>Posições (0 … vão) das n barras divididas por igual (n = 1: no meio).</summary>
+    public List<double> Posicoes(double vao, int n, double esp)
+    {
+        var r = new List<double>();
+        if (n <= 0) return r;
+        if (n == 1) { r.Add(Math.Max(0, vao) / 2); return r; }
+        for (int i = 0; i < n; i++) r.Add(Math.Max(0, vao) * i / (n - 1));
+        return r;
+    }
+
+    /// <summary>Espaçamento do texto (c/…): o real entre as barras, arredondado a 0,5 cm (decisão do usuário, 2026-11-08).</summary>
+    public static double Rotulo(double espReal) => espReal <= 0 ? 0 : Math.Round(espReal * 2, MidpointRounding.AwayFromZero) / 2;
+
+    /// <summary>Espaçamento do texto a partir das posições (iguais): (última − primeira) / (n − 1), a 0,5 cm.</summary>
+    public static double EspacamentoReal(IEnumerable<double> posicoes, double proposto)
+    {
+        var l = posicoes.ToList();
+        return l.Count > 1 ? Rotulo(Math.Abs(l[l.Count - 1] - l[0]) / (l.Count - 1)) : proposto;
+    }
 
     /// <summary>Fecha a execução: avisa as sobrescritas que não foram usadas. Chamado pelo executor no fim.</summary>
     public ModeloArmadura Concluir()

@@ -194,6 +194,14 @@ namespace DEB.Revit.Precast
                               (fi.SuperComponent != null && fi.Category.BuiltInCategory != BuiltInCategory.OST_StructuralColumns)))
                 .ToList();
 
+            // geometria de cada candidato lida UMA vez (antes: de novo para cada pilar — pilares × candidatos extrações)
+            var candidates = new List<(FamilyInstance Fi, List<XYZ> Verts, BoundingBoxXYZ Bb)>();
+            foreach (FamilyInstance k in corbelCandidates)
+            {
+                List<XYZ> verts = GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null));
+                if (verts.Count > 0) candidates.Add((k, verts, k.get_BoundingBox(null)));
+            }
+
             var pieces = new List<PrecastColumn>();
             var used = new HashSet<ElementId>();
             foreach (FamilyInstance fi in precast)
@@ -206,18 +214,21 @@ namespace DEB.Revit.Precast
                 {
                     Instance = fi,
                     Info = info,
-                    EmbedmentMm = ReadLengthMm(fi, "Embutimento"),
+                    EmbedmentMm = Embedment(fi),
                     CurrentMark = fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString()
                 };
 
                 // Vértices dos consolos que encostam no pilar (guardados para descrevê-los em cada giro).
                 ColumnFrame f0 = ColumnFrame.From(info);
                 var corbelVerts = new List<(FamilyInstance Fi, List<XYZ> Verts)>();
-                foreach (FamilyInstance k in corbelCandidates)
+                BoundingBoxXYZ pb = fi.get_BoundingBox(null);
+                double folga = U_.Mm(30);
+                foreach (var (k, verts, kb) in candidates)
                 {
                     if (used.Contains(k.Id)) continue;
-                    List<XYZ> verts = GeometryHelper.GetVertices(GeometryHelper.GetSolids(k, null));
-                    if (verts.Count == 0) continue;
+                    // longe do pilar: nem olha os vértices
+                    if (pb != null && kb != null && (kb.Min.X > pb.Max.X + folga || kb.Max.X < pb.Min.X - folga || kb.Min.Y > pb.Max.Y + folga ||
+                        kb.Max.Y < pb.Min.Y - folga || kb.Min.Z > pb.Max.Z + folga || kb.Max.Z < pb.Min.Z - folga)) continue;
                     if (Describe(f0, k, verts) == null) continue;
                     corbelVerts.Add((k, verts));
                     used.Add(k.Id);
@@ -320,6 +331,19 @@ namespace DEB.Revit.Precast
             string.Format(CultureInfo.InvariantCulture, "{0:0}x{1:0}x{2:0}|e{3:0}|{4}",
                 Math.Round(U_.ToMm(f.Bx)), Math.Round(U_.ToMm(f.By)), Math.Round(U_.ToMm(f.H)), embedmentMm,
                 string.Join(";", corbels.Select(c => c.Signature())));
+
+        /// <summary>
+        /// Embutimento no cálice: parâmetro "Embutimento", se a família tiver; senão o deslocamento negativo da base
+        /// (padrão do escritório na família "Pilar Pré-Moldado": base −1,00 m = 100 cm embutidos abaixo do nível).
+        /// </summary>
+        internal static double Embedment(FamilyInstance fi)
+        {
+            double named = ReadLengthMm(fi, "Embutimento");
+            if (named > 0) return named;
+            Parameter off = fi.get_Parameter(BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM);
+            double mm = off == null || off.StorageType != StorageType.Double ? 0 : Math.Round(U_.ToMm(off.AsDouble()));
+            return mm < 0 ? -mm : 0;
+        }
 
         private static double ReadLengthMm(Element e, string name)
         {

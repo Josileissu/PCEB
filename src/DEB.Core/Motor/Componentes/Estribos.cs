@@ -39,15 +39,15 @@ public sealed class ContornoLateral : ComponenteBase
         if (phi <= 0) return;
         double cob = a.Num("cobrimento", 4), z0 = a.Num("z0", 0);
         double esp = ctx.Par(p, "espacamento", arm.Espacamento, "cálculo (elemento)");
-        double alt = a.Num("z1", 0) - z0 - 2 * cob;
+        double alt = a.Num("z1", 0) - z0 - 2 * cob - phi / 10;   // face do 1º e do último estribo no cobrimento
         int n = ctx.ParInt(p, "quantidade", ctx.Quantidade(alt, esp), a.Txt("regra_quantidade", "(altura − 2·cobrimento) / espaçamento"));
         if (n <= 0) return;
-        var zs = ctx.Posicoes(alt, n, esp).Select(z => z + cob + z0).ToList();
+        var zs = ctx.Posicoes(alt, n, esp).Select(z => z + cob + phi / 20 + z0).ToList();
         var pol = Encolher(contorno, cob);
         p.Regras["contorno"] = a.Txt("regra_contorno", "contorno − cobrimento");
         BarrasUtil.Estribo(ctx, p, pol, phi, zs.Select(BarrasUtil.Horizontal));
         var (cx, cy) = (pol.Average(q => q.X), pol.Average(q => q.Y));
-        p.Distribuicao = new Distribuicao { Inicio = new P3(cx, cy, zs[0]), Fim = new P3(cx, cy, zs[zs.Count - 1]), Quantidade = zs.Count, Espacamento = esp };
+        p.Distribuicao = new Distribuicao { Inicio = new P3(cx, cy, zs[0]), Fim = new P3(cx, cy, zs[zs.Count - 1]), Quantidade = zs.Count, Espacamento = ContextoMotor.EspacamentoReal(zs, esp) };
         ctx.Adicionar(p);
     }
 }
@@ -91,9 +91,9 @@ public sealed class EstribosVerticais : ComponenteBase
         double W = a.Num("comprimento", 0), H = a.Num("largura", 0), hB = a.Num("altura", 0);
         bool excl = a.Tem("excluir_x0") && a.Tem("excluir_x1");
         double e0 = a.Num("excluir_x0", 0), e1 = a.Num("excluir_x1", 0);
-        double vao = W - 2 * cob;
+        double vao = W - 2 * cob - phi / 10;
         int n = ctx.ParInt(p, "quantidade", ctx.Quantidade(vao, esp), a.Txt("regra_quantidade", "(comprimento − 2·cobrimento) / espaçamento"));
-        var xs = ctx.Posicoes(vao, n, esp).Select(x => x + cob + x0).Where(x => !excl || x < e0 || x > e1).ToList();
+        var xs = ctx.Posicoes(vao, n, esp).Select(x => x + cob + phi / 20 + x0).Where(x => !excl || x < e0 || x > e1).ToList();
         if (xs.Count == 0) return;
         p.Parametros["quantidade"] = xs.Count;
         double w = H - 2 * cob, h = hB - 2 * cob;
@@ -106,7 +106,7 @@ public sealed class EstribosVerticais : ComponenteBase
         BarrasUtil.Estribo(ctx, p, Ret(0, 0, w, h), phi, xs.Select(s => (Func<double, double, P3>)((u, v) => Pt(s, u, v))));
         p.Distribuicao = new Distribuicao
         {
-            Inicio = Pt(xs[0], w / 2, h / 2), Fim = Pt(xs[xs.Count - 1], w / 2, h / 2), Quantidade = xs.Count, Espacamento = esp,
+            Inicio = Pt(xs[0], w / 2, h / 2), Fim = Pt(xs[xs.Count - 1], w / 2, h / 2), Quantidade = xs.Count, Espacamento = ContextoMotor.EspacamentoReal(xs, esp),
         };
         ctx.Adicionar(p);
     }

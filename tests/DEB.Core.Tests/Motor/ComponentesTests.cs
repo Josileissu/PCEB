@@ -268,4 +268,27 @@ public class ComponentesTests
         Assert.Contains("z_topo_inferior", ((ComponenteBase)cat.Obter("malha_face")).VariaveisPublicadas);
         Assert.Equal(new[] { "bitola_lateral" }, ((ComponenteBase)cat.Obter("bitola_efetiva")).VariaveisPublicadasCom(Args().Com("funcao", "lateral")));
     }
+
+    [Fact]
+    public void DistribuicaoDeCobrimentoACobrimentoDivididaPorIgual()
+    {
+        // decisão do usuário (2026-11-08): 1ª e última barra no cobrimento; vão dividido por igual sem passar do proposto;
+        // o texto mostra o real arredondado a 0,5 cm
+        var ctx = Ctx();
+        Assert.Equal(4, ctx.Quantidade(44, 15));
+        Assert.Equal(new[] { 0.0, 44.0 / 3, 88.0 / 3, 44.0 }, ctx.Posicoes(44, 4, 15));
+        Assert.Equal(14.5, ContextoMotor.EspacamentoReal(ctx.Posicoes(44, 4, 15), 15));
+        Assert.Equal(5, ctx.Quantidade(60, 15));                 // exato: 4 espaços de 15
+        Assert.Equal(15, ContextoMotor.EspacamentoReal(ctx.Posicoes(60, 5, 15), 15));
+        Assert.Equal(1, ctx.Quantidade(0, 15));
+        // contorno lateral: estribos do cobrimento de baixo ao de cima
+        var c2 = Ctx(A(Funcoes.Lateral, 8, 0, 20));
+        c2.Dados["contorno"] = Ret(100, 100);
+        ComponentesPadrao.ContornoLateral.Aplicar(c2, Args().Com("cobrimento", 3).Com("z0", 0).Com("z1", 50));
+        var p = c2.Concluir().Posicao("lateral");
+        Assert.Equal(4, p.Barras.Count);                        // 43,2 / 20 → 3 espaços → 4 estribos
+        Assert.Equal(3 + 0.4, p.Barras.Min(b => b[0].Z), 6);     // eixo no cobrimento + φ/2
+        Assert.Equal(14.5, p.Distribuicao.Espacamento);         // 14,4 → 14,5
+        Assert.Equal(50 - 3 - 0.4, p.Barras.Max(b => b[0].Z), 6);
+    }
 }

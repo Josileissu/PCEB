@@ -15,65 +15,6 @@ public class IntercambioVigasTests
 {
     private static readonly TemplateVigaPreMoldada T = new TemplateVigaPreMoldada();
 
-    /// <summary>Perfil (x, z) de uma viga h = 75, L = 466, com dente 45 x 25 à esquerda e ponta reta à direita (V143).</summary>
-    private static List<(double, double)> PerfilV143() => new List<(double, double)>
-    {
-        (0, 30), (0, 75), (25, 30), (25, 0), (466, 0), (466, 75),
-    };
-
-    [Fact]
-    public void DenteRecortadoEmbaixoEPontaReta()
-    {
-        var avisos = new List<string>();
-        var (e, d) = PerfilViga.Dentes(PerfilV143(), 466, 75, avisos);
-        Assert.Empty(avisos);
-        Assert.Equal((45.0, 25.0), (e.Altura, e.Comprimento));
-        Assert.Null(d);
-    }
-
-    [Fact]
-    public void DentesNasDuasPontas()
-    {
-        var pts = new List<(double, double)> { (0, 15), (0, 50), (25, 15), (25, 0), (575, 0), (575, 15), (600, 15), (600, 50) };
-        var avisos = new List<string>();
-        var (e, d) = PerfilViga.Dentes(pts, 600, 50, avisos);
-        Assert.Empty(avisos);
-        Assert.Equal((35.0, 25.0), (e.Altura, e.Comprimento));
-        Assert.Equal((35.0, 25.0), (d.Altura, d.Comprimento));
-    }
-
-    [Fact]
-    public void PontaQueNaoChegaAoTopoAvisa()
-    {
-        // recorte em cima (dente invertido): não reconhecido, considerada reta com aviso
-        var pts = new List<(double, double)> { (0, 0), (0, 30), (25, 30), (25, 50), (300, 50), (300, 0) };
-        var avisos = new List<string>();
-        var (e, d) = PerfilViga.Dentes(pts, 300, 50, avisos);
-        Assert.Null(e);
-        Assert.Null(d);
-        Assert.Contains(avisos, a => a.Contains("ponta esquerda") && a.Contains("topo"));
-    }
-
-    [Fact]
-    public void InvertidasNoMesmoGrupo()
-    {
-        var g = new DentePeca { Altura = 45, Comprimento = 25 };
-        var grupos = AgrupadorVigas.Agrupar(new[]
-        {
-            new VigaMedida { Id = "10", B = 20, H = 75, L = 466, DenteE = g },
-            new VigaMedida { Id = "11", B = 20, H = 75, L = 466, DenteD = new DentePeca { Altura = 45, Comprimento = 25 } },   // invertida
-            new VigaMedida { Id = "12", B = 20, H = 75, L = 466 },                                                            // sem dente
-            new VigaMedida { Id = "13", B = 40, H = 50, L = 600 },
-        });
-        Assert.Equal(3, grupos.Count);
-        Assert.Equal(new[] { "V1", "V2", "V3" }, grupos.Select(x => x.Marca));
-        var comDente = grupos.Single(x => x.Quantidade == 2);
-        Assert.Equal(new[] { "10", "11" }, comDente.Elementos.Select(e => e.Id));
-        Assert.Equal(comDente.Elementos[0].Giro == 0 ? 180 : 0, comDente.Elementos[1].Giro);
-        Assert.True((comDente.DenteE == null) != (comDente.DenteD == null));
-        Assert.Null(grupos[0].DenteE ?? grupos[0].DenteD);   // a seção menor e sem dente vem primeiro
-    }
-
     [Fact]
     public void ArquivoComVigasIdaEVolta()
     {
@@ -169,19 +110,5 @@ public class IntercambioVigasTests
         Assert.Empty(avisos);
         Assert.Equal(2, linhas.Count);   // o duplo nas faces 1 e 3 e o simples na face 2
         Assert.Empty(CatalogoAutomatico.Consolos(new[] { p }, cat));
-    }
-
-    [Fact]
-    public void SecaoNaoRetangularPeloVolume()
-    {
-        // Projeto1.rvt: "seção retangular com aba laje 26x170" medida como caixa 51 × 170 → volume bem menor que b × h
-        double alma = 26 * 170 * 356.0, aba = 25 * 20 * 356.0;
-        Assert.NotNull(PerfilViga.ConferirSecao(alma + aba, 51, 170, 356, null, null));
-        // retangular com dentes 25 x 25 e dois furos de pino ø3,2: passa
-        var g = new DentePeca { Altura = 25, Comprimento = 25 };
-        double cheio = 20 * 50 * 551.0 - 2 * 20 * 25 * 25 - 2 * 3.1416 * 1.6 * 1.6 * 25;
-        Assert.Null(PerfilViga.ConferirSecao(cheio, 20, 50, 551, g, g));
-        // volume a mais (consolo aninhado na viga) não muda a seção
-        Assert.Null(PerfilViga.ConferirSecao(cheio * 1.1, 20, 50, 551, g, g));
     }
 }

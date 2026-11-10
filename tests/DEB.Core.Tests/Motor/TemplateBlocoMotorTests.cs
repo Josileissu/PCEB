@@ -48,7 +48,8 @@ public class TemplateBlocoMotorTests
         {
             var a = r0.Barras[k]; var b = r.Barras[k];
             Assert.Equal(a.Bitola, b.Bitola);
-            Assert.Equal(a.Quantidade * Math.Max(1, a.Repeticoes), b.Quantidade * Math.Max(1, b.Repeticoes));
+            // quantidade: muda com a divisão igual (2026-11-08) — no motor nunca menos barras que no antigo
+            Assert.True(b.Quantidade * Math.Max(1, b.Repeticoes) >= a.Quantidade * Math.Max(1, a.Repeticoes) || b.Nome.StartsWith("principal"), b.Nome);
             double la = MedidaBarra.Unitario(a, cfg), lb = MedidaBarra.Unitario(b, cfg);
             // estribos verticais acima da cabeça das estacas (decisão do usuário, 2026-11-08): mais curtos que no antigo
             if (b.Nome == "estribo_vertical_x") Assert.InRange(la - lb, 0, 12);

@@ -1,3 +1,7 @@
+> **Atualização de 10/11/2026 (decisão do usuário):** o PC2 também implementa e testa (código em `src/` e `tests/`, Revit 2025 e 2026).
+> A divisão "PC1 = código, PC2 = estudo" abaixo deixou de valer; continuam valendo: uma branch por frente, a `main` só com a aprovação
+> do usuário e o quadro de coordenação.
+
 # Trabalho em paralelo: dois computadores (proposta de 05/11/2026)
 
 ## Papéis

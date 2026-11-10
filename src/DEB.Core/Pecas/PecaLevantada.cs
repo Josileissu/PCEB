@@ -17,8 +17,18 @@ public enum SituacaoPeca { Ok, Atencao, NaoSuportada }
 public sealed class PecaLevantada
 {
     public string Id { get; set; } = "";
+    /// <summary>Identificador estável do elemento no modelo (UniqueId do Revit); vazio = não informado.</summary>
+    public string Uid { get; set; } = "";
+    /// <summary>Pilar: cota da base (m), no referencial dos níveis do modelo.</summary>
+    public double CotaBase { get; set; }
+    /// <summary>Pilar: comprimento embutido no cálice (cm); null = o modelo não informa.</summary>
+    public double? Embutimento { get; set; }
+    /// <summary>Pilar: níveis do modelo entre a base e o topo (nome, cota em m); null = o modelo não informa.</summary>
+    public List<(string Nome, double Cota)> Niveis { get; set; }
     public TipoPeca Tipo { get; set; }
     public string Marca { get; set; } = "";
+    /// <summary>Decisão do usuário na conferência: a peça não vai para o CAD (gravada no elemento do modelo).</summary>
+    public bool NaoExportar { get; set; }
     public string Familia { get; set; } = "";
     public string TipoRevit { get; set; } = "";
     public string Material { get; set; } = "";
@@ -94,8 +104,11 @@ public static class ConferenciaPecas
                     continue;
                 }
                 if (tipo == TipoSecao.Retangular) continue;
+                // alma + aba lateral (L, T invertido, consolo corrido): o template da viga desenha (VP-4, 2026-11-09)
+                var aba = SecaoComAba.Ler(t.Secao);
+                if (aba != null && !aba.AlturaToda) continue;
                 naoSuportada = true;
-                p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: {desc} — o CAD ainda só desenha a seção retangular (VP-4)");
+                p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: {desc} — o CAD desenha a seção retangular e a com aba lateral; esta ainda não");
             }
         p.Situacao = naoSuportada ? SituacaoPeca.NaoSuportada : p.Avisos.Count > 0 ? SituacaoPeca.Atencao : SituacaoPeca.Ok;
     }
@@ -106,7 +119,7 @@ public static class ConferenciaPecas
         var grupos = new Dictionary<string, GrupoPecas>();
         foreach (var p in pecas)
         {
-            string a = p.Tipo == TipoPeca.Pilar ? AssinaturaPilar(p) : Assinatura(p, false);
+            string a = p.Tipo == TipoPeca.Pilar ? AssinaturaPilar(p).Assinatura : Assinatura(p, false);
             if (p.Tipo == TipoPeca.Viga) { string inv = Assinatura(p, true); if (string.CompareOrdinal(inv, a) < 0) a = inv; }
             if (!grupos.TryGetValue(a, out var g)) grupos[a] = g = new GrupoPecas();
             g.Pecas.Add(p);
@@ -130,7 +143,20 @@ public static class ConferenciaPecas
     /// altura, área e lados (sem orientação); consolos renumerados a cada giro — face 1→4, 2→1, 3→2, 4→3, com a posição ao longo
     /// da face espelhada nas faces que trocam de eixo — e a menor assinatura vale.
     /// </summary>
-    private static string AssinaturaPilar(PecaLevantada p)
+    /// <summary>
+    /// Giro (graus) de <paramref name="p"/> em relação a <paramref name="representante"/>, do mesmo grupo: pilar = 0/90/180/270
+    /// (diferença dos giros que levam cada um à assinatura do grupo); viga = 180 se uma está invertida em relação à outra.
+    /// </summary>
+    public static int GiroRelativo(PecaLevantada p, PecaLevantada representante)
+    {
+        if (ReferenceEquals(p, representante)) return 0;
+        if (p.Tipo == TipoPeca.Pilar)
+            return ((AssinaturaPilar(p).Giros - AssinaturaPilar(representante).Giros) % 4 + 4) % 4 * 90;
+        bool Inv(PecaLevantada x) => string.CompareOrdinal(Assinatura(x, true), Assinatura(x, false)) < 0;
+        return Inv(p) != Inv(representante) ? 180 : 0;
+    }
+
+    private static (string Assinatura, int Giros) AssinaturaPilar(PecaLevantada p)
     {
         string M(double cm) => Math.Round(cm * 10).ToString("0", CultureInfo.InvariantCulture);
         string trechos = string.Join(";", p.Trechos.Select(x =>
@@ -139,14 +165,17 @@ public static class ConferenciaPecas
         double bx = p.Bx, by = p.By;
         bool quadrado = Math.Abs(bx - by) < 0.1;
         string melhor = null;
+        int giros = 0;
+        // o embutimento no cálice faz parte da peça (muda as zonas de estribos): pilares com embutimentos diferentes não são iguais
+        string emb = p.Embutimento.HasValue ? M(p.Embutimento.Value) : "-";
         for (int k = 0; k < 4; k++)
         {
             if (quadrado || k % 2 == 0)
             {
-                string a = $"Pilar|{M(Math.Min(bx, by))}x{M(Math.Max(bx, by))}|{M(p.Comprimento)}|{trechos}|" + string.Join(";", cs
+                string a = $"Pilar|{M(Math.Min(bx, by))}x{M(Math.Max(bx, by))}|{M(p.Comprimento)}|e{emb}|{trechos}|" + string.Join(";", cs
                     .OrderBy(c => c.Face).ThenBy(c => c.c.Perfil.ZMax).ThenBy(c => c.S0)
                     .Select(c => $"{c.Face}:{M(c.S0)}-{M(c.S1)}:{M(c.c.Perfil.ZMax)}:{M(c.c.Medidas.Balanco)}:{M(c.c.Medidas.AlturaPonta)}"));
-                if (melhor == null || string.CompareOrdinal(a, melhor) < 0) melhor = a;
+                if (melhor == null || string.CompareOrdinal(a, melhor) < 0) { melhor = a; giros = k; }
             }
             // gira 90°: (x, y) → (by − y, x)
             cs = cs.Select(c => c.Face switch
@@ -158,7 +187,7 @@ public static class ConferenciaPecas
             }).ToList();
             (bx, by) = (by, bx);
         }
-        return melhor;
+        return (melhor, giros);
     }
 
     /// <summary>Trechos (comprimento, caixa, área, CG) ao milímetro; invertida = trechos de trás para a frente.</summary>
