@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using DEB.Core.Templates.PilarPreMoldado;
-using Ctx = DEB.Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Ctx;
 
 namespace DEB.Core.Templates.VigaPreMoldada;
 

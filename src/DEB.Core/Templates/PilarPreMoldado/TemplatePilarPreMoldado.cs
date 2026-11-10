@@ -128,7 +128,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     private static double[] Cobrimentos(ValoresTemplate v) =>
         new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
 
-    public static string Num(double v, string formato) => v.ToString(formato, CultureInfo.InvariantCulture).Replace('.', ',');
+    public static string Num(double v, string formato) => KitDesenho.Num(v, formato);
 
     /// <summary>Lê a lista de níveis: "PT|EN|cota; …" (janela) ou o formato antigo "PT/EN=cota; …" (cota em m).</summary>
     public static List<NivelPilar> LerNiveis(string texto)
@@ -157,60 +157,11 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         return r;
     }
 
-    public static IdiomaDesenho LerIdioma(string s) =>
-        s == "PT" ? IdiomaDesenho.PT : s == "EN" ? IdiomaDesenho.EN : IdiomaDesenho.PTEN;
+    public static IdiomaDesenho LerIdioma(string s) => KitDesenho.LerIdioma(s);
 
     /// <summary>Tolerância de comprimento da NBR 9062 (tab. 2) para pilares, em mm.</summary>
     public static int ToleranciaComprimento(double lCm) => lCm <= 500 ? 10 : lCm <= 1000 ? 15 : 20;
 
-    /// <summary>Contexto de desenho (textos, linhas, cotas, marcas de corte); a viga pré-moldada usa o mesmo.</summary>
-    internal sealed class Ctx
-    {
-        public ResultadoTemplate R;
-        public IdiomaDesenho Idioma;
-        public double hV, hC; // altura dos textos (cm) nas escalas das vistas e dos cortes
-        public double escV, escC;
-        /// <summary>x depois das faixas da elevação das armaduras (as linhas de nível vão até ali).</summary>
-        public double XFimFaixas;
-
-        /// <summary>Linhas do texto conforme o idioma: PT, EN, ou PT e "(EN)" embaixo.</summary>
-        public string[] Linhas(string pt, string en) => Idioma switch
-        {
-            IdiomaDesenho.PT => new[] { pt },
-            IdiomaDesenho.EN => new[] { en.Length > 0 ? en : pt },
-            _ => en.Length > 0 && en != pt ? new[] { pt, $"({en})" } : new[] { pt },
-        };
-
-        public void Texto(string s, double x, double y, double h, int alinhamento = 0, double angulo = 0, string layer = "ARM-TEXTO-FORMA") =>
-            R.Textos.Add(new TextoTemplate { Texto = s, X = x, Y = y, Altura = h, Alinhamento = alinhamento, Angulo = angulo, Layer = layer });
-
-        /// <summary>Bloco de linhas (de cima para baixo) a partir de y; devolve o y abaixo da última linha.</summary>
-        public double Bloco(IEnumerable<string> linhas, double x, double y, double h, int alinhamento = 0, double entre = 1.6)
-        {
-            foreach (var l in linhas) { Texto(l, x, y, h, alinhamento); y -= entre * h; }
-            return y;
-        }
-
-        public void Linha(double x1, double y1, double x2, double y2, string layer = "ARM-FORMA") =>
-            R.Contornos.Add(new ContornoTemplate { Vertices = { (x1, y1), (x2, y2) }, Layer = layer });
-
-        public void Retangulo(double x1, double y1, double x2, double y2, string layer = "ARM-FORMA") =>
-            R.Contornos.Add(new ContornoTemplate { Vertices = { (x1, y1), (x2, y1), (x2, y2), (x1, y2) }, Fechado = true, Layer = layer });
-
-        public void Cota(double x1, double y1, double x2, double y2, double px, double py, double angulo, double escala, string texto = "") =>
-            R.Cotas.Add(new CotaTemplate { P1 = (x1, y1), P2 = (x2, y2), Posicao = (px, py), Angulo = angulo, Escala = escala, Texto = texto });
-
-        /// <summary>
-        /// Marca de corte do escritório (P56): triângulo vazado apontando para baixo, com a ponta pouco acima da altura do corte,
-        /// e a letra/número em cima. <paramref name="h"/> = altura de texto da escala.
-        /// </summary>
-        public void MarcaCorte(string id, double x, double y, double h)
-        {
-            double w = 1.05 * h, topo = y + 1.0 * h, ponta = y + 0.47 * h;
-            R.Contornos.Add(new ContornoTemplate { Vertices = { (x - w, topo), (x + w, topo), (x, ponta) }, Fechado = true, Layer = "ARM-CORTE" });
-            Texto(id, x, topo + 0.35 * h, h, 1, 0, "ARM-CORTE");
-        }
-    }
 
     public ResultadoTemplate Gerar(ValoresTemplate v, ConfiguracaoArmadura cfg)
     {
@@ -456,43 +407,10 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         return r;
     }
 
-    /// <summary>
-    /// Quadro "Informações para produção" (modelo do usuário, 2026-10-29): tabela de 2 colunas — rótulo (PT e "(EN)")
-    /// à esquerda e valor com unidade à direita. A linha da montagem só entra com fcj de montagem &gt; 0.
-    /// </summary>
     public static TabelaTemplate TabelaProducao(IdiomaDesenho idioma, double fcjSaque, double fcjMontagem, double fck,
         double volume, double peso, int quantidade, double x, double y, double escala, bool protendida = false,
-        double taxaPassiva = 0, double taxaAtiva = 0)
-    {
-        bool en = idioma == IdiomaDesenho.EN;
-        string N(double v, string f) => en ? v.ToString(f, CultureInfo.InvariantCulture) : Num(v, f);
-        string R(string pt, string ing) => idioma switch
-        {
-            IdiomaDesenho.PT => pt,
-            IdiomaDesenho.EN => ing,
-            _ => pt + TabelaTemplate.Quebra + "(" + ing.TrimEnd(':') + ")",
-        };
-        var t = new TabelaTemplate
-        {
-            Titulo = R("INFORMAÇÕES PARA PRODUÇÃO", "MANUFACTURING INFORMATION"),
-            X = x, Y = y, Escala = escala,
-        };
-        t.Larguras.AddRange(new[] { 24.0, 11.0 });
-        t.Alinhamentos.AddRange(new[] { 0, 2 });
-        t.Linhas.Add(protendida
-            ? new[] { R("RESISTÊNCIA ATO DA PROT.:", "STRENGTH AT PRESTRESS RELEASE:"), $"fcj = {N(fcjSaque, "0.#")} MPa" }
-            : new[] { R("RESISTÊNCIA AO SAQUE:", "STRENGTH DEMOLDING:"), $"fcj = {N(fcjSaque, "0.#")} MPa" });
-        if (fcjMontagem > 0)
-            t.Linhas.Add(new[] { R("RESISTÊNCIA NA MONTAGEM:", "STRENGTH ERECTION:"), $"fcj = {N(fcjMontagem, "0.#")} MPa" });
-        t.Linhas.Add(new[] { R("RESISTÊNCIA 28 DIAS:", "STRENGTH AT 28 DAYS:"), $"fck = {N(fck, "0.#")} MPa" });
-        t.Linhas.Add(new[] { R("VOLUME DE CONCRETO:", "CONCRETE VOLUME:"), $"{N(volume, "0.000")} m³" });
-        t.Linhas.Add(new[] { R("PESO:", "WEIGHT:"), $"{N(peso, "0.000")} ton." });
-        t.Linhas.Add(new[] { R("QUANTIDADE:", "QUANTITY:"), $"{quantidade} un." });
-        // viga protendida (BPM 1071): taxas de armadura passiva e ativa por m³ de concreto
-        if (taxaPassiva > 0) t.Linhas.Add(new[] { R("TAXA DE ARM. PASSIVA:", "PASSIVE REINF. RATIO:"), $"{N(taxaPassiva, "0.0")} kg/m³" });
-        if (taxaAtiva > 0) t.Linhas.Add(new[] { R("TAXA DE ARM. ATIVA:", "ACTIVE REINF. RATIO:"), $"{N(taxaAtiva, "0.0")} kg/m³" });
-        return t;
-    }
+        double taxaPassiva = 0, double taxaAtiva = 0) =>
+        KitDesenho.TabelaProducao(idioma, fcjSaque, fcjMontagem, fck, volume, peso, quantidade, x, y, escala, protendida, taxaPassiva, taxaAtiva);
 
     private static void R_Triangulo(Ctx c, double x, double y, double lado)
     {

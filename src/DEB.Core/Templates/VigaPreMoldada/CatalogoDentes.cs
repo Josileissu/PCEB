@@ -42,7 +42,7 @@ public sealed class TipoDente
     [DataMember(Order = 18)] public double TiranteComp { get; set; } = 200;
 
     /// <summary>Texto curto ("45 x 25").</summary>
-    public string Resumo => $"{TemplatePilarPreMoldado.Num(Altura, "0.#")} x {TemplatePilarPreMoldado.Num(Comprimento, "0.#")}";
+    public string Resumo => $"{KitDesenho.Num(Altura, "0.#")} x {KitDesenho.Num(Comprimento, "0.#")}";
 
     public TipoDente Clonar() => (TipoDente)MemberwiseClone();
 

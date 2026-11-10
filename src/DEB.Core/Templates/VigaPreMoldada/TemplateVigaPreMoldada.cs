@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Templates.PilarPreMoldado;
-using Ctx = DEB.Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Ctx;
 
 namespace DEB.Core.Templates.VigaPreMoldada;
 
@@ -143,7 +142,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         return e;
     }
 
-    private static string Num(double v, string f) => TemplatePilarPreMoldado.Num(v, f);
+    private static string Num(double v, string f) => KitDesenho.Num(v, f);
 
     // ======================== desenho ========================
 
@@ -153,7 +152,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         double escV = v.Numero("EscalaVistas") > 0 ? v.Numero("EscalaVistas") : 50;
         double escC = v.Numero("EscalaCortes") > 0 ? v.Numero("EscalaCortes") : 25;
         double mm = cfg.AlturaTextoMm > 0 ? cfg.AlturaTextoMm : 2;
-        var c = new Ctx { R = r, Idioma = TemplatePilarPreMoldado.LerIdioma(v["Idioma"]), escV = escV, escC = escC, hV = mm / 10 * escV, hC = mm / 10 * escC };
+        var c = new Ctx { R = r, Idioma = KitDesenho.LerIdioma(v["Idioma"]), escV = escV, escC = escC, hV = mm / 10 * escV, hC = mm / 10 * escC };
         r.Escala = escV;
         string nome = string.IsNullOrWhiteSpace(v["Nome"]) ? "VIGA" : v["Nome"].Trim();
         r.Detalhamento = nome;
@@ -269,7 +268,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         double xD = xEst + b + wAba + 30 * hc, yD = 0;
         yD = Notas(c, v, L, xD, yD, fret.Lbpt);
         double vol = Volume(b, h, L, e, d) + aba.VolumeCm3 / 1e6, peso = vol * v.Numero("PesoEspecifico") / 1000;
-        r.Tabelas.Add(TemplatePilarPreMoldado.TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"),
+        r.Tabelas.Add(KitDesenho.TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"),
             vol, peso, qtd, xD, yD, escV, protendida: prot,
             taxaPassiva: prot ? PesoPassivo(r, cfg, zonas, nEstAba) / vol : 0, taxaAtiva: prot ? PesoAtivo(r, cfg) / vol : 0));
         r.PosicaoRA = (xD + 75 * hv, 0);
@@ -399,7 +398,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
     public static double[] PosicaoAlcas(ValoresTemplate v, double b, double L, ExtremidadeViga e, ExtremidadeViga d)
     {
         double cg = CentroDeGravidade(b, v.Numero("H"), L, e, d, LerAba(v, v.Numero("H"), L, e, d, null));
-        var (x1, x2) = TemplatePilarPreMoldado.PosicaoAlcas(L, cg, v.Numero("AlcaPct"), v.Numero("AlcaX1"), v.Numero("AlcaX2"));
+        var (x1, x2) = KitDesenho.PosicaoAlcas(L, cg, v.Numero("AlcaPct"), v.Numero("AlcaX1"), v.Numero("AlcaX2"));
         return new[] { x1, x2 };
     }
 

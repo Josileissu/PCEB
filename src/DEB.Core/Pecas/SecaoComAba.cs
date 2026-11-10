@@ -45,7 +45,7 @@ public sealed class SecaoComAba
     public string Chave => !TemAba ? "" : FormattableString.Invariant(
         $"{M(AbaEsquerda)}|{M(AbaDireita)}|{M(AbaAltura)}|{M(AbaAlturaPonta)}|{M(DistanciaDoTopo)}");
 
-    private static string M(double cm) => Math.Round(cm * 10).ToString("0", System.Globalization.CultureInfo.InvariantCulture);
+    private static string M(double cm) => Fmt.Mm(cm);
 
     /// <summary>Lê a seção; null se ela não é alma retangular com (ou sem) uma aba lateral.</summary>
     public static SecaoComAba Ler(SecaoPoligonal s, double tol = SecaoPoligonal.Tolerancia)

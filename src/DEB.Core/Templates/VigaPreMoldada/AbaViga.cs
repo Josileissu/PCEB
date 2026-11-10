@@ -4,7 +4,6 @@ using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Estribos;
 using DEB.Core.Modelo;
-using Ctx = DEB.Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Ctx;
 
 namespace DEB.Core.Templates.VigaPreMoldada;
 

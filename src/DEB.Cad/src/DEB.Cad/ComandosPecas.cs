@@ -343,7 +343,7 @@ public sealed class ComandosPecas
             .Concat(r.PosicaoRA.HasValue ? new[] { r.PosicaoRA.Value.Y } : Array.Empty<double>())
             .DefaultIfEmpty(0).Max();
 
-    private static string Num(double x) => TemplatePilarPreMoldado.Num(x, "0.#");
+    private static string Num(double x) => KitDesenho.Num(x, "0.#");
 
     private static HashSet<ObjectId> Entidades(Database db)
     {
