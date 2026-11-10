@@ -162,7 +162,8 @@ namespace DEB.Revit
                         var grupos2 = DEB.Core.Pecas.ConferenciaPecas.Agrupar(pecas2);
                         var w = new Precast.UI.PieceReviewWindow(grupos2, notes2, new Precast.UI.ReviewActions
                         {
-                            Export = () => { }, SetMark = (g, m) => null, SetSkip = (g, v) => null,
+                            Export = (p, n) => { }, SetMark = (g, m) => null, SetSkip = (g, v) => null,
+                            SelecaoRevit = new HashSet<string>(pecas2.Take(1).Select(p => p.Id)),   // como se a 1ª peça estivesse selecionada no Revit
                         });
                         w.RenderToPng(Path.Combine(dir, "vigas_1.png"), 0, 0);
                         w.RenderToPng(Path.Combine(dir, "vigas_2.png"), 0, 1);
