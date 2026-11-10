@@ -37,6 +37,12 @@ próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
 - Instalador só quando o usuário pedir (não gerar Setup nem subir `<Version>` por conta própria).
 - **Testes sem mouse/teclado reais** (SetCursorPos, SendInput): o usuário usa o computador ao mesmo tempo e um clique
   real já caiu no Revit dele. Use `BM_CLICK`, a API ou o autoteste; capture telas com PrintWindow.
+- **Regressão visual** (10/11/2026): `tests/DEB.Core.Tests/RegressaoVisualTests` compara o desenho de 11 casos dos templates, entidade por
+  entidade, com `tests/DEB.Core.Tests/Referencias/*.txt` (e lista textos sobrepostos). Mudou um template de propósito? Confira as
+  diferenças que o teste mostra, regrave com `$env:ARM_ATUALIZAR_REFERENCIAS = "1"` e inclua os .txt no commit. Template novo ou
+  caso novo relevante = acrescentar um caso lá.
+- **Reuso** (10/11/2026): contexto de desenho e funções comuns dos templates em `DEB.Core/Templates/KitDesenho.cs` (`Ctx`, `KitDesenho`);
+  formatação de números em `DEB.Core/Fmt.cs` (`N` invariante, `Virgula` para a prancha, `Mm` para chaves). Não criar cópias novas.
 - **Prioridade (D19)**: o motor de detalhamento vem antes das análises estruturais
   (`docs/04_arquitetura/motor_detalhamento.md`). Lembre o usuário disso se o assunto for começar análise.
 
