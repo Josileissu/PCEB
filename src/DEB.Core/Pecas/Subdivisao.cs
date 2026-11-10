@@ -50,6 +50,39 @@ public static class Subdivisao
         return e.Zip(e.Skip(1), (a, b) => (a, b, (a + b) / 2)).ToList();
     }
 
+    /// <summary>
+    /// Estações sem as bordas das aberturas (2026-11-10): o x de um vértice que só existe por causa de um furo na alma não muda a
+    /// seção da peça — sem isto, cada furo dividia a viga em mais dois trechos.
+    /// </summary>
+    public static List<double> SemBordasDeAberturas(IEnumerable<double> xs, IEnumerable<AberturaPeca> aberturas, double tol = SecaoPoligonal.Tolerancia)
+    {
+        var bordas = aberturas.SelectMany(a => new[] { a.X0, a.X1 }).ToList();
+        return xs.Where(x => !bordas.Any(b => System.Math.Abs(b - x) <= tol)).ToList();
+    }
+
+    /// <summary>
+    /// Onde cortar o intervalo [x0, x1]: o meio, ou — se o meio cai numa abertura — o ponto livre mais perto dele (o meio do maior
+    /// pedaço do intervalo fora das aberturas). Cortar dentro de um furo dava só o pedaço de baixo da peça.
+    /// </summary>
+    public static double PontoDeCorte(double x0, double x1, IEnumerable<AberturaPeca> aberturas)
+    {
+        double meio = (x0 + x1) / 2;
+        var dentro = aberturas.Where(a => a.X1 > x0 && a.X0 < x1).OrderBy(a => a.X0).ToList();
+        if (!dentro.Any(a => meio > a.X0 - 1e-6 && meio < a.X1 + 1e-6)) return meio;
+        // pedaços livres do intervalo
+        var livres = new List<(double A, double B)>();
+        double c = x0;
+        foreach (var a in dentro)
+        {
+            if (a.X0 > c) livres.Add((c, a.X0));
+            c = System.Math.Max(c, a.X1);
+        }
+        if (c < x1) livres.Add((c, x1));
+        if (livres.Count == 0) return meio;
+        var maior = livres.OrderByDescending(l => l.B - l.A).ThenBy(l => System.Math.Abs((l.A + l.B) / 2 - meio)).First();
+        return (maior.A + maior.B) / 2;
+    }
+
     /// <summary>Junta os intervalos vizinhos com a mesma seção e sugere a função de cada trecho.</summary>
     public static List<TrechoPeca> Juntar(IEnumerable<(double X0, double X1, SecaoPoligonal Secao)> cortes, TipoPeca tipo = TipoPeca.Viga)
     {
