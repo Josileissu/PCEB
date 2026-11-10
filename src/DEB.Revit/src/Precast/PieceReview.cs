@@ -95,6 +95,53 @@ namespace DEB.Revit.Precast
             }
         }
 
+        /// <summary>
+        /// Aberturas na alma da viga (2026-11-10): os laços INTERNOS das faces laterais planas (normal ±y) — numa face com furo, o
+        /// contorno da face é o laço maior e cada furo é um laço a mais. O mesmo retângulo nas duas faces = furo passante; numa só =
+        /// nicho. Medidas em cm no sistema da viga (x ao longo do eixo, z a partir do fundo).
+        /// </summary>
+        private static List<AberturaPeca> Aberturas(FamilyInstance b, PieceInfo info)
+        {
+            var porLado = new List<(int Sinal, double X0, double X1, double Z0, double Z1)>();
+            List<SolidRef> refs = GeometryHelper.GetSolids(b, null);
+            foreach (SolidRef sr in refs)
+                foreach (Face f in sr.Solid.Faces)
+                {
+                    if (!(f is PlanarFace pf)) continue;
+                    double dy = sr.ToWorld.OfVector(pf.FaceNormal).DotProduct(info.AxisY);
+                    if (Math.Abs(dy) < 0.999 || pf.EdgeLoops.Size < 2) continue;
+                    var lacos = new List<(double X0, double X1, double Z0, double Z1)>();
+                    foreach (EdgeArray loop in pf.EdgeLoops)
+                    {
+                        var pts = new List<XYZ>();
+                        foreach (Edge e in loop) foreach (XYZ q in e.Tessellate()) pts.Add(sr.ToWorld.OfPoint(q) - info.Origin);
+                        if (pts.Count == 0) continue;
+                        lacos.Add((Cm(pts.Min(q => q.DotProduct(info.AxisX))), Cm(pts.Max(q => q.DotProduct(info.AxisX))),
+                                   Cm(pts.Min(q => q.DotProduct(info.AxisZ))), Cm(pts.Max(q => q.DotProduct(info.AxisZ)))));
+                    }
+                    // o contorno da face é o maior; os outros são furos
+                    var contorno = lacos.OrderByDescending(l => (l.X1 - l.X0) * (l.Z1 - l.Z0)).First();
+                    foreach (var l in lacos.Where(l => !l.Equals(contorno)))
+                        porLado.Add((dy > 0 ? 1 : -1, Round(l.X0), Round(l.X1), Round(l.Z0), Round(l.Z1)));
+                }
+            GC.KeepAlive(refs);
+            const double tol = 0.6;
+            bool Igual((int, double X0, double X1, double Z0, double Z1) a, (int, double X0, double X1, double Z0, double Z1) c) =>
+                Math.Abs(a.X0 - c.X0) <= tol && Math.Abs(a.X1 - c.X1) <= tol && Math.Abs(a.Z0 - c.Z0) <= tol && Math.Abs(a.Z1 - c.Z1) <= tol;
+            var r = new List<AberturaPeca>();
+            var usados = new HashSet<int>();
+            for (int i = 0; i < porLado.Count; i++)
+            {
+                if (usados.Contains(i)) continue;
+                int j = Enumerable.Range(i + 1, porLado.Count - i - 1).FirstOrDefault(k => !usados.Contains(k) && porLado[k].Sinal != porLado[i].Sinal && Igual(porLado[i], porLado[k]));
+                bool passante = j > i;
+                if (passante) usados.Add(j);
+                var a = porLado[i];
+                r.Add(new AberturaPeca { X0 = a.X0, X1 = a.X1, Z0 = a.Z0, Z1 = a.Z1, Passante = passante });
+            }
+            return r.OrderBy(a => a.X0).ToList();
+        }
+
         /// <summary>Face lateral plana da viga (normal ±y do sistema da viga): posição y, sentido e extensão em x e z (pés).</summary>
         private sealed class LateralFace { public double Y, X0, X1, Z0, Z1; public int Sign; }
 
@@ -197,9 +244,17 @@ namespace DEB.Revit.Precast
                     }
                 }
             }
-            var cortes = new List<(double, double, SecaoPoligonal)>();
-            foreach (var (x0, x1, meio) in Subdivisao.Intervalos(xs, p.Comprimento))
+            // aberturas na alma (vigas): ficam fora da subdivisão — as bordas delas não são estações e os cortes são feitos fora delas
+            if (beam)
             {
+                try { p.Aberturas = Aberturas(fi, info); }
+                catch (Exception ex) { p.Avisos.Add("aberturas não lidas: " + ex.Message); }
+                xs = Subdivisao.SemBordasDeAberturas(xs, p.Aberturas);
+            }
+            var cortes = new List<(double, double, SecaoPoligonal)>();
+            foreach (var (x0, x1, meio0) in Subdivisao.Intervalos(xs, p.Comprimento))
+            {
+                double meio = Subdivisao.PontoDeCorte(x0, x1, p.Aberturas);
                 SecaoPoligonal s = Cut(solids, info.Origin, along, u, w, U.Mm(meio * 10), out string aviso);
                 if (aviso != null) p.Avisos.Add($"corte em {meio:0.#} cm: {aviso}");
                 if (s != null) cortes.Add((x0, x1, s));

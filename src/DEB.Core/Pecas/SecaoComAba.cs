@@ -52,8 +52,8 @@ public sealed class SecaoComAba
     /// Chave da aba ao milímetro, medida a partir do TOPO (trechos com a mesma aba têm a mesma chave, no vão e no dente);
     /// "" = sem aba.
     /// </summary>
-    public string Chave => !TemAba && !TemRessalto ? "" : FormattableString.Invariant(
-        $"{M(AbaEsquerda)}|{M(AbaDireita)}|{M(AbaAltura)}|{M(AbaAlturaPonta)}|{M(DistanciaDoTopo)}") +
+    public string Chave => (!TemAba ? "" : FormattableString.Invariant(
+        $"{M(AbaEsquerda)}|{M(AbaDireita)}|{M(AbaAltura)}|{M(AbaAlturaPonta)}|{M(DistanciaDoTopo)}")) +
         (TemRessalto ? FormattableString.Invariant($"|R{(RessaltoEsquerda ? "E" : "D")}{M(RessaltoLargura)}x{M(RessaltoAltura)}") : "");
 
     /// <summary>Diferença de largura (cm) que ainda conta como a mesma face: modelos reais têm degraus de 1 cm entre famílias.</summary>
@@ -63,6 +63,19 @@ public sealed class SecaoComAba
 
     /// <summary>Lê a seção; null se ela não é alma retangular com (ou sem) uma aba lateral e (ou sem) um ressalto em cima.</summary>
     public static SecaoComAba Ler(SecaoPoligonal s, double tol = SecaoPoligonal.Tolerancia) => LerSimples(s, tol) ?? LerComRessalto(s, tol);
+
+    /// <summary>
+    /// As leituras possíveis da seção (2026-11-10): a mesma forma às vezes cabe nas duas — no dente de uma viga de 20 com rebaixo
+    /// de 10 × 15 no topo, "alma 10 + aba 10 × 35" ou "alma 20 + ressalto 10 × 15". Quem lê os trechos de uma peça escolhe a que
+    /// tem a mesma alma do trecho corrente.
+    /// </summary>
+    public static IEnumerable<SecaoComAba> Leituras(SecaoPoligonal s, double tol = SecaoPoligonal.Tolerancia)
+    {
+        var a = LerSimples(s, tol);
+        if (a != null) yield return a;
+        var b = LerComRessalto(s, tol);
+        if (b != null) yield return b;
+    }
 
     /// <summary>
     /// Seção com uma faixa mais estreita no topo (2026-11-10): separa a faixa de cima (o ressalto) e lê o que fica embaixo como
@@ -182,6 +195,9 @@ public sealed class SecaoComAba
         r.AbaAlturaPonta = Math.Min(m.AlturaPonta, m.AlturaNaFace);
         r.AbaBase = m.BaseNaFace;
         r.AlturaToda = r.DistanciaDoTopo <= tol && r.AbaBase <= tol && zMinTotal >= zMin - tol;
+        // "aba" com mais de 3/4 da altura = a viga cheia com um rebaixo no topo (2026-11-10, viga de 20 × 150 com recorte de 10 × 15
+        // lida como alma de 10 com aba de 135): não é aba
+        if (!r.AlturaToda && r.AbaAltura > 0.75 * r.H) return null;
         return r;
     }
 

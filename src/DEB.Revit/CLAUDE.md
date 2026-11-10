@@ -98,6 +98,12 @@ e pelo volume (`PerfilViga`, `AgrupadorVigas`, `PrecastExport.Beams` foram remov
 - `PrecastSurvey` lê a geometria de cada candidato a consolo uma vez (antes: de novo para cada pilar) e descarta os distantes pela caixa.
 AutoRun `exportarpecas` (`SD_EXPORT` = caminho). Só lê o modelo. `conferir` aceita `SD_CONFERIR_INDICES="16,18"` (PNG de grupos de vigas escolhidos).
 O modelo real de teste (168 vigas) é do Revit 2026 (o 2025 para no aviso "versão posterior"); no 2026 o AutoRun roda e, desde 10/11/2026, o Revit de teste fecha sozinho também com arquivo LOCAL de modelo compartilhado (o AutoRun responde "não salvar" e "manter a propriedade" às duas janelas da saída; antes a resposta genérica era recusada e a instância ficava aberta). Revit do usuário aberto = DLL presa: renomeie para `.antigo`, copie e assine.
+**Aberturas na alma** (relato do usuário, 10/11/2026: viga com 5 furos aparecia em 13 trechos, com seções de "h = 75" cortadas dentro
+dos furos): `PieceReview.Aberturas` lê os laços INTERNOS das faces laterais planas (normal ±y) = furos (nas duas faces = passante, numa
+= nicho); as bordas deles saem das estações (`Subdivisao.SemBordasDeAberturas`) e o corte é feito fora deles (`Subdivisao.PontoDeCorte`).
+A elevação da janela desenha os furos; a viga fica ✖ ("o CAD ainda não desenha aberturas nem o reforço") e não é exportada. Rebaixo no
+topo (viga de 20 com recorte de 10 × 15) = ressalto (mesma forma); "aba" com mais de 3/4 da altura não é aba. AutoRun `furos`: corta dois
+furos numa viga do Teste_PM (NewOpening) e desfaz no fim; `conferir` aceita `SD_CONFERIR_MARCA`.
 **Escolher o que exportar** (pedido do usuário, 10/11/2026): 1ª coluna da janela = caixa "exportar" por grupo (só desta exportação),
 botões Todos / Nenhum / Só ✔ / Seleção do Revit por aba e a contagem embaixo. Com peças selecionadas no Revit ao abrir a janela, ela começa
 marcando só os grupos delas. "Nunca exportar" (gravado no modelo) continua valendo e desmarca o grupo. Desmarcados = nota no JSON.

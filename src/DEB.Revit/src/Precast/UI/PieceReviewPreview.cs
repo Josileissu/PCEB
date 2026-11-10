@@ -84,6 +84,12 @@ namespace DEB.Revit.Precast.UI
                 _hits.Add((new Rect(r.X, area.Y + 30, r.Width, y0 - area.Y), i));
                 if (r.Width > 34) Text(dc, $"{i + 1}", r.X + r.Width / 2, r.Y + r.Height / 2 - 7, 11, center: true);
             }
+            // aberturas na alma: em branco (passantes) ou tracejadas (nicho de um lado só)
+            foreach (AberturaPeca a in p.Aberturas)
+            {
+                var r = new Rect(area.X + pad + a.X0 * sx, y0 - (a.Z1 - zMin) * sz, a.Largura * sx, a.Altura * sz);
+                dc.DrawRectangle(a.Passante ? Brushes.White : null, a.Passante ? Outline : DashPen, r);
+            }
             // consolos nas faces laterais (viga que recebe outra): de frente a face −y (2), tracejada a de trás (+y, 4)
             foreach (ConsoloLevantado c in p.Consolos)
             {

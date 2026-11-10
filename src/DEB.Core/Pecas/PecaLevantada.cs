@@ -38,6 +38,8 @@ public sealed class PecaLevantada
     public List<TrechoPeca> Trechos { get; set; } = new List<TrechoPeca>();
     /// <summary>Pilar: consolos (famílias separadas ou aninhadas noutra peça, reconhecidos como no botão "Pilares pré-moldados").</summary>
     public List<ConsoloLevantado> Consolos { get; set; } = new List<ConsoloLevantado>();
+    /// <summary>Viga: aberturas na alma (furos passantes e nichos), fora da subdivisão em trechos.</summary>
+    public List<AberturaPeca> Aberturas { get; set; } = new List<AberturaPeca>();
     /// <summary>Pilar: seção do pilar sem os consolos (largura em x = face 2/4, em y = face 1/3), cm.</summary>
     public double Bx { get; set; }
     public double By { get; set; }
@@ -64,6 +66,23 @@ public sealed class ConsoloLevantado
     public SecaoPoligonal Perfil { get; set; }
     public PerfilConsolo.Medidas Medidas => PerfilConsolo.Medir(Perfil.Contorno.Select(p => (p.Y, p.Z)));
     public double Largura => S1 - S0;
+}
+
+/// <summary>
+/// Abertura na alma de uma viga (2026-11-10): furo que atravessa a peça de lado a lado (passante) ou nicho de um lado só, lido
+/// como laço interno das faces laterais. X ao longo do eixo e Z a partir do fundo (cm), no sistema da peça. Não é mudança de seção:
+/// os cortes da subdivisão são feitos fora das aberturas.
+/// </summary>
+public sealed class AberturaPeca
+{
+    public double X0 { get; set; }
+    public double X1 { get; set; }
+    public double Z0 { get; set; }
+    public double Z1 { get; set; }
+    /// <summary>Atravessa a alma (aparece nas duas faces laterais).</summary>
+    public bool Passante { get; set; }
+    public double Largura => X1 - X0;
+    public double Altura => Z1 - Z0;
 }
 
 /// <summary>Peças iguais (mesmos trechos; vigas invertidas também) — o representante é a primeira.</summary>
@@ -93,6 +112,12 @@ public static class ConferenciaPecas
         var nome = NomeTipo.Conferir(p.TipoRevit, p.Principal.Secao);
         if (nome != null) p.Avisos.Add("nome do tipo: " + nome);
         bool naoSuportada = false;
+        if (p.Tipo == TipoPeca.Viga && p.Aberturas.Count > 0)
+        {
+            naoSuportada = true;
+            p.Avisos.Add($"{p.Aberturas.Count} abertura(s) na alma ({string.Join(", ", p.Aberturas.Select(a => $"{N(a.Largura)} × {N(a.Altura)} em x = {N(a.X0)}"))}) — " +
+                         "o CAD ainda não desenha aberturas nem o reforço em volta delas");
+        }
         if (p.Tipo == TipoPeca.Viga)
             foreach (var t in p.Trechos)
             {
@@ -204,7 +229,10 @@ public static class ConferenciaPecas
         var t = invertida ? Enumerable.Reverse(p.Trechos) : p.Trechos;
         string consolos = string.Join(";", p.Consolos.OrderBy(c => c.Face).ThenBy(c => c.Perfil.ZMax).ThenBy(c => c.S0)
             .Select(c => $"{c.Face}:{M(c.S0)}-{M(c.S1)}:{M(c.Perfil.ZMax)}:{M(c.Medidas.Balanco)}:{M(c.Medidas.AlturaPonta)}"));
-        return $"{p.Tipo}|{M(p.Comprimento)}|{consolos}|" + string.Join(";", t.Select(x =>
+        string ab = string.Join(";", (invertida ? p.Aberturas.Select(a => (X0: p.Comprimento - a.X1, a.Z0, a.Largura, a.Altura))
+                                               : p.Aberturas.Select(a => (a.X0, a.Z0, a.Largura, a.Altura)))
+            .OrderBy(a => a.X0).Select(a => $"{M(a.X0)},{M(a.Z0)},{M(a.Largura)}x{M(a.Altura)}"));
+        return $"{p.Tipo}|{M(p.Comprimento)}|{consolos}|{ab}|" + string.Join(";", t.Select(x =>
         {
             var s = x.Secao;
             double cgy = s.CG.Y - s.YMin;
