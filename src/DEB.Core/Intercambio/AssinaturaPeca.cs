@@ -50,7 +50,7 @@ public static class AssinaturaPeca
     public static bool Importado(string comentario) => (comentario ?? "").StartsWith("Importado de ", StringComparison.Ordinal);
 
     // medidas ao milímetro, como as assinaturas dos grupos
-    private static string N(double cm) => Math.Round(cm * 10).ToString("0", CultureInfo.InvariantCulture);
+    private static string N(double cm) => Fmt.Mm(cm);
     private static string I(int n) => n.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>FNV-1a de 32 bits (estável entre versões do .NET, ao contrário do GetHashCode das strings).</summary>

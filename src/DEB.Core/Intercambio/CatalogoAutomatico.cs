@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Templates.VigaPreMoldada;
+using DEB.Core.Templates;
 
 namespace DEB.Core.Intercambio;
 
@@ -64,5 +65,5 @@ public static class CatalogoAutomatico
         for (int i = 2; ; i++) if (!u.Contains($"{nome} ({i})")) return $"{nome} ({i})";
     }
 
-    private static string Num(double x) => TemplatePilarPreMoldado.Num(x, "0.#");
+    private static string Num(double x) => KitDesenho.Num(x, "0.#");
 }

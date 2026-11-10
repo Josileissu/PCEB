@@ -278,6 +278,6 @@ public static class ConversorLevantamento
     }
 
     private static double R(double cm) => Math.Round(cm, 2);
-    private static string N(double x) => x.ToString("0.#", CultureInfo.InvariantCulture);
-    private static string Pct(double f) => (f * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+    private static string N(double x) => Fmt.N(x);
+    private static string Pct(double f) => Fmt.Pct(f);
 }

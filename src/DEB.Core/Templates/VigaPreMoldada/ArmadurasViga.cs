@@ -6,7 +6,6 @@ using DEB.Core.Configuracao;
 using DEB.Core.Estribos;
 using DEB.Core.Modelo;
 using DEB.Core.Templates.PilarPreMoldado;
-using Ctx = DEB.Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Ctx;
 
 namespace DEB.Core.Templates.VigaPreMoldada;
 
@@ -71,7 +70,7 @@ public sealed partial class TemplateVigaPreMoldada
                 new ColunaTabela
                 {
                     Nome = "Bitola", Rotulo = "Bitola (mm)", Tipo = TipoParametro.Opcao, Opcoes = BitolasLongViga.ToList(), Padrao = "12.5", Largura = 80,
-                    Ajustar = (l, s) => TemplatePilarPreMoldado.NormalizarBitola(s),
+                    Ajustar = (l, s) => KitDesenho.NormalizarBitola(s),
                 },
                 new ColunaTabela { Nome = "Camada", Rotulo = "Camada", Tipo = TipoParametro.Opcao, Opcoes = { "1", "2" }, Padrao = "1", Largura = 60 },
                 new ColunaTabela { Nome = "DobraE", Rotulo = "Dobra esq. (cm)", Tipo = TipoParametro.Numero, Padrao = "0", Largura = 90 },
