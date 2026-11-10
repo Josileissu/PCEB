@@ -576,8 +576,13 @@ internal sealed class Sincronizador
                 foreach (var id in barras)
                 {
                     if (id.IsErased) continue;
-                    if (tr.GetObject(id, OpenMode.ForRead) is Polyline pl)
-                        ServicoBarra.Atualizar(tr, pl, cfg);
+                    // uma barra que falha (parte apagada no meio do comando, por exemplo) não pode derrubar a atualização das outras
+                    try
+                    {
+                        if (tr.GetObject(id, OpenMode.ForRead) is Polyline pl)
+                            ServicoBarra.Atualizar(tr, pl, cfg);
+                    }
+                    catch (System.Exception ex) { Log.Erro("Sincronizador: barra não atualizada", ex); }
                 }
                 // "verificação de comprimento limite": barra esticada além do comercial é dividida
                 foreach (var id in barras)

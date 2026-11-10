@@ -335,4 +335,13 @@ BEDIT (ele confirma). Validados em 2026-10-27 pela planilha/tabela dele: gancho 
   **Marca do modelo** (branch `pc2/exportar-pela-conferencia`): o nome do grupo no JSON agora é a marca das peças no Revit; caracteres
   inválidos para nome de bloco viram "-" (`ComandosTemplate.Desenhar`) e, se o desenho já tem um detalhamento com o nome, o novo entra
   como "nome (2)" com aviso (reimportar não substitui o que existe).
+  **Reimportação** (2026-11-10, branch `pc2/vigas-reais`): o comentário do detalhamento importado leva a assinatura dos dados do modelo
+  (`Core/Intercambio/AssinaturaPeca`: "…; dados #XXXXXXXX."). Importar de novo: mesma marca e mesma assinatura = NÃO redesenha (os ajustes do
+  usuário ficam); mudou = o comando pergunta UMA vez [Substituir/Manter] — substituir apaga o antigo (inserções, a relação do aço que era só
+  dele e a definição, com o conteúdo antes) e leva o novo para o mesmo canto superior esquerdo (`ComandosPecas.Apagar`/`Reposicionar`); manter
+  = o novo entra como "nome (2)" com aviso. Importados antes da assinatura contam como "mudou".
+  **Marca "conferir"** (`Core/Templates/MarcaConferir`): dente/consolo criado pela importação com a armadura padrão sai com um aviso vermelho
+  acima do título da prancha (layer ARM-CORTE) enquanto a descrição do tipo for a da importação; o usuário troca a descrição no ARMDENTES /
+  ARMCONSOLOS depois de conferir e o aviso some.
+  O Sincronizador passou a isolar a falha de uma barra na atualização (uma exceção derrubava a atualização de todas as outras).
   Autoteste: `ARMTESTEPECAS` (3 pilares e 3 vigas de exemplo; `ARM_PECAS_ENTRADA` = um JSON real), `autoteste_pecas.dwg/.png`.
