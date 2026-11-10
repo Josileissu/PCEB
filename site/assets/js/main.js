@@ -62,6 +62,27 @@
     }
   }
 
+  // Versão e instalador da Release mais recente do GitHub. Sem rede/API, os links
+  // continuam apontando para releases/latest e os textos ficam como estão no HTML.
+  var alvos = document.querySelectorAll("[data-release]");
+  if (alvos.length && window.fetch) {
+    fetch("https://api.github.com/repos/Josileissu/PCEB/releases/latest", {
+      headers: { "Accept": "application/vnd.github+json" }
+    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (rel) {
+      if (!rel || !rel.tag_name) return;
+      var versao = rel.tag_name.replace(/^v/i, "");
+      var exe = (rel.assets || []).filter(function (a) { return /\.exe$/i.test(a.name); })[0];
+      var data = rel.published_at ? new Date(rel.published_at).toLocaleDateString("pt-BR") : "";
+      alvos.forEach(function (el) {
+        var k = el.getAttribute("data-release");
+        if (k === "versao") el.textContent = versao;
+        else if (k === "data" && data) el.textContent = data;
+        else if (k === "arquivo" && exe) el.textContent = exe.name;
+        else if (k === "download" && exe) el.setAttribute("href", exe.browser_download_url);
+      });
+    }).catch(function () {});
+  }
+
   document.querySelectorAll("[data-year]").forEach(function (el) {
     el.textContent = String(new Date().getFullYear());
   });
