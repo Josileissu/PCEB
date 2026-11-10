@@ -145,15 +145,28 @@ public class SubdivisaoPecasTests
     [Fact]
     public void VigaQueRecebeOutraVigaNoConsolo()
     {
-        // trecho com consolo de apoio de outra viga (função marcada no levantamento): aviso próprio e "o CAD ainda não desenha"
+        // trecho com consolo de apoio de outra viga (função marcada no levantamento): desde 2026-11-10 sai no CAD como aba curta,
+        // com aviso para conferir a armadura (atenção, não mais "o CAD ainda não desenha")
         var cheia = SecaoPoligonal.Retangulo(19, 75);
         var comConsolo = Poli((0, 0), (19, 0), (19, 30), (44, 30), (44, 55), (19, 55), (19, 75), (0, 75));
         var p = new PecaLevantada { Tipo = TipoPeca.Viga, TipoRevit = "19x75", PreMoldada = true, Comprimento = 568,
             Trechos = Subdivisao.Juntar(new[] { (0.0, 250.0, cheia), (250.0, 290.0, comConsolo), (290.0, 568.0, cheia) }) };
         p.Trechos[1].FuncaoSugerida = FuncaoTrecho.ApoioViga;
         ConferenciaPecas.Avaliar(p);
-        Assert.Equal(SituacaoPeca.NaoSuportada, p.Situacao);
-        Assert.Contains(p.Avisos, a => a.StartsWith("trecho 250–290: consolo de apoio de outra viga"));
+        Assert.Equal(SituacaoPeca.Atencao, p.Situacao);
+        Assert.Contains(p.Avisos, a => a.StartsWith("trecho 250–290: consolo de apoio de outra viga") && a.Contains("aba curta"));
+        // e vai para o CAD como aba de 250 a 290: balanço 25, altura 25, fundo a 30
+        p.Consolos.Add(new ConsoloLevantado { Face = 4, S0 = 250, S1 = 290, Perfil = Poli((0, 30), (25, 30), (25, 55), (0, 55)) });
+        var arq = DEB.Core.Intercambio.ConversorLevantamento.Converter(new[] { p }, "m.rvt", "");
+        var v = Assert.Single(arq.Vigas);
+        Assert.Equal((25.0, 25.0, 30.0, 250.0, 290.0), (v.Aba.Largura, v.Aba.Altura, v.Aba.Base, v.Aba.Inicio, v.Aba.Fim));
+        Assert.Contains(arq.Notas, n => n.Contains("consolo de apoio de outra viga") && n.Contains("aba curta"));
+        // consolo com forma que não é alma + uma saliência (dois degraus): continua fora
+        var estranho = new PecaLevantada { Tipo = TipoPeca.Viga, TipoRevit = "19x75", PreMoldada = true, Comprimento = 568,
+            Trechos = Subdivisao.Juntar(new[] { (0.0, 250.0, cheia), (250.0, 290.0, Poli((0, 0), (19, 0), (19, 10), (44, 10), (44, 20), (19, 20), (19, 40), (44, 40), (44, 55), (19, 55), (19, 75), (0, 75))), (290.0, 568.0, cheia) }) };
+        estranho.Trechos[1].FuncaoSugerida = FuncaoTrecho.ApoioViga;
+        ConferenciaPecas.Avaliar(estranho);
+        Assert.Equal(SituacaoPeca.NaoSuportada, estranho.Situacao);
         Assert.DoesNotContain(p.Avisos, a => a.StartsWith("nome do tipo"));
     }
 

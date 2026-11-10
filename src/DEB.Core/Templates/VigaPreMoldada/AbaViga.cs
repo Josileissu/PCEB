@@ -43,11 +43,16 @@ public sealed class AbaViga
     /// <summary>O corte em x passa pela aba?</summary>
     public bool Em(double x) => Existe && x >= Ini - 1e-6 && x <= Fim + 1e-6;
 
+    /// <summary>Aba curta = consolo lateral de apoio de outra viga (até este comprimento, cm).</summary>
+    public const double ComprimentoConsolo = 60;
+    public bool Consolo => Existe && Comprimento <= ComprimentoConsolo + 1e-6;
+
     /// <summary>
     /// A aba na seção do DENTE (a parte de cima da viga, acima do recorte de altura <paramref name="recorte"/>): a mesma aba com
-    /// o fundo medido a partir do fundo do dente; null se ela fica (em parte) abaixo do recorte.
+    /// o fundo medido a partir do fundo do dente — negativo quando a aba desce abaixo do recorte (aba de escada do Nordika, que
+    /// passa pelo dente pendurada abaixo dele); null se ela fica INTEIRA abaixo do recorte.
     /// </summary>
-    public AbaViga NoDente(double recorte) => !Existe || Base < recorte - 1e-6 ? null : new AbaViga
+    public AbaViga NoDente(double recorte) => !Existe || Base + Altura <= recorte + 1e-6 ? null : new AbaViga
     {
         Esquerda = Esquerda, Direita = Direita, Largura = Largura, Altura = Altura, AlturaPonta = AlturaPonta, Base = Base - recorte, Ini = Ini, Fim = Fim,
     };
@@ -63,6 +68,7 @@ public sealed class AbaViga
 /// </summary>
 public sealed partial class TemplateVigaPreMoldada
 {
+    public const string AbaDentesAuto = "Automático", AbaDentesPassa = "Passa pelos dentes", AbaDentesPara = "Para nos dentes";
     public const string AbaSem = "Sem aba", AbaEsq = "Esquerda (L)", AbaDir = "Direita (L)", AbaDois = "Dois lados (T invertido)";
     private const string G10 = "10. Aba (apoio de laje)";
 
@@ -76,9 +82,11 @@ public sealed partial class TemplateVigaPreMoldada
         P(G10, "AbaAlturaPonta", "Aba: altura na ponta (0 = igual: aba retangular)", "0", "cm", min: 0,
           descricao: "Menor que a altura junto da alma = fundo inclinado (o topo da aba é plano)."),
         P(G10, "AbaBase", "Aba: fundo acima do fundo da viga (0 = no fundo)", "0", "cm", min: 0),
-        P(G10, "AbaIni", "Aba: início (0 = depois do dente / na ponta)", "0", "cm", min: 0,
-          descricao: "Distância da ponta esquerda. A aba que fica acima do recorte do dente passa por ele: aí 0 = na ponta."),
-        P(G10, "AbaFim", "Aba: fim (0 = antes do dente / na ponta)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda."),
+        P(G10, "AbaDentes", "Aba nos dentes Gerber", AbaDentesAuto, tipo: TipoParametro.Opcao, opcoes: new[] { AbaDentesAuto, AbaDentesPassa, AbaDentesPara },
+          descricao: "Automático = passa pelo dente a aba que fica toda acima do recorte e para na face do dente a que desce abaixo dele. " +
+                     "\"Passa\" com a aba descendo abaixo do recorte = ela fica pendurada abaixo do dente (aba de escada)."),
+        P(G10, "AbaIni", "Aba: início (0 = pela opção dos dentes)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda."),
+        P(G10, "AbaFim", "Aba: fim (0 = pela opção dos dentes)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda."),
         P(G10, "AbaEstBitola", "Estribo da aba: bitola", "8", "mm", TipoParametro.Bitola, 5, 16,
           descricao: "Estribo fechado que abraça a alma e a(s) aba(s); o ramo de cima é o tirante da aba (consolo corrido)."),
         P(G10, "AbaEstEsp", "Estribo da aba: espaçamento", "15", "cm", min: 2),
@@ -102,8 +110,10 @@ public sealed partial class TemplateVigaPreMoldada
             Base = Math.Max(0, v.Numero("AbaBase")),
         };
         if (!a.Esquerda && !a.Direita) return a;
-        // o dente só interrompe a aba que fica (em parte) abaixo do recorte dele
-        bool cortaE = e.TemDente && a.Base < e.Recorte(h) - 1e-6, cortaD = d.TemDente && a.Base < d.Recorte(h) - 1e-6;
+        // automático: o dente só interrompe a aba que fica (em parte) abaixo do recorte dele; "passa"/"para" mandam
+        string nosDentes = v["AbaDentes"];
+        bool Corta(ExtremidadeViga x) => x.TemDente && (nosDentes == AbaDentesPara || (nosDentes != AbaDentesPassa && a.Base < x.Recorte(h) - 1e-6));
+        bool cortaE = Corta(e), cortaD = Corta(d);
         double i0 = cortaE ? e.CompDente : 0, f0 = L - (cortaD ? d.CompDente : 0);
         a.Ini = v.Numero("AbaIni") > 0 ? v.Numero("AbaIni") : i0;
         a.Fim = v.Numero("AbaFim") > 0 ? Math.Min(L, v.Numero("AbaFim")) : f0;
@@ -114,8 +124,13 @@ public sealed partial class TemplateVigaPreMoldada
             avisos?.Add($"Aba: fundo {Num(a.Base, "0.#")} + altura {Num(a.Altura, "0.#")} cm passa do topo da viga (h = {Num(h, "0.#")}); a altura foi limitada.");
             a.Altura = Math.Max(1, h - a.Base);
         }
-        if ((cortaE && a.Ini < i0 - 1e-6) || (cortaD && a.Fim > f0 + 1e-6))
-            avisos?.Add("Aba: o trecho entra no dente Gerber, mas a aba fica abaixo do recorte — a seção do dente é desenhada sem aba; conferir.");
+        bool Abaixo(ExtremidadeViga x) => x.TemDente && a.Base + a.Altura <= x.Recorte(h) + 1e-6;   // inteira abaixo do recorte
+        if ((a.Ini < e.CompDente - 1e-6 && Abaixo(e)) || (a.Fim > L - d.CompDente + 1e-6 && Abaixo(d)))
+            avisos?.Add("Aba: o trecho entra no dente Gerber, mas a aba fica toda abaixo do recorte — a seção do dente é desenhada sem aba; conferir.");
+        else if ((e.TemDente && a.Ini < e.CompDente - 1e-6 && a.Base < e.Recorte(h) - 1e-6) || (d.TemDente && a.Fim > L - d.CompDente + 1e-6 && a.Base < d.Recorte(h) - 1e-6))
+            avisos?.Add("Aba: passa pelo dente Gerber descendo abaixo do recorte (fica pendurada abaixo do dente) — conferir.");
+        if (a.Consolo)
+            avisos?.Add($"Aba curta ({Num(a.Comprimento, "0.#")} cm): consolo lateral de apoio de outra viga, armado como a aba (estribos fechados = tirante) — conferir a armadura do consolo.");
         if (a.Lados == 1)
             avisos?.Add("Aba de um lado só: o CG fica fora do eixo da alma — conferir o içamento (giro da peça) e a torção.");
         avisos?.Add("Aba: a carga apoiada na aba é suspensa pelos estribos da alma — conferir a armadura de suspensão no trecho da aba.");
@@ -308,7 +323,8 @@ public sealed partial class TemplateVigaPreMoldada
             Nome = "abalong", Bitola = v.Numero("AbaLongBitola"), Aco = v["LongAco"], Quantidade = q, Escala = c.escV,
             Vertices = { (x0, y), (x1, y) }, Formatos = { FormatoSegmento.Linha }, PosicaoDescricao = ((x0 + x1) / 2, y + 2.6 * hv),
         });
-        c.Texto(string.Join(" / ", c.Linhas("ARMADURA ABA LAJE", "SLAB LEDGE REINFORCEMENT")), (x0 + x1) / 2, y - 3.4 * hv, 0.75 * hv, 1);
+        c.Texto(string.Join(" / ", a.Consolo ? c.Linhas("ARMADURA CONSOLO", "CORBEL REINFORCEMENT") : c.Linhas("ARMADURA ABA LAJE", "SLAB LEDGE REINFORCEMENT")),
+            (x0 + x1) / 2, y - 3.4 * hv, 0.75 * hv, 1);
         return true;
     }
 

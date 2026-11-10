@@ -252,3 +252,13 @@ Formato tirado das vigas reais do modelo Nordika (janela "Conferir peças"): a a
   `VigaPeca.Aba` (`AbaPeca`) vai no JSON como "aba" e o arquivo sai na **versão 2** só quando alguma viga tem aba (o DEB.Cad 0.1.32
   instalado recusa o arquivo em vez de desenhar sem a aba; sem aba continua versão 1). Nordika (Revit 2026): 150 vigas em 35 grupos
   exportadas (97 em 28 antes da aba); ficam fora 4 grupos com consolo de outra viga e 4 com duas saliências.
+- **Iteração 2 (2026-11-10, branch `pc2/vigas-reais`)**:
+  - `AbaDentes` (Automático / Passa pelos dentes / Para nos dentes): automático = passa a aba que fica toda acima do recorte e para a
+    que desce abaixo dele. "Passa" com a aba descendo abaixo do recorte = ela fica PENDURADA abaixo do dente (aba de escada do
+    Nordika); a seção do dente sai com a aba (fundo negativo em `AbaViga.NoDente`), com aviso.
+  - **Consolo lateral de apoio de outra viga = aba curta** (`AbaViga.Consolo`, até 60 cm): mesma forma e mesma armadura da aba
+    (estribos fechados = tirante), rótulo "ARMADURA CONSOLO" e aviso para conferir. Uma aba OU um consolo por viga, por enquanto.
+  - Revit → CAD: `SecaoComAba` lê a aba pendurada abaixo da alma (no dente) e o consolo de outra viga (seção unida no corte);
+    `ConversorVigaPeca` manda `AbaDentes` conforme o trecho do modelo. Nordika: **157 de 168 vigas** exportadas (39 grupos); ficam
+    fora 4 grupos (11 peças) com duas saliências ("aba laje + aba superior": alma que estreita em cima).
+  - AutoCAD 2026: ARMTESTEVIGA 23 ok; ARMTESTEPECAS 14 ok com um JSON do Nordika (aba elevada, abas no topo, três consolos laterais).

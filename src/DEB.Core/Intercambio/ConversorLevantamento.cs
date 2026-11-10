@@ -182,7 +182,6 @@ public static class ConversorLevantamento
         motivo = null;
         var r = g.Representante;
         if (r.Trechos.Count == 0) { motivo = "a geometria não pôde ser cortada."; return null; }
-        if (r.Consolos.Count > 0) { motivo = "tem consolo de apoio de outra viga, que o CAD ainda não desenha."; return null; }
         var s0 = r.Principal.Secao;
         var i0 = SecaoComAba.Ler(s0);
         if (i0 == null || i0.AlturaToda)
@@ -271,7 +270,10 @@ public static class ConversorLevantamento
                 Base = R(Math.Max(0, i0.H - a.DistanciaDoTopo - a.AbaAltura)),   // a partir do fundo da viga (a seção do dente começa mais alto)
                 Inicio = R(comAba[0].X0), Fim = R(comAba[comAba.Count - 1].X1),
             };
+            if (r.Consolos.Count > 0)
+                notas.Add($"Viga {g.Marcas}: o consolo de apoio de outra viga ({N(v.Aba.Inicio)}–{N(v.Aba.Fim)} cm) vai como aba curta — conferir a armadura do consolo no CAD.");
         }
+        else if (r.Consolos.Count > 0) { motivo = "tem consolo de apoio de outra viga com forma que o CAD ainda não desenha."; return null; }
         return v;
     }
 

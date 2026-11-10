@@ -220,6 +220,44 @@ public class ConversorLevantamentoTests
         finally { DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = antes; }
     }
 
+    /// <summary>
+    /// Viga de escada do Nordika ("19x55"): a aba passa pelos dentes descendo ABAIXO do recorte — na seção do dente (a alma de 30 em
+    /// cima) a aba fica pendurada 3 cm abaixo do fundo do dente.
+    /// </summary>
+    [Fact]
+    public void AbaQuePassaPeloDenteAbaixoDoRecorte()
+    {
+        var vao = new SecaoPoligonal { Contorno = { (0, 0), (19, 0), (19, 22), (39, 28), (39, 40), (19, 40), (19, 55), (0, 55) } };
+        var dente = new SecaoPoligonal { Contorno = { (0, 25), (19, 25), (19, 22), (39, 28), (39, 40), (19, 40), (19, 55), (0, 55) } };
+        var id = SecaoComAba.Ler(dente);
+        Assert.NotNull(id);
+        Assert.Equal((19.0, 30.0, 25.0, -3.0, 18.0, 12.0), (id.B, id.H, id.Z0, id.AbaBase, id.AbaAltura, id.AbaAlturaPonta));
+        Assert.Equal(SecaoComAba.Ler(vao).Chave, id.Chave);
+        var p = new PecaLevantada
+        {
+            Id = "1", Marca = "VE1", Tipo = TipoPeca.Viga, PreMoldada = true, Comprimento = 494,
+            Trechos = { T(0, 25, dente), T(25, 469, vao), T(469, 494, dente) },
+        };
+        ConferenciaPecas.Avaliar(p);
+        Assert.NotEqual(SituacaoPeca.NaoSuportada, p.Situacao);
+        var v = Assert.Single(ConversorLevantamento.Converter(new[] { p }, "m.rvt", "").Vigas);
+        Assert.Equal((55.0, 30.0, 22.0, 18.0, 12.0, 0.0, 494.0), (v.H, v.DenteE.Altura, v.Aba.Base, v.Aba.Altura, v.Aba.AlturaPonta, v.Aba.Inicio, v.Aba.Fim));
+        // o template desenha a seção do dente com a aba pendurada e avisa
+        var t = new DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
+        var cat = DEB.Core.Templates.VigaPreMoldada.TipoDente.Padrao();
+        cat.AddRange(CatalogoAutomatico.Dentes(new[] { v }, cat));
+        var antes = DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes;
+        try
+        {
+            DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = cat;
+            var r = t.Gerar(ConversorVigaPeca.Valores(v, new DEB.Core.Templates.ValoresTemplate(t.Parametros), cat, new List<string>()), new DEB.Core.Configuracao.ConfiguracaoArmadura());
+            Assert.Contains(r.Avisos, a => a.Contains("pendurada abaixo do dente"));
+            // seções de forma: o vão (8 vértices) e os dois dentes com a aba (8 cada: o canto de baixo da alma e a aba descendo dele)
+            Assert.Equal(3, r.Contornos.Count(k => k.Layer == "ARM-PILAR-SECAO" && k.Fechado && k.Vertices.Count == 8));
+        }
+        finally { DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = antes; }
+    }
+
     [Fact]
     public void AbaDoModeloViraParametrosDoTemplate()
     {
