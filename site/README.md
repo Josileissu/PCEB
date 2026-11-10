@@ -41,7 +41,16 @@ um servidor local que respeite `404.html`.
 
 ## Publicar
 
-### Cloudflare Pages (recomendado)
+### No ar hoje: GitHub Pages pelo workflow
+
+`.github/workflows/site.yml` publica esta pasta em https://josileissu.github.io/PCEB/ a cada envio para a `main`
+que mexa em `site/**` (ou manualmente em Actions → "Publicar site"). Os endereços canônicos, o sitemap e o
+`_validate.py` usam esse endereço; com um domínio próprio, troque-o nos três e crie `site/CNAME`.
+
+O botão "Baixar instalador" (`baixar.html`) e os textos `data-release` são preenchidos por `assets/js/main.js`
+com a Release mais recente (API do GitHub). Sem a API, o botão abre `releases/latest`.
+
+### Cloudflare Pages (alternativa)
 
 1. Conecte o repositório `Josileissu/PCEB` (ou envie esta pasta).
 2. Build command: **vazio**.
