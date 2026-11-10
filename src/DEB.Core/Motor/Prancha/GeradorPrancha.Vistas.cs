@@ -98,6 +98,18 @@ public sealed partial class GeradorPrancha
             s.A = cheios.Min(q => q.S0); s.B = cheios.Max(q => q.S1);
             s.ZBase = cheios.Min(q => q.Z0); s.ZTopo = cheios.Max(q => q.Z1);
         }
+        // silhueta do corpo principal atrás do plano (corte = o cortado + o que se vê além): quando a planta é mais larga
+        // que a seção (bloco triangular, cortes fora do centro), as armaduras de trás ficam dentro dela (pedido de 2026-11-08)
+        if (c.Principal != null && c.Principal.Planta != null && c.Principal.Planta.Count >= 3 && cheios.Count > 0)
+        {
+            double sa = c.Principal.Planta.Min(p => k.S2(p)), sb = c.Principal.Planta.Max(p => k.S2(p));
+            double z0 = Math.Min(c.Principal.Z0, c.Principal.Z1), z1 = Math.Max(c.Principal.Z0, c.Principal.Z1);
+            if (sa < s.A - 0.5 || sb > s.B + 0.5)
+            {
+                Polilinha(r, "ARM-FORMA-VISTA", true, new List<(double X, double Y)> { (sa, z0), (sb, z0), (sb, z1), (sa, z1) });
+                s.A = Math.Min(s.A, sa); s.B = Math.Max(s.B, sb);
+            }
+        }
         var main = c.Principal != null ? IntervalosCorpo(c.Principal, k) : new List<(double A, double B)>();
         s.MainA = main.Count > 0 ? main.Min(q => q.A) : s.A; s.MainB = main.Count > 0 ? main.Max(q => q.B) : s.B;
 
@@ -157,16 +169,27 @@ public sealed partial class GeradorPrancha
                 }
             }
 
-        // estacas: 4 linhas e a quebra embaixo
+        // estacas (pedido do usuário, 2026-11-08): TODAS as da projeção do corte (as cortadas e as que aparecem atrás), cada
+        // uma como um toco curto — só as duas laterais e a quebra ondulada embaixo. As cortadas começam no topo da estaca
+        // (dentro do bloco); as de trás, na face de baixo do bloco (acima dela ficam escondidas pelo concreto).
         double zMin = Math.Min(s.ZBase, s.Lastros.Count > 0 ? s.Lastros.Min(q => q.Z0) : s.ZBase);
-        double dMax = cortadas.Count > 0 ? cortadas.Max(x => 2 * x.R) : 0;
-        s.ZFundo = zMin - (cortadas.Count > 0 ? Math.Max(25, 1.2 * dMax) : 0);
-        foreach (var (cp, sc, R) in cortadas)
+        var naVista = estacas.Select(cp =>
+            {
+                var b = CaixaPlanta(cp);
+                double sc = k.EmX ? (b.X0 + b.X1) / 2 : (b.Y0 + b.Y1) / 2;
+                double R = Circular(cp) ? cp.Raio : (k.EmX ? b.Largura : b.Altura) / 2;
+                return (Cp: cp, S: sc, R, Cortada: cortadas.Any(x => x.Cp == cp));
+            })
+            .GroupBy(x => Math.Round(x.S, 1)).Select(g => g.OrderByDescending(x => x.Cortada).First()).ToList();
+        double dMax = naVista.Count > 0 ? naVista.Max(x => 2 * x.R) : 0;
+        s.ZFundo = zMin - (naVista.Count > 0 ? Math.Max(20, 0.8 * dMax) : 0);
+        foreach (var (cp, sc, R, cortada) in naVista)
         {
-            double zTop = Math.Max(cp.Z0, cp.Z1), zBot = Math.Max(Math.Min(cp.Z0, cp.Z1), s.ZFundo);
-            foreach (double d in new[] { -R, -R / 2, R / 2, R }) Linha(r, "ARM-ESTACA", (sc + d, zTop), (sc + d, zBot));
-            if (Math.Min(cp.Z0, cp.Z1) < s.ZFundo - 1e-6)
-                r.Contornos.Add(new ContornoTemplate { Layer = "ARM-ESTACA", Vertices = { (sc - R, zBot), (sc, zBot), (sc + R, zBot) }, Bulges = { 0.5, -0.5, 0 } });
+            double zTop = cortada ? Math.Max(cp.Z0, cp.Z1) : zMin, zBot = s.ZFundo;
+            Linha(r, "ARM-ESTACA", (sc - R, zTop), (sc - R, zBot));
+            Linha(r, "ARM-ESTACA", (sc + R, zTop), (sc + R, zBot));
+            // quebra: dois meios arcos em sentidos opostos (símbolo de interrupção de peça cilíndrica)
+            r.Contornos.Add(new ContornoTemplate { Layer = "ARM-ESTACA", Vertices = { (sc - R, zBot), (sc, zBot), (sc + R, zBot) }, Bulges = { 0.25, -0.25, 0 } });
         }
         return s;
     }
@@ -344,7 +367,7 @@ public sealed partial class GeradorPrancha
     {
         double ht = c.ht;
         var infos = c.Pos.Where(i => Filtra(v, i.P)).ToList();
-        if (infos.Count == 0) { c.Aviso($"Prancha: vista \"{v.Id}\" sem posições para mostrar."); return null; }
+        if (infos.Count == 0) return null;   // normal nas variantes (sem cálice, sem principal…): a vista não entra
         var r = new ResultadoTemplate();
         var pts3 = infos.SelectMany(i => i.Inst).SelectMany(x => x).ToList();
         double zMin = pts3.Min(p => p.Z), zMax = pts3.Max(p => p.Z);
@@ -430,12 +453,28 @@ public sealed partial class GeradorPrancha
         }
     }
 
+    /// <summary>
+    /// Chamadas da planta (2026-11-08, pedido do usuário: não atravessar a vista): cada texto vai para o lado (esquerdo ou
+    /// direito) mais perto das barras que indica, na altura delas, sem sobrepor os outros do mesmo lado.
+    /// </summary>
     private static void ColocarIndicacoesDireita(Ctx c, ResultadoTemplate r, List<(Info I, List<(double X, double Y)> Refs)> pend)
     {
         if (pend.Count == 0) return;
         var lim = Geo.Limites(r, c.ht);
-        double x = lim.X1 + 4 * c.ht, y = lim.Y1 - 2 * c.ht;
-        foreach (var (i, refs) in pend) { Indicacao(c, r, i, (x, y), refs.Select(q => (q.X, q.Y))); y -= 3 * c.ht; }
+        double xm = (lim.X0 + lim.X1) / 2, gap = 2.5 * c.ht;
+        foreach (bool esquerda in new[] { true, false })
+        {
+            var lado = pend.Where(q => (q.Refs.Average(p => p.X) < xm) == esquerda).OrderByDescending(q => q.Refs.Average(p => p.Y)).ToList();
+            double x = esquerda ? lim.X0 - 6 * c.ht : lim.X1 + 4 * c.ht, yAnt = double.PositiveInfinity;
+            foreach (var (i, refs) in lado)
+            {
+                // a referência mais perto da borda daquele lado
+                var rs = (esquerda ? refs.OrderBy(q => q.X) : refs.OrderByDescending(q => q.X)).Take(3).ToList();
+                double y = Math.Min(rs.Average(q => q.Y), yAnt - gap);
+                Indicacao(c, r, i, (x, y), rs.Select(q => (q.X, q.Y)));
+                yAnt = y;
+            }
+        }
     }
 
     /// <summary>Formas dobradas das posições desta vista, uma embaixo da outra, abaixo do conteúdo.</summary>
@@ -531,11 +570,19 @@ public sealed partial class GeradorPrancha
         var lim = Geo.Limites(r, ht);
         double a0 = s?.A ?? lim.X0, b0 = s != null ? Math.Max(s.B, s.MainB) : lim.X1;
         double zMeio = s != null ? (s.ZBase + s.ZTopo) / 2 : (lim.Y0 + lim.Y1) / 2, zTopo = s?.ZTopo ?? lim.Y1;
-        int kInf = 0, kSup = 0;
-        foreach (var (i, refs, z) in esq.OrderBy(q => q.Z))
+        // em leque (2026-11-08): em cada grupo (de cima / de baixo), o texto mais perto da linha de barras indica a barra mais
+        // perto da borda esquerda — as linhas de chamada não se cruzam
+        foreach (bool emCima in new[] { true, false })
         {
-            double ty = z > zMeio ? z + (1.5 + 1.8 * kSup++) * ht : z - (1.5 + 1.8 * kInf++) * ht;
-            Indicacao(c, r, i, (a0 - 5 * ht, ty), refs.Select(q => (q.X, q.Y)));
+            var grupo = esq.Where(q => (q.Z > zMeio) == emCima).OrderBy(q => q.Refs.Min(p => p.X)).ToList();
+            if (grupo.Count == 0) continue;
+            double zRef = emCima ? grupo.Max(q => q.Z) : grupo.Min(q => q.Z);
+            int kk = 0;
+            foreach (var (i, refs, _) in grupo)
+            {
+                double ty = emCima ? zRef + (1.5 + 1.8 * kk++) * ht : zRef - (1.5 + 1.8 * kk++) * ht;
+                Indicacao(c, r, i, (a0 - 5 * ht, ty), refs.Select(q => (q.X, q.Y)));
+            }
         }
         double yd = double.PositiveInfinity;
         foreach (var (i, refs) in dir.OrderByDescending(q => q.Refs[0].Y))
@@ -554,7 +601,7 @@ public sealed partial class GeradorPrancha
     private ResultadoTemplate VistaBarras(Ctx c, VistaPerfil v)
     {
         var infos = c.Pos.Where(i => i.Casa == v.Id && i.Dobrada).ToList();
-        if (infos.Count == 0) { c.Aviso($"Prancha: vista \"{v.Id}\" (barras) sem posições para mostrar."); return null; }
+        if (infos.Count == 0) return null;
         var r = new ResultadoTemplate();
         double x = 0;
         foreach (var i in infos)
