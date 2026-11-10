@@ -238,6 +238,13 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 
         // título do pilar
         c.Texto(nome, 0, L + 22 * hv, 3 * hv);
+        // consolo criado pela importação do Revit com a armadura padrão: aviso em vermelho acima do título até o usuário conferir
+        {
+            double ya = L + 27 * hv;
+            var pendentes = v.Tabela("Consolos").Select(l => ValoresTemplate.Celula(l, 0)).Distinct()
+                .Where(n => Catalogo.Any(t => t.Nome == n && MarcaConferir.Pendente(t.Descricao)));
+            foreach (string t in MarcaConferir.Linhas(pendentes, c.Linhas).Reverse()) { c.Texto(t, 0, ya, 0.9 * hv, layer: MarcaConferir.Layer); ya += 1.6 * hv; }
+        }
         // nota dos insertos no alto, sublinhada, entre os títulos das vistas e o topo (como no P56)
         {
             double yNota = L + 7.5 * hv, hNota = 0.95 * hv;

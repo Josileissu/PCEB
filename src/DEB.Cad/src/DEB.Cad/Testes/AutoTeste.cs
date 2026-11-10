@@ -2599,8 +2599,30 @@ public sealed class AutoTeste
         // a importação acrescenta aos catálogos do usuário o que falta: o teste devolve os catálogos como estavam (nada é gravado)
         var dentesAntes = Plugin.Config.Dentes.ToList();
         var consolosAntes = Plugin.Config.Consolos.ToList();
-        ComandosPecas.Relatorio rel;
-        try { rel = ComandosPecas.Importar(db, cfg, arq, origem); }
+        ComandosPecas.Relatorio rel, rel2 = null, rel3 = null;
+        int blocosDepois1 = 0, blocosDepois2 = 0, blocosDepois3 = 0;
+        string mudada = null;
+        int Blocos() { using var t0 = db.TransactionManager.StartTransaction(); int n = ServicoDetalhamento.Todos(db, t0).Count; t0.Commit(); return n; }
+        try
+        {
+            rel = ComandosPecas.Importar(db, cfg, arq, origem);
+            blocosDepois1 = Blocos();
+            // reimportação (2026-11-10): de novo sem mudar nada = nada é redesenhado
+            rel2 = ComandosPecas.Importar(db, cfg, arq, new Point3d(origem.X, origem.Y - 30000, 0));
+            blocosDepois2 = Blocos();
+            // uma viga muda no modelo (10 cm mais comprida) e o usuário manda substituir: o mesmo nome, no mesmo lugar
+            var vm = arq.Vigas.LastOrDefault(v => rel.Grupos.Any(g => g.Marca == v.Marca && g.Detalhamento != null));
+            if (vm != null)
+            {
+                mudada = vm.Marca;
+                vm.L += 10;
+                if (vm.Aba != null && vm.Aba.Fim > vm.L - 11) vm.Aba.Fim += 10;
+                rel3 = ComandosPecas.Importar(db, cfg, arq, new Point3d(origem.X, origem.Y - 60000, 0), m => true);
+                blocosDepois3 = Blocos();
+                vm.L -= 10;
+                if (vm.Aba != null && vm.Aba.Fim > vm.L + 9) vm.Aba.Fim -= 10;
+            }
+        }
         finally
         {
             Plugin.Config.Dentes = dentesAntes;
@@ -2626,6 +2648,28 @@ public sealed class AutoTeste
                     $"peças: {nome} com {det?.Repeticoes} repetição(ões) = peças do grupo ({quantidades[i].Quantidade})");
             }
             tr.Commit();
+        }
+        int gerados = rel.Grupos.Count(g => g.Detalhamento != null);
+        Checar(rel2 != null && rel2.Mantidos.Count == gerados && blocosDepois2 == blocosDepois1,
+            $"peças: importar de novo sem mudança não redesenha nada ({rel2?.Mantidos.Count} de {gerados} mantidos; {blocosDepois1} → {blocosDepois2} detalhamentos)");
+        if (mudada != null)
+        {
+            Checar(rel3 != null && rel3.Substituidos.Count == 1 && rel3.Substituidos[0] == mudada && rel3.Mantidos.Count == gerados - 1 && blocosDepois3 == blocosDepois1,
+                $"peças: {mudada} mudou no modelo e foi substituída no lugar, as outras ficaram ({rel3?.Mantidos.Count} mantidas; {blocosDepois3} detalhamentos)");
+            using var tr3 = db.TransactionManager.StartTransaction();
+            var bt3 = (BlockTable)tr3.GetObject(db.BlockTableId, OpenMode.ForRead);
+            string nb = ComandosTemplate.NomeDeBloco(mudada);
+            Checar(bt3.Has(nb) && !bt3.Has(nb + " (2)"), $"peças: {mudada} continua com o mesmo nome, sem \"(2)\"");
+            if (bt3.Has(nb))
+            {
+                var b3 = (BlockTableRecord)tr3.GetObject(bt3[nb], OpenMode.ForRead);
+                Checar(ServicoDetalhamento.Insercoes(tr3, b3) == 1, $"peças: {mudada} com uma inserção só depois de substituir");
+                var reg0 = rel.Grupos.First(g => g.Marca == mudada).Regiao;
+                var reg3 = rel3.Grupos.First(g => g.Marca == mudada).Regiao;
+                Checar(reg0.HasValue && reg3.HasValue && Math.Abs(reg0.Value.MinPoint.X - reg3.Value.MinPoint.X) < 60 && Math.Abs(reg0.Value.MaxPoint.Y - reg3.Value.MaxPoint.Y) < 60,
+                    $"peças: {mudada} nova no lugar da antiga (canto superior esquerdo a menos de 60 cm)");
+            }
+            tr3.Commit();
         }
         bool LadoALado(IEnumerable<Extents3d> r) { var l = r.ToList(); return l.Zip(l.Skip(1), (a, b) => a.MaxPoint.X < b.MinPoint.X).All(x => x); }
         var regPil = rel.Grupos.Take(nPilares).Where(g => g.Regiao.HasValue).Select(g => g.Regiao.Value).ToList();
