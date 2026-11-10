@@ -139,7 +139,7 @@ public sealed class CaliceArmaduras : ComponenteBase
             p.Parametros["largura"] = w; p.Regras["largura"] = "colarinho − 2·cobrimento";
             p.Parametros["altura"] = h; p.Regras["altura"] = "colarinho − 2·cobrimento";
             BarrasUtil.Estribo(ctx, p, anel, phi, zs.Select(BarrasUtil.Horizontal));
-            p.Distribuicao = new Distribuicao { Inicio = new P3(acx, acy, zs[0]), Fim = new P3(acx, acy, zs[zs.Count - 1]), Quantidade = zs.Count, Espacamento = esp };
+            p.Distribuicao = new Distribuicao { Inicio = new P3(acx, acy, zs[0]), Fim = new P3(acx, acy, zs[zs.Count - 1]), Quantidade = zs.Count, Espacamento = ContextoMotor.EspacamentoReal(zs, esp) };
             ctx.Adicionar(p);
             if (!gr) continue;
             foreach (bool emX in new[] { true, false })
@@ -166,7 +166,7 @@ public sealed class CaliceArmaduras : ComponenteBase
                 var ref0 = emX ? new P3(acx, y0, 0) : new P3(x0, acy, 0);
                 g.Distribuicao = new Distribuicao
                 {
-                    Inicio = new P3(ref0.X, ref0.Y, zs[0]), Fim = new P3(ref0.X, ref0.Y, zs[zs.Count - 1]), Quantidade = zs.Count, Espacamento = esp, Repeticoes = 2,
+                    Inicio = new P3(ref0.X, ref0.Y, zs[0]), Fim = new P3(ref0.X, ref0.Y, zs[zs.Count - 1]), Quantidade = zs.Count, Espacamento = ContextoMotor.EspacamentoReal(zs, esp), Repeticoes = 2,
                 };
                 ctx.Adicionar(g);
             }
@@ -213,7 +213,7 @@ public sealed class CaliceArmaduras : ComponenteBase
                 double espV = wF / (nV + 1);
                 p.Distribuicao = new Distribuicao
                 {
-                    Inicio = BarrasUtil.Centro(p.Barras[0]), Fim = BarrasUtil.Centro(p.Barras[nV - 1]), Quantidade = nV, Espacamento = espV, Repeticoes = 4,
+                    Inicio = BarrasUtil.Centro(p.Barras[0]), Fim = BarrasUtil.Centro(p.Barras[nV - 1]), Quantidade = nV, Espacamento = ContextoMotor.Rotulo(espV), Repeticoes = 4,
                 };
                 p.Parametros["espacamento"] = espV; p.Regras["espacamento"] = "parede dividida em quantidade + 1";
                 ctx.Adicionar(p);
@@ -248,7 +248,7 @@ public sealed class CaliceArmaduras : ComponenteBase
                 for (int i = 0; i < 7; i++) p.Formatos.Add(FormatoSegmento.Linha);
                 p.Distribuicao = new Distribuicao
                 {
-                    Inicio = new P3((xi0 + xi1) / 2, p.Barras[0][0].Y, zb), Fim = new P3((xi0 + xi1) / 2, p.Barras[nS - 1][0].Y, zb), Quantidade = nS, Espacamento = espS,
+                    Inicio = new P3((xi0 + xi1) / 2, p.Barras[0][0].Y, zb), Fim = new P3((xi0 + xi1) / 2, p.Barras[nS - 1][0].Y, zb), Quantidade = nS, Espacamento = ContextoMotor.Rotulo(espS),
                 };
                 if (ho > hi) ctx.Aviso("suspensao: perna externa maior que a interna — conferir.");
                 ctx.Adicionar(p);
@@ -277,7 +277,7 @@ public sealed class CaliceArmaduras : ComponenteBase
                 p.Formatos.Add(FormatoSegmento.Linha);
                 p.Distribuicao = new Distribuicao
                 {
-                    Inicio = new P3(Px, p.Barras[0][0].Y, z), Fim = new P3(Px, p.Barras[nF - 1][0].Y, z), Quantidade = nF, Espacamento = espF,
+                    Inicio = new P3(Px, p.Barras[0][0].Y, z), Fim = new P3(Px, p.Barras[nF - 1][0].Y, z), Quantidade = nF, Espacamento = ContextoMotor.Rotulo(espF),
                 };
                 ctx.Adicionar(p);
             }

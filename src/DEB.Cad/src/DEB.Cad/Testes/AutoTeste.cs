@@ -2375,6 +2375,16 @@ public sealed class AutoTeste
             var xs = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.X)).Concat(r.Textos.Select(q => q.X)).ToList();
             var ys = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.Y)).Concat(r.Textos.Select(q => q.Y)).ToList();
             janelas.Add((nome, origem.X + xs.Min() - 50, origem.Y + ys.Min() - 50, origem.X + xs.Max() + 450, origem.Y + ys.Max() + 50));
+            // imagens de perto: cortes de armadura (os 2 últimos títulos "CORTE") e a planta do cálice (título "CÁLICE")
+            var tCortes = r.Textos.Where(q => q.Texto.StartsWith("CORTE")).ToList();
+            if (tCortes.Count >= 2)
+            {
+                var ab = tCortes.Skip(tCortes.Count - 2).ToList();
+                double tx0 = ab.Min(q => q.X), tx1 = ab.Max(q => q.X), ty = ab.Max(q => q.Y);
+                janelas.Add((nome + " cortes", origem.X + tx0 - 60, origem.Y + ty - 260, origem.X + tx1 + 320, origem.Y + ty + 20));
+            }
+            var tCal = r.Textos.FirstOrDefault(q => q.Texto.StartsWith("CÁLICE"));
+            if (tCal != null) janelas.Add((nome + " calice", origem.X + tCal.X - 30, origem.Y + tCal.Y - 200, origem.X + tCal.X + 330, origem.Y + tCal.Y + 20));
             using (var tr = db.TransactionManager.StartTransaction())
             {
                 var ids = ComandosTemplate.Desenhar(tr, db, cfg, r, origem);
