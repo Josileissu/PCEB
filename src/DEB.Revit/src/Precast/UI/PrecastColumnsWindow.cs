@@ -235,9 +235,19 @@ namespace DEB.Revit.Precast.UI
             Num("Tirante: perna de ancoragem no pilar (mm)", () => s.TieInnerLegMm, v => s.TieInnerLegMm = v);
             Dia("Costura: bitola", () => s.SewDiameterMm, v => s.SewDiameterMm = v);
             Int("Costura: nº de estribos horizontais", () => s.SewCount, v => s.SewCount = Math.Max(0, v));
+            Bool("Tirante com barra de ancoragem soldada na ponta", () => s.TieWeldedBar, v => s.TieWeldedBar = v);
+            Dia("Estribos verticais: bitola", () => s.CorbelStirrupDiameterMm, v => s.CorbelStirrupDiameterMm = v);
+            Int("Estribos verticais: quantidade (0 = sem)", () => s.CorbelStirrupCount, v => s.CorbelStirrupCount = Math.Max(0, v));
+            Dia("Armadura inferior: bitola", () => s.CorbelBottomDiameterMm, v => s.CorbelBottomDiameterMm = v);
+            Int("Armadura inferior: nº de barras (0 = sem)", () => s.CorbelBottomCount, v => s.CorbelBottomCount = Math.Max(0, v));
+            Dia("Pinos: bitola", () => s.CorbelPinDiameterMm, v => s.CorbelPinDiameterMm = v);
+            Int("Pinos: quantidade (0 = sem)", () => s.CorbelPinCount, v => s.CorbelPinCount = Math.Max(0, v));
+            Num("Pinos: comprimento acima do consolo (mm)", () => s.CorbelPinAboveMm, v => s.CorbelPinAboveMm = v);
+            Num("Pinos: comprimento embutido (mm)", () => s.CorbelPinEmbedMm, v => s.CorbelPinEmbedMm = v);
+            Num("Pinos: pé (mm)", () => s.CorbelPinFootMm, v => s.CorbelPinFootMm = v);
 
             Section("Içamento / insertos");
-            Int("Alças de içamento (0, 1 ou 2)", () => s.LiftLoops, v => s.LiftLoops = Math.Max(0, Math.Min(2, v)));
+            Int("Alças por ponto de içamento (0, 1 ou 2; pontos a 20% das pontas)", () => s.LiftLoops, v => s.LiftLoops = Math.Max(0, Math.Min(2, v)));
             Dia("Alça: bitola", () => s.LiftDiameterMm, v => s.LiftDiameterMm = v);
             Num("Alça: comprimento embutido (mm)", () => s.LiftEmbedMm, v => s.LiftEmbedMm = v);
             Num("Alça: saliência acima do topo (mm)", () => s.LiftProtrusionMm, v => s.LiftProtrusionMm = v);

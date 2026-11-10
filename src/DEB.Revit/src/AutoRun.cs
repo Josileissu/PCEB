@@ -30,20 +30,38 @@ namespace DEB.Revit
             if (string.IsNullOrWhiteSpace(_task)) return;
             _exit = Environment.GetEnvironmentVariable("SD_AUTOEXIT") == "1";
             app.Idling += OnIdling;
+            // instância de teste: janelas do Revit (avisos de atualização ao abrir arquivos antigos...) não podem parar o teste
+            app.DialogBoxShowing += (s, e) =>
+            {
+                Dialogs.Add(e.DialogId);
+                if (e is TaskDialogShowingEventArgs) e.OverrideResult((int)TaskDialogResult.Close);
+                else e.OverrideResult(1);   // IDOK
+            };
         }
+
+        /// <summary>Janelas do Revit fechadas sozinhas durante o AutoRun (vão para o resultado).</summary>
+        internal static readonly List<string> Dialogs = new List<string>();
 
         private static void OnIdling(object sender, IdlingEventArgs e)
         {
             var uiapp = (UIApplication)sender;
+            string task = _task.Trim().ToLowerInvariant();
+            bool semProjeto = task == "familias" || task == "criarmodelo" || task == "contarlegendas" || task == "exportar";   // tarefas que não precisam de projeto aberto
             UIDocument uidoc = uiapp.ActiveUIDocument;
-            if (uidoc == null || uidoc.Document.IsFamilyDocument) return;   // ainda abrindo o projeto
+            if (!semProjeto && (uidoc == null || uidoc.Document.IsFamilyDocument)) return;   // ainda abrindo o projeto
 
             uiapp.Idling -= OnIdling;
             string status;
             try
             {
-                switch (_task.Trim().ToLowerInvariant())
+                switch (task)
                 {
+                    case "familias":
+                        status = "OK " + TestModel.InspectFamilies(uiapp.Application);
+                        break;
+                    case "criarmodelo":
+                        status = "OK " + TestModel.BuildPrecastModel(uiapp.Application);
+                        break;
                     case "diag":
                         status = "OK " + ModelDiagnostics.Run(uidoc.Document);
                         break;
@@ -61,6 +79,12 @@ namespace DEB.Revit
                         break;
                     case "exportarpecas":
                         status = "OK " + ExportPiecesAutoTest(uidoc.Document);
+                        break;
+                    case "exportar":
+                        status = "OK " + ExportFile(uiapp.Application);
+                        break;
+                    case "contarlegendas":
+                        status = "OK " + CountLegends(uiapp.Application);
                         break;
                     case "ferramentas":
                         status = "OK " + Tools.ToolsAutoTest.Run(uiapp, uidoc);
@@ -196,13 +220,134 @@ namespace DEB.Revit
         }
 
         /// <summary>
+        /// SD_AUTORUN = exportar: abre SD_ARQUIVO (uma CÓPIA de um projeto de referência; nunca é salvo) e grava PNG de todas as
+        /// folhas + um inventário (folhas e suas vistas, legendas, tabelas, barras, detalhes de dobra) em logs\exportar_*.
+        /// </summary>
+        private static string ExportFile(Autodesk.Revit.ApplicationServices.Application app)
+        {
+            string file = Environment.GetEnvironmentVariable("SD_ARQUIVO")?.Trim();
+            string dir = Path.Combine(DetailingReport.LogDir, "exportar_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            Document d = Presentation.LegendFactory.OpenQuietly(app, file);
+            var sb = new StringBuilder();
+            sb.AppendLine(file);
+            List<ViewSheet> sheets = new FilteredElementCollector(d).OfClass(typeof(ViewSheet)).Cast<ViewSheet>()
+                .Where(s => !s.IsPlaceholder).OrderBy(s => s.SheetNumber).ToList();
+            foreach (ViewSheet s in sheets)
+            {
+                sb.AppendLine($"FOLHA {s.SheetNumber} - {s.Name}" + (s.AssociatedAssemblyInstanceId != ElementId.InvalidElementId ? " (montagem)" : ""));
+                foreach (ElementId vid in s.GetAllPlacedViews())
+                {
+                    View v = d.GetElement(vid) as View;
+                    if (v == null) continue;
+                    int bend = new FilteredElementCollector(d, v.Id).OfCategory(BuiltInCategory.OST_RebarBendingDetails).GetElementCount();
+                    int tags = new FilteredElementCollector(d, v.Id).OfCategory(BuiltInCategory.OST_RebarTags).GetElementCount();
+                    int dims = new FilteredElementCollector(d, v.Id).OfClass(typeof(Dimension)).GetElementCount();
+                    int texts = new FilteredElementCollector(d, v.Id).OfClass(typeof(TextNote)).GetElementCount();
+                    int lines = new FilteredElementCollector(d, v.Id).OfClass(typeof(CurveElement)).GetElementCount();
+                    sb.AppendLine($"   {v.ViewType} \"{v.Name}\" 1:{v.Scale} | dobra {bend} | etiquetas {tags} | cotas {dims} | textos {texts} | linhas {lines}");
+                    // cada etiqueta de vergalhão: tipo, texto, orientação, chamada e posição (mm de papel, a partir do canto
+                    // inferior esquerdo do recorte) — para repetir no plugin o que o usuário ajustou à mão
+                    BoundingBoxXYZ cb = v.CropBoxActive ? v.CropBox : null;
+                    XYZ o = cb?.Transform.OfPoint(cb.Min);
+                    string Pos(XYZ q) => o == null || q == null ? "?" :
+                        $"({UnitUtils.ConvertFromInternalUnits((q - o).DotProduct(v.RightDirection), UnitTypeId.Millimeters) / v.Scale:0.0}; " +
+                        $"{UnitUtils.ConvertFromInternalUnits((q - o).DotProduct(v.UpDirection), UnitTypeId.Millimeters) / v.Scale:0.0})";
+                    foreach (IndependentTag tg in new FilteredElementCollector(d, v.Id).OfClass(typeof(IndependentTag)).Cast<IndependentTag>()
+                                 .Where(x => x.Category?.Id.Value == (long)BuiltInCategory.OST_RebarTags))
+                    {
+                        Element host = tg.GetTaggedLocalElements().FirstOrDefault();
+                        string role = host?.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.AsString() ?? "";
+                        BoundingBoxXYZ hb = host?.get_BoundingBox(v);
+                        string leader = tg.HasLeader ? $" chamada {tg.LeaderEndCondition}" : "";
+                        sb.AppendLine($"      etiqueta {d.GetElement(tg.GetTypeId())?.Name} \"{tg.TagText}\" {tg.TagOrientation}{leader} cabeça {Pos(tg.TagHeadPosition)}" +
+                                      $" | barra [{role}] {(hb == null ? "" : Pos((hb.Min + hb.Max) / 2))}");
+                    }
+                }
+                foreach (ScheduleSheetInstance si in new FilteredElementCollector(d, s.Id).OfClass(typeof(ScheduleSheetInstance)).Cast<ScheduleSheetInstance>())
+                    sb.AppendLine($"   tabela \"{si.Name}\"");
+            }
+            sb.AppendLine($"barras: {new FilteredElementCollector(d).OfClass(typeof(Autodesk.Revit.DB.Structure.Rebar)).GetElementCount()}");
+            // parâmetros dos vergalhões (os do escritório, como QTD, aparecem aqui)
+            foreach (Autodesk.Revit.DB.Structure.Rebar rb in new FilteredElementCollector(d).OfClass(typeof(Autodesk.Revit.DB.Structure.Rebar))
+                         .Cast<Autodesk.Revit.DB.Structure.Rebar>().Take(3))
+            {
+                sb.AppendLine($"vergalhão {rb.Id.Value}:");
+                foreach (Parameter prm in rb.Parameters.Cast<Parameter>().OrderBy(x => x.Definition.Name))
+                    sb.AppendLine($"   {prm.Definition.Name}{(prm.IsShared ? " [compartilhado]" : prm.Id.Value > 0 ? " [projeto]" : "")} = {prm.AsValueString() ?? prm.AsString()}");
+            }
+            foreach (IndependentTag tg in new FilteredElementCollector(d).OfClass(typeof(IndependentTag)).Cast<IndependentTag>()
+                         .Where(x => x.Category?.Id.Value == (long)BuiltInCategory.OST_RebarTags).Take(400)
+                         .GroupBy(x => x.GetTypeId()).Select(gr => gr.First()))
+                sb.AppendLine($"etiqueta usada: {(d.GetElement(tg.GetTypeId()) as FamilySymbol)?.FamilyName} : {d.GetElement(tg.GetTypeId())?.Name} → \"{tg.TagText}\"");
+            sb.AppendLine($"detalhes de dobra: {new FilteredElementCollector(d).OfCategory(BuiltInCategory.OST_RebarBendingDetails).WhereElementIsNotElementType().GetElementCount()}");
+            sb.AppendLine("legendas: " + string.Join(" | ", new FilteredElementCollector(d).OfClass(typeof(View)).Cast<View>()
+                .Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate).Select(v => v.Name)));
+            if (sheets.Count > 0)
+            {
+                var ieo = new ImageExportOptions
+                {
+                    ExportRange = ExportRange.SetOfViews,
+                    FilePath = Path.Combine(dir, "folha"),
+                    FitDirection = FitDirectionType.Horizontal,
+                    HLRandWFViewsFileType = ImageFileType.PNG,
+                    ShadowViewsFileType = ImageFileType.PNG,
+                    ImageResolution = ImageResolution.DPI_150,
+                    PixelSize = 3000,
+                    ZoomType = ZoomFitType.FitToPage
+                };
+                ieo.SetViewsAndSheets(sheets.Select(s => s.Id).ToList());
+                d.ExportImage(ieo);
+            }
+            string log = Path.Combine(dir, "inventario.txt");
+            File.WriteAllText(log, sb.ToString(), Encoding.UTF8);
+            d.Close(false);
+            return log;
+        }
+
+        /// <summary>SD_AUTORUN = contarlegendas: legendas de cada arquivo de SD_FAMILIAS (.rte/.rvt separados por ";"),
+        /// para escolher o ArquivoLegendaBase do padrão.</summary>
+        private static string CountLegends(Autodesk.Revit.ApplicationServices.Application app)
+        {
+            var sb = new StringBuilder();
+            foreach (string f in (Environment.GetEnvironmentVariable("SD_FAMILIAS") ?? "").Split(';').Where(x => x.Trim() != ""))
+            {
+                try
+                {
+                    Document d = Presentation.LegendFactory.OpenQuietly(app, f.Trim());
+                    List<string> names = new FilteredElementCollector(d).OfClass(typeof(View)).Cast<View>()
+                        .Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate).Select(v => v.Name).ToList();
+                    sb.AppendLine($"{f}: {names.Count} legenda(s) {string.Join(" | ", names)}");
+                    d.Close(false);
+                }
+                catch (Exception ex) { sb.AppendLine($"{f}: ERRO {ex.Message}"); }
+            }
+            if (Dialogs.Count > 0) sb.AppendLine("janelas fechadas: " + string.Join(", ", Dialogs));
+            string log = Path.Combine(DetailingReport.LogDir, "legendas.txt");
+            File.WriteAllText(log, sb.ToString(), Encoding.UTF8);
+            return log;
+        }
+
+        /// <summary>
         /// Fluxo completo de pilares pré-moldados com a armadura padrão, sem janela.
         /// SD_SAVEAS = caminho de uma CÓPIA do modelo para gravar o resultado (o original nunca é salvo).
         /// Exporta as folhas e vistas 3D geradas como PNG para conferência visual.
+        /// SD_VARIAR = 1: pilares "50x50" ficam 1,50 m mais altos (comprimentos diferentes) e cada grupo recebe outra
+        /// armadura (bitolas e quantidades diferentes), para testar pranchas com barras e comprimentos variados.
         /// </summary>
         private static string PrecastAutoTest(UIDocument uidoc)
         {
             Document doc = uidoc.Document;
+            bool vary = Environment.GetEnvironmentVariable("SD_VARIAR") == "1";
+            if (vary)
+                using (var t = new Transaction(doc, "Teste: comprimentos diferentes"))
+                {
+                    t.Start();
+                    foreach (FamilyInstance c in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns)
+                                 .WhereElementIsNotElementType().OfType<FamilyInstance>().Where(c => c.Symbol.Name.Contains("50x50")))
+                        c.get_Parameter(BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM)?.Set(UnitUtils.ConvertToInternalUnits(1500, UnitTypeId.Millimeters));
+                    t.Commit();
+                }
             string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string dir = Path.Combine(DetailingReport.LogDir, "precast_" + stamp);
             Directory.CreateDirectory(dir);
@@ -210,6 +355,16 @@ namespace DEB.Revit
             List<ColumnGroup> groups = PrecastSurvey.Run(doc, out List<string> notes);
             var sb = new StringBuilder();
             foreach (string n in notes) sb.AppendLine("NOTA: " + n);
+            if (vary)
+                for (int i = 0; i < groups.Count; i++)
+                {
+                    ColumnRebarSpec sp = groups[i].Spec;
+                    switch (i % 3)
+                    {
+                        case 1: sp.LongDiameterMm = 16; sp.LongBarsAlongX = 3; sp.LongBarsAlongY = 3; sp.StirrupDiameterMm = 6.3; sp.TieDiameterMm = 16; break;
+                        case 2: sp.LongDiameterMm = 20; sp.LongBarsAlongX = 2; sp.LongBarsAlongY = 3; sp.StirrupDiameterMm = 8; sp.StirrupSpacingMm = 200; break;
+                    }
+                }
             foreach (ColumnGroup g in groups)
             {
                 sb.AppendLine($"{g.Mark}: {g.Members.Count} un. | {g.Signature}");

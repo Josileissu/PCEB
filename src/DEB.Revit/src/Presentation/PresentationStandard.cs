@@ -19,6 +19,10 @@ namespace DEB.Revit.Presentation
     /// </summary>
     public sealed class PresentationStandard
     {
+        /// <summary>Código pela convenção PCEB-&lt;ELEMENTO&gt;-&lt;FORMATO&gt;[-variante] (ver docs/04_arquitetura/padroes_apresentacao.md).</summary>
+        public string Codigo { get; set; } = "";
+        /// <summary>Versão do padrão de fábrica. Arquivo do usuário com versão menor é guardado (.bak) e trocado pelo novo.</summary>
+        public int Versao { get; set; }
         public string Nome { get; set; } = "";
         /// <summary>Tipo de elemento a que o padrão se aplica: PilarPreMoldado, VigaPreMoldada, Laje, Fundacao...</summary>
         public string Elemento { get; set; } = "";
@@ -63,12 +67,20 @@ namespace DEB.Revit.Presentation
         {
             warning = null;
             Directory.CreateDirectory(Folder);
+            PresentationStandard def = Defaults.For(elemento);
             foreach (string file in Directory.GetFiles(Folder, "*.json").OrderBy(f => f))
             {
                 try
                 {
                     var s = JsonSerializer.Deserialize<PresentationStandard>(File.ReadAllText(file), Json);
-                    if (s != null && string.Equals(s.Elemento, elemento, StringComparison.OrdinalIgnoreCase)) return s;
+                    if (s == null || !string.Equals(s.Elemento, elemento, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (s.Versao >= def.Versao) return s;
+                    // padrão de fábrica mais novo: guarda o do usuário e passa a usar o novo
+                    string bak = file + $".v{s.Versao}.bak";
+                    File.Copy(file, bak, true);
+                    File.Delete(file);
+                    warning = $"Padrão \"{Path.GetFileName(file)}\" (versão {s.Versao}) substituído pelo {def.Codigo} versão {def.Versao}; o antigo ficou em {Path.GetFileName(bak)}.";
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -76,14 +88,15 @@ namespace DEB.Revit.Presentation
                 }
             }
 
-            PresentationStandard def = Defaults.For(elemento);
             File.WriteAllText(Path.Combine(Folder, def.FileName()), JsonSerializer.Serialize(def, Json));
             return def;
         }
 
-        public string FileName() => Elemento.ToLowerInvariant() + ".json";
+        public string FileName() => (string.IsNullOrWhiteSpace(Codigo) ? Elemento.ToLowerInvariant() : Codigo) + ".json";
 
         public static string Serialize(PresentationStandard s) => JsonSerializer.Serialize(s, Json);
+
+        public static PresentationStandard Deserialize(string json) => JsonSerializer.Deserialize<PresentationStandard>(json, Json);
 
         /// <summary>Substitui {Campos} no texto.</summary>
         public static string Fill(string template, IDictionary<string, string> values)
@@ -97,8 +110,15 @@ namespace DEB.Revit.Presentation
 
     public sealed class SheetSettings
     {
-        /// <summary>Trecho do nome "Família Tipo" do carimbo (vazio = primeiro carimbo do projeto).</summary>
+        /// <summary>Família do carimbo (nome exato; vazio = qualquer família).</summary>
+        public string FamiliaCarimbo { get; set; } = "";
+        /// <summary>Trecho do nome do tipo do carimbo (ex.: "A1"; vazio = primeiro tipo).</summary>
         public string Carimbo { get; set; } = "";
+        /// <summary>.rfa carregado no projeto quando o carimbo não está lá.</summary>
+        public string ArquivoCarimbo { get; set; } = "";
+        /// <summary>.rte/.rvt com pelo menos uma legenda: se o projeto não tiver nenhuma, uma é copiada de lá para servir
+        /// de base às legendas dos detalhes padrão (a API do Revit não cria legendas do zero).</summary>
+        public string ArquivoLegendaBase { get; set; } = "";
         public string NumeroFolha { get; set; } = "{Marca}";
         public string NomeFolha { get; set; } = "{Marca}";
         /// <summary>Parâmetros do carimbo (ou da folha) a preencher: nome do parâmetro → texto.</summary>
@@ -114,6 +134,24 @@ namespace DEB.Revit.Presentation
         public double TituloVistaMm { get; set; } = 14;
         /// <summary>Largura média de um caractere do título das vistas (mm de papel), para não sobrepor títulos.</summary>
         public double LarguraCaractereTituloMm { get; set; } = 4.3;
+        /// <summary>Título das vistas em texto centrado ACIMA da vista (como o template do CAD), no lugar da etiqueta
+        /// do Revit embaixo. A 1ª linha (PT) sai em negrito sublinhado; depois vem <see cref="TituloEscala"/>.</summary>
+        public bool TituloAcima { get; set; }
+        /// <summary>Linha da escala no título acima ({Escala} = denominador). Vazio = sem linha de escala.</summary>
+        public string TituloEscala { get; set; } = "Esc. 1:{Escala}";
+        /// <summary>
+        /// Marcas de corte das elevações como no pilar padrão do CAD (traço grosso curto + letra/número, dos dois lados),
+        /// no lugar das marcas do Revit (cabeça com nº do detalhe e folha).
+        /// </summary>
+        public bool MarcasDeCorteSimples { get; set; } = true;
+        /// <summary>
+        /// Legenda "PCEB - Níveis da obra - escala 1-N" (todos os níveis do projeto: linha traço-ponto, nome e cota) na folha, à
+        /// esquerda das elevações e na altura de cada nível. Uma legenda por escala, reaproveitada em todas as pranchas;
+        /// refeita quando os níveis do projeto mudam. As elevações ficam niveladas entre si (base do pilar na mesma altura).
+        /// </summary>
+        public bool LegendaNiveis { get; set; } = true;
+        /// <summary>Folga (mm de papel) do recorte de anotação de cada vista; 0 = a do Revit (1"). Define quanto a vista ocupa na prancha.</summary>
+        public double FolgaAnotacaoMm { get; set; } = 12;
         /// <summary>Escalas tentadas, em ordem, quando as vistas de uma região não cabem.</summary>
         public int[] EscalasAlternativas { get; set; } = { 20, 25, 50, 75, 100 };
     }
@@ -138,6 +176,8 @@ namespace DEB.Revit.Presentation
         public string TituloPeca { get; set; } = "{Marca}";
         public double AlturaTituloPecaMm { get; set; } = 10;
         public string RegiaoTituloPeca { get; set; } = "Titulo";
+        /// <summary>Altura (mm de papel) do título das vistas quando ele vai acima delas.</summary>
+        public double AlturaTituloVistaMm { get; set; } = 3.5;
     }
 
     public sealed class RebarSettings
@@ -149,8 +189,26 @@ namespace DEB.Revit.Presentation
         public string RotuloEstribos { get; set; } = "{Qtd} N{N} c/{Espacamento}";
         /// <summary>Desenha o dobramento (forma) das barras de estribo/tirante junto às seções.</summary>
         public bool DesenhoDeDobramento { get; set; } = true;
+        /// <summary>Chamadas "N1" com linha de chamada até cada barra que atravessa as seções com armadura.</summary>
+        public bool ChamadasNasSecoes { get; set; } = true;
         /// <summary>Densidade do aço para o peso (kg/m³).</summary>
         public double DensidadeAco { get; set; } = 7850;
+        /// <summary>Família de etiqueta de vergalhão do escritório (.rfa), carregada se não estiver no projeto.</summary>
+        public string ArquivoEtiqueta { get; set; } = "";
+        /// <summary>Nome da família de etiqueta de vergalhão (no projeto).</summary>
+        public string FamiliaEtiqueta { get; set; } = "";
+        /// <summary>Tipo da etiqueta das barras longitudinais (ex.: "1 N1 Ø C" → "8 N1 ø12.5 C=995").</summary>
+        public string EtiquetaLongitudinal { get; set; } = "";
+        /// <summary>Tipo da etiqueta dos estribos/grampos na cota dos trechos (ex.: "1 N1 c/" → "16 N2 c/15").</summary>
+        public string EtiquetaEstribo { get; set; } = "";
+        /// <summary>Tipo da etiqueta em duas linhas ("x 9 N3" / "c/7.50", sem bitola) para os trechos curtos de estribos,
+        /// onde a de uma linha não cabe na vertical (ex.: "1 N1 c/ - Quebra"), como o escritório ajustou na prancha.</summary>
+        public string EtiquetaEstriboQuebra { get; set; } = "";
+        /// <summary>
+        /// Longitudinais na vista de armadura como detalhes de curvatura (em escala, na altura real, ao lado da elevação,
+        /// com a etiqueta do escritório) no lugar das linhas esquemáticas. Decisão do usuário em 06/11/2026.
+        /// </summary>
+        public bool LongitudinaisComoDetalhe { get; set; } = true;
     }
 
     public sealed class Region
@@ -174,7 +232,16 @@ namespace DEB.Revit.Presentation
         Corte,
         /// <summary>Seção transversal com a armadura.</summary>
         SecaoArmadura,
-        Vista3D
+        Vista3D,
+        /// <summary>Corte vertical pelo meio de cada tipo de consolo (tirante e costura). Título aceita {Consolo}.</summary>
+        ConsoloCorte,
+        /// <summary>Planta de cada tipo de consolo, logo abaixo do topo. Título aceita {Consolo} e {Qtd} (consolos iguais).</summary>
+        ConsoloPlanta,
+        /// <summary>Corte transversal no meio do balanço de cada tipo de consolo, olhando para a face (CORTE A-A). Título aceita {Consolo}.</summary>
+        ConsoloCorteTransversal,
+        /// <summary>Corte pela alça de içamento de cima (plano da alça), com a saída, a largura e as pernas cotadas e a
+        /// etiqueta da posição: o detalhe "ALÇA DE IÇAMENTO" da peça, no lugar da legenda fixa.</summary>
+        AlcaIcamento
     }
 
     /// <summary>Onde passa um corte transversal.</summary>
@@ -191,12 +258,23 @@ namespace DEB.Revit.Presentation
         public int Escala { get; set; } = 50;
         public string Regiao { get; set; } = "Vistas";
         public bool Cotas { get; set; } = true;
+        /// <summary>Cota do comprimento total da peça nesta vista (o escritório põe só na VISTA 1).</summary>
+        public bool CotaTotal { get; set; } = true;
         public bool MostrarArmadura { get; set; }
-        /// <summary>Template de vista do projeto (vazio = nenhum).</summary>
+        /// <summary>Só elevação da armadura: desenho esquemático ("explodido") como o template do CAD — cada posição
+        /// longitudinal numa linha com rótulo vertical e as zonas de estribos numa linha de cota; a armadura 3D e o
+        /// concreto ficam ocultos na vista.</summary>
+        public bool Esquematica { get; set; }
+        /// <summary>
+        /// Template de vista (PCEB-&lt;ELEMENTO&gt;-&lt;VISTA&gt;). Se não existir no projeto, é criado a partir da 1ª vista
+        /// configurada por este item (escala e recorte ficam livres, para a prancha poder ajustar). Vazio = nenhum.
+        /// </summary>
         public string Template { get; set; } = "";
     }
 
-    public enum TableKind { RelacaoDoAco, ResumoDoAco }
+    /// <summary>RelacaoDoAco e ResumoDoAco (PP127); DobraDoAco = "bar bending schedule": por posição, forma do Revit
+    /// (código e imagem da forma, se o tipo de forma tiver imagem), trechos A–E e comprimento.</summary>
+    public enum TableKind { RelacaoDoAco, ResumoDoAco, DobraDoAco }
 
     public sealed class TableSpec
     {
@@ -219,5 +297,14 @@ namespace DEB.Revit.Presentation
         /// <summary>Nome exato da legenda no projeto (Vistas → Legendas).</summary>
         public string Nome { get; set; } = "";
         public string Regiao { get; set; } = "Detalhes";
+        public bool Ativa { get; set; } = true;
+        /// <summary>DXF do detalhe (em cm, na escala da legenda), na pasta Padroes\Detalhes ou caminho completo. Se a legenda
+        /// não existe no projeto, ela é criada uma vez a partir dele (ver LegendFactory).</summary>
+        public string Arquivo { get; set; } = "";
+        /// <summary>Escala da legenda criada do DXF (0 = a da legenda duplicada).</summary>
+        public int Escala { get; set; }
+        /// <summary>Tipo de vista (ex.: "AlcaIcamento") que ocupa este lugar no lugar da legenda: a vista da peça vai para a
+        /// posição da legenda na região, e a legenda não entra.</summary>
+        public string Vista { get; set; } = "";
     }
 }
