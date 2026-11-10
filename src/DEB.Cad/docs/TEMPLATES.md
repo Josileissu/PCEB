@@ -262,3 +262,12 @@ Formato tirado das vigas reais de um modelo real (janela "Conferir peças"): a a
     `ConversorVigaPeca` manda `AbaDentes` conforme o trecho do modelo. Modelo real: **157 de 168 vigas** exportadas (39 grupos); ficam
     fora 4 grupos (11 peças) com duas saliências ("aba laje + aba superior": alma que estreita em cima).
   - AutoCAD 2026: ARMTESTEVIGA 23 ok; ARMTESTEPECAS 14 ok com um JSON do modelo real (aba elevada, abas no topo, três consolos laterais).
+- **Ressalto sobre a alma (2026-11-10, `RessaltoViga.cs`)** — o "aba laje + aba superior" de um modelo real (alma 30 × 50, aba de laje
+  rente ao topo de um lado, ressalto 13 × 27,5 do outro, onde a capa da laje encosta). Grupo "11. Ressalto sobre a alma": lado, largura,
+  altura acima do topo (h continua sendo a da alma). Armadura pedida pelo usuário: estribo fechado DENTRO do ressalto com longitudinais
+  nos cantos, e barra em L de ligação com a capa — perna vertical junto da face de fora do ressalto, descendo `LigCapaAncoragem` (40)
+  na alma; perna horizontal no alto, saindo pela face da laje `LigCapaSaida` (70) para fora. Faixas próprias na elevação, formas na
+  relação do aço, marcas de corte e cadeia das alças acima do ressalto.
+  Revit → CAD: `SecaoComAba` separa a faixa de cima; mais estreita e rente a uma face = ressalto; tão larga quanto a alma (até 1,5 cm
+  de diferença) = a alma continuando (degrau de modelagem da viga de escada). JSON versão 3 só com ressalto. Modelo real: **168 de 168**
+  vigas exportadas. AutoCAD 2026: ARMTESTEVIGA 30 ok.
