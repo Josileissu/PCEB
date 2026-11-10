@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -21,7 +22,10 @@ namespace DEB.Revit.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            Document doc = commandData.Application.ActiveUIDocument.Document;
+            UIDocument uidoc = commandData.Application.ActiveUIDocument;
+            Document doc = uidoc.Document;
+            // peças selecionadas no Revit ao abrir: a janela começa marcando só os grupos delas (o usuário troca à vontade)
+            var selecao = new HashSet<string>(uidoc.Selection.GetElementIds().Select(id => id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             try
             {
                 var notes = new List<string>();
@@ -36,7 +40,13 @@ namespace DEB.Revit.Commands
                 // e as duas únicas gravações no modelo: a marca do grupo e "não exportar"
                 new PieceReviewWindow(grupos, notes, new ReviewActions
                 {
-                    Export = () => ExportPiecesCommand.Save(doc, PrecastExport.Build(doc, pecas, notes)),
+                    Export = (escolhidas, desmarcados) =>
+                    {
+                        var n = new List<string>(notes);
+                        if (desmarcados > 0) n.Add($"{desmarcados} grupo(s) desmarcado(s) na janela \"Conferir peças\" ficaram de fora desta exportação.");
+                        ExportPiecesCommand.Save(doc, PrecastExport.Build(doc, escolhidas, n));
+                    },
+                    SelecaoRevit = selecao,
                     SetMark = (g, m) => PieceReviewEdits.SetMark(doc, g, m),
                     SetSkip = (g, v) => PieceReviewEdits.SetSkipped(doc, g, v),
                 }).ShowDialog();
