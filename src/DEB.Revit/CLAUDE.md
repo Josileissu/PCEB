@@ -97,8 +97,7 @@ e pelo volume (`PerfilViga`, `AgrupadorVigas`, `PrecastExport.Beams` foram remov
 - `uid` (UniqueId) de cada elemento vai no JSON como campo opcional (o DEB.Cad 0.1.32 instalado ignora e continua lendo).
 - `PrecastSurvey` lê a geometria de cada candidato a consolo uma vez (antes: de novo para cada pilar) e descarta os distantes pela caixa.
 AutoRun `exportarpecas` (`SD_EXPORT` = caminho). Só lê o modelo. `conferir` aceita `SD_CONFERIR_INDICES="16,18"` (PNG de grupos de vigas escolhidos).
-O modelo Nordika é do Revit 2026 (o 2025 para no aviso "versão posterior"); no 2026 o AutoRun roda, mas o Revit não fecha sozinho
-depois (encerre só a instância que você abriu, pelo PID). Revit do usuário aberto = DLL presa: renomeie para `.antigo`, copie e assine.
+O modelo Nordika é do Revit 2026 (o 2025 para no aviso "versão posterior"); no 2026 o AutoRun roda e, desde 10/11/2026, o Revit de teste fecha sozinho também com arquivo LOCAL de modelo compartilhado (o AutoRun responde "não salvar" e "manter a propriedade" às duas janelas da saída; antes a resposta genérica era recusada e a instância ficava aberta). Revit do usuário aberto = DLL presa: renomeie para `.antigo`, copie e assine.
 **Edições na janela (etapa 3, 09/11/2026)** — as únicas gravações da conferência no modelo (`Precast/PieceReviewEdits`, comando em
 `TransactionMode.Manual`): "Gravar marca no modelo" (parâmetro Marca de todas as peças do grupo; a janela recusa a marca que já é de
 outro grupo) e "Não exportar este grupo" (Extensible Storage, schema `DEB_ConferenciaPeca`, campo `NaoExportar`, no próprio elemento:

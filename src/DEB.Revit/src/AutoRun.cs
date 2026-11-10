@@ -34,7 +34,19 @@ namespace DEB.Revit
             app.DialogBoxShowing += (s, e) =>
             {
                 Dialogs.Add(e.DialogId);
-                if (e is TaskDialogShowingEventArgs) e.OverrideResult((int)TaskDialogResult.Close);
+                if (e is TaskDialogShowingEventArgs)
+                {
+                    // Ao sair com um arquivo LOCAL de modelo compartilhado (o Nordika), o Revit pergunta o que fazer com as alterações
+                    // não sincronizadas e essa janela não tem botão "Fechar": a resposta genérica era recusada e o Revit de teste
+                    // nunca fechava (10/11/2026). Respostas próprias: não salvar, e manter a propriedade dos elementos (não fala com
+                    // o modelo central). O teste nunca salva o modelo aberto.
+                    string id = e.DialogId ?? "";
+                    if (id == "TaskDialog_Local_Changes_Not_Synchronized_With_Central") e.OverrideResult(1003);        // 3ª opção: não salvar o projeto
+                    else if (id.IndexOf("Relinquish", StringComparison.OrdinalIgnoreCase) >= 0 || id == "TaskDialog_Close_Project_Without_Saving" ||
+                             id == "TaskDialog_Save_Changes_To_Local_File") e.OverrideResult(1002);                    // 2ª opção: manter a propriedade / não salvar
+                    else if (id == "TaskDialog_Save_File" || id == "TaskDialog_Changes_Not_Saved") e.OverrideResult((int)TaskDialogResult.No);
+                    else e.OverrideResult((int)TaskDialogResult.Close);
+                }
                 else e.OverrideResult(1);   // IDOK
             };
         }
