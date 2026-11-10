@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DEB — Detalhador Estrutural Brasileiro | PCEB</title>
 <meta name="description" content="DEB — Detalhador Estrutural Brasileiro para CAD e Revit. Barras, estribos, faixas, numeração, relação do aço e pranchas com entidades nativas.">
-<link rel="canonical" href="https://pceb.com.br/deb.html">
+<link rel="canonical" href="https://josileissu.github.io/PCEB/deb.html">
 <meta name="theme-color" content="#0e171c">
 <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
@@ -13,12 +13,12 @@
 <meta property="og:site_name" content="PCEB">
 <meta property="og:title" content="DEB — Detalhador Estrutural Brasileiro">
 <meta property="og:description" content="Detalhamento, numeração e quantificação de armaduras no CAD e no Revit.">
-<meta property="og:url" content="https://pceb.com.br/deb.html">
-<meta property="og:image" content="https://pceb.com.br/assets/img/og.png">
+<meta property="og:url" content="https://josileissu.github.io/PCEB/deb.html">
+<meta property="og:image" content="https://josileissu.github.io/PCEB/assets/img/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="DEB — Detalhador Estrutural Brasileiro">
 <meta name="twitter:description" content="Detalhamento, numeração e quantificação de armaduras no CAD e no Revit.">
-<meta name="twitter:image" content="https://pceb.com.br/assets/img/og.png">
+<meta name="twitter:image" content="https://josileissu.github.io/PCEB/assets/img/og.png">
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -50,7 +50,7 @@
     <div class="wrap page-hero__inner">
       <div>
         <div class="breadcrumb"><a href="index.html">PCEB</a><span>/</span><span>DEB</span></div>
-        <p class="eyebrow"><span class="dot"></span>Módulo em uso · versão 0.1.26</p>
+        <p class="eyebrow"><span class="dot"></span>Módulo em uso · versão <span data-release="versao">0.1.36</span></p>
         <h1>Detalhamento que acompanha o desenho.</h1>
         <p class="lead">
           O DEB — Detalhador Estrutural Brasileiro trata a armadura como objeto: bitola, aço,
@@ -207,7 +207,9 @@
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Barras, estribos, treliças, telas e cordoalhas CP-190.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Faixas, cortes, chamadas e indicações.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Paleta de propriedades, paleta de comandos e autoteste.</span></li>
-            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Importação de <code>.cad</code> do QiArmaduras e templates de elementos.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Templates: pilar e viga pré-moldados (dente, aba, ressalto, protensão), blocos e reservatório.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Peças do Revit importadas (<code>ARMIMPORTARPECAS</code>) e <code>.cad</code> do QiArmaduras.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Desenho em cm, m ou mm e medidas escritas em cm, m ou mm (<code>ARMUNIDADES</code>).</span></li>
           </ul>
           <div class="actions mt-40">
             <a class="btn btn--ghost" href="documentacao.html#cad">Instalação no CAD</a>
@@ -221,7 +223,7 @@
             <li><span>AutoCAD</span><span>2021 – 2027</span></li>
             <li><span>ZWCAD</span><span>2024 – 2026</span></li>
             <li><span>DWG sem o plugin</span><span>abre legível</span></li>
-            <li><span>Versão atual</span><span>0.1.26</span></li>
+            <li><span>Versão atual</span><span data-release="versao">0.1.36</span></li>
           </ul>
         </div>
       </div>
@@ -238,7 +240,7 @@
             <li><span>Framework</span><span>.NET 8</span></li>
             <li><span>Vistas</span><span>elevação, corte, 3D</span></li>
             <li><span>Folha</span><span>com carimbo livre</span></li>
-            <li><span>Status</span><span>fase 1</span></li>
+            <li><span>Status</span><span>em uso</span></li>
           </ul>
         </div>
         <div>
@@ -253,7 +255,9 @@
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Viga: elevação, vista superior, corte no apoio e no meio do vão.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Pilar: elevação frontal, lateral e corte a meia altura.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Escalas ajustadas automaticamente para caber na folha.</span></li>
-            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Pilares pré-moldados com padrão PP127 e janela de opções.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Pilares pré-moldados com o padrão de prancha do escritório e janela de opções.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Conferir peças</strong>: seção real de cada trecho (dente, aba, ressalto, furos), marca editável.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Exportar para o CAD</strong>: escolha das vigas e pilares; o CAD gera os detalhamentos.</span></li>
           </ul>
           <div class="actions mt-40">
             <a class="btn btn--ghost" href="documentacao.html#revit">Instalação no Revit</a>
@@ -280,9 +284,9 @@
           </thead>
           <tbody>
             <tr><td>GstarCAD</td><td>2021 – 2027</td><td>.NET Framework 4.8 / .NET 8</td><td><span class="status">2021 testada</span></td></tr>
-            <tr><td>AutoCAD</td><td>2021 – 2027</td><td>.NET Framework 4.8 / .NET 8 / .NET 10</td><td><span class="status">compila</span></td></tr>
+            <tr><td>AutoCAD</td><td>2021 – 2027</td><td>.NET Framework 4.8 / .NET 8 / .NET 10</td><td><span class="status">2026 testada</span></td></tr>
             <tr><td>ZWCAD</td><td>2024 – 2026</td><td>.NET Framework 4.8</td><td><span class="status">compila</span></td></tr>
-            <tr><td>Revit</td><td>2025 – 2026</td><td>.NET 8</td><td><span class="status">fase 1</span></td></tr>
+            <tr><td>Revit</td><td>2025 – 2026</td><td>.NET 8</td><td><span class="status">2025 e 2026 testadas</span></td></tr>
           </tbody>
         </table>
       </div>

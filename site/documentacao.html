@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Documentação — instalação, comandos e formatos | PCEB</title>
 <meta name="description" content="Documentação do DEB: instalação no CAD e no Revit, comandos essenciais, formatos de dados, normas de referência e perguntas frequentes.">
-<link rel="canonical" href="https://pceb.com.br/documentacao.html">
+<link rel="canonical" href="https://josileissu.github.io/PCEB/documentacao.html">
 <meta name="theme-color" content="#0e171c">
 <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml">
 <meta property="og:type" content="website">
@@ -13,12 +13,12 @@
 <meta property="og:site_name" content="PCEB">
 <meta property="og:title" content="Documentação — PCEB">
 <meta property="og:description" content="Instalação, comandos, formatos e normas do DEB para CAD e Revit.">
-<meta property="og:url" content="https://pceb.com.br/documentacao.html">
-<meta property="og:image" content="https://pceb.com.br/assets/img/og.png">
+<meta property="og:url" content="https://josileissu.github.io/PCEB/documentacao.html">
+<meta property="og:image" content="https://josileissu.github.io/PCEB/assets/img/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Documentação — PCEB">
 <meta name="twitter:description" content="Instalação, comandos, formatos e normas do DEB para CAD e Revit.">
-<meta name="twitter:image" content="https://pceb.com.br/assets/img/og.png">
+<meta name="twitter:image" content="https://josileissu.github.io/PCEB/assets/img/og.png">
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
@@ -153,8 +153,8 @@
         <div class="install__step">
           <h3>Compile</h3>
           <p>Com o .NET SDK instalado, compile a solução ou o projeto do CAD desejado.</p>
-          <p class="mt-24"><code>dotnet build src\DEB.GstarCAD -c Release</code></p>
-          <p class="small">Para AutoCAD: <code>src\DEB.AutoCAD</code>. Para ZWCAD: <code>src\DEB.ZWCAD</code>.</p>
+          <p class="mt-24"><code>dotnet build src\DEB.Cad\src\DEB.GstarCAD -c Release</code></p>
+          <p class="small">Para AutoCAD: <code>src\DEB.Cad\src\DEB.AutoCAD</code>. Para ZWCAD: <code>src\DEB.Cad\src\DEB.ZWCAD</code>. Ou baixe o instalador pronto em <a href="baixar.html">Baixar</a>.</p>
         </div>
         <div class="install__step">
           <h3>Gere o instalador</h3>
@@ -188,7 +188,7 @@
       <div class="section-head">
         <div>
           <p class="eyebrow">Instalação</p>
-          <h2 class="h2">No Revit, com a aba Detalhamento.</h2>
+          <h2 class="h2">No Revit, com a aba Detalhador Estrutural Brasileiro.</h2>
         </div>
       </div>
 
@@ -196,13 +196,13 @@
         <div class="install__step">
           <h3>Compile</h3>
           <p>Feche o Revit. Compile para a versão instalada; o plugin é copiado para a pasta de Addins.</p>
-          <p class="mt-24"><code>dotnet build -c Release -p:RevitVersion=2025</code></p>
+          <p class="mt-24"><code>dotnet build src\DEB.Revit -c Release -p:RevitVersion=2025</code></p>
           <p class="small">Use <code>2026</code> para o Revit 2026.</p>
         </div>
         <div class="install__step">
           <h3>Abra o Revit</h3>
-          <p>Na primeira carga, escolha "Sempre carregar". A aba <strong>Detalhamento</strong> aparece no Ribbon.</p>
-          <p class="mt-24">Botões: <strong>Detalhar peça</strong>, <strong>Pilares pré-moldados</strong>, <strong>Configurar</strong>.</p>
+          <p>Na primeira carga, escolha "Sempre carregar". A aba <strong>Detalhador Estrutural Brasileiro</strong> aparece no Ribbon.</p>
+          <p class="mt-24">Botões: <strong>Conferir peças</strong>, <strong>Exportar para o CAD</strong>, <strong>Detalhar peça</strong>, <strong>Pilares pré-moldados</strong>, <strong>Configurar</strong>.</p>
         </div>
         <div class="install__step">
           <h3>Configure o padrão</h3>
@@ -269,6 +269,9 @@
             <tr><td><code>ARMPROP</code></td><td>Edição de barra, descrição, cota, quantidade e estribo.</td></tr>
             <tr><td><code>ARMCONFIG</code></td><td>Menu de configurações e arquivo JSON.</td></tr>
             <tr><td><code>ARMIMPORTARCAD</code></td><td>Importa <code>.cad</code> do QiArmaduras.</td></tr>
+            <tr><td><code>ARMIMPORTARPECAS</code></td><td>Gera os detalhamentos das peças exportadas do Revit (reimportar atualiza só o que mudou).</td></tr>
+            <tr><td><code>ARMTEMPLATE</code></td><td>Desenha um elemento pelo template (pilar, viga, bloco, reservatório).</td></tr>
+            <tr><td><code>ARMUNIDADES</code></td><td>Unidade do desenho e das medidas escritas (cm, m ou mm), por desenho.</td></tr>
             <tr><td><code>ARMTEMPLATE</code></td><td>Templates de elementos.</td></tr>
             <tr><td><code>ARMTESTE</code></td><td>Autoteste integrado no CAD.</td></tr>
             <tr><td><code>ARMSOBRE</code></td><td>Versão e aviso de responsabilidade.</td></tr>
@@ -346,7 +349,7 @@
             <p>O núcleo e os testes usam .NET 8. O AutoCAD 2027 exige .NET 10. GstarCAD e ZWCAD usam .NET Framework 4.8 nas versões mais antigas.</p>
           </details>
           <details>
-            <summary>O Revit não mostra a aba Detalhamento.</summary>
+            <summary>O Revit não mostra a aba do DEB.</summary>
             <p>Verifique se o build foi feito para a versão correta (2025 ou 2026) e se o add-in foi copiado para a pasta de Addins. Na primeira carga, escolha "Sempre carregar".</p>
           </details>
           <details>
