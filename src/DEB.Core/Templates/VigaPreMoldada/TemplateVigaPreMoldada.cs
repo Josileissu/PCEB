@@ -172,6 +172,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         string titulo = nome + (qtd > 1 ? $" - {qtd}x" : "") + $" ({Num(b, "0.#")} x {Num(h, "0.#")})";
         c.Texto(titulo, 0, y, 2.5 * hv);
         c.Texto($"ESC 1:{escV:0}", 0, y - 1.5 * hv, 0.7 * hv);
+        // dente criado pela importação do Revit com a armadura padrão: aviso em vermelho acima do título até o usuário conferir
+        {
+            double ya = y + 3.5 * hv;
+            foreach (string t in MarcaConferir.Linhas(new[] { e.Dente, d.Dente }.Where(x => x != null && MarcaConferir.Pendente(x.Descricao)).Select(x => x.Nome), c.Linhas).Reverse())
+            { c.Texto(t, 0, ya, 0.9 * hv, layer: MarcaConferir.Layer); ya += 1.6 * hv; }
+        }
 
         // ---------------- fôrmas em planta ----------------
         y -= 7 * hv;

@@ -172,7 +172,9 @@ public class VigaAbaTests
         var a = TemplateVigaPreMoldada.LerAba(Valores(v => { v["H"] = "50"; v["Aba"] = TemplateVigaPreMoldada.AbaDir; }), 50, 600,
             new ExtremidadeViga { Dente = TipoDente.Padrao()[0] }, new ExtremidadeViga(), new List<string>());
         Assert.Equal((25.0, 600.0), (a.Ini, a.Fim));
-        Assert.Null(a.NoDente(5));
+        // na seção do dente: a aba que fica em parte acima do recorte aparece pendurada (fundo negativo); a que fica toda abaixo, não
+        Assert.Equal(-5, a.NoDente(5).Base);
+        Assert.Null(a.NoDente(20));
         Assert.Equal(20, new AbaViga { Direita = true, Largura = 20, Altura = 22, Base = 25, Ini = 0, Fim = 100 }.NoDente(5).Base);
     }
 

@@ -99,8 +99,15 @@ public static class ConferenciaPecas
                 var (tipo, desc) = t.Secao.Classificar();
                 if (t.FuncaoSugerida == FuncaoTrecho.ApoioViga)
                 {
-                    naoSuportada = true;
-                    p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: consolo de apoio de outra viga — o CAD ainda não desenha consolo em viga");
+                    // consolo de apoio de outra viga = aba curta (2026-11-10): o CAD desenha se a seção for alma + uma saliência
+                    var cons = SecaoComAba.Ler(t.Secao);
+                    if (cons != null && cons.TemAba && !cons.AlturaToda)
+                        p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: consolo de apoio de outra viga — sai no CAD como aba curta; conferir a armadura do consolo");
+                    else
+                    {
+                        naoSuportada = true;
+                        p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: consolo de apoio de outra viga com forma que o CAD ainda não desenha");
+                    }
                     continue;
                 }
                 if (tipo == TipoSecao.Retangular) continue;
