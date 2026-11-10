@@ -190,6 +190,7 @@ public class VigaAbaTests
             v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "15"; v["AbaAltura"] = "20";
         }));
         PreviaTemplateTests.Gravar(pasta, "previa_viga_aba_elevada.json", Gerar(AbaElevadaInclinada));
+        PreviaTemplateTests.Gravar(pasta, "previa_viga_ressalto.json", Gerar(VigaRessaltoTests.V119));
         // V121 do modelo real: 30 × 50 com abas dos dois lados rentes ao topo (15 de balanço, 15 junto da alma, 12 na ponta)
         PreviaTemplateTests.Gravar(pasta, "previa_viga_v121.json", Gerar(v =>
         {
