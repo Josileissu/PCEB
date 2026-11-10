@@ -89,6 +89,9 @@ namespace DEB.Revit
                     case "conferireditar":
                         status = "OK " + ReviewEditAutoTest(uidoc.Document);
                         break;
+                    case "furos":
+                        status = "OK " + OpeningsAutoTest(uidoc.Document);
+                        break;
                     case "exportarpecas":
                         status = "OK " + ExportPiecesAutoTest(uidoc.Document);
                         break;
@@ -178,6 +181,52 @@ namespace DEB.Revit
         }
 
         /// <summary>
+        /// Furos na alma (2026-11-10): corta duas aberturas de 20 × 15 cm na 1ª viga do modelo (NewOpening, plano vertical do eixo),
+        /// levanta a peça como a conferência e grava os trechos, as aberturas lidas e a janela em PNG; tudo DESFEITO no fim.
+        /// </summary>
+        private static string OpeningsAutoTest(Document doc)
+        {
+            string dir = Path.Combine(DetailingReport.LogDir, "furos_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var sb = new StringBuilder();
+            var beam = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType()
+                .OfType<FamilyInstance>().First(f => f.SuperComponent == null);
+            var info = PieceAnalyzer.Analyze(beam);
+            using (var tg = new TransactionGroup(doc, "Furos (teste)"))
+            {
+                tg.Start();
+                try
+                {
+                    using (var t = new Transaction(doc, "Furos (teste)"))
+                    {
+                        t.Start();
+                        foreach (double f in new[] { 0.3, 0.62 })
+                        {
+                            XYZ c = info.Origin + info.AxisX * (info.LengthX * f) + info.AxisY * (info.LengthY / 2) + info.AxisZ * (info.LengthZ / 2);
+                            double a = U.Mm(100), h = U.Mm(75);
+                            var q = new[] { c - info.AxisX * a - info.AxisZ * h, c + info.AxisX * a - info.AxisZ * h, c + info.AxisX * a + info.AxisZ * h, c - info.AxisX * a + info.AxisZ * h };
+                            var ca = new CurveArray();
+                            for (int i = 0; i < 4; i++) ca.Append(Line.CreateBound(q[i], q[(i + 1) % 4]));
+                            try { doc.Create.NewOpening(beam, ca, Autodesk.Revit.Creation.eRefFace.CenterY); sb.AppendLine($"abertura criada em {f:0.##} L"); }
+                            catch (Exception ex) { sb.AppendLine("NewOpening falhou: " + ex.Message); }
+                        }
+                        t.Commit();
+                    }
+                    var p = PieceReview.Survey(beam, new List<FamilyInstance>());
+                    sb.AppendLine(FormattableString.Invariant($"{p.Marca} L={p.Comprimento:0.#} [{p.Situacao}] trechos: {p.Trechos.Count}"));
+                    foreach (var tr in p.Trechos) sb.AppendLine(FormattableString.Invariant($"   {tr.X0:0.#}-{tr.X1:0.#}: {tr.Secao.Classificar().Descricao}"));
+                    foreach (var ab in p.Aberturas) sb.AppendLine(FormattableString.Invariant($"   abertura x {ab.X0:0.#}-{ab.X1:0.#} z {ab.Z0:0.#}-{ab.Z1:0.#}{(ab.Passante ? " passante" : " nicho")}"));
+                    foreach (string av in p.Avisos) sb.AppendLine("   aviso: " + av);
+                    try { new Precast.UI.PieceReviewWindow(DEB.Core.Pecas.ConferenciaPecas.Agrupar(new[] { p }), new List<string>()).RenderToPng(Path.Combine(dir, "viga_com_furos.png"), 0, 0); }
+                    catch (Exception ex) { sb.AppendLine("ERRO ao renderizar: " + ex.Message); }
+                }
+                finally { tg.RollBack(); }
+            }
+            File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString());
+            return dir;
+        }
+
+        /// <summary>
         /// Exportação das peças para o CAD (ARMIMPORTARPECAS), sem janela. SD_EXPORT = caminho do .json (senão vai para logs).
         /// </summary>
         private static string ExportPiecesAutoTest(Document doc)
@@ -210,6 +259,7 @@ namespace DEB.Revit
                     sb.AppendLine($"   {t.X0:0.#}-{t.X1:0.#} {t.FuncaoSugerida}: {t.Secao.Classificar().Descricao} A={t.Secao.Area:0.#} Iy={t.Secao.Iy:0}");
                 foreach (var t in r.Trechos.Where(t => g.Situacao == DEB.Core.Pecas.SituacaoPeca.NaoSuportada && t.Secao.Classificar().Tipo == DEB.Core.Pecas.TipoSecao.Poligonal))
                     sb.AppendLine("      contorno " + string.Join(" ", t.Secao.Contorno.Select(q => FormattableString.Invariant($"{q.Y:0.##},{q.Z:0.##}"))));
+                foreach (var ab in r.Aberturas) sb.AppendLine(FormattableString.Invariant($"   abertura x {ab.X0:0.#}-{ab.X1:0.#} z {ab.Z0:0.#}-{ab.Z1:0.#}{(ab.Passante ? " passante" : " nicho")}"));
                 foreach (string a in g.Avisos) sb.AppendLine("   aviso: " + a);
             }
             try
@@ -218,6 +268,13 @@ namespace DEB.Revit
                 for (int tab = 0; tab < 2; tab++)
                     for (int i = 0; i < Math.Min(8, w.Count(tab)); i++)
                         w.RenderToPng(Path.Combine(dir, $"{(tab == 0 ? "vigas" : "pilares")}_{i + 1}.png"), tab, i);
+                // SD_CONFERIR_MARCA = "V215": os grupos de vigas com essa marca
+                string marca = Environment.GetEnvironmentVariable("SD_CONFERIR_MARCA");
+                var vigasM = grupos.Where(g => g.Representante.Tipo == DEB.Core.Pecas.TipoPeca.Viga).ToList();
+                if (!string.IsNullOrWhiteSpace(marca))
+                    for (int i = 0; i < vigasM.Count; i++)
+                        if (vigasM[i].Pecas.Any(q => string.Equals(q.Marca, marca.Trim(), StringComparison.OrdinalIgnoreCase)))
+                            w.RenderToPng(Path.Combine(dir, $"viga_{marca.Trim()}_{i + 1}.png"), 0, i);
                 // SD_CONFERIR_INDICES = "16,18,31": grupos de vigas escolhidos (posição na lista, a partir de 1), além dos 8 primeiros
                 foreach (string s in (Environment.GetEnvironmentVariable("SD_CONFERIR_INDICES") ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
                     if (int.TryParse(s.Trim(), out int ix) && ix >= 1 && ix <= w.Count(0))

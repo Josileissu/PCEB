@@ -182,6 +182,7 @@ public static class ConversorLevantamento
         motivo = null;
         var r = g.Representante;
         if (r.Trechos.Count == 0) { motivo = "a geometria não pôde ser cortada."; return null; }
+        if (r.Aberturas.Count > 0) { motivo = $"tem {r.Aberturas.Count} abertura(s) na alma, que o CAD ainda não desenha (nem o reforço em volta)."; return null; }
         var s0 = r.Principal.Secao;
         var i0 = SecaoComAba.Ler(s0);
         if (i0 == null || i0.AlturaToda)
@@ -199,7 +200,8 @@ public static class ConversorLevantamento
         foreach (var t in r.Trechos)
         {
             var s = t.Secao;
-            var i = SecaoComAba.Ler(s);
+            // a leitura com a mesma alma do trecho corrente (no dente, "alma estreita + aba" e "alma + ressalto" podem caber as duas)
+            var i = SecaoComAba.Leituras(s).FirstOrDefault(x => Math.Abs(x.B - i0.B) <= tol && Math.Abs(x.Y0 - i0.Y0) <= tol) ?? SecaoComAba.Ler(s);
             bool mesmaAlma = i != null && !i.AlturaToda && Math.Abs(i.B - i0.B) <= tol && Math.Abs(i.Y0 - i0.Y0) <= tol;
             if (mesmaAlma && Math.Abs(i.H - i0.H) <= tol && Math.Abs(i.Z0 - i0.Z0) <= tol)
                 partes.Add(new Pedaco { X0 = t.X0, X1 = t.X1, P = Parte.Corrente, H = i0.H, Aba = i.Chave, Secao = i });
