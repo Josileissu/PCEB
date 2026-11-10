@@ -2450,12 +2450,31 @@ public sealed class AutoTeste
                      // VP-3: protendida como a V148 da GRU 710 (11 ø15,2, isolamento em grupos)
                      ("Protendida", "Sim"), ("Longitudinais", "Superior|2|12.5|1|0|0||;Pele|3|10|1|0|0||"), ("Cordoalhas", "1|5|15.2|0|0|20.5;1|2|15.2|250|250|20.5;2|2|15.2|0|0|20.5;2|2|15.2|120|120|20.5;18|2|12.7|0|0|10") })
             vReta[k] = val;
-        var casos = new[] { ("V144", v144, new Point3d(12000, -5000, 0)), ("V149", vReta, new Point3d(12000, -12000, 0)) };
+        // VP-4 (2026-11-09): viga com aba — como a V121 do Nordika (abas dos dois lados rentes ao topo, fundo inclinado, passando
+        // pelos dentes) e como a 19×65 (aba elevada de um lado só, o de trás da elevação)
+        var vT = new Core.Templates.ValoresTemplate(t.Parametros);
+        foreach (var (k, val) in new[] { ("Nome", "V121"), ("B", "30"), ("H", "70"), ("L", "457"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaDois),
+                     ("AbaLargura", "15"), ("AbaAltura", "15"), ("AbaAlturaPonta", "12"), ("AbaBase", "55") })
+            vT[k] = val;
+        var vL = new Core.Templates.ValoresTemplate(t.Parametros);
+        foreach (var (k, val) in new[] { ("Nome", "V4"), ("B", "19"), ("H", "70"), ("L", "295.5"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaEsq),
+                     ("AbaLargura", "20"), ("AbaAltura", "15"), ("AbaAlturaPonta", "12"), ("AbaBase", "37.5") })
+            vL[k] = val;
+        var casos = new[] { ("V144", v144, new Point3d(12000, -5000, 0)), ("V149", vReta, new Point3d(12000, -12000, 0)),
+                            ("V121", vT, new Point3d(12000, -19000, 0)), ("V4", vL, new Point3d(12000, -26000, 0)) };
         var janelas = new List<(string, double, double, double, double)>();
         foreach (var (nome, v, origem) in casos)
         {
             var r = t.Gerar(v, cfg);
-            Checar(r.Avisos.Count == 0, $"{nome}: sem avisos ({string.Join(" | ", r.Avisos)})");
+            // a viga com aba sempre avisa da suspensão (e do içamento, com aba de um lado só): esses não contam
+            var avisos = r.Avisos.Where(a => !a.StartsWith("Aba")).ToList();
+            Checar(avisos.Count == 0, $"{nome}: sem avisos ({string.Join(" | ", avisos)})");
+            if (v["Aba"] != Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaSem)
+            {
+                Checar(r.Barras.Any(bb => bb.Nome == "abaestribo") && r.Barras.Any(bb => bb.Nome == "abalong"), $"{nome}: estribo e longitudinais da aba");
+                Checar(r.Faixas.Count(f => f.Barra == "abaestribo") == 1 + r.Textos.Count(q => q.Texto.StartsWith("SEÇÃO") && q.Texto.EndsWith("ARMADURA")),
+                    $"{nome}: faixa dos estribos da aba e uma indicação em cada seção de armadura");
+            }
             var xs = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.X)).Concat(r.Textos.Select(q => q.X)).ToList();
             var ys = r.Contornos.SelectMany(k => k.Vertices.Select(q => q.Y)).Concat(r.Textos.Select(q => q.Y)).ToList();
             janelas.Add((nome, origem.X + xs.Min() - 50, origem.Y + ys.Min() - 50, origem.X + xs.Max() + 450, origem.Y + ys.Max() + 50));
