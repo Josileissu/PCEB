@@ -126,8 +126,8 @@ public class VigaAbaTests
         Assert.DoesNotContain(r.Barras, b => b.Nome.StartsWith("aba"));
     }
 
-    /// <summary>Viga do modelo Nordika: 19 × 70 com aba elevada de fundo inclinado, que passa pelos dentes (acima do recorte).</summary>
-    private static void Nordika(ValoresTemplate v)
+    /// <summary>Viga de um modelo real: 19 × 70 com aba elevada de fundo inclinado, que passa pelos dentes (acima do recorte).</summary>
+    private static void AbaElevadaInclinada(ValoresTemplate v)
     {
         v["Nome"] = "V119"; v["B"] = "19"; v["H"] = "70"; v["L"] = "457"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "DG 45x25";
         v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "20"; v["AbaAltura"] = "22"; v["AbaAlturaPonta"] = "15"; v["AbaBase"] = "25";
@@ -136,7 +136,7 @@ public class VigaAbaTests
     [Fact]
     public void AbaElevadaInclinadaPassaPeloDente()
     {
-        var r = Gerar(Nordika);
+        var r = Gerar(AbaElevadaInclinada);
         Assert.DoesNotContain(r.Avisos, a => a.Contains("entra no dente"));
         // seção do vão: alma + trapézio da aba = 8 vértices; seção do dente (a parte de cima, 45 de altura) com a aba saindo do
         // canto de baixo dela = 7
@@ -153,7 +153,7 @@ public class VigaAbaTests
         Assert.InRange(faixa.P2.X, 452, 457);
         // volume: alma com os dentes + aba trapezoidal 20 × (22 + 15) / 2 × 457
         double alma = 19 * 70 * 457 - 2 * 19 * 25 * 25, aba = 20 * 18.5 * 457;
-        var a = TemplateVigaPreMoldada.LerAba(Valores(Nordika), 70, 457, new ExtremidadeViga(), new ExtremidadeViga(), null);
+        var a = TemplateVigaPreMoldada.LerAba(Valores(AbaElevadaInclinada), 70, 457, new ExtremidadeViga(), new ExtremidadeViga(), null);
         Assert.Equal(aba, a.VolumeCm3, 3);
         Assert.True(alma > 0);
     }
@@ -189,8 +189,8 @@ public class VigaAbaTests
             v["Nome"] = "V129"; v["B"] = "40"; v["H"] = "50"; v["L"] = "600"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "DG 45x25";
             v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "15"; v["AbaAltura"] = "20";
         }));
-        PreviaTemplateTests.Gravar(pasta, "previa_viga_nordika.json", Gerar(Nordika));
-        // V121 do Nordika: 30 × 50 com abas dos dois lados rentes ao topo (15 de balanço, 15 junto da alma, 12 na ponta)
+        PreviaTemplateTests.Gravar(pasta, "previa_viga_aba_elevada.json", Gerar(AbaElevadaInclinada));
+        // V121 do modelo real: 30 × 50 com abas dos dois lados rentes ao topo (15 de balanço, 15 junto da alma, 12 na ponta)
         PreviaTemplateTests.Gravar(pasta, "previa_viga_v121.json", Gerar(v =>
         {
             v["Nome"] = "V121"; v["B"] = "30"; v["H"] = "50"; v["L"] = "457"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "DG 45x25";

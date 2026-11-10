@@ -16,11 +16,11 @@
     UpgradeCode="{80A82AE8-94C2-4B27-8F8A-D2EE32E1AC67}"
     Name="Detalhador Estrutural Brasileiro"
     Description="Detalhador Estrutural Brasileiro: desenho, numeração e quantificação de armaduras."
-    Author="Marquezin"
+    Author="Projeto PCEB"
     ProductType="Application"
     HelpFile="./Contents/Help/INSTALACAO_AUTOCAD.txt">
 
-  <CompanyDetails Name="Marquezin" />
+  <CompanyDetails Name="Projeto PCEB" />
 
   <RuntimeRequirements
       OS="Win64"

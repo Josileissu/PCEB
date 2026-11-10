@@ -7,7 +7,7 @@ padrão das anteriores).
 
 ## 1. Padrão comum de apresentação (todas as folhas)
 
-- **Carimbos**: três famílias — BPM/Marquezin (obra Abimar–Içara, folhas 104/115/128/131, 1071, 1078: só PT), Schreiber/Diase/TCA
+- **Carimbos**: três famílias — BPM (obra Abimar–Içara, folhas 104/115/128/131, 1071, 1078: só PT), Schreiber/Diase/TCA
   (Dairy Factory, 316-CON-DD-…: PT/EN) e Goodman/MQZ (340-GRU-EST-…: PT). Tabela de revisões acima do carimbo.
 - **Título do elemento** no alto à esquerda, grande: nome + quantidade + dados-chave. Ex.: "BLOCO B4 - PILAR 40x60 2x / P1=P67 /
   3 ø 50 / 1:20"; "BLOCO B3.1 (x13)" + lista dos pilares + "4xø60"; "BLOCO BPile (x24)"; "VT-1 (VT 40x100)"; "V129 (40 x 50)".

@@ -159,7 +159,7 @@ public class ConversorLevantamentoTests
     }
 
     /// <summary>
-    /// Vigas do modelo Nordika ("19x65 com aba"): aba elevada com o fundo inclinado (22 junto da alma, 15 na ponta), à esquerda,
+    /// Vigas de um modelo real ("19x65 com aba"): aba elevada com o fundo inclinado (22 junto da alma, 15 na ponta), à esquerda,
     /// que passa pelos dentes — a seção do dente é a parte de cima (40) com a mesma aba.
     /// </summary>
     [Fact]
@@ -185,7 +185,7 @@ public class ConversorLevantamentoTests
         Assert.Null(SecaoComAba.Ler(new SecaoPoligonal { Contorno = { (0, 0), (19, 0), (19, 20), (39, 20), (39, 30), (19, 30), (19, 50), (39, 50), (39, 60), (19, 60), (19, 65), (0, 65) } }));
     }
 
-    /// <summary>Vigas "30x50 com aba esq e dir laje" do Nordika: abas dos dois lados rentes ao TOPO, com o fundo inclinado, inclusive nos dentes.</summary>
+    /// <summary>Vigas "30x50 com aba esq e dir laje" do modelo real: abas dos dois lados rentes ao TOPO, com o fundo inclinado, inclusive nos dentes.</summary>
     [Fact]
     public void AbasDosDoisLadosRentesAoTopo()
     {
@@ -221,7 +221,7 @@ public class ConversorLevantamentoTests
     }
 
     /// <summary>
-    /// Viga de escada do Nordika ("19x55"): a aba passa pelos dentes descendo ABAIXO do recorte — na seção do dente (a alma de 30 em
+    /// Viga de escada do modelo real ("19x55"): a aba passa pelos dentes descendo ABAIXO do recorte — na seção do dente (a alma de 30 em
     /// cima) a aba fica pendurada 3 cm abaixo do fundo do dente.
     /// </summary>
     [Fact]

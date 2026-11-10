@@ -10,7 +10,7 @@ namespace DEB.Core.Motor.Perfis;
 /// </summary>
 public static class PerfisFabrica
 {
-    /// <summary>Bloco sobre estacas no padrão BPM/Marquezin (folhas 104, 115, 128, 131; BLOCOS_REQUISITOS.md).</summary>
+    /// <summary>Bloco sobre estacas no padrão BPM (folhas 104, 115, 128, 131; BLOCOS_REQUISITOS.md).</summary>
     public const string IdBpmBloco = "bpm_bloco";
 
     private static readonly Dictionary<string, Func<PerfilDetalhamento>> _fabrica =
@@ -40,7 +40,7 @@ public static class PerfisFabrica
         var p = new PerfilDetalhamento
         {
             Id = IdBpmBloco,
-            Nome = "Bloco sobre estacas — padrão BPM/Marquezin",
+            Nome = "Bloco sobre estacas — padrão BPM",
             TipoElemento = ElementoBloco.TipoId,
             Padroes = new Dictionary<string, double>
             {

@@ -10,7 +10,7 @@ namespace DEB.Core.Templates.VigaPreMoldada;
 /// <summary>
 /// Aba da viga (apoio de laje ou de escada): saliência lateral ao longo de um trecho, de um lado (seção L) ou dos dois (T
 /// invertido), no fundo ou elevada (consolo corrido), retangular ou com o FUNDO INCLINADO — mais alta junto da alma, mais fina
-/// na ponta, com o topo plano (o formato das vigas do modelo Nordika). "Esquerda" = o lado de cima da planta (y = b) e o lado
+/// na ponta, com o topo plano (o formato das vigas de um modelo real). "Esquerda" = o lado de cima da planta (y = b) e o lado
 /// esquerdo das seções; "direita" = o lado de baixo da planta (y = 0), que é a face de frente da elevação. A largura b da viga
 /// continua sendo a da ALMA (como no nome das peças: "19x65 com aba").
 /// </summary>
@@ -48,7 +48,7 @@ public sealed class AbaViga
 
     /// <summary>
     /// A aba na seção do DENTE (a parte de cima da viga, acima do recorte de altura <paramref name="recorte"/>): a mesma aba com
-    /// o fundo medido a partir do fundo do dente — negativo quando a aba desce abaixo do recorte (aba de escada do Nordika, que
+    /// o fundo medido a partir do fundo do dente — negativo quando a aba desce abaixo do recorte (aba de escada do modelo real, que
     /// passa pelo dente pendurada abaixo dele); null se ela fica INTEIRA abaixo do recorte.
     /// </summary>
     public AbaViga NoDente(double recorte) => !Existe || Base + Altura <= recorte + 1e-6 ? null : new AbaViga

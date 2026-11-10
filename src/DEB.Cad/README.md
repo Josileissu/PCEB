@@ -135,4 +135,4 @@ pelo projeto e devem ser obtidas sob as licenças dos respectivos fabricantes.
 
 ---
 
-Autor: Marquezin · Repositório: <https://github.com/Josileissu/PCEB>
+Autor: Projeto PCEB · Repositório: <https://github.com/Josileissu/PCEB>

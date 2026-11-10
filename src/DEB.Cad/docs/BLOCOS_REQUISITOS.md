@@ -8,7 +8,7 @@ sem ezdxf). O que está marcado **[CONFIRMAR]** é interpretação minha.
 | Bloco | Estacas | Planta (cm) | Ligação do pilar | Pilar | Peças | Cliente / folha |
 |---|---|---|---|---|---|---|
 | B3 (imagem) | 2 × ø25 a 75 | 110 × 50 × 45 | **arranque** (moldado in loco) | 14 × 26 | 19 | — (já no template v1) |
-| B28 | 2 × ø40 a 120 | 190 × 70 | **cálice com colarinho** 80 × 70 | 20 × 30 | 6 | BPM/Marquezin, folha 128 |
+| B28 | 2 × ø40 a 120 | 190 × 70 | **cálice com colarinho** 80 × 70 | 20 × 30 | 6 | BPM, folha 128 |
 | B4 | 3 × ø50 (triângulo, lado 150) | hexágono 240 × 226 | cálice com colarinho 118 × 98 | 40 × 60 | 2 | BPM, folha 104 |
 | B15 | 3 × ø50 (triângulo, lado 150) | hexágono 210 × 242,4 | cálice com colarinho 98 × 98 | 40 × 40 | 24 | BPM, folha 115 |
 | B31 | 4 × ø50 a 150 | 230 × 230 | cálice com colarinho 128 × 128 | 60 × 60 | 2 | BPM, folha 131 |
@@ -31,7 +31,7 @@ sem ezdxf). O que está marcado **[CONFIRMAR]** é interpretação minha.
   parede do colarinho ≥ 15 cm, fundo sob o pilar ≥ 20 cm (Fig. 25); chaves ≥ 1 cm a cada ≤ 10 cm; pressões
   horizontais concentradas no topo (Lemb/3, 7.7.4.3); armadura de suspensão para a punção (7.7.3.7).
 
-## 3. Apresentação (folhas BPM/Marquezin)
+## 3. Apresentação (folhas BPM)
 1. **Forma** (quadro à esquerda): "BLOCO B15 - 24x - 3 ø 50", lista dos pilares, PLANTA 1:20 com cadeias de cotas (faces,
    estacas, colarinho, pilar), estacas com quadrantes hachurados, marca A; CORTE A-A com pilar interrompido, colarinho,
    chaves no cálice, REGULARIZAÇÃO DE FUNDO e=5 cm, CONCRETO MAGRO e=5 cm e os níveis.

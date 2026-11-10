@@ -36,7 +36,7 @@ namespace DEB.Revit
                 Dialogs.Add(e.DialogId);
                 if (e is TaskDialogShowingEventArgs)
                 {
-                    // Ao sair com um arquivo LOCAL de modelo compartilhado (o Nordika), o Revit pergunta o que fazer com as alterações
+                    // Ao sair com um arquivo LOCAL de modelo compartilhado (o modelo real de teste), o Revit pergunta o que fazer com as alterações
                     // não sincronizadas e essa janela não tem botão "Fechar": a resposta genérica era recusada e o Revit de teste
                     // nunca fechava (10/11/2026). Respostas próprias: não salvar, e manter a propriedade dos elementos (não fala com
                     // o modelo central). O teste nunca salva o modelo aberto.

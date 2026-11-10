@@ -2450,7 +2450,7 @@ public sealed class AutoTeste
                      // VP-3: protendida como a V148 da GRU 710 (11 ø15,2, isolamento em grupos)
                      ("Protendida", "Sim"), ("Longitudinais", "Superior|2|12.5|1|0|0||;Pele|3|10|1|0|0||"), ("Cordoalhas", "1|5|15.2|0|0|20.5;1|2|15.2|250|250|20.5;2|2|15.2|0|0|20.5;2|2|15.2|120|120|20.5;18|2|12.7|0|0|10") })
             vReta[k] = val;
-        // VP-4 (2026-11-09): viga com aba — como a V121 do Nordika (abas dos dois lados rentes ao topo, fundo inclinado, passando
+        // VP-4 (2026-11-09): viga com aba — como a V121 do modelo real (abas dos dois lados rentes ao topo, fundo inclinado, passando
         // pelos dentes) e como a 19×65 (aba elevada de um lado só, o de trás da elevação)
         var vT = new Core.Templates.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V121"), ("B", "30"), ("H", "70"), ("L", "457"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaDois),

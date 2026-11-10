@@ -7,7 +7,7 @@ namespace DEB.Core.Pecas;
 /// <summary>
 /// Leitura de uma seção de viga como ALMA retangular + ABA lateral (2026-11-09, VP-4): L (aba de um lado), T invertido (dos dois
 /// lados) ou aba elevada (consolo corrido acima do fundo), retangular ou com o fundo inclinado (mais alta junto da alma, com o
-/// topo plano — as vigas do modelo Nordika). É a forma que o template da viga do CAD desenha; o que não couber nela (I, mesa
+/// topo plano — as vigas de um modelo real). É a forma que o template da viga do CAD desenha; o que não couber nela (I, mesa
 /// superior, mísula em toda a altura, duas abas no mesmo lado, abas diferentes dos dois lados) continua "seção que o CAD ainda não desenha".
 /// Lados: "esquerda" = y maior (à esquerda de quem olha ao longo do eixo da viga), "direita" = y menor.
 /// </summary>
@@ -31,7 +31,7 @@ public sealed class SecaoComAba
     public double DistanciaDoTopo => H - AbaBase - AbaAltura;
     /// <summary>
     /// A "aba" toma TODA a altura da seção (do fundo ao topo): é um alargamento ou uma mísula, não uma aba — o CAD ainda não
-    /// desenha. A aba rente ao topo (abas de laje dos dois lados em cima, como as 30x50 do Nordika) é aba e é desenhada.
+    /// desenha. A aba rente ao topo (abas de laje dos dois lados em cima, como as 30x50 do modelo real) é aba e é desenhada.
     /// </summary>
     public bool AlturaToda { get; private set; }
 

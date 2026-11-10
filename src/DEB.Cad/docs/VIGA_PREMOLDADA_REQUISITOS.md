@@ -6,7 +6,7 @@ padrão** e **verificações de detalhamento** (avisos que não bloqueiam).
 
 Fontes deste levantamento:
 - Normas, conferidas no índice local (`tools/normas/buscar.py`; página = página do PDF):
-  - **NBR 9062:2017** (`Pré-Moldado\NBR 9062 - 2017 … Marquezin.pdf`);
+  - **NBR 9062:2017** (`Pré-Moldado\NBR 9062 - 2017 ….pdf`);
   - **NBR 6118:2014** (`Concreto\Antigos`), porque as cópias de 2023 têm o texto embaralhado. [CONFERIR na 2023 se
     algum valor mudou.]
 - O que já foi decidido e implementado no pilar pré-moldado (vale para a viga quando o assunto é o mesmo).
