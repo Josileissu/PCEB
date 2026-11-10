@@ -92,16 +92,37 @@ public sealed class DentePeca
     public double Comprimento { get; set; }
 }
 
+/// <summary>
+/// Aba lateral da viga (apoio de laje; VP-4, 2026-11-09): L (um lado) ou T invertido (dois lados), num trecho da viga.
+/// Esquerda = à esquerda de quem olha ao longo do eixo, da ponta esquerda para a direita (o lado de cima da planta do CAD).
+/// </summary>
+public sealed class AbaPeca
+{
+    public const string Esquerda = "esquerda", Direita = "direita", DoisLados = "dois";
+    public string Lado { get; set; } = Direita;
+    /// <summary>Balanço a partir da face da alma, altura junto da alma e fundo da aba acima do fundo da viga (cm).</summary>
+    public double Largura { get; set; }
+    public double Altura { get; set; }
+    /// <summary>Altura na ponta (cm); menor que <see cref="Altura"/> = fundo inclinado. 0 = igual (retangular).</summary>
+    public double AlturaPonta { get; set; }
+    public double Base { get; set; }
+    /// <summary>Trecho com aba, cm a partir da ponta esquerda.</summary>
+    public double Inicio { get; set; }
+    public double Fim { get; set; }
+}
+
 /// <summary>Grupo de vigas iguais (ou invertidas: ponta esquerda ↔ direita) do modelo.</summary>
 public sealed class VigaPeca
 {
     public string Marca { get; set; } = "";
     /// <summary>Giro 180 = a peça está invertida em relação ao representante.</summary>
     public List<ElementoPeca> Elementos { get; set; } = new List<ElementoPeca>();
-    /// <summary>Seção b × h e comprimento total da peça (cm).</summary>
+    /// <summary>Seção b × h (b = largura da ALMA) e comprimento total da peça (cm).</summary>
     public double B { get; set; }
     public double H { get; set; }
     public double L { get; set; }
+    /// <summary>Aba lateral (L / T invertido); null = seção retangular.</summary>
+    public AbaPeca Aba { get; set; }
     /// <summary>Dente nas pontas esquerda e direita; null = ponta reta.</summary>
     public DentePeca DenteE { get; set; }
     public DentePeca DenteD { get; set; }
@@ -113,7 +134,14 @@ public sealed class VigaPeca
 public sealed class ArquivoPecas
 {
     public const string Formato = "DEB.Pecas";
-    public const int VersaoAtual = 1;
+    /// <summary>Versão mais nova que esta biblioteca lê. A 2 (2026-11-09) trouxe a aba das vigas.</summary>
+    public const int VersaoAtual = 2;
+
+    /// <summary>
+    /// Versão gravada = a menor que representa o conteúdo: 1 se nenhuma viga tem aba (um DEB.Cad antigo continua lendo), 2 se
+    /// tem — o antigo então RECUSA o arquivo em vez de desenhar a viga sem a aba.
+    /// </summary>
+    public int VersaoNecessaria => Vigas.Any(v => v.Aba != null) ? 2 : 1;
 
     /// <summary>Arquivo do modelo de onde vieram as peças.</summary>
     public string Origem { get; set; } = "";
@@ -129,7 +157,7 @@ public sealed class ArquivoPecas
     public ValorJson ParaJson()
     {
         var o = ValorJson.NovoObjeto()
-            .Definir("formato", Formato).Definir("versao", VersaoAtual)
+            .Definir("formato", Formato).Definir("versao", VersaoNecessaria)
             .Definir("origem", Origem).Definir("data", Data)
             .Definir("unidades", "cm; cota_base e niveis em m");
         var notas = ValorJson.NovaLista();
@@ -169,10 +197,16 @@ public sealed class ArquivoPecas
                 : ValorJson.NovoObjeto().Definir("altura", R(d.Altura)).Definir("comprimento", R(d.Comprimento));
             var els = ValorJson.NovaLista();
             foreach (var e in p.Elementos) els.Adicionar(e.ParaJson());
-            vigas.Adicionar(ValorJson.NovoObjeto().Definir("marca", p.Marca).Definir("quantidade", p.Quantidade)
+            var jv = ValorJson.NovoObjeto().Definir("marca", p.Marca).Definir("quantidade", p.Quantidade)
                 .Definir("elementos", els)
                 .Definir("b", R(p.B)).Definir("h", R(p.H)).Definir("l", R(p.L))
-                .Definir("dente_esquerda", Dente(p.DenteE)).Definir("dente_direita", Dente(p.DenteD)));
+                .Definir("dente_esquerda", Dente(p.DenteE)).Definir("dente_direita", Dente(p.DenteD));
+            if (p.Aba != null)
+                jv.Definir("aba", ValorJson.NovoObjeto().Definir("lado", p.Aba.Lado)
+                    .Definir("largura", R(p.Aba.Largura)).Definir("altura", R(p.Aba.Altura))
+                    .Definir("altura_ponta", R(p.Aba.AlturaPonta > 0 ? p.Aba.AlturaPonta : p.Aba.Altura)).Definir("base", R(p.Aba.Base))
+                    .Definir("inicio", R(p.Aba.Inicio)).Definir("fim", R(p.Aba.Fim)));
+            vigas.Adicionar(jv);
         }
         return o.Definir("vigas", vigas);
     }
@@ -265,6 +299,21 @@ public sealed class ArquivoPecas
                 DenteE = Dente("dente_esquerda"), DenteD = Dente("dente_direita"),
             };
             if (v.B <= 0 || v.H <= 0 || v.L <= 0) throw new FormatException($"{cv}: b, h e l têm de ser maiores que zero.");
+            if (LeitorJson.Presente(jv, "aba"))
+            {
+                string ca = $"{cv}.aba";
+                var ja = LeitorJson.Objeto(jv["aba"], ca);
+                v.Aba = new AbaPeca
+                {
+                    Lado = LeitorJson.Txt(ja, "lado", AbaPeca.Direita, ca),
+                    Largura = LeitorJson.Num(ja, "largura", 0, ca), Altura = LeitorJson.Num(ja, "altura", 0, ca), Base = LeitorJson.Num(ja, "base", 0, ca),
+                    Inicio = LeitorJson.Num(ja, "inicio", 0, ca), Fim = LeitorJson.Num(ja, "fim", 0, ca),
+                };
+                v.Aba.AlturaPonta = LeitorJson.Num(ja, "altura_ponta", v.Aba.Altura, ca);
+                if (v.Aba.Lado != AbaPeca.Esquerda && v.Aba.Lado != AbaPeca.Direita && v.Aba.Lado != AbaPeca.DoisLados)
+                    throw new FormatException($"{ca}.lado: use \"esquerda\", \"direita\" ou \"dois\".");
+                if (v.Aba.Largura <= 0 || v.Aba.Altura <= 0 || v.Aba.Fim <= v.Aba.Inicio) throw new FormatException($"{ca}: largura, altura e trecho (inicio < fim) têm de ser positivos.");
+            }
             var le = LeitorJson.Lista(jv, "elementos", cv);
             for (int k = 0; le != null && k < le.Quantidade; k++)
             {

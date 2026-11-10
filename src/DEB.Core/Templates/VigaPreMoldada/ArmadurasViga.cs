@@ -184,7 +184,7 @@ public sealed partial class TemplateVigaPreMoldada
     /// <summary>ARMADURAS EM ELEVAÇÃO abaixo de <paramref name="yTopo"/>; devolve o y abaixo de tudo.</summary>
     private double ArmadurasEmElevacao(Ctx c, ValoresTemplate v, ConfiguracaoArmadura cfg, double b, double h, double L,
         ExtremidadeViga e, ExtremidadeViga d, List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, List<(string Id, double X)> cortes, double yTopo,
-        List<GrupoCordoalhas> cordSup)
+        List<GrupoCordoalhas> cordSup, AbaViga aba)
     {
         var r = c.R;
         double hv = c.hV, esc = c.escV;
@@ -215,6 +215,7 @@ public sealed partial class TemplateVigaPreMoldada
             c.Linha(x, yB + cobF, x, yT - cobT + sal + (sal > 0 ? cobT : 0), "ARM-BARRA-DETALHE");
         DenteEmElevacao(c, v, h, L, e, true, yT, yB);
         DenteEmElevacao(c, v, h, L, d, false, yT, yB);
+        AbaEmElevacao(c, aba, L, yB, cotar: false);
         // marcas das seções também aqui
         foreach (var (id, xc) in cortes) { c.MarcaCorte(id, xc, yT + 0.2 * hv, hv); MarcaCorteBaixo(c, id, xc, yB - 0.2 * hv, hv); }
 
@@ -232,7 +233,9 @@ public sealed partial class TemplateVigaPreMoldada
             });
         }
 
-        y = yF - (zonas.Count > 1 ? 10 : 7) * hv;
+        // estribos da aba: traços na altura da aba e a faixa deles numa linha própria, abaixo das faixas dos estribos da alma
+        bool faixaAba = AbaEstribosEmElevacao(c, v, cfg, aba, yB, yF - (zonas.Count > 1 ? 6.4 : 3.2) * hv);
+        y = yF - (zonas.Count > 1 ? 10 : 7) * hv - (faixaAba ? 3.2 * hv : 0);
         bool soldada = v.SimNao("InfSoldada");
         foreach (var l in baixo)
         {
@@ -245,6 +248,7 @@ public sealed partial class TemplateVigaPreMoldada
             }
             y -= passo;
         }
+        if (aba.Existe && AbaLongitudinal(c, v, aba, y)) y -= passo;
         y = DenteBarras(c, v, b, L, e, d, y);
         return y;
     }
@@ -297,14 +301,15 @@ public sealed partial class TemplateVigaPreMoldada
 
     /// <summary>SEÇÃO X-X - ARMADURA no x do corte, com o topo em <paramref name="yTopo"/> (mesma altura da seção de forma).</summary>
     private static void SecaoArmadura(Ctx c, ValoresTemplate v, string id, double xCorte, double b, double h, double L, ExtremidadeViga ext,
-        List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, double x0, double yTopo)
+        List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, double x0, double yTopo, AbaViga aba = null)
     {
         double hc = c.hC, y = yTopo;
         foreach (var t in c.Linhas($"SEÇÃO {id}-{id} - ARMADURA", $"SECTION {id}-{id} - REINFORCEMENT")) { c.Texto(t, x0, y, 1.2 * hc); y -= 2 * hc; }
         c.Texto($"ESC 1:{c.escC:0}", x0, y, 0.8 * hc);
         double sx0 = x0 + 4 * hc, sy1 = y - 5 * hc;
         double hSec = ext?.TemDente == true ? ext.Dente.Altura : h, sy0 = sy1 - hSec;
-        c.Retangulo(sx0, sy0, sx0 + b, sy1, "ARM-FORMA");
+        if (aba != null) c.R.Contornos.Add(new ContornoTemplate { Vertices = ContornoSecao(b, hSec, aba, sx0, sy0), Fechado = true, Layer = "ARM-FORMA" });
+        else c.Retangulo(sx0, sy0, sx0 + b, sy1, "ARM-FORMA");
         double cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo"), cobL = v.Numero("CobLateral"), phiT = v.Numero("EstBitola");
         bool comEstribo = ext?.TemDente != true && zonas.Count > 0 && xCorte >= zonas[0].X1 - 1 && xCorte <= zonas[zonas.Count - 1].X2 + 1;
         if (comEstribo)
@@ -313,6 +318,7 @@ public sealed partial class TemplateVigaPreMoldada
             c.Retangulo(sx0 + cobL + t, sy0 + cobF + t, sx0 + b - cobL - t, sy1 - cobT - t, "ARM-BARRA-DETALHE");
         }
         if (ext?.TemDente == true) DenteNaSecao(c, v, ext.Dente, xCorte < L / 2, b, sx0, sy0, sy1);
+        if (aba != null) AbaNaSecaoArmadura(c, v, aba, b, sx0, sy0);
         // barras em ponto e uma indicação por linha (inferiores embaixo, superiores em cima, pele à direita)
         int kBaixo = 0, kCima = 0, kDir = 0;
         foreach (var l in longs.Where(l => xCorte >= l.Ini - 1e-6 && xCorte <= l.Fim + 1e-6))

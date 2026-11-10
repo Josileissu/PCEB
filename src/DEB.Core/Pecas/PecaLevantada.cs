@@ -104,8 +104,11 @@ public static class ConferenciaPecas
                     continue;
                 }
                 if (tipo == TipoSecao.Retangular) continue;
+                // alma + aba lateral (L, T invertido, consolo corrido): o template da viga desenha (VP-4, 2026-11-09)
+                var aba = SecaoComAba.Ler(t.Secao);
+                if (aba != null && !aba.AlturaToda) continue;
                 naoSuportada = true;
-                p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: {desc} — o CAD ainda só desenha a seção retangular (VP-4)");
+                p.Avisos.Add($"trecho {N(t.X0)}–{N(t.X1)}: {desc} — o CAD desenha a seção retangular e a com aba lateral; esta ainda não");
             }
         p.Situacao = naoSuportada ? SituacaoPeca.NaoSuportada : p.Avisos.Count > 0 ? SituacaoPeca.Atencao : SituacaoPeca.Ok;
     }
