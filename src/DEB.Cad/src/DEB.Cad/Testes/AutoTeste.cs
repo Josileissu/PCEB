@@ -2695,6 +2695,28 @@ public sealed class AutoTeste
                 "peças: PX1 (duplo), PX2 (trapezoidal), VX1 (dente) e VX2 (reta) sem avisos");
         }
 
+        // relação do aço do desenho inteiro com a coluna do detalhamento (pedido do usuário, 2026-11-10): o nome só na linha do N1
+        // de cada detalhamento, as de baixo em branco e mescladas até o próximo
+        Extents3d? regTabela = null;
+        Checar(new Core.Configuracao.ConfiguracaoArmadura().ColunaElementoPadrao == Core.RelacaoAco.ColunaElemento.Nunca, "RA: tabela nova nasce com a coluna do detalhamento em \"Nunca\"");
+        if (regs.Count > 0)
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var opRa = Core.RelacaoAco.OpcoesTabelaRA.Padrao(cfg);
+                opRa.ColunaElemento = Core.RelacaoAco.ColunaElemento.Sempre;
+                opRa.Apresentacao = Core.RelacaoAco.ApresentacaoRA.SomenteTabela;
+                var pt = new Point3d(regs.Min(e => e.MinPoint.X), regs.Min(e => e.MinPoint.Y) - 1500, 0);
+                var idTab = Relacao.ServicoRA.Inserir(db, tr, pt, cfg, opRa);
+                var tab = (Table)tr.GetObject(idTab, OpenMode.ForRead);
+                var col0 = Enumerable.Range(2, Math.Max(0, tab.Rows.Count - 2)).Select(i => tab.Cells[i, 0].TextString ?? "").ToList();
+                var nomes = col0.Where(x => x.Length > 0).ToList();
+                Rel.AppendLine("        RA com a coluna: " + string.Join(" | ", col0.Take(14).Select(x => x.Length == 0 ? "·" : x)));
+                Checar(col0.Count > 0 && col0[0].Length > 0 && nomes.Distinct().Count() == nomes.Count && col0.Any(x => x.Length == 0),
+                    $"RA: nome do detalhamento só na 1ª linha de cada um ({nomes.Count} nomes em {col0.Count} linhas), as outras em branco");
+                try { regTabela = tab.GeometricExtents; } catch { }
+                tr.Commit();
+            }
+
         Gravar();
         Log.Info($"autoteste: ARMTESTEPECAS fim ({_ok} ok, {_falhas} falha(s))");
         var saida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
@@ -2712,6 +2734,14 @@ public sealed class AutoTeste
                 string png = Path.Combine(Path.GetDirectoryName(saida), "autoteste_pecas.png");
                 try { File.Delete(png); } catch (Exception ex) { Log.Erro("ARMTESTEPECAS png", ex); }
                 doc.SendStringToExecute($"_.PNGOUT {png}\n\n", true, false, true);
+            }
+            if (regTabela is { } rt)
+            {
+                double w = rt.MaxPoint.X - rt.MinPoint.X;
+                doc.SendStringToExecute($"_.ZOOM _W {N(rt.MinPoint.X - 20)},{N(rt.MaxPoint.Y - 0.55 * w)} {N(rt.MaxPoint.X + 20)},{N(rt.MaxPoint.Y + 20)}\n", true, false, true);
+                string png2 = Path.Combine(Path.GetDirectoryName(saida), "autoteste_pecas_relacao.png");
+                try { File.Delete(png2); } catch (Exception ex) { Log.Erro("ARMTESTEPECAS png", ex); }
+                doc.SendStringToExecute($"_.PNGOUT {png2}\n\n", true, false, true);
             }
             doc.SendStringToExecute($"FILEDIA {Convert.ToInt32(_filedia ?? 1)}\n", true, false, true);
             doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);

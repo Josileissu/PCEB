@@ -44,10 +44,11 @@ internal sealed class CmConverter : DoubleConverter
         v is string s ? double.Parse(s.Replace(',', '.'), CultureInfo.InvariantCulture) : base.ConvertFrom(c, cul, v);
 }
 
-/// <summary>Escala como "1:10"; aceita "1:25", "1/25" ou "25". Lista as escalas usuais.</summary>
+/// <summary>Escala como "1:10"; aceita "1:25", "1/25" ou "25". Lista as escalas da configuração ("Escalas da lista").</summary>
 internal sealed class EscalaConverter : DoubleConverter
 {
-    private static readonly double[] Usuais = { 1, 2, 5, 10, 20, 25, 50, 75, 100 };
+    private static double[] Usuais => (Plugin.Config?.EscalasUsuais is { Count: > 0 } l ? l : Core.Configuracao.ConfiguracaoArmadura.EscalasPadrao())
+        .Where(x => x > 0).Distinct().OrderBy(x => x).ToArray();
 
     public override bool GetStandardValuesSupported(ITypeDescriptorContext c) => true;
     public override bool GetStandardValuesExclusive(ITypeDescriptorContext c) => false;
