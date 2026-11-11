@@ -83,13 +83,18 @@ public sealed partial class TemplatePilarPreMoldado
     /// </summary>
     public static double EmbutimentoAlca(ValoresTemplate v, double b, double h)
     {
-        double dado = v.Numero("AlcaEmb");
-        if (dado > 0) return dado;
         int face = FaceExibida(Math.Max(1, Math.Min(4, v.Inteiro("AlcaFace"))));   // apresentada → interna
         int oposta = (face + 1) % 4 + 1;                  // 1↔3, 2↔4
         double prof = face == 1 || face == 3 ? b : h;
-        return Math.Max(10, prof - Cobrimentos(v)[oposta - 1]);
+        double max = Math.Max(10, prof - Cobrimentos(v)[oposta - 1]);
+        // o digitado nunca passa da face oposta (relato do usuário, 2026-11-11: as pernas e o pé saíam do pilar)
+        double dado = v.Numero("AlcaEmb");
+        return dado > 0 ? Math.Min(dado, max) : max;
     }
+
+    /// <summary>O embutimento digitado da alça passa da face oposta (menos o cobrimento) e foi limitado.</summary>
+    public static bool EmbutimentoAlcaLimitado(ValoresTemplate v, double b, double h) =>
+        v.Numero("AlcaEmb") > EmbutimentoAlca(v, b, h) + 1e-6;
 
     // ======================== içamento, montagem e inserto nas vistas ========================
 
@@ -110,6 +115,8 @@ public sealed partial class TemplatePilarPreMoldado
         var it = new Itens { Alcas = v.SimNao("Alcas"), AlcaTopo = v["Montagem"] == MontagemAlcaTopo, Furo = v["Montagem"] == MontagemFuro };
         double acima = v.Numero("AlcaAcima"), entre = v.Numero("AlcaEntre");
         double emb = it.EmbAlca = EmbutimentoAlca(v, b, h);
+        if (it.Alcas && EmbutimentoAlcaLimitado(v, b, h))
+            r.Avisos.Add($"Alça: embutimento de {Num(v.Numero("AlcaEmb"), "0.#")} cm passa da face oposta do pilar; limitado a {Num(emb, "0.#")} cm (até o cobrimento).");
 
         // laço da alça na vista de lado (pernas dentro, laço fora da face) e o traço na vista de frente
         double peAlca = v.Numero("AlcaPe");
