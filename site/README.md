@@ -43,9 +43,10 @@ um servidor local que respeite `404.html`.
 
 ### No ar hoje: GitHub Pages pelo workflow
 
-`.github/workflows/site.yml` publica esta pasta em https://josileissu.github.io/PCEB/ a cada envio para a `main`
-que mexa em `site/**` (ou manualmente em Actions → "Publicar site"). Os endereços canônicos, o sitemap e o
-`_validate.py` usam esse endereço; com um domínio próprio, troque-o nos três e crie `site/CNAME`.
+`.github/workflows/site.yml` publica esta pasta em https://www.pceb.com.br/ a cada envio para a `main`
+que mexa em `site/**` (ou manualmente em Actions → "Publicar site"). Domínio próprio desde 10/11/2026: `site/CNAME`
+e o domínio personalizado do Pages (Settings → Pages) = `www.pceb.com.br`. DNS no registro.br: `www` CNAME
+`josileissu.github.io`; raiz `pceb.com.br` com os A 185.199.108.153/109/110/111.153 (o GitHub redireciona para o www).
 
 O botão "Baixar instalador" (`baixar.html`) e os textos `data-release` são preenchidos por `assets/js/main.js`
 com a Release mais recente (API do GitHub). Sem a API, o botão abre `releases/latest`.
