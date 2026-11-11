@@ -3,7 +3,7 @@ from html.parser import HTMLParser
 from urllib.parse import urlparse
 
 root = os.getcwd()
-pages = ["index.html","deb.html","documentacao.html","baixar.html","projeto.html","404.html"]
+pages = ["index.html","deb.html","documentacao.html","baixar.html","projeto.html","doar.html","404.html"]
 void = {"area","base","br","col","embed","hr","img","input","link","meta","param","source","track","wbr"}
 problems = []
 

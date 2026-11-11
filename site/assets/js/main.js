@@ -83,6 +83,27 @@
     }).catch(function () {});
   }
 
+  // Doação: QR code do Pix (assets/js/qrcode.js, MIT) e botão de copiar.
+  document.querySelectorAll("[data-pix-qr]").forEach(function (el) {
+    var fonte = document.querySelector(el.getAttribute("data-pix-qr"));
+    if (!fonte || typeof qrcode !== "function") return;
+    var qr = qrcode(0, "M");
+    qr.addData(fonte.value.trim(), "Byte");
+    qr.make();
+    el.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+  });
+  document.querySelectorAll("[data-copiar]").forEach(function (bt) {
+    var fonte = document.querySelector(bt.getAttribute("data-copiar"));
+    var aviso = document.querySelector("[data-copiar-aviso]");
+    if (!fonte) return;
+    bt.addEventListener("click", function () {
+      var ok = function () { if (aviso) aviso.textContent = "Código copiado. Cole no app do banco em Pix copia e cola."; };
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(fonte.value.trim()).then(ok, function () { fonte.select(); document.execCommand("copy"); ok(); });
+      } else { fonte.select(); document.execCommand("copy"); ok(); }
+    });
+  });
+
   document.querySelectorAll("[data-year]").forEach(function (el) {
     el.textContent = String(new Date().getFullYear());
   });
