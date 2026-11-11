@@ -76,4 +76,26 @@ public class VigaAberturasTests
         Assert.Contains(r.Avisos, a => a.StartsWith("Abertura 1: fora da viga"));
         Assert.Contains(r.Avisos, a => a.StartsWith("Abertura 2: fora da altura"));
     }
+
+    [Fact]
+    public void SegundoEstagioDeConcretagem()
+    {
+        // V139 "20 x 65+10" (pedido do usuário, 2026-11-11): nota, seção h+capa, estribos na capa, superior no 2º estágio e porta-estribo 2 ø6,3
+        var r = Gerar(v => { V139(v); v["SegEstagio"] = "Sim"; v["SegEstagioCapa"] = "10"; });
+        Assert.Contains(r.Textos, t => t.Texto == "V139 (20 x 65+10)");
+        Assert.Contains(r.Textos, t => t.Texto.StartsWith("**VIGA COM SEGUNDO ESTÁGIO DE CONCRETAGEM**"));
+        Assert.Contains(r.Textos, t => t.Texto.Contains("ARMADURA SUPERIOR (2º ESTÁGIO)"));
+        var porta = r.Barras.Single(b => b.Nome == "portaestribo");
+        Assert.Equal((2, 6.3), (porta.Quantidade, porta.Bitola));
+        // estribo: 20 − 5 por 65 + 10 − 5 (sobe na capa)
+        var est = r.Barras.Single(b => b.Nome == "estribo");
+        Assert.Equal(70, est.Vertices.Max(q => q.Y) - est.Vertices.Min(q => q.Y), 1);
+        // a capa em tracejado (elevação e seções) e a cota de 10
+        Assert.True(r.Contornos.Count(k => k.Layer == "ARM-FURO-OCULTO" && k.Vertices.Count == 4) >= 3);
+        Assert.Contains(r.Cotas, k => System.Math.Abs(System.Math.Abs(k.P2.Y - k.P1.Y) - 10) < 1e-6 && System.Math.Abs(k.P2.X - k.P1.X) < 1e-6);
+        // sem o 2º estágio, nada disso
+        var r0 = Gerar(V139);
+        Assert.DoesNotContain(r0.Barras, b => b.Nome == "portaestribo");
+        Assert.Contains(r0.Textos, t => t.Texto == "V139 (20 x 65)");
+    }
 }
