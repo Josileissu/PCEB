@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://josileissu.github.io/PCEB/sitemap.xml
+Sitemap: https://www.pceb.com.br/sitemap.xml

@@ -61,7 +61,7 @@ for f in ['sitemap.xml','robots.txt','assets/img/favicon.svg','assets/img/og.png
 sm=open('sitemap.xml',encoding='utf-8').read()
 for name in pages:
     if name=='404.html': continue
-    expected='https://josileissu.github.io/PCEB/' + ('' if name=='index.html' else name)
+    expected='https://www.pceb.com.br/' + ('' if name=='index.html' else name)
     if expected not in sm: problems.append(f"sitemap sem {expected}")
 
 print('\n'.join(problems) if problems else 'OK: HTML, links, IDs, sitemap e assets validados.')
