@@ -182,7 +182,7 @@ public static class ConversorLevantamento
         motivo = null;
         var r = g.Representante;
         if (r.Trechos.Count == 0) { motivo = "a geometria não pôde ser cortada."; return null; }
-        if (r.Aberturas.Count > 0) { motivo = $"tem {r.Aberturas.Count} abertura(s) na alma, que o CAD ainda não desenha (nem o reforço em volta)."; return null; }
+        if (r.Aberturas.Any(a => !a.Passante)) { motivo = "tem nicho na alma (abertura de um lado só), que o CAD ainda não desenha."; return null; }
         var s0 = r.Principal.Secao;
         var i0 = SecaoComAba.Ler(s0);
         if (i0 == null || i0.AlturaToda)
@@ -262,7 +262,8 @@ public static class ConversorLevantamento
             DenteD = denteD ? Dente(j[j.Count - 1]) : null,
             Elementos = Elementos(g),
         };
-        if (comAba.Count > 0)
+        // a chave da aba também carrega o ressalto: viga só com ressalto não tem aba (antes saía uma aba de largura 0, recusada na leitura)
+        if (comAba.Count > 0 && comAba[0].Secao.TemAba)
         {
             var a = comAba[0].Secao;
             v.Aba = new AbaPeca
@@ -279,6 +280,11 @@ public static class ConversorLevantamento
         // ressalto sobre a alma: o mesmo em todos os trechos (está na chave da aba), lido do trecho corrente
         if (i0.TemRessalto)
             v.Ressalto = new RessaltoPeca { Lado = i0.RessaltoEsquerda ? AbaPeca.Esquerda : AbaPeca.Direita, Largura = R(i0.RessaltoLargura), Altura = R(i0.RessaltoAltura) };
+        // aberturas passantes na alma (2026-11-11): o CAD desenha com o reforço do padrão do escritório
+        foreach (var a in r.Aberturas)
+            v.Aberturas.Add(new AberturaVigaPeca { X0 = R(a.X0), X1 = R(a.X1), Z0 = R(a.Z0), Z1 = R(a.Z1), Circular = a.Circular });
+        if (v.Aberturas.Count > 0)
+            notas.Add($"Viga {g.Marcas}: {v.Aberturas.Count} abertura(s) na alma com o reforço do padrão do escritório — conferir no CAD.");
         return v;
     }
 
