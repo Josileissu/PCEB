@@ -66,3 +66,33 @@ Próximos passos (só com a ordem do usuário), comparando com a PP127:
 - GN Corbel: avaliar depois (decisão do usuário, 05/11/2026).
 - Pasta privada no Drive: ainda não é necessária (decisão do usuário, 05/11/2026). A PP127 e o `Projeto1.rvt`, se o PC2 precisar,
   passam para lá depois.
+
+## Passagem do PC2 para o PC1 (11/11/2026)
+Tudo na `main` e no GitHub (branch de trabalho `pc2/padroes-vigas-pilares`, já mesclada). Publicado: **DEB.Cad 0.1.38** (release `v0.1.38`,
+a "mais recente"), **DEB para Revit 0.2.0** (release `revit-v0.2.0`, criada com `--latest=false`) e o site **https://www.pceb.com.br**
+(GitHub Pages, `.github/workflows/site.yml`; botões "Baixar para CAD" e "Baixar para Revit"; página Apoiar com Pix).
+
+Feito no PC2 nos dias 10 e 11/11 (detalhes nos CLAUDE.md e no histórico do Git):
+- Vigas: ressalto com aba rente ao topo; estribo do ressalto até o fundo; grampo U na aba (`AbaEstForma`); dente/suspensão em faixas
+  com cota (`FaixaContada`, `FaixaTemplate.MostrarEspacamento`); furos de pino pela largura (`FurosModo`: < 30 cm → 1, ≥ 30 → 2);
+  **aberturas na alma** (`AberturaViga.cs`, tabela "Aberturas"; regra aprovada pelo usuário: 3 estribos em 10 cm de cada lado, estribos
+  curtos c/5, 2 + 2 barras ø10 com 40φ, circular ≤ 15 cm sem reforço); **segundo estágio** (`SegEstagio`: b x h+capa, estribos na capa,
+  superior "2º estágio", porta-estribo 2 ø6,3, nota).
+- Pilares: vistas APRESENTADAS 1 = oeste, 2 = sul, 3 = leste, 4 = norte (`TemplatePilarPreMoldado.FaceExibida`, troca 1 ↔ 3; a numeração
+  interna e o JSON não mudaram; também na janela "Conferir peças" do Revit); cortes de consolos com topos < 50 cm juntos e grupo repetido
+  com a letra do já apresentado (`AgruparCortes`); sem a nota de traspasse; embutimento da alça limitado à face oposta.
+- Arquivo de peças **versão 4** (aberturas passantes; nicho continua recusado); Revit reconhece furo redondo; estações dentro de
+  aberturas ignoradas; conversor não cria mais aba de largura 0 em viga só com ressalto.
+- ARMIMPORTARPECAS ~4,5x mais rápido (uma `ServicoRA.Atualizar` no fim em vez de uma por peça).
+- Instalador do Revit: `src/DEB.Revit/instalador/gerar.bat` → `DEB_Revit_Setup_<ver>.exe` (ver o CLAUDE.md do DEB.Revit).
+- Testes: núcleo 542 (pt-BR e en-US); `PreviaTemplateTests.GravarPreviaDasPecasDeUmArquivo` (ARM_PREVIA + ARM_PECAS_ENTRADA) gera a
+  prévia de peças de um JSON real.
+
+Pendente:
+- **Consolo inclinado na lateral da viga** (viga com aba no fundo de um lado e consolo do outro): o reconhecimento da seção
+  (`SecaoComAba`) aceita uma saliência lateral só; depois a armadura (estribos horizontais do consolo e verticais de alturas variáveis).
+- Interpretações a confirmar com o usuário: porta-estribo nos cantos de cima do estribo com a superior logo abaixo; "construtiva do
+  ressalto" = as 4 longitudinais dele; largura entre 25 e 30 cm → 1 furo.
+- Instalador do Revit: a instalação real ainda não foi rodada (o Revit do usuário estava aberto no PC2).
+- Pilar no Revit pelo padrão do CAD ("o do CAD está mais bem acabado").
+- Consolos digitados nas faces 1/3 em modelos salvos antes da 0.1.37 trocam de lado (a face 1 agora é oeste).
