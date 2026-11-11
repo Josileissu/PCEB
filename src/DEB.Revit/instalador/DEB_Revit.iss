@@ -79,6 +79,8 @@ procedure InitializeWizard();
 var
   Achou: Boolean;
 begin
+  { /COMPONENTS= na linha de comando (instalação silenciosa): vale a escolha dela, sem marcar o que foi encontrado por cima }
+  if ExpandConstant('{param:COMPONENTS|}') <> '' then Exit;
   Achou := False;
   if RevitInstalado('2025') then
   begin
