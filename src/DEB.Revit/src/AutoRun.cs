@@ -210,13 +210,32 @@ namespace DEB.Revit
                             try { doc.Create.NewOpening(beam, ca, Autodesk.Revit.Creation.eRefFace.CenterY); sb.AppendLine($"abertura criada em {f:0.##} L"); }
                             catch (Exception ex) { sb.AppendLine("NewOpening falhou: " + ex.Message); }
                         }
+                        // furo redondo de ø10 cm (2026-11-11: o laço com arco vira abertura circular no arquivo do CAD)
+                        {
+                            XYZ c = info.Origin + info.AxisX * (info.LengthX * 0.45) + info.AxisY * (info.LengthY / 2) + info.AxisZ * (info.LengthZ / 2);
+                            double rr = U.Mm(50);
+                            var ca = new CurveArray();
+                            ca.Append(Arc.Create(c, rr, 0, Math.PI, info.AxisX, info.AxisZ));
+                            ca.Append(Arc.Create(c, rr, Math.PI, 2 * Math.PI, info.AxisX, info.AxisZ));
+                            try { doc.Create.NewOpening(beam, ca, Autodesk.Revit.Creation.eRefFace.CenterY); sb.AppendLine("abertura redonda criada em 0,45 L"); }
+                            catch (Exception ex) { sb.AppendLine("NewOpening (redonda) falhou: " + ex.Message); }
+                        }
                         t.Commit();
                     }
                     var p = PieceReview.Survey(beam, new List<FamilyInstance>());
                     sb.AppendLine(FormattableString.Invariant($"{p.Marca} L={p.Comprimento:0.#} [{p.Situacao}] trechos: {p.Trechos.Count}"));
                     foreach (var tr in p.Trechos) sb.AppendLine(FormattableString.Invariant($"   {tr.X0:0.#}-{tr.X1:0.#}: {tr.Secao.Classificar().Descricao}"));
-                    foreach (var ab in p.Aberturas) sb.AppendLine(FormattableString.Invariant($"   abertura x {ab.X0:0.#}-{ab.X1:0.#} z {ab.Z0:0.#}-{ab.Z1:0.#}{(ab.Passante ? " passante" : " nicho")}"));
+                    foreach (var ab in p.Aberturas) sb.AppendLine(FormattableString.Invariant($"   abertura x {ab.X0:0.#}-{ab.X1:0.#} z {ab.Z0:0.#}-{ab.Z1:0.#}{(ab.Passante ? " passante" : " nicho")}{(ab.Circular ? " circular" : "")}"));
                     foreach (string av in p.Avisos) sb.AppendLine("   aviso: " + av);
+                    // o arquivo do CAD com as aberturas (versão 4)
+                    try
+                    {
+                        var arq = DEB.Core.Intercambio.ConversorLevantamento.Converter(new[] { p }, Path.GetFileName(doc.PathName), DateTime.Now.ToString("s"));
+                        arq.Gravar(Path.Combine(dir, "pecas.json"));
+                        sb.AppendLine($"exportado: {arq.Vigas.Count} viga(s), versão {arq.VersaoNecessaria}, aberturas {arq.Vigas.Sum(v => v.Aberturas.Count)}");
+                        foreach (var n in arq.Notas) sb.AppendLine("   nota: " + n);
+                    }
+                    catch (Exception ex) { sb.AppendLine("ERRO ao exportar: " + ex.Message); }
                     try { new Precast.UI.PieceReviewWindow(DEB.Core.Pecas.ConferenciaPecas.Agrupar(new[] { p }), new List<string>()).RenderToPng(Path.Combine(dir, "viga_com_furos.png"), 0, 0); }
                     catch (Exception ex) { sb.AppendLine("ERRO ao renderizar: " + ex.Message); }
                 }

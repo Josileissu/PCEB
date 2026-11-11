@@ -81,6 +81,8 @@ public sealed class AberturaPeca
     public double Z1 { get; set; }
     /// <summary>Atravessa a alma (aparece nas duas faces laterais).</summary>
     public bool Passante { get; set; }
+    /// <summary>Furo redondo (o laço tem arcos); X0..X1 e Z0..Z1 são a caixa dele.</summary>
+    public bool Circular { get; set; }
     public double Largura => X1 - X0;
     public double Altura => Z1 - Z0;
 }
@@ -114,9 +116,11 @@ public static class ConferenciaPecas
         bool naoSuportada = false;
         if (p.Tipo == TipoPeca.Viga && p.Aberturas.Count > 0)
         {
-            naoSuportada = true;
-            p.Avisos.Add($"{p.Aberturas.Count} abertura(s) na alma ({string.Join(", ", p.Aberturas.Select(a => $"{N(a.Largura)} × {N(a.Altura)} em x = {N(a.X0)}"))}) — " +
-                         "o CAD ainda não desenha aberturas nem o reforço em volta delas");
+            // desde 2026-11-11 o CAD desenha as aberturas passantes com o reforço do padrão do escritório; o nicho (de um lado só), não
+            var nichos = p.Aberturas.Count(a => !a.Passante);
+            naoSuportada = nichos > 0;
+            p.Avisos.Add($"{p.Aberturas.Count} abertura(s) na alma ({string.Join(", ", p.Aberturas.Select(a => $"{(a.Circular ? "ø" : "")}{N(a.Largura)} × {N(a.Altura)} em x = {N(a.X0)}"))})" +
+                         (nichos > 0 ? $" — {nichos} nicho(s) de um lado só, que o CAD ainda não desenha" : " — reforço pelo padrão do escritório: conferir no CAD"));
         }
         if (p.Tipo == TipoPeca.Viga)
             foreach (var t in p.Trechos)

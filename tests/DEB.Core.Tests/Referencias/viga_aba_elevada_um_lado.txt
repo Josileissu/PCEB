@@ -179,11 +179,11 @@ BARRA gerber_D ø8 CA-50 q4 x1 e0 esc 25 estribo [868.5,-529 858.5,-529 858.5,-5
 BARRA suspensao_D ø10 CA-50 q5 x1 e0 esc 25 estribo [871,-614.2 858.5,-614.2 858.5,-610 872.5,-610 872.5,-675 858.5,-675 858.5,-610 862.7,-610 862.7,-622.5] fmt 20000002 sob 1,6 cot 2,5 desc 865.5,-690 rot 0
 BARRA abaestribo ø8 CA-50 q1 x1 e0 esc 25 [858.5,-720 891.07,-720 891.07,-725.57 858.5,-730.46] fmt 000 desc 874.79,-745.46 rot 0
 BARRA alca ø12.7 CP-190 q2 x2 e0 esc 20 [553.5,-689.5 573.5,-689.5 573.5,-612 583.5,-612 583.5,-689.5 603.5,-689.5] bulges 0 0 -1 0 0 0 fmt 
+FAIXA estribo Ortogonal 52.82,-1089 242.68,-1089 pos 147.75,-1081 e10 esc 50 x1
 FAIXA gerber_E Ortogonal 0,-1089 25,-1089 pos 12.5,-1081 e8.33 esc 50 x1
 FAIXA suspensao_E Ortogonal 25,-1089 52.82,-1089 pos 38.91,-1113 e6.95 esc 50 x1
 FAIXA gerber_D Ortogonal 270.5,-1089 295.5,-1089 pos 283,-1081 e8.33 esc 50 x1
 FAIXA suspensao_D Ortogonal 242.68,-1089 270.5,-1089 pos 256.59,-1113 e6.95 esc 50 x1
-FAIXA estribo Ortogonal 52.82,-1089 242.68,-1089 pos 147.75,-1081 e10 esc 50 x1
 FAIXA abaestribo Ortogonal 2.9,-1121 292.6,-1121 pos 147.75,-1113 e15 esc 50 x1
 FAIXA gerber_E Indicacao 0,0 0,0 pos 724.5,-67.5 e15 esc 25 x1 refs [752.4,-67.5]
 FAIXA tirante_E Indicacao 0,0 0,0 pos 759,-30 e15 esc 25 x1 refs [753.6,-49.1 759,-49.1 764.4,-49.1]

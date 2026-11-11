@@ -36,6 +36,8 @@ public sealed class ZonaEstriboViga
     public double Esp { get; set; }
     /// <summary>Posições dos estribos (eixo), da regra de faixas do plugin (a mesma que a faixa usa para contar).</summary>
     public List<double> Posicoes { get; set; } = new List<double>();
+    /// <summary>Quantidade fixa (reforço de abertura): a faixa é contada (<c>FaixaContada</c>); 0 = pelo espaçamento.</summary>
+    public int Contada { get; set; }
 }
 
 /// <summary>
@@ -183,8 +185,9 @@ public sealed partial class TemplateVigaPreMoldada
     /// <summary>ARMADURAS EM ELEVAÇÃO abaixo de <paramref name="yTopo"/>; devolve o y abaixo de tudo.</summary>
     private double ArmadurasEmElevacao(Ctx c, ValoresTemplate v, ConfiguracaoArmadura cfg, double b, double h, double L,
         ExtremidadeViga e, ExtremidadeViga d, List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, List<(string Id, double X)> cortes, double yTopo,
-        List<GrupoCordoalhas> cordSup, AbaViga aba, RessaltoViga ress)
+        List<GrupoCordoalhas> cordSup, AbaViga aba, RessaltoViga ress, List<AberturaViga> abs = null)
     {
+        abs ??= new List<AberturaViga>();
         var r = c.R;
         double hv = c.hV, esc = c.escV;
         TituloVista(c, "ARMADURAS EM ELEVAÇÃO", "REINFORCEMENT ELEVATION", 0, yTopo, esc);
@@ -213,25 +216,17 @@ public sealed partial class TemplateVigaPreMoldada
         foreach (var x in zonas.SelectMany(z => z.Posicoes))
             c.Linha(x, yB + cobF, x, yT - cobT + sal + (sal > 0 ? cobT : 0), "ARM-BARRA-DETALHE");
         AbaEmElevacao(c, aba, L, yB, cotar: false);
+        AberturasEmElevacaoArmaduras(c, v, cfg, abs, h, L, yB);
         // marcas das seções também aqui
         foreach (var (id, xc) in cortes) { c.MarcaCorte(id, xc, yT + ress.Altura + 0.2 * hv, hv); MarcaCorteBaixo(c, id, xc, yB - 0.2 * hv, hv); }
 
         // faixas de estribos por zona, em cota embaixo da forma (cadeia a partir das pontas); o dente e a suspensão na mesma linha da
         // zona vizinha de cada ponta
         double yF = yB - 4.5 * hv;
+        // zonas vizinhas (e os estribos curtos das aberturas) com o texto em alturas alternadas (zonas curtas não se encavalam)
+        var (_, linhaUltima) = CadeiaEstribos(c, v, cfg, zonas, abs, h, yF);
         DenteEmElevacao(c, v, cfg, L, e, true, yT, yB, yF);
-        DenteEmElevacao(c, v, cfg, L, d, false, yT, yB, yF - (Math.Max(0, zonas.Count - 1) % 2) * 3.2 * hv);
-        // zonas vizinhas com o texto em alturas alternadas (zonas curtas não se encavalam)
-        for (int iz = 0; iz < zonas.Count; iz++)
-        {
-            var z = zonas[iz];
-            double yz = yF - (iz % 2) * 3.2 * hv;
-            r.Faixas.Add(new FaixaTemplate
-            {
-                Barra = "estribo", Tipo = TipoFaixa.Ortogonal, P1 = (z.X1, yz), P2 = (z.X2, yz), Posicao = ((z.X1 + z.X2) / 2, yz + 0.8 * hv),
-                Espacamento = z.Esp, Escala = esc,
-            });
-        }
+        DenteEmElevacao(c, v, cfg, L, d, false, yT, yB, yF - linhaUltima * 3.2 * hv);
 
         // estribos da aba: traços na altura da aba e a faixa deles numa linha própria, abaixo das faixas dos estribos da alma
         bool faixaAba = AbaEstribosEmElevacao(c, v, cfg, aba, yB, yF - (zonas.Count > 1 ? 6.4 : 3.2) * hv);
@@ -253,6 +248,7 @@ public sealed partial class TemplateVigaPreMoldada
         if (aba.Existe && AbaLongitudinal(c, v, aba, y)) y -= passo;
         if (RessaltoLongitudinal(c, v, ress, L, y)) y -= passo;
         y = DenteBarras(c, v, b, L, e, d, y);
+        y = AberturasBarras(c, v, abs, h, L, y, passo);
         return y;
     }
 
@@ -304,7 +300,8 @@ public sealed partial class TemplateVigaPreMoldada
 
     /// <summary>SEÇÃO X-X - ARMADURA no x do corte, com o topo em <paramref name="yTopo"/> (mesma altura da seção de forma).</summary>
     private static void SecaoArmadura(Ctx c, ValoresTemplate v, string id, double xCorte, double b, double h, double L, ExtremidadeViga ext,
-        List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, double x0, double yTopo, AbaViga aba = null, RessaltoViga ress = null)
+        List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, double x0, double yTopo, AbaViga aba = null, RessaltoViga ress = null,
+        AberturaViga ab = null)
     {
         double hc = c.hC, y = yTopo;
         foreach (var t in c.Linhas($"SEÇÃO {id}-{id} - ARMADURA", $"SECTION {id}-{id} - REINFORCEMENT")) { c.Texto(t, x0, y, 1.2 * hc); y -= 2 * hc; }
@@ -316,6 +313,7 @@ public sealed partial class TemplateVigaPreMoldada
         else c.Retangulo(sx0, sy0, sx0 + b, sy1, "ARM-FORMA");
         double cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo"), cobL = v.Numero("CobLateral"), phiT = v.Numero("EstBitola");
         bool comEstribo = ext?.TemDente != true && zonas.Count > 0 && xCorte >= zonas[0].X1 - 1 && xCorte <= zonas[zonas.Count - 1].X2 + 1;
+        if (ab != null) { comEstribo = false; AberturaNaSecaoArmadura(c, v, ab, b, hSec, sx0, sy0); }   // na abertura: estribos curtos
         if (comEstribo)
         {
             double t = phiT / 20;
@@ -328,7 +326,9 @@ public sealed partial class TemplateVigaPreMoldada
         int kBaixo = 0, kCima = 0, kDir = 0;
         foreach (var l in longs.Where(l => xCorte >= l.Ini - 1e-6 && xCorte <= l.Fim + 1e-6))
         {
-            var pts = PontosNaSecao(l, b, hSec, cobF, cobT, cobL, comEstribo ? phiT : 0, longs).Select(p => (sx0 + p.X, sy0 + p.Y)).ToList();
+            var pts = PontosNaSecao(l, b, hSec, cobF, cobT, cobL, comEstribo ? phiT : 0, longs).Select(p => (sx0 + p.X, sy0 + p.Y))
+                .Where(p => ab == null || p.Item2 < sy0 + ab.Z - 1e-6 || p.Item2 > sy0 + ab.Z1 + 1e-6).ToList();   // a pele para na abertura
+            if (pts.Count == 0) continue;
             foreach (var (px, py) in pts) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = l.Bitola / 20, Layer = "ARM-BARRA-SECAO" });
             (double X, double Y) pos = l.Pele ? (sx0 + b + 4 * hc, sy0 + hSec / 2 - 2 * hc * kDir++)
                 : l.Inferior ? (sx0 + b / 2 + 2 * hc * kBaixo, sy0 - (3 + 2 * kBaixo++) * hc)

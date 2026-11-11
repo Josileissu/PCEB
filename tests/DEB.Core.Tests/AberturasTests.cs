@@ -21,6 +21,9 @@ public class AberturasTests
         var xs = new List<double> { 0, 32, 748, 780 }.Concat(Furos.SelectMany(f => new[] { f.X0, f.X1 })).ToList();
         var e = Subdivisao.SemBordasDeAberturas(xs, Furos);
         Assert.Equal(new double[] { 0, 32, 748, 780 }, e);
+        // furo redondo: os vértices do arco (dentro do furo) também não são estações (2026-11-11)
+        var redondo = new[] { new AberturaPeca { X0 = 243, X1 = 253, Z0 = 20, Z1 = 30, Passante = true, Circular = true } };
+        Assert.Equal(new double[] { 0, 25, 526, 551 }, Subdivisao.SemBordasDeAberturas(new double[] { 0, 25, 243.6, 244.4, 246.7, 252.3, 526, 551 }, redondo));
         var intervalos = Subdivisao.Intervalos(e, 780);
         Assert.Equal(3, intervalos.Count);   // dente | vão | dente
     }
@@ -57,7 +60,7 @@ public class AberturasTests
     }
 
     [Fact]
-    public void VigaComFurosERebaixoFicaDeForaComOMotivo()
+    public void VigaComFurosPassantesVaiParaOCadComAsAberturas()
     {
         var p = new PecaLevantada
         {
@@ -67,12 +70,30 @@ public class AberturasTests
             Aberturas = Furos,
         };
         ConferenciaPecas.Avaliar(p);
-        Assert.Equal(SituacaoPeca.NaoSuportada, p.Situacao);
-        Assert.Contains(p.Avisos, a => a.StartsWith("5 abertura(s) na alma"));
-        Assert.Equal(1, p.Avisos.Count(a => a.Contains("o CAD")));   // só os furos impedem: as seções (com o ressalto) o CAD desenha
+        // desde 2026-11-11 os furos passantes vão para o CAD (com o reforço do padrão do escritório)
+        Assert.NotEqual(SituacaoPeca.NaoSuportada, p.Situacao);
+        Assert.Contains(p.Avisos, a => a.StartsWith("5 abertura(s) na alma") && a.Contains("conferir no CAD"));
         var arq = ConversorLevantamento.Converter(new[] { p }, "m.rvt", "");
-        Assert.Empty(arq.Vigas);
-        Assert.Contains(arq.Notas, n => n.Contains("abertura(s) na alma"));
+        var vf = Assert.Single(arq.Vigas);
+        Assert.Equal(5, vf.Aberturas.Count);
+        Assert.Equal((102.5, 127.5, 55.0, 75.0, false), (vf.Aberturas[0].X0, vf.Aberturas[0].X1, vf.Aberturas[0].Z0, vf.Aberturas[0].Z1, vf.Aberturas[0].Circular));
+        Assert.Equal(4, arq.VersaoNecessaria);
+        // ida e volta pelo JSON
+        Assert.Null(vf.Aba);   // só ressalto: sem aba (antes saía uma aba de largura 0 que o leitor recusava)
+        var lido = ArquivoPecas.DeJson(Persistencia.Json.Ler(Persistencia.Json.Gravar(arq.ParaJson())));
+        Assert.Equal(5, lido.Vigas[0].Aberturas.Count);
+        Assert.Equal(652.5, lido.Vigas[0].Aberturas[4].X0);
+        // no template: "Retangular|115|25|55|20" (centro, largura, fundo, altura)
+        var vt = ConversorVigaPeca.Valores(lido.Vigas[0], new Templates.ValoresTemplate(new Templates.VigaPreMoldada.TemplateVigaPreMoldada().Parametros),
+            Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes.Concat(CatalogoAutomatico.Dentes(lido.Vigas, Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes)).ToList(),
+            new List<string>());
+        Assert.StartsWith("Retangular|115|25|55|20;", vt["Aberturas"]);
+        // nicho (de um lado só): continua de fora, com o motivo
+        var nicho = new PecaLevantada { Id = "9", Marca = "V9", Tipo = TipoPeca.Viga, PreMoldada = true, Comprimento = 780, Trechos = p.Trechos,
+            Aberturas = { new AberturaPeca { X0 = 300, X1 = 320, Z0 = 50, Z1 = 70, Passante = false } } };
+        ConferenciaPecas.Avaliar(nicho);
+        Assert.Equal(SituacaoPeca.NaoSuportada, nicho.Situacao);
+        Assert.Empty(ConversorLevantamento.Converter(new[] { nicho }, "m.rvt", "").Vigas);
         // a mesma viga sem os furos vai: alma 20 × 135, dentes de 35 e ressalto 10 × 15
         var sem = new PecaLevantada { Id = "3", Marca = "V216", Tipo = TipoPeca.Viga, PreMoldada = true, Comprimento = 780, Trechos = p.Trechos };
         var v = Assert.Single(ConversorLevantamento.Converter(new[] { sem }, "m.rvt", "").Vigas);

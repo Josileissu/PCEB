@@ -202,6 +202,7 @@ public class VigaAbaTests
         PreviaTemplateTests.Gravar(pasta, "previa_viga_aba_elevada.json", Gerar(AbaElevadaInclinada));
         PreviaTemplateTests.Gravar(pasta, "previa_viga_ressalto.json", Gerar(VigaRessaltoTests.V119));
         PreviaTemplateTests.Gravar(pasta, "previa_viga_v144.json", Gerar(VigaRessaltoTests.V144));
+        PreviaTemplateTests.Gravar(pasta, "previa_viga_v139.json", Gerar(VigaAberturasTests.V139));
         // V121 do modelo real: 30 × 50 com abas dos dois lados rentes ao topo (15 de balanço, 15 junto da alma, 12 na ponta)
         PreviaTemplateTests.Gravar(pasta, "previa_viga_v121.json", Gerar(v =>
         {
