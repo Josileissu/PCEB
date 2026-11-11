@@ -431,6 +431,7 @@ public sealed class ComandosTemplate
                 Referencias = f.Referencias.Select(x => { var q = P(x.X, x.Y); return (q.X, q.Y); }).ToList(),
                 Repeticoes = Math.Max(1, f.Repeticoes), MostrarDiametro = f.MostrarDiametro, MostrarComprimento = f.MostrarComprimento, Patamar = f.Patamar,
             };
+            if (!f.MostrarEspacamento) dados.EspacamentoNoTexto = false;
             ServicoFaixa.Criar(tr, (Polyline)tr.GetObject(bid, OpenMode.ForWrite), dados, P3(f.Posicao.X, f.Posicao.Y), cfg);
         }
 

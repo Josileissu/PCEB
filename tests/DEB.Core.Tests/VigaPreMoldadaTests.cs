@@ -63,9 +63,22 @@ public class VigaPreMoldadaTests
     }
 
     [Fact]
+    public void FurosDePinoPelaLargura()
+    {
+        // padrão do escritório (2026-11-11): até 25 cm, 1 furo; 30 cm ou mais, 2
+        Assert.Equal((1, 1, 2, 2), (TemplateVigaPreMoldada.FurosPorLargura(20), TemplateVigaPreMoldada.FurosPorLargura(25),
+                                    TemplateVigaPreMoldada.FurosPorLargura(30), TemplateVigaPreMoldada.FurosPorLargura(40)));
+        var r20 = Gerar(v => { v["B"] = "20"; });
+        var r30 = Gerar(v => { v["B"] = "30"; });
+        Assert.Equal(2, r20.Circulos.Count(k => k.Layer == "ARM-FURO"));   // um por ponta
+        Assert.Equal(4, r30.Circulos.Count(k => k.Layer == "ARM-FURO"));   // dois por ponta
+        Assert.Contains(r30.Textos, t => t.Texto.StartsWith("2 Furos"));
+    }
+
+    [Fact]
     public void PontasRetasSemFurosTemUmaSecao()
     {
-        var r = Gerar(v => { v["ExtE"] = TemplateVigaPreMoldada.Reta; v["ExtD"] = TemplateVigaPreMoldada.Reta; v["FurosE"] = "0"; v["FurosD"] = "0"; });
+        var r = Gerar(v => { v["ExtE"] = TemplateVigaPreMoldada.Reta; v["ExtD"] = TemplateVigaPreMoldada.Reta; v["FurosModo"] = TemplateVigaPreMoldada.FurosDigitados; v["FurosE"] = "0"; v["FurosD"] = "0"; });
         Assert.Contains(r.Textos, x => x.Texto == "SEÇÃO A-A");
         Assert.DoesNotContain(r.Textos, x => x.Texto == "SEÇÃO B-B");
         Assert.Contains(r.Contornos, k => k.Layer == "ARM-FORMA" && k.Fechado && k.Vertices.Count == 4);
