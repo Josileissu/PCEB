@@ -33,6 +33,8 @@ public static class AssinaturaPeca
         // sem ressalto, a assinatura é a mesma de antes (o que já foi importado não conta como "mudou")
         var partes = new List<string> { "V", N(v.B), N(v.H), N(v.L), D(v.DenteE), D(v.DenteD), a, I(v.Quantidade) };
         if (v.Ressalto != null) partes.Add(r);
+        if (v.Aberturas.Count > 0)
+            partes.Add(string.Join(";", v.Aberturas.Select(x => $"{(x.Circular ? "C" : "R")}{N(x.X0)}:{N(x.X1)}:{N(x.Z0)}:{N(x.Z1)}")));
         return Hash(string.Join("|", partes));
     }
 

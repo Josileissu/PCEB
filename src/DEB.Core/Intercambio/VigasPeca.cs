@@ -42,6 +42,9 @@ public static class ConversorVigaPeca
             v["RessaltoLargura"] = N(p.Ressalto.Largura);
             v["RessaltoAltura"] = N(p.Ressalto.Altura);
         }
+        // aberturas na alma: forma|centro|largura|fundo|altura (o reforço fica o do PADRÃO do usuário)
+        v["Aberturas"] = string.Join(";", p.Aberturas.Select(a =>
+            $"{(a.Circular ? TemplateVigaPreMoldada.AbertCircular : TemplateVigaPreMoldada.AbertRetangular)}|{N((a.X0 + a.X1) / 2)}|{N(a.X1 - a.X0)}|{N(a.Z0)}|{N(a.Z1 - a.Z0)}"));
         if (p.Aba == null) v["Aba"] = TemplateVigaPreMoldada.AbaSem;
         else
         {
