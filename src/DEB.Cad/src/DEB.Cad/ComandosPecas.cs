@@ -71,6 +71,9 @@ public sealed class ComandosPecas
         public List<string> Substituidos { get; } = new List<string>();
         /// <summary>Resposta do usuário para os que mudaram: substituir (true) ou manter os dois.</summary>
         public bool Substituir { get; set; }
+        /// <summary>Tempos da importação (log): gerar os templates, desenhar e a relação do aço do fim.</summary>
+        public System.Diagnostics.Stopwatch TempoGerar { get; } = new System.Diagnostics.Stopwatch();
+        public System.Diagnostics.Stopwatch TempoDesenhar { get; } = new System.Diagnostics.Stopwatch();
     }
 
     /// <summary>Gera os detalhamentos: pilares numa fila a partir de <paramref name="origem"/>, vigas na fila de baixo.</summary>
@@ -133,6 +136,17 @@ public sealed class ComandosPecas
                 Fila(db, cfg, t, fila, new Point3d(origem.X, y, origem.Z), folga, cpu, arq, rel, topoNaOrigem: true);
             }
         }
+        // uma renumeração e uma atualização das tabelas para tudo o que entrou (antes: uma por peça, cada uma no desenho inteiro)
+        var ra = System.Diagnostics.Stopwatch.StartNew();
+        if (rel.Grupos.Any(g => g.Detalhamento != null && !rel.Mantidos.Contains(g.Marca)))
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                Relacao.ServicoRA.Atualizar(db, tr, cfg);
+                tr.Commit();
+            }
+        ra.Stop();
+        Log.Info(FormattableString.Invariant(
+            $"importação de peças: {rel.Grupos.Count} grupo(s); templates {rel.TempoGerar.Elapsed.TotalSeconds:0.0} s, desenho {rel.TempoDesenhar.Elapsed.TotalSeconds:0.0} s, relação do aço {ra.Elapsed.TotalSeconds:0.0} s"));
         return rel;
     }
 
@@ -212,7 +226,9 @@ public sealed class ComandosPecas
                 rel.Grupos.Add((g.Marca, null, null));
                 continue;
             }
+            rel.TempoGerar.Start();
             var r = t.Gerar(g.Valores, cfg);
+            rel.TempoGerar.Stop();
             r.DadosDetalhamento ??= new DadosDetalhamento();
             r.DadosDetalhamento.Repeticoes = g.Quantidade;
             r.DadosDetalhamento.Sistema = SistemaConstrutivo.PreMoldado;
@@ -229,12 +245,14 @@ public sealed class ComandosPecas
                 rel.Substituidos.Add(g.Marca);
             }
             bool noLugar = canto.HasValue;
+            rel.TempoDesenhar.Start();
             var antes = Entidades(db);
             using (var tr = db.TransactionManager.StartTransaction())
             {
-                ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(xDesenho, y, p0.Z));
+                ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(xDesenho, y, p0.Z), atualizarRA: false);
                 tr.Commit();
             }
+            rel.TempoDesenhar.Stop();
             var novas = Entidades(db).Except(antes).ToList();
             if (noLugar) Reposicionar(db, cfg, novas, r.Detalhamento, canto.Value);
             var ext = Extensao(db, novas);
