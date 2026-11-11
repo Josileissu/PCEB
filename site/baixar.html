@@ -54,15 +54,15 @@
         <p class="eyebrow"><span class="dot"></span>Versão <span data-release="versao">mais recente</span></p>
         <h1>Obter e instalar o DEB.</h1>
         <p class="lead">
-          O instalador do CAD é publicado a cada versão nas Releases do GitHub. Um arquivo
-          só instala no GstarCAD, no AutoCAD e no ZWCAD encontrados no computador. O plugin
-          do Revit, por enquanto, é compilado a partir do código.
+          Os instaladores são publicados a cada versão nas Releases do GitHub: um para o CAD,
+          que instala no GstarCAD, no AutoCAD e no ZWCAD encontrados no computador, e outro
+          para o Revit 2025 e 2026.
         </p>
       </div>
       <aside class="page-hero__aside">
         <b>Status da distribuição</b>
         Instalador do CAD: publicado.<br>
-        Plugin do Revit: compilar do código.<br>
+        Instalador do Revit: publicado.<br>
         Código aberto no GitHub.
       </aside>
     </div>
@@ -80,23 +80,28 @@
           </p>
           <div class="actions mt-24">
             <a class="btn btn--primary" href="https://github.com/Josileissu/PCEB/releases/latest" rel="noopener" data-release="download">
-              Baixar instalador
+              Baixar para CAD
               <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
             </a>
-            <a class="btn btn--ghost" href="https://github.com/Josileissu/PCEB/releases" rel="noopener">Todas as versões</a>
+            <a class="btn btn--primary" href="https://github.com/Josileissu/PCEB/releases" rel="noopener" data-revit="download">
+              Baixar para Revit
+              <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5"/></svg>
+            </a>
           </div>
           <p class="small mt-24">
-            <span data-release="arquivo">DEB_Setup_&lt;versão&gt;.exe</span> · Windows x64. Feche os CADs antes de
-            executar. Não há cadastro, cookies ou formulário.
+            CAD: <span data-release="arquivo">DEB_Setup_&lt;versão&gt;.exe</span> · Revit: <span data-revit="arquivo">DEB_Revit_Setup_&lt;versão&gt;.exe</span>
+            · Windows x64. Feche o CAD ou o Revit antes de executar. Não há cadastro, cookies ou formulário.
+            <a href="https://github.com/Josileissu/PCEB/releases" rel="noopener">Todas as versões</a>.
           </p>
         </div>
         <div class="download-panel__side">
           <h3>Ficha técnica</h3>
           <ul>
-            <li><span>Versão</span><span data-release="versao">mais recente</span></li>
+            <li><span>Versão (CAD)</span><span data-release="versao">mais recente</span></li>
             <li><span>Publicada em</span><span data-release="data">—</span></li>
+            <li><span>Versão (Revit)</span><span data-revit="versao">mais recente</span></li>
             <li><span>CAD</span><span>GstarCAD · AutoCAD · ZWCAD</span></li>
-            <li><span>Revit</span><span>2025 · 2026 (compilar)</span></li>
+            <li><span>Revit</span><span>2025 · 2026</span></li>
             <li><span>Licença</span><span>GPL-3</span></li>
             <li><span>Plataforma</span><span>Windows x64</span></li>
           </ul>
@@ -240,7 +245,7 @@ cd PCEB</code></pre>
           </details>
           <details>
             <summary>E o plugin do Revit?</summary>
-            <p>Ainda não entra no instalador. Compile com <code>dotnet build src\DEB.Revit -c Release -p:RevitVersion=2025</code> (ou 2026) com o Revit fechado; veja a documentação.</p>
+            <p>Tem instalador próprio: o botão "Baixar para Revit" (arquivo <code>DEB_Revit_Setup_&lt;versão&gt;.exe</code>). Ele marca o Revit 2025 e o 2026 encontrados e instala na pasta de Addins do usuário, sem administrador. Na primeira abertura, o Revit avisa que o editor não é verificado: escolha "Sempre carregar".</p>
           </details>
           <details>
             <summary>O código é aberto?</summary>
