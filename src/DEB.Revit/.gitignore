@@ -2,3 +2,6 @@ bin/
 obj/
 *.user
 .vs/
+
+# instaladores gerados (gerar de novo com instalador\gerar.bat)
+instalador/saida/

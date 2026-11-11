@@ -5,7 +5,7 @@
     <Assembly>DEB.Revit\DEB.Revit.dll</Assembly>
     <FullClassName>DEB.Revit.App</FullClassName>
     <ClientId>6F3C2A1E-8B4D-4E7A-9C51-2D8E7B3F0A64</ClientId>
-    <VendorId>MLEITE</VendorId>
-    <VendorDescription>Maurício Leite - Engenharia Estrutural</VendorDescription>
+    <VendorId>PCEB</VendorId>
+    <VendorDescription>Projeto PCEB - Detalhador Estrutural Brasileiro</VendorDescription>
   </AddIn>
 </RevitAddIns>
