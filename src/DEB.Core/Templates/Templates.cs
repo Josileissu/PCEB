@@ -168,6 +168,8 @@ public sealed class FaixaTemplate
     public int Repeticoes { get; set; } = 1;
     /// <summary>Mostrar o diâmetro no texto da faixa (o P61 escreve "71 N1 c/15").</summary>
     public bool MostrarDiametro { get; set; } = true;
+    /// <summary>Espaçamento no texto da faixa ("c/10"); desligado quando o espaçamento é só o que dá a quantidade certa (dente).</summary>
+    public bool MostrarEspacamento { get; set; } = true;
     /// <summary>Comprimento da faixa abaixo da linha de cota (faixas lado a lado: só a primeira mostra).</summary>
     public bool MostrarComprimento { get; set; } = true;
     /// <summary>Indicação com patamar (linhas que se encontram e um trecho horizontal até o texto, como no P56).</summary>

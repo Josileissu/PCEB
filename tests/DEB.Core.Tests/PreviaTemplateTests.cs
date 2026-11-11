@@ -70,4 +70,37 @@ public class PreviaTemplateTests
             .Definir("ra", r.PosicaoRA is { } ra ? P(ra) : ValorJson.Nulo);
         Json.GravarArquivo(Path.Combine(pasta, arquivo), o);
     }
+
+    /// <summary>
+    /// Com ARM_PREVIA e ARM_PECAS_ENTRADA (um JSON do "Exportar para o CAD"), grava a prévia de cada pilar e viga pelo mesmo caminho do
+    /// ARMIMPORTARPECAS (catálogos completados com o que falta, conversores do núcleo). Só para conferência visual de peças reais.
+    /// </summary>
+    [Fact]
+    public void GravarPreviaDasPecasDeUmArquivo()
+    {
+        var pasta = Environment.GetEnvironmentVariable("ARM_PREVIA");
+        var arquivo = Environment.GetEnvironmentVariable("ARM_PECAS_ENTRADA");
+        if (string.IsNullOrEmpty(pasta) || string.IsNullOrEmpty(arquivo) || !System.IO.File.Exists(arquivo)) return;
+        var arq = Intercambio.ArquivoPecas.Ler(arquivo);
+        var catD = Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes.Concat(Intercambio.CatalogoAutomatico.Dentes(arq.Vigas, Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes)).ToList();
+        var catC = Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo.Concat(Intercambio.CatalogoAutomatico.Consolos(arq.Pilares, Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo)).ToList();
+        var antesD = Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes; var antesC = Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo;
+        try
+        {
+            Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = catD; Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = catC;
+            var tp = new Templates.PilarPreMoldado.TemplatePilarPreMoldado();
+            foreach (var p in arq.Pilares)
+            {
+                var v = Intercambio.ConversorPilarPeca.Valores(p, new ValoresTemplate(tp.Parametros), catC, new List<string>());
+                Gravar(pasta, $"previa_peca_{p.Marca}.json", tp.Gerar(v, new ConfiguracaoArmadura()));
+            }
+            var tv = new Templates.VigaPreMoldada.TemplateVigaPreMoldada();
+            foreach (var p in arq.Vigas)
+            {
+                var v = Intercambio.ConversorVigaPeca.Valores(p, new ValoresTemplate(tv.Parametros), catD, new List<string>());
+                if (v != null) Gravar(pasta, $"previa_peca_{p.Marca}.json", tv.Gerar(v, new ConfiguracaoArmadura()));
+            }
+        }
+        finally { Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = antesD; Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = antesC; }
+    }
 }

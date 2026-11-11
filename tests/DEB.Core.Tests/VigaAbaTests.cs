@@ -63,8 +63,17 @@ public class VigaAbaTests
         // seção de forma em L (6 vértices) e a mesma forma em linha fina na seção de armadura
         Assert.Contains(r.Contornos, k => k.Layer == "ARM-PILAR-SECAO" && k.Fechado && k.Vertices.Count == 6);
         Assert.Contains(r.Contornos, k => k.Layer == "ARM-FORMA" && k.Fechado && k.Vertices.Count == 6);
-        // estribo da aba: fechado, abraça a alma e a aba (40 + 15 − 2 × 2,5 − ø); faixa de 550 − 2 × cobrimento com c/15
+        // armadura da aba: grampo (U aberto para a alma, padrão do escritório desde 2026-11-11) da face oposta da alma, por dentro
+        // do estribo dela, até a ponta da aba (40 + 15 − 2 × 2,5 − ø do estribo − ø do grampo); faixa de 550 − 2 × cobrimento com c/15
         var est = r.Barras.Single(b => b.Nome == "abaestribo");
+        Assert.False(est.Estribo);
+        Assert.Equal(4, est.Vertices.Count);
+        Assert.InRange(est.Vertices.Max(p => p.X) - est.Vertices.Min(p => p.X), 48, 49);
+        Assert.Contains(r.Contornos, k => k.Layer == "ARM-BARRA-DETALHE" && !k.Fechado && k.Vertices.Count == 4);
+        // a opção "fechado" volta ao estribo que abraça a alma e a aba
+        var rf = Gerar(v => { v["Nome"] = "V129"; v["B"] = "40"; v["H"] = "50"; v["L"] = "600"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "DG 45x25";
+            v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "15"; v["AbaAltura"] = "20"; v["AbaEstForma"] = TemplateVigaPreMoldada.AbaFechado; });
+        est = rf.Barras.Single(b => b.Nome == "abaestribo");
         Assert.True(est.Estribo);
         Assert.InRange(est.Vertices.Max(p => p.X) - est.Vertices.Min(p => p.X), 49, 50);
         var faixa = r.Faixas.Single(f => f.Barra == "abaestribo" && f.Tipo == Modelo.TipoFaixa.Ortogonal);
@@ -145,8 +154,9 @@ public class VigaAbaTests
         Assert.Equal(2, secoes.Count(k => k.Vertices.Count == 7));
         // cotas: balanço 20, ponta 15, altura na face 22, fundo 25 (vão)
         foreach (var m in new[] { 20.0, 15, 22, 25 }) Assert.True(TemCota(r, m), $"cota {m}");
-        // estribo da aba com o ramo de baixo inclinado: 5 lados
-        Assert.Contains(r.Contornos, k => k.Layer == "ARM-BARRA-DETALHE" && k.Fechado && k.Vertices.Count == 5);
+        // grampo da aba com o ramo de baixo acompanhando a inclinação do fundo (desce da ponta para a alma)
+        var g = r.Contornos.First(k => k.Layer == "ARM-BARRA-DETALHE" && !k.Fechado && k.Vertices.Count == 4);
+        Assert.True(g.Vertices[3].Y < g.Vertices[2].Y - 1);
         // a faixa dos estribos da aba vai de ponta a ponta
         var faixa = r.Faixas.Single(f => f.Barra == "abaestribo" && f.Tipo == Modelo.TipoFaixa.Ortogonal);
         Assert.InRange(faixa.P1.X, 0, 5);
@@ -191,6 +201,7 @@ public class VigaAbaTests
         }));
         PreviaTemplateTests.Gravar(pasta, "previa_viga_aba_elevada.json", Gerar(AbaElevadaInclinada));
         PreviaTemplateTests.Gravar(pasta, "previa_viga_ressalto.json", Gerar(VigaRessaltoTests.V119));
+        PreviaTemplateTests.Gravar(pasta, "previa_viga_v144.json", Gerar(VigaRessaltoTests.V144));
         // V121 do modelo real: 30 × 50 com abas dos dois lados rentes ao topo (15 de balanço, 15 junto da alma, 12 na ponta)
         PreviaTemplateTests.Gravar(pasta, "previa_viga_v121.json", Gerar(v =>
         {

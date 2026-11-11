@@ -24,8 +24,9 @@ public sealed class RessaltoViga
 /// <summary>
 /// Armadura do ressalto, proposta do usuário (2026-11-10: "uma armadura que fique dentro desse ressalto e uma armadura em L, com uma
 /// perna dentro da alma e outra saindo para fora uns 70 cm, fará a conexão com a capa da laje"):
-/// - ESTRIBO DO RESSALTO: fechado, dentro do ressalto (cobrimento nas faces livres; embaixo encosta no topo da alma), com as
-///   longitudinais do ressalto nos cantos;
+/// - ESTRIBO DO RESSALTO: fechado e estreito, do topo do ressalto ATÉ O FUNDO DA VIGA, rente à face de fora (pedido do usuário,
+///   2026-11-11: "o estribo dela vamos conectar lá embaixo e deixar uma armadura construtiva para ele"; o N2 8 × 84 das pranchas),
+///   com as longitudinais construtivas nos cantos do ressalto (em cima e na altura do topo da alma);
 /// - LIGAÇÃO COM A CAPA: barra em L — a perna vertical desce pelo ressalto e entra na alma (ancoragem), a perna horizontal corre
 ///   no alto do ressalto e SAI pela face dele do lado da laje, <c>LigCapaSaida</c> (70 cm) para fora, para ficar na capa.
 /// Os dois em faixa própria na elevação, com a forma na relação do aço.
@@ -82,13 +83,16 @@ public sealed partial class TemplateVigaPreMoldada
     private static (double Interna, double Externa) FacesRessalto(RessaltoViga rs, double b, double sx0) =>
         rs.Esquerda ? (sx0 + rs.Largura, sx0) : (sx0 + b - rs.Largura, sx0 + b);
 
-    /// <summary>Estribo do ressalto (eixo) na seção: retângulo de cobrimento a cobrimento nas faces livres, do topo da alma ao topo do ressalto.</summary>
+    /// <summary>
+    /// Estribo do ressalto (eixo) na seção: na largura do ressalto, de cobrimento a cobrimento, e do fundo da viga (cobrimento) ao topo
+    /// do ressalto — desce pela alma junto da face de fora, ao lado do estribo dela.
+    /// </summary>
     public static (double X1, double Y1, double X2, double Y2) CaixaEstriboRessalto(ValoresTemplate v, RessaltoViga rs, double b, double h, double sx0, double sy0)
     {
-        double cobL = v.Numero("CobLateral"), cobT = v.Numero("CobTopo"), t = v.Numero("RessEstBitola") / 20;
+        double cobL = v.Numero("CobLateral"), cobT = v.Numero("CobTopo"), cobF = v.Numero("CobFundo"), t = v.Numero("RessEstBitola") / 20;
         var (fi, fe) = FacesRessalto(rs, b, sx0);
         double xa = Math.Min(fi, fe) + cobL + t, xb = Math.Max(fi, fe) - cobL - t;
-        return (xa, sy0 + h + t, xb, sy0 + h + rs.Altura - cobT - t);
+        return (xa, sy0 + cobF + t, xb, sy0 + h + rs.Altura - cobT - t);
     }
 
     /// <summary>
@@ -130,14 +134,17 @@ public sealed partial class TemplateVigaPreMoldada
     {
         var p = ContornoSecao(b, h, a, x0, y0);
         if (rs == null || !rs.Existe) return p;
-        // o topo da alma vai de (x0 + b, y0 + h) a (x0, y0 + h): o ressalto entra entre esses dois vértices
-        int i = p.FindIndex(q => Math.Abs(q.X - (x0 + b)) < 1e-9 && Math.Abs(q.Y - (y0 + h)) < 1e-9);
+        // o ressalto entra no trecho do topo (y0 + h, percorrido da direita para a esquerda) que cobre a largura dele. Não dá para
+        // procurar o canto da alma: com a aba rente ao topo do mesmo lado, o canto é colinear e sai do contorno (V144, 2026-11-11)
+        double yh = y0 + h, yt = yh + rs.Altura, xa = rs.Esquerda ? x0 : x0 + b - rs.Largura, xb = xa + rs.Largura;
+        int i = -1;
+        for (int k = 0; k < p.Count && i < 0; k++)
+        {
+            var q0 = p[k]; var q1 = p[(k + 1) % p.Count];
+            if (Math.Abs(q0.Y - yh) < 1e-9 && Math.Abs(q1.Y - yh) < 1e-9 && q0.X >= xb - 1e-9 && q1.X <= xa + 1e-9) i = k;
+        }
         if (i < 0) return p;
-        double yt = y0 + h + rs.Altura;
-        var ins = rs.Esquerda
-            ? new List<(double X, double Y)> { (x0 + rs.Largura, y0 + h), (x0 + rs.Largura, yt), (x0, yt) }
-            : new List<(double X, double Y)> { (x0 + b, yt), (x0 + b - rs.Largura, yt), (x0 + b - rs.Largura, y0 + h) };
-        p.InsertRange(i + 1, ins);
+        p.InsertRange(i + 1, new List<(double X, double Y)> { (xb, yh), (xb, yt), (xa, yt), (xa, yh) });
         return SemColineares(p);
     }
 
@@ -158,21 +165,24 @@ public sealed partial class TemplateVigaPreMoldada
         var (x1, y1, x2, y2) = CaixaEstriboRessalto(v, rs, b, h, sx0, sy0);
         var (fi, fe) = FacesRessalto(rs, b, sx0);
         double xt = fe + (rs.Esquerda ? -6 : 6) * hc;   // as indicações saem pelo lado de fora (o da laje tem a barra em L)
+        double yr = sy0 + h + rs.Altura / 2;             // meia altura do ressalto
         if (x2 - x1 > 2 && y2 - y1 > 2)
         {
             c.Retangulo(x1, y1, x2, y2, "ARM-BARRA-DETALHE");
-            c.R.Faixas.Add(new FaixaTemplate { Barra = "ressestribo", Tipo = TipoFaixa.Indicacao, Referencias = { (rs.Esquerda ? x1 : x2, (y1 + y2) / 2) },
-                Posicao = (xt, (y1 + y2) / 2 + 1.2 * hc), Escala = c.escC });
+            c.R.Faixas.Add(new FaixaTemplate { Barra = "ressestribo", Tipo = TipoFaixa.Indicacao, Referencias = { (rs.Esquerda ? x1 : x2, yr) },
+                Posicao = (xt, yr + 1.2 * hc), Escala = c.escC });
             int q = Math.Max(0, v.Inteiro("RessLongQtd"));
             double rr = v.Numero("RessLongBitola") / 20, t = v.Numero("RessEstBitola") / 20;
             var pts = new List<(double X, double Y)>();
             if (q > 0)
             {
-                var cantos = new[] { (x1 + t + rr, y2 - t - rr), (x2 - t - rr, y2 - t - rr), (x1 + t + rr, y1 + t + rr), (x2 - t - rr, y1 + t + rr) };
+                // construtivas: no alto do ressalto e na altura do topo da alma (o estribo continua até o fundo)
+                double yb = sy0 + h + t + rr;
+                var cantos = new[] { (x1 + t + rr, y2 - t - rr), (x2 - t - rr, y2 - t - rr), (x1 + t + rr, yb), (x2 - t - rr, yb) };
                 pts.AddRange(cantos.Take(Math.Min(4, q)));
-                for (int i = 4; i < q; i++) pts.Add(((x1 + x2) / 2, y1 + t + rr + (i - 3) * (y2 - y1 - 2 * t - 2 * rr) / Math.Max(1, q - 3)));
+                for (int i = 4; i < q; i++) pts.Add(((x1 + x2) / 2, yb + (i - 3) * (y2 - t - rr - yb) / Math.Max(1, q - 3)));
                 foreach (var (px, py) in pts) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = rr, Layer = "ARM-BARRA-SECAO" });
-                c.R.Faixas.Add(new FaixaTemplate { Barra = "resslong", Tipo = TipoFaixa.Indicacao, Referencias = pts, Posicao = (xt, (y1 + y2) / 2 - 1.2 * hc), Escala = c.escC });
+                c.R.Faixas.Add(new FaixaTemplate { Barra = "resslong", Tipo = TipoFaixa.Indicacao, Referencias = pts, Posicao = (xt, yr - 1.2 * hc), Escala = c.escC });
             }
         }
         var l = PoligonoLigacaoCapa(v, rs, b, h, sx0, sy0);
@@ -188,13 +198,13 @@ public sealed partial class TemplateVigaPreMoldada
     /// Nas ARMADURAS EM ELEVAÇÃO (topo da alma em <paramref name="yT"/>): a faixa do ressalto, os estribos dele em traços e as faixas
     /// dos estribos e da ligação com a capa, nas linhas <paramref name="yFaixa"/> e logo abaixo. Devolve quantas linhas de faixa usou.
     /// </summary>
-    private static int RessaltoEmElevacaoArmaduras(Ctx c, ValoresTemplate v, ConfiguracaoArmadura cfg, RessaltoViga rs, double L, double yT, double yFaixa)
+    private static int RessaltoEmElevacaoArmaduras(Ctx c, ValoresTemplate v, ConfiguracaoArmadura cfg, RessaltoViga rs, double L, double h, double yT, double yFaixa)
     {
         if (!rs.Existe) return 0;
         RessaltoEmElevacao(c, rs, L, yT, cotar: false);
-        double cobT = v.Numero("CobTopo");
+        double cobT = v.Numero("CobTopo"), cobF = v.Numero("CobFundo");
         var xs = PosicoesAoLongo(v, cfg, L, v.Numero("RessEstBitola"), v.Numero("RessEstEsp"));
-        foreach (double x in xs) c.Linha(x, yT, x, yT + rs.Altura - cobT, "ARM-BARRA-DETALHE");
+        foreach (double x in xs) c.Linha(x, yT - h + cobF, x, yT + rs.Altura - cobT, "ARM-BARRA-DETALHE");
         int linhas = 0;
         foreach (var (barra, phi, esp) in new[] { ("ressestribo", v.Numero("RessEstBitola"), v.Numero("RessEstEsp")), ("ligcapa", v.Numero("LigCapaBitola"), v.Numero("LigCapaEsp")) })
         {
@@ -217,7 +227,7 @@ public sealed partial class TemplateVigaPreMoldada
             Nome = "resslong", Bitola = v.Numero("RessLongBitola"), Aco = v["LongAco"], Quantidade = q, Escala = c.escV,
             Vertices = { (cob, y), (L - cob, y) }, Formatos = { FormatoSegmento.Linha }, PosicaoDescricao = (L / 2, y + 2.6 * hv),
         });
-        c.Texto(string.Join(" / ", c.Linhas("ARMADURA RESSALTO", "UPSTAND REINFORCEMENT")), L / 2, y - 3.4 * hv, 0.75 * hv, 1);
+        c.Texto(string.Join(" / ", c.Linhas("ARMADURA CONSTRUTIVA RESSALTO", "UPSTAND CONSTRUCTION REINFORCEMENT")), L / 2, y - 3.4 * hv, 0.75 * hv, 1);
         return true;
     }
 
