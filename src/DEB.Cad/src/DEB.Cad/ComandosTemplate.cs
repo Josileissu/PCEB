@@ -256,7 +256,10 @@ public sealed class ComandosTemplate
     /// faixas e indicações, textos, cotas e tabelas; com <see cref="ResultadoTemplate.Detalhamento"/>, tudo
     /// vira um bloco e a relação do aço parcial dele é inserida. Retorna as armaduras criadas (antes do bloco).
     /// </summary>
-    internal static List<ObjectId> Desenhar(Transaction tr, Database db, ConfiguracaoArmadura cfg, ResultadoTemplate r, Point3d origem)
+    /// <param name="atualizarRA">false = a tabela entra vazia e NINGUÉM é renumerado agora (importação de muitas peças: o chamador
+    /// faz uma <see cref="Relacao.ServicoRA.Atualizar"/> só no fim — antes, cada peça renumerava e reescrevia o desenho inteiro).</param>
+    internal static List<ObjectId> Desenhar(Transaction tr, Database db, ConfiguracaoArmadura cfg, ResultadoTemplate r, Point3d origem,
+        bool atualizarRA = true)
     {
         double cpu = Desenho.CmPorUnidade(db, cfg);
         var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
@@ -454,9 +457,9 @@ public sealed class ComandosTemplate
             op.Escala = r.Escala;
             op.Blocos.Add(nome);
             op.NomeNoTitulo = true;
-            Relacao.ServicoRA.Inserir(db, tr, P3(r.PosicaoRA.Value.X, r.PosicaoRA.Value.Y), cfg, op);
+            Relacao.ServicoRA.Inserir(db, tr, P3(r.PosicaoRA.Value.X, r.PosicaoRA.Value.Y), cfg, op, atualizarRA);
         }
-        else Relacao.ServicoRA.Atualizar(db, tr, cfg);
+        else if (atualizarRA) Relacao.ServicoRA.Atualizar(db, tr, cfg);
         return ids;
     }
 
