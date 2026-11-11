@@ -125,7 +125,8 @@ namespace DEB.Revit.Precast.UI
         private static readonly Brush CorbelFill = Frozen(new SolidColorBrush(Color.FromRgb(0xDD, 0xE6, 0xF0)));
 
         /// <summary>
-        /// As quatro faces em pé, como no template do pilar (face 1 = +x, 2 = −y, 3 = −x, 4 = +y; cada uma vista de fora), com os
+        /// As quatro faces em pé, como na prancha do CAD desde 2026-11-11: FACE 1 = oeste (−x), 2 = sul (−y), 3 = leste (+x), 4 = norte
+        /// (+y), lado a lado nessa ordem (a numeração interna do levantamento continua 1 = +x; a troca 1 ↔ 3 é a do template), com os
         /// consolos de frente, de perfil (chanfros exatos, com as medidas) ou tracejados atrás; à direita, as seções dos trechos
         /// empilhadas na vertical.
         /// </summary>
@@ -142,11 +143,14 @@ namespace DEB.Revit.Precast.UI
             double totalW = larg.Sum() + 8 * proj + 4 * gap;
             double sc = Math.Min((areaW - 2 * pad) / totalW, (ActualHeight - top - bottom) / Math.Max(1, p.Comprimento));
             double x = pad, yb = ActualHeight - bottom;   // base do pilar na tela
-            for (int k = 1; k <= 4; k++)
+            string[] nomes = { "", "OESTE", "SUL", "LESTE", "NORTE" };
+            for (int pos = 1; pos <= 4; pos++)
             {
+                int k = Exibida(pos);   // face interna mostrada nesta posição
                 double w = larg[k - 1], ox = x + proj * sc + gap * sc / 2;
                 Point P(double h, double c) => new Point(ox + h * sc, yb - c * sc);
-                Text(dc, $"FACE {k}", ox + w * sc / 2, top - 30, 12, bold: true, center: true);
+                Text(dc, $"FACE {pos}", ox + w * sc / 2, top - 38, 12, bold: true, center: true);
+                Text(dc, nomes[pos], ox + w * sc / 2, top - 22, 9.5, center: true);
                 dc.DrawRectangle(Fill, Outline, new Rect(P(0, p.Comprimento), P(w, 0)));
                 foreach (ConsoloLevantado c in p.Consolos)
                 {
@@ -168,7 +172,7 @@ namespace DEB.Revit.Precast.UI
                     }
                 }
                 DimH(dc, P(0, 0).X, P(w, 0).X, yb + 14, N(w));
-                if (k == 1) DimV(dc, yb, P(0, p.Comprimento).Y, P(0, 0).X - (proj * sc + 12), N(p.Comprimento));
+                if (pos == 1) DimV(dc, yb, P(0, p.Comprimento).Y, P(0, 0).X - (proj * sc + 12), N(p.Comprimento));
                 x += (w + 2 * proj + gap) * sc;
             }
             // seções na vertical, à direita (trecho mais alto em cima)
@@ -205,11 +209,13 @@ namespace DEB.Revit.Precast.UI
         /// </summary>
         private void DrawCorbelDetails(DrawingContext dc, PecaLevantada p, Rect area)
         {
-            var tipos = new List<(ConsoloLevantado C, List<int> Faces)>();
-            foreach (ConsoloLevantado c in p.Consolos.OrderBy(c => c.Face))
+            // faces no número da prancha (1 = oeste); cada tipo junta as faces e os topos onde aparece
+            var tipos = new List<(ConsoloLevantado C, List<int> Faces, List<double> Topos)>();
+            foreach (ConsoloLevantado c in p.Consolos.OrderBy(c => Exibida(c.Face)).ThenBy(c => c.Perfil.ZMax))
             {
                 var t = tipos.FirstOrDefault(x => x.C.Perfil.MesmaSecao(c.Perfil) && Math.Abs(x.C.Largura - c.Largura) < 0.5);
-                if (t.C != null) t.Faces.Add(c.Face); else tipos.Add((c, new List<int> { c.Face }));
+                if (t.C != null) { t.Faces.Add(Exibida(c.Face)); t.Topos.Add(c.Perfil.ZMax); }
+                else tipos.Add((c, new List<int> { Exibida(c.Face) }, new List<double> { c.Perfil.ZMax }));
             }
             if (tipos.Count > 3) tipos = tipos.Take(3).ToList();
             Text(dc, "CONSOLOS (perfil)", area.X + 8, area.Y + 6, 12, bold: true);
@@ -218,11 +224,13 @@ namespace DEB.Revit.Precast.UI
             double sc = Math.Min((area.Width - 90) / bMax, Math.Min(cellH - 110, 260) / hMax);
             for (int i = 0; i < tipos.Count; i++)
             {
-                var (c, faces) = tipos[i];
+                var (c, faces, topos) = tipos[i];
                 var s = c.Perfil;
                 var m = c.Medidas;
                 double y0 = area.Y + 30 + i * cellH;
-                Text(dc, $"face{(faces.Count > 1 ? "s" : "")} {string.Join(", ", faces)} · largura {N(c.Largura)}", area.X + 8, y0, 10.5, bold: true);
+                // "faces 2 (×3), 3 (×3) · largura 19" em vez de repetir cada face
+                string fs = string.Join(", ", faces.GroupBy(f => f).OrderBy(g => g.Key).Select(g => g.Count() > 1 ? $"{g.Key} (×{g.Count()})" : $"{g.Key}"));
+                Text(dc, $"face{(faces.Distinct().Count() > 1 ? "s" : "")} {fs} · largura {N(c.Largura)}", area.X + 8, y0, 10.5, bold: true, maxW: area.Width - 12);
                 double ox = area.X + 40, oy = y0 + 22 + s.H * sc;
                 Point P(double d, double z) => new Point(ox + d * sc, oy - (z - s.ZMin) * sc);
                 dc.DrawLine(Outline, P(0, s.ZMin - 4), P(0, s.ZMax + 4));   // face do pilar
@@ -237,9 +245,13 @@ namespace DEB.Revit.Precast.UI
                 Text(dc, forma, area.X + 8, ty, 10.5, maxW: area.Width - 12);
                 if (m.ChanfroInferior.D > 0) Text(dc, $"chanfro inferior na ponta: {N(m.ChanfroInferior.D)} × {N(m.ChanfroInferior.C)}", area.X + 8, ty += 15, 10.5);
                 if (m.ChanfroSuperior.D > 0) Text(dc, $"chanfro superior na ponta: {N(m.ChanfroSuperior.D)} × {N(m.ChanfroSuperior.C)}", area.X + 8, ty += 15, 10.5);
-                Text(dc, $"topo a {N(s.ZMax)} cm da base", area.X + 8, ty + 15, 10.5);
+                var tz = topos.Select(z => Math.Round(z, 1)).Distinct().OrderBy(z => z).ToList();
+                Text(dc, tz.Count == 1 ? $"topo a {N(tz[0])} cm da base" : $"topos a {string.Join(", ", tz.Select(N))} cm da base", area.X + 8, ty + 15, 10.5, maxW: area.Width - 12);
             }
         }
+
+        /// <summary>Face interna ↔ número da prancha (troca 1 e 3; a mesma regra do template do pilar no CAD).</summary>
+        private static int Exibida(int f) => DEB.Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.FaceExibida(f);
 
         /// <summary>
         /// Coordenada horizontal, na vista da face <paramref name="k"/>, de um ponto da face <paramref name="j"/> a
