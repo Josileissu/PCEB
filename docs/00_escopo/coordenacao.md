@@ -93,6 +93,6 @@ Pendente:
   (`SecaoComAba`) aceita uma saliência lateral só; depois a armadura (estribos horizontais do consolo e verticais de alturas variáveis).
 - Interpretações a confirmar com o usuário: porta-estribo nos cantos de cima do estribo com a superior logo abaixo; "construtiva do
   ressalto" = as 4 longitudinais dele; largura entre 25 e 30 cm → 1 furo.
-- Instalador do Revit: a instalação real ainda não foi rodada (o Revit do usuário estava aberto no PC2).
+- Instalador do Revit 0.2.0: testado no PC2 (instala, carrega no 2025 e 2026, desmarca, desinstala).
 - Pilar no Revit pelo padrão do CAD ("o do CAD está mais bem acabado").
 - Consolos digitados nas faces 1/3 em modelos salvos antes da 0.1.37 trocam de lado (a face 1 agora é oeste).
