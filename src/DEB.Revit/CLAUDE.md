@@ -31,6 +31,15 @@ cd <raiz do PCEB>\src\DEB.Revit
 - **PC2** (decisão do usuário, 10/11/2026): pode testar no Revit **2025 e no 2026**, e implementar aqui. O modelo real de teste (168 vigas) é arquivo
   do 2026 (o 2025 para no aviso "versão posterior"). Com o Revit do usuário aberto a DLL fica presa: use o procedimento do `.antigo`. Modelo de teste com embutimento: `criarmodelo` (base −1,00 m).
 
+## Instalador e Release (desde 11/11/2026, 0.2.0)
+- `instalador\gerar.bat`: compila 2025 e 2026 com `DeployToRevit=false`, assina com `CN=PCEB DEB` e gera
+  `instalador\saida\DEB_Revit_Setup_<versão>.exe` (Inno Setup, por usuário: `%AppData%\Autodesk\Revit\Addins\<ano>`). Versão = `<Version>`
+  do csproj. Só gere quando o usuário PEDIR. Não rode o Setup com o Revit dele aberto (o aviso "feche o Revit" vira laço em modo silencioso).
+- Release própria: `gh release create revit-v<ver> src/DEB.Revit/instalador/saida/DEB_Revit_Setup_<ver>.exe --target main
+  --title "DEB para Revit <ver>" --notes-file <notas> --latest=false` — `--latest=false` mantém a do CAD como "mais recente" (o botão
+  "Baixar para CAD" do site usa `releases/latest`; o "Baixar para Revit" procura a última release com `DEB_Revit_Setup_*.exe`).
+- Fora deste computador o Revit avisa "editor não verificado" (o certificado é autoassinado): o usuário escolhe "Sempre carregar".
+
 ## Testar sem o usuário (AutoRun)
 `src/AutoRun.cs`: abrir o Revit 2025 com variáveis de ambiente roda uma tarefa no evento Idling e fecha o Revit.
 ```powershell
