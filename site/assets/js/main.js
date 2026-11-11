@@ -83,6 +83,31 @@
     }).catch(function () {});
   }
 
+  // Instalador do Revit: release própria (tag revit-v…), que não é a "mais recente" do repositório — procura na lista a
+  // última release com o DEB_Revit_Setup_*.exe. Sem a API, o botão abre a página das releases.
+  var alvosRevit = document.querySelectorAll("[data-revit]");
+  if (alvosRevit.length && window.fetch) {
+    fetch("https://api.github.com/repos/Josileissu/PCEB/releases?per_page=30", {
+      headers: { "Accept": "application/vnd.github+json" }
+    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (lista) {
+      if (!lista || !lista.length) return;
+      var achado = null, exe = null;
+      for (var i = 0; i < lista.length && !achado; i++) {
+        if (lista[i].draft || lista[i].prerelease) continue;
+        var a = (lista[i].assets || []).filter(function (x) { return /^DEB_Revit_Setup_.*\.exe$/i.test(x.name); })[0];
+        if (a) { achado = lista[i]; exe = a; }
+      }
+      if (!achado) return;
+      var versao = achado.tag_name.replace(/^revit-v/i, "").replace(/^v/i, "");
+      alvosRevit.forEach(function (el) {
+        var k = el.getAttribute("data-revit");
+        if (k === "versao") el.textContent = versao;
+        else if (k === "arquivo") el.textContent = exe.name;
+        else if (k === "download") el.setAttribute("href", exe.browser_download_url);
+      });
+    }).catch(function () {});
+  }
+
   // Doação: QR code do Pix (assets/js/qrcode.js, MIT) e botão de copiar.
   document.querySelectorAll("[data-pix-qr]").forEach(function (el) {
     var fonte = document.querySelector(el.getAttribute("data-pix-qr"));
