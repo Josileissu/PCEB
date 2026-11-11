@@ -36,6 +36,8 @@ public sealed class ZonaEstriboViga
     public double Esp { get; set; }
     /// <summary>Posições dos estribos (eixo), da regra de faixas do plugin (a mesma que a faixa usa para contar).</summary>
     public List<double> Posicoes { get; set; } = new List<double>();
+    /// <summary>Quantidade fixa (reforço de abertura): a faixa é contada (<c>FaixaContada</c>); 0 = pelo espaçamento.</summary>
+    public int Contada { get; set; }
 }
 
 /// <summary>
@@ -89,7 +91,18 @@ public sealed partial class TemplateVigaPreMoldada
           descricao: "A partir da face do dente (ou da ponta reta), nas duas pontas. 0 = só o espaçamento do vão."),
         P(G8, "EstEspPonta", "Zona das pontas: espaçamento", "10", "cm", min: 2),
         P(G8, "EstEspVao", "Vão: espaçamento", "15", "cm", min: 2),
+        P(G14, "SegEstagio", "Viga com segundo estágio de concretagem", "Não", tipo: TipoParametro.SimNao,
+          descricao: "Pedido do usuário (2026-11-11): a capa (2º estágio) é concretada na obra. A seção vira \"b x h+capa\", os estribos sobem " +
+                     "na capa, a armadura superior fica no 2º estágio e a peça leva um porta-estribo só para segurar os estribos; nota na prancha."),
+        P(G14, "SegEstagioCapa", "Altura do 2º estágio (capa)", "10", "cm", min: 1),
+        P(G14, "PortaEstriboQtd", "Porta-estribo: barras", "2", tipo: TipoParametro.Inteiro, min: 0, max: 4),
+        P(G14, "PortaEstriboBitola", "Porta-estribo: bitola", "6.3", "mm", TipoParametro.Bitola, 5, 10),
     };
+
+    private const string G14 = "14. Segundo estágio de concretagem";
+
+    /// <summary>Altura do 2º estágio (capa concretada na obra); 0 = viga sem 2º estágio.</summary>
+    public static double Capa(ValoresTemplate v) => v.SimNao("SegEstagio") ? Math.Max(0, v.Numero("SegEstagioCapa")) : 0;
 
     // ======================== leitura (testável) ========================
 
@@ -164,7 +177,7 @@ public sealed partial class TemplateVigaPreMoldada
         return r;
     }
 
-    private static string RotuloFuncao(Ctx c, LinhaLongViga l)
+    private static string RotuloFuncao(Ctx c, LinhaLongViga l, bool segundoEstagio = false)
     {
         string pt = l.Funcao switch
         {
@@ -175,6 +188,7 @@ public sealed partial class TemplateVigaPreMoldada
             FInferior => "BOTTOM REINFORCEMENT", FSuperior => "TOP REINFORCEMENT", FPele => "SKIN", _ => "CONSTRUCTION REINFORCEMENT",
         };
         if (l.Camada == 2) { pt += " - 2ª CAMADA"; en += " - 2ND LAYER"; }
+        if (segundoEstagio && l.Funcao == FSuperior) { pt += " (2º ESTÁGIO)"; en += " (2ND STAGE)"; }
         return string.Join(" / ", c.Linhas(pt, en));
     }
 
@@ -183,8 +197,9 @@ public sealed partial class TemplateVigaPreMoldada
     /// <summary>ARMADURAS EM ELEVAÇÃO abaixo de <paramref name="yTopo"/>; devolve o y abaixo de tudo.</summary>
     private double ArmadurasEmElevacao(Ctx c, ValoresTemplate v, ConfiguracaoArmadura cfg, double b, double h, double L,
         ExtremidadeViga e, ExtremidadeViga d, List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, List<(string Id, double X)> cortes, double yTopo,
-        List<GrupoCordoalhas> cordSup, AbaViga aba, RessaltoViga ress)
+        List<GrupoCordoalhas> cordSup, AbaViga aba, RessaltoViga ress, List<AberturaViga> abs = null)
     {
+        abs ??= new List<AberturaViga>();
         var r = c.R;
         double hv = c.hV, esc = c.escV;
         TituloVista(c, "ARMADURAS EM ELEVAÇÃO", "REINFORCEMENT ELEVATION", 0, yTopo, esc);
@@ -197,11 +212,25 @@ public sealed partial class TemplateVigaPreMoldada
         double y = yTopo - 7 * hv;
         // cordoalhas superiores (VP-3) acima das passivas
         if (cordSup.Count > 0) y = CordoalhasEmElevacao(c, cordSup, h, L, e, d, yTopo - 6 * hv, superiores: true) + 1 * hv;
-        foreach (var l in cima) { BarraLongitudinal(c, l, aco, y, esc); y -= passo; }
+        double capa = Capa(v);
+        foreach (var l in cima) { BarraLongitudinal(c, l, aco, y, esc, capa > 0); y -= passo; }
+        // 2º estágio: o porta-estribo (só segura os estribos que sobem na capa) numa linha própria
+        int nPorta = capa > 0 ? Math.Max(0, v.Inteiro("PortaEstriboQtd")) : 0;
+        if (nPorta > 0)
+        {
+            double cobP = v.Numero("CobPontas");
+            r.Barras.Add(new BarraTemplate
+            {
+                Nome = "portaestribo", Bitola = v.Numero("PortaEstriboBitola"), Aco = aco, Quantidade = nPorta, Escala = esc,
+                Vertices = { (cobP, y), (L - cobP, y) }, Formatos = { FormatoSegmento.Linha }, PosicaoDescricao = (L / 2, y + 2.6 * hv),
+            });
+            c.Texto(string.Join(" / ", c.Linhas("PORTA-ESTRIBO", "STIRRUP HANGER")), L / 2, y - 3.4 * hv, 0.75 * hv, 1);
+            y -= passo;
+        }
 
         // forma em linha fina e estribos dentro
         double sal = v["EstTipo"] == EstAberto ? Math.Max(0, v.Numero("EstSaliencia")) : 0;
-        double yT = y - 2 * hv - Math.Max(sal, ress.Altura), yB = yT - h;
+        double yT = y - 2 * hv - Math.Max(Math.Max(sal, capa), ress.Altura), yB = yT - h;
         var k = new ContornoTemplate { Fechado = true, Layer = "ARM-FORMA" };
         if (e.TemDente) k.Vertices.AddRange(new[] { (0.0, yT - e.Dente.Altura), (e.CompDente, yT - e.Dente.Altura), (e.CompDente, yB) });
         else k.Vertices.Add((0, yB));
@@ -210,28 +239,23 @@ public sealed partial class TemplateVigaPreMoldada
         k.Vertices.AddRange(new[] { (L, yT), (0.0, yT) });
         r.Contornos.Add(k);
         double cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo");
+        // estribos: até o topo (ou a saliência do aberto, ou a capa do 2º estágio menos o cobrimento)
+        double topoEst = capa > 0 ? yT + capa - cobT : yT - cobT + sal + (sal > 0 ? cobT : 0);
         foreach (var x in zonas.SelectMany(z => z.Posicoes))
-            c.Linha(x, yB + cobF, x, yT - cobT + sal + (sal > 0 ? cobT : 0), "ARM-BARRA-DETALHE");
+            c.Linha(x, yB + cobF, x, topoEst, "ARM-BARRA-DETALHE");
+        if (capa > 0) c.R.Contornos.Add(new ContornoTemplate { Vertices = { (0.0, yT), (0.0, yT + capa), (L, yT + capa), (L, yT) }, Layer = "ARM-FURO-OCULTO" });
         AbaEmElevacao(c, aba, L, yB, cotar: false);
+        AberturasEmElevacaoArmaduras(c, v, cfg, abs, h, L, yB);
         // marcas das seções também aqui
         foreach (var (id, xc) in cortes) { c.MarcaCorte(id, xc, yT + ress.Altura + 0.2 * hv, hv); MarcaCorteBaixo(c, id, xc, yB - 0.2 * hv, hv); }
 
         // faixas de estribos por zona, em cota embaixo da forma (cadeia a partir das pontas); o dente e a suspensão na mesma linha da
         // zona vizinha de cada ponta
         double yF = yB - 4.5 * hv;
+        // zonas vizinhas (e os estribos curtos das aberturas) com o texto em alturas alternadas (zonas curtas não se encavalam)
+        var (_, linhaUltima) = CadeiaEstribos(c, v, cfg, zonas, abs, h, yF);
         DenteEmElevacao(c, v, cfg, L, e, true, yT, yB, yF);
-        DenteEmElevacao(c, v, cfg, L, d, false, yT, yB, yF - (Math.Max(0, zonas.Count - 1) % 2) * 3.2 * hv);
-        // zonas vizinhas com o texto em alturas alternadas (zonas curtas não se encavalam)
-        for (int iz = 0; iz < zonas.Count; iz++)
-        {
-            var z = zonas[iz];
-            double yz = yF - (iz % 2) * 3.2 * hv;
-            r.Faixas.Add(new FaixaTemplate
-            {
-                Barra = "estribo", Tipo = TipoFaixa.Ortogonal, P1 = (z.X1, yz), P2 = (z.X2, yz), Posicao = ((z.X1 + z.X2) / 2, yz + 0.8 * hv),
-                Espacamento = z.Esp, Escala = esc,
-            });
-        }
+        DenteEmElevacao(c, v, cfg, L, d, false, yT, yB, yF - linhaUltima * 3.2 * hv);
 
         // estribos da aba: traços na altura da aba e a faixa deles numa linha própria, abaixo das faixas dos estribos da alma
         bool faixaAba = AbaEstribosEmElevacao(c, v, cfg, aba, yB, yF - (zonas.Count > 1 ? 6.4 : 3.2) * hv);
@@ -253,11 +277,17 @@ public sealed partial class TemplateVigaPreMoldada
         if (aba.Existe && AbaLongitudinal(c, v, aba, y)) y -= passo;
         if (RessaltoLongitudinal(c, v, ress, L, y)) y -= passo;
         y = DenteBarras(c, v, b, L, e, d, y);
+        y = AberturasBarras(c, v, abs, h, L, y, passo);
+        if (capa > 0)
+        {
+            c.Texto(string.Join(" / ", c.Linhas("**VIGA COM SEGUNDO ESTÁGIO DE CONCRETAGEM**", "**BEAM WITH SECOND CONCRETING STAGE**")), L / 2, y + 1 * hv, 0.9 * hv, 1);
+            y -= 4 * hv;
+        }
         return y;
     }
 
     /// <summary>Uma linha de longitudinais desenhada fora da forma: a barra com as dobras, a descrição em cima e a função embaixo.</summary>
-    private static void BarraLongitudinal(Ctx c, LinhaLongViga l, string aco, double y, double esc)
+    private static void BarraLongitudinal(Ctx c, LinhaLongViga l, string aco, double y, double esc, bool segundoEstagio = false)
     {
         double hv = c.hV, s = l.Inferior ? 1 : -1;
         var bt = new BarraTemplate
@@ -271,7 +301,7 @@ public sealed partial class TemplateVigaPreMoldada
         if (l.DobraD > 0) bt.Vertices.Add((l.Fim, y + s * l.DobraD));
         for (int i = 0; i + 1 < bt.Vertices.Count; i++) bt.Formatos.Add(FormatoSegmento.Linha);
         c.R.Barras.Add(bt);
-        c.Texto(RotuloFuncao(c, l), (l.Ini + l.Fim) / 2, y - 3.4 * hv, 0.75 * hv, 1);   // abaixo das cotas das dobras e das soldadas
+        c.Texto(RotuloFuncao(c, l, segundoEstagio), (l.Ini + l.Fim) / 2, y - 3.4 * hv, 0.75 * hv, 1);   // abaixo das cotas das dobras e das soldadas
     }
 
     /// <summary>Barras da linha na seção (centros, coordenadas da seção com a origem no canto inferior esquerdo).</summary>
@@ -304,7 +334,8 @@ public sealed partial class TemplateVigaPreMoldada
 
     /// <summary>SEÇÃO X-X - ARMADURA no x do corte, com o topo em <paramref name="yTopo"/> (mesma altura da seção de forma).</summary>
     private static void SecaoArmadura(Ctx c, ValoresTemplate v, string id, double xCorte, double b, double h, double L, ExtremidadeViga ext,
-        List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, double x0, double yTopo, AbaViga aba = null, RessaltoViga ress = null)
+        List<LinhaLongViga> longs, List<ZonaEstriboViga> zonas, double x0, double yTopo, AbaViga aba = null, RessaltoViga ress = null,
+        AberturaViga ab = null)
     {
         double hc = c.hC, y = yTopo;
         foreach (var t in c.Linhas($"SEÇÃO {id}-{id} - ARMADURA", $"SECTION {id}-{id} - REINFORCEMENT")) { c.Texto(t, x0, y, 1.2 * hc); y -= 2 * hc; }
@@ -316,10 +347,22 @@ public sealed partial class TemplateVigaPreMoldada
         else c.Retangulo(sx0, sy0, sx0 + b, sy1, "ARM-FORMA");
         double cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo"), cobL = v.Numero("CobLateral"), phiT = v.Numero("EstBitola");
         bool comEstribo = ext?.TemDente != true && zonas.Count > 0 && xCorte >= zonas[0].X1 - 1 && xCorte <= zonas[zonas.Count - 1].X2 + 1;
+        double capa = ext?.TemDente == true ? 0 : Capa(v);   // 2º estágio: a capa em tracejado, o estribo sobe nela
+        if (capa > 0) c.R.Contornos.Add(new ContornoTemplate { Vertices = { (sx0, sy1), (sx0, sy1 + capa), (sx0 + b, sy1 + capa), (sx0 + b, sy1) }, Layer = "ARM-FURO-OCULTO" });
+        if (ab != null) { comEstribo = false; AberturaNaSecaoArmadura(c, v, ab, b, hSec, sx0, sy0); }   // na abertura: estribos curtos
         if (comEstribo)
         {
             double t = phiT / 20;
-            c.Retangulo(sx0 + cobL + t, sy0 + cobF + t, sx0 + b - cobL - t, sy1 - cobT - t, "ARM-BARRA-DETALHE");
+            c.Retangulo(sx0 + cobL + t, sy0 + cobF + t, sx0 + b - cobL - t, sy1 + capa - cobT - t, "ARM-BARRA-DETALHE");
+            int nPorta = capa > 0 ? Math.Max(0, v.Inteiro("PortaEstriboQtd")) : 0;
+            if (nPorta > 0)
+            {
+                // porta-estribo nos cantos de cima do estribo (na capa)
+                double rp = v.Numero("PortaEstriboBitola") / 20, yp = sy1 + capa - cobT - 2 * t - rp, xa = sx0 + cobL + 2 * t + rp, xb = sx0 + b - cobL - 2 * t - rp;
+                var pp = nPorta == 1 ? new List<(double, double)> { ((xa + xb) / 2, yp) } : Enumerable.Range(0, nPorta).Select(i => (xa + i * (xb - xa) / (nPorta - 1), yp)).ToList();
+                foreach (var (px, py) in pp) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = rp, Layer = "ARM-BARRA-SECAO" });
+                c.R.Faixas.Add(new FaixaTemplate { Barra = "portaestribo", Tipo = TipoFaixa.Indicacao, Referencias = pp, Posicao = (sx0 - 4 * hc, sy1 + capa + 2 * hc), Escala = c.escC });
+            }
         }
         if (ext?.TemDente == true) DenteNaSecao(c, v, ext.Dente, xCorte < L / 2, b, sx0, sy0, sy1);
         if (aba != null) AbaNaSecaoArmadura(c, v, aba, b, sx0, sy0);
@@ -328,7 +371,11 @@ public sealed partial class TemplateVigaPreMoldada
         int kBaixo = 0, kCima = 0, kDir = 0;
         foreach (var l in longs.Where(l => xCorte >= l.Ini - 1e-6 && xCorte <= l.Fim + 1e-6))
         {
-            var pts = PontosNaSecao(l, b, hSec, cobF, cobT, cobL, comEstribo ? phiT : 0, longs).Select(p => (sx0 + p.X, sy0 + p.Y)).ToList();
+            // 2º estágio: as superiores ficam na capa, logo abaixo do porta-estribo
+            double hLinha = capa > 0 && !l.Inferior && !l.Pele ? hSec + capa - (v.Inteiro("PortaEstriboQtd") > 0 ? v.Numero("PortaEstriboBitola") / 10 + 1 : 0) : hSec;
+            var pts = PontosNaSecao(l, b, hLinha, cobF, cobT, cobL, comEstribo ? phiT : 0, longs).Select(p => (sx0 + p.X, sy0 + p.Y))
+                .Where(p => ab == null || p.Item2 < sy0 + ab.Z - 1e-6 || p.Item2 > sy0 + ab.Z1 + 1e-6).ToList();   // a pele para na abertura
+            if (pts.Count == 0) continue;
             foreach (var (px, py) in pts) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = l.Bitola / 20, Layer = "ARM-BARRA-SECAO" });
             (double X, double Y) pos = l.Pele ? (sx0 + b + 4 * hc, sy0 + hSec / 2 - 2 * hc * kDir++)
                 : l.Inferior ? (sx0 + b / 2 + 2 * hc * kBaixo, sy0 - (3 + 2 * kBaixo++) * hc)
@@ -345,7 +392,7 @@ public sealed partial class TemplateVigaPreMoldada
     private static BarraTemplate FormaEstribo(ValoresTemplate v, ConfiguracaoArmadura cfg, double b, double h, double x, double y)
     {
         double cobL = v.Numero("CobLateral"), cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo");
-        double w = b - 2 * cobL, hh = h - cobF - cobT, phi = v.Numero("EstBitola");
+        double w = b - 2 * cobL, hh = h + Capa(v) - cobF - cobT, phi = v.Numero("EstBitola");   // 2º estágio: sobe na capa
         string aco = v["EstAco"];
         var bt = new BarraTemplate { Nome = "estribo", Bitola = phi, Aco = aco, Estribo = true, Escala = 0, Quantidade = 1 };
         if (v["EstTipo"] == EstAberto)

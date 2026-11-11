@@ -51,13 +51,14 @@ public static class Subdivisao
     }
 
     /// <summary>
-    /// Estações sem as bordas das aberturas (2026-11-10): o x de um vértice que só existe por causa de um furo na alma não muda a
-    /// seção da peça — sem isto, cada furo dividia a viga em mais dois trechos.
+    /// Estações sem as das aberturas (2026-11-10): o x de um vértice que só existe por causa de um furo na alma não muda a seção da
+    /// peça — sem isto, cada furo dividia a viga em mais dois trechos. Também as de DENTRO da abertura (2026-11-11): o furo redondo
+    /// tem um vértice a cada passo do arco, e cada um virava um trecho falso cortado pelo furo.
     /// </summary>
     public static List<double> SemBordasDeAberturas(IEnumerable<double> xs, IEnumerable<AberturaPeca> aberturas, double tol = SecaoPoligonal.Tolerancia)
     {
-        var bordas = aberturas.SelectMany(a => new[] { a.X0, a.X1 }).ToList();
-        return xs.Where(x => !bordas.Any(b => System.Math.Abs(b - x) <= tol)).ToList();
+        var ab = aberturas.ToList();
+        return xs.Where(x => !ab.Any(a => x >= a.X0 - tol && x <= a.X1 + tol)).ToList();
     }
 
     /// <summary>

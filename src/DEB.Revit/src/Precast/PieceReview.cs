@@ -102,7 +102,7 @@ namespace DEB.Revit.Precast
         /// </summary>
         private static List<AberturaPeca> Aberturas(FamilyInstance b, PieceInfo info)
         {
-            var porLado = new List<(int Sinal, double X0, double X1, double Z0, double Z1)>();
+            var porLado = new List<(int Sinal, double X0, double X1, double Z0, double Z1, bool Circ)>();
             List<SolidRef> refs = GeometryHelper.GetSolids(b, null);
             foreach (SolidRef sr in refs)
                 foreach (Face f in sr.Solid.Faces)
@@ -110,23 +110,28 @@ namespace DEB.Revit.Precast
                     if (!(f is PlanarFace pf)) continue;
                     double dy = sr.ToWorld.OfVector(pf.FaceNormal).DotProduct(info.AxisY);
                     if (Math.Abs(dy) < 0.999 || pf.EdgeLoops.Size < 2) continue;
-                    var lacos = new List<(double X0, double X1, double Z0, double Z1)>();
+                    var lacos = new List<(double X0, double X1, double Z0, double Z1, bool Circ)>();
                     foreach (EdgeArray loop in pf.EdgeLoops)
                     {
                         var pts = new List<XYZ>();
-                        foreach (Edge e in loop) foreach (XYZ q in e.Tessellate()) pts.Add(sr.ToWorld.OfPoint(q) - info.Origin);
+                        bool arco = false;   // laço com arco = furo redondo (2026-11-11)
+                        foreach (Edge e in loop)
+                        {
+                            if (e.AsCurve() is Arc) arco = true;
+                            foreach (XYZ q in e.Tessellate()) pts.Add(sr.ToWorld.OfPoint(q) - info.Origin);
+                        }
                         if (pts.Count == 0) continue;
                         lacos.Add((Cm(pts.Min(q => q.DotProduct(info.AxisX))), Cm(pts.Max(q => q.DotProduct(info.AxisX))),
-                                   Cm(pts.Min(q => q.DotProduct(info.AxisZ))), Cm(pts.Max(q => q.DotProduct(info.AxisZ)))));
+                                   Cm(pts.Min(q => q.DotProduct(info.AxisZ))), Cm(pts.Max(q => q.DotProduct(info.AxisZ))), arco));
                     }
                     // o contorno da face é o maior; os outros são furos
                     var contorno = lacos.OrderByDescending(l => (l.X1 - l.X0) * (l.Z1 - l.Z0)).First();
                     foreach (var l in lacos.Where(l => !l.Equals(contorno)))
-                        porLado.Add((dy > 0 ? 1 : -1, Round(l.X0), Round(l.X1), Round(l.Z0), Round(l.Z1)));
+                        porLado.Add((dy > 0 ? 1 : -1, Round(l.X0), Round(l.X1), Round(l.Z0), Round(l.Z1), l.Circ));
                 }
             GC.KeepAlive(refs);
             const double tol = 0.6;
-            bool Igual((int, double X0, double X1, double Z0, double Z1) a, (int, double X0, double X1, double Z0, double Z1) c) =>
+            bool Igual((int, double X0, double X1, double Z0, double Z1, bool) a, (int, double X0, double X1, double Z0, double Z1, bool) c) =>
                 Math.Abs(a.X0 - c.X0) <= tol && Math.Abs(a.X1 - c.X1) <= tol && Math.Abs(a.Z0 - c.Z0) <= tol && Math.Abs(a.Z1 - c.Z1) <= tol;
             var r = new List<AberturaPeca>();
             var usados = new HashSet<int>();
@@ -137,7 +142,7 @@ namespace DEB.Revit.Precast
                 bool passante = j > i;
                 if (passante) usados.Add(j);
                 var a = porLado[i];
-                r.Add(new AberturaPeca { X0 = a.X0, X1 = a.X1, Z0 = a.Z0, Z1 = a.Z1, Passante = passante });
+                r.Add(new AberturaPeca { X0 = a.X0, X1 = a.X1, Z0 = a.Z0, Z1 = a.Z1, Passante = passante, Circular = a.Circ });
             }
             return r.OrderBy(a => a.X0).ToList();
         }

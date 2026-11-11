@@ -122,6 +122,16 @@ public sealed class RessaltoPeca
     public double Altura { get; set; }
 }
 
+/// <summary>Abertura passante na alma da viga (2026-11-11): caixa em cm (x da ponta esquerda, z do fundo) e se é redonda.</summary>
+public sealed class AberturaVigaPeca
+{
+    public double X0 { get; set; }
+    public double X1 { get; set; }
+    public double Z0 { get; set; }
+    public double Z1 { get; set; }
+    public bool Circular { get; set; }
+}
+
 /// <summary>Grupo de vigas iguais (ou invertidas: ponta esquerda ↔ direita) do modelo.</summary>
 public sealed class VigaPeca
 {
@@ -136,6 +146,8 @@ public sealed class VigaPeca
     public AbaPeca Aba { get; set; }
     /// <summary>Ressalto sobre a alma; null = sem.</summary>
     public RessaltoPeca Ressalto { get; set; }
+    /// <summary>Aberturas passantes na alma (vazia = sem).</summary>
+    public List<AberturaVigaPeca> Aberturas { get; set; } = new List<AberturaVigaPeca>();
     /// <summary>Dente nas pontas esquerda e direita; null = ponta reta.</summary>
     public DentePeca DenteE { get; set; }
     public DentePeca DenteD { get; set; }
@@ -147,14 +159,15 @@ public sealed class VigaPeca
 public sealed class ArquivoPecas
 {
     public const string Formato = "DEB.Pecas";
-    /// <summary>Versão mais nova que esta biblioteca lê. A 2 (2026-11-09) trouxe a aba das vigas; a 3 (2026-11-10), o ressalto.</summary>
-    public const int VersaoAtual = 3;
+    /// <summary>Versão mais nova que esta biblioteca lê. A 2 (2026-11-09) trouxe a aba das vigas; a 3 (2026-11-10), o ressalto; a 4
+    /// (2026-11-11), as aberturas na alma.</summary>
+    public const int VersaoAtual = 4;
 
     /// <summary>
     /// Versão gravada = a menor que representa o conteúdo: 1 se nenhuma viga tem aba (um DEB.Cad antigo continua lendo), 2 se
     /// tem — o antigo então RECUSA o arquivo em vez de desenhar a viga sem a aba.
     /// </summary>
-    public int VersaoNecessaria => Vigas.Any(v => v.Ressalto != null) ? 3 : Vigas.Any(v => v.Aba != null) ? 2 : 1;
+    public int VersaoNecessaria => Vigas.Any(v => v.Aberturas.Count > 0) ? 4 : Vigas.Any(v => v.Ressalto != null) ? 3 : Vigas.Any(v => v.Aba != null) ? 2 : 1;
 
     /// <summary>Arquivo do modelo de onde vieram as peças.</summary>
     public string Origem { get; set; } = "";
@@ -222,6 +235,14 @@ public sealed class ArquivoPecas
             if (p.Ressalto != null)
                 jv.Definir("ressalto", ValorJson.NovoObjeto().Definir("lado", p.Ressalto.Lado)
                     .Definir("largura", R(p.Ressalto.Largura)).Definir("altura", R(p.Ressalto.Altura)));
+            if (p.Aberturas.Count > 0)
+            {
+                var ab = ValorJson.NovaLista();
+                foreach (var a in p.Aberturas)
+                    ab.Adicionar(ValorJson.NovoObjeto().Definir("x0", R(a.X0)).Definir("x1", R(a.X1)).Definir("z0", R(a.Z0)).Definir("z1", R(a.Z1))
+                        .Definir("forma", a.Circular ? "circular" : "retangular"));
+                jv.Definir("aberturas", ab);
+            }
             vigas.Adicionar(jv);
         }
         return o.Definir("vigas", vigas);
@@ -341,6 +362,19 @@ public sealed class ArquivoPecas
                 };
                 if (v.Ressalto.Lado != AbaPeca.Esquerda && v.Ressalto.Lado != AbaPeca.Direita) throw new FormatException($"{cr}.lado: use \"esquerda\" ou \"direita\".");
                 if (v.Ressalto.Largura <= 0 || v.Ressalto.Altura <= 0) throw new FormatException($"{cr}: largura e altura têm de ser positivas.");
+            }
+            var lab = LeitorJson.Presente(jv, "aberturas") ? LeitorJson.Lista(jv, "aberturas", cv) : null;
+            for (int k = 0; lab != null && k < lab.Quantidade; k++)
+            {
+                string ck = $"{cv}.aberturas[{k}]";
+                var ja = LeitorJson.Objeto(lab[k], ck);
+                var ab = new AberturaVigaPeca
+                {
+                    X0 = LeitorJson.Num(ja, "x0", 0, ck), X1 = LeitorJson.Num(ja, "x1", 0, ck), Z0 = LeitorJson.Num(ja, "z0", 0, ck), Z1 = LeitorJson.Num(ja, "z1", 0, ck),
+                    Circular = string.Equals(LeitorJson.Txt(ja, "forma", "retangular", ck), "circular", StringComparison.OrdinalIgnoreCase),
+                };
+                if (ab.X1 <= ab.X0 || ab.Z1 <= ab.Z0) throw new FormatException($"{ck}: x0 < x1 e z0 < z1.");
+                v.Aberturas.Add(ab);
             }
             var le = LeitorJson.Lista(jv, "elementos", cv);
             for (int k = 0; le != null && k < le.Quantidade; k++)
