@@ -179,7 +179,8 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
 
         // ---------------- título ----------------
         double y = 0;
-        string titulo = nome + (qtd > 1 ? $" - {qtd}x" : "") + $" ({Num(b, "0.#")} x {Num(h, "0.#")})";
+        double capa = Capa(v);
+        string titulo = nome + (qtd > 1 ? $" - {qtd}x" : "") + $" ({Num(b, "0.#")} x {Num(h, "0.#")}{(capa > 0 ? "+" + Num(capa, "0.#") : "")})";
         c.Texto(titulo, 0, y, 2.5 * hv);
         c.Texto($"ESC 1:{escV:0}", 0, y - 1.5 * hv, 0.7 * hv);
         // dente criado pela importação do Revit com a armadura padrão: aviso em vermelho acima do título até o usuário conferir
@@ -201,7 +202,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         TituloVista(c, "FÔRMAS EM ELEVAÇÃO", "FORMWORK ELEVATION", 0, y, escV);
         bool alcas = v.SimNao("Alcas");
         double acima = alcas ? v.Numero("AlcaAcima") : 0;
-        double yE = y - (alcas ? 12 : 8) * hv - acima - h - ress.Altura; // folga para a cadeia e o rótulo das alças (e o ressalto)
+        double yE = y - (alcas ? 12 : 8) * hv - acima - h - Math.Max(ress.Altura, capa); // folga para a cadeia e o rótulo das alças (e o ressalto/capa)
         // a seção do vão passa pela aba (se a aba não pega o meio da viga, o corte vai para o meio dela)
         var cortes = CortesForma(e, d, L, aba.Existe && !aba.Em(L / 2) ? (aba.Ini + aba.Fim) / 2 : (double?)null);
         // uma seção por abertura, com as letras seguintes
@@ -212,7 +213,13 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
             cortes.Add((id, a.X));
             corteAbertura[id] = a;
         }
-        DesenharElevacao(c, v, b, h, L, e, d, yE, cortes, alcas, ress.Altura);
+        DesenharElevacao(c, v, b, h, L, e, d, yE, cortes, alcas, Math.Max(ress.Altura, capa));
+        if (capa > 0)
+        {
+            // 2º estágio em tracejado acima do topo, com a altura cotada fora da ponta direita
+            c.R.Contornos.Add(new ContornoTemplate { Vertices = { (0.0, yE + h), (0.0, yE + h + capa), (L, yE + h + capa), (L, yE + h) }, Layer = "ARM-FURO-OCULTO" });
+            c.Cota(L, yE + h, L, yE + h + capa, L + 5.5 * hv, yE + h + capa / 2, Math.PI / 2, escV);
+        }
         AberturasEmElevacao(c, abs, L, yE);
         AbaEmElevacao(c, aba, L, yE, cotar: true);
         RessaltoEmElevacao(c, ress, L, yE + h, cotar: true);
@@ -245,7 +252,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
             SecaoArmadura(c, v, id, xc, b, h, L, ext, longs, zonas, xSA + aba.LargE, yS, abaSec, ress, abCorte);
             if (cords.Count > 0) CordoalhasNaSecao(c, cords, xc, h, L, e, d, b, xSA + aba.LargE + 4 * hc, SecaoBase(c, yS, ext, h) - ress.Altura);
             if (ext == null) ySVao = yS;
-            yS = SecaoForma(c, id, b, h, ext, xS + aba.LargE, yS, abaSec, ress, abCorte) - 8 * hc;
+            yS = SecaoForma(c, id, b, h, ext, xS + aba.LargE, yS, abaSec, ress, abCorte, ext?.TemDente == true ? 0 : capa) - 8 * hc;
         }
         // forma do estribo ao lado da seção do vão (descrição embaixo)
         double xEst = xSA + b + wAba + 22 * hc;
@@ -542,7 +549,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
     /// cortada é o dente (b × altura do dente) e o recorte aparece atrás, em vista.
     /// </summary>
     private static double SecaoForma(Ctx c, string id, double b, double h, ExtremidadeViga ext, double x0, double yTopo, AbaViga a = null, RessaltoViga rs = null,
-        AberturaViga ab = null)
+        AberturaViga ab = null, double capa = 0)
     {
         double hc = c.hC, esc = c.escC, y = yTopo;
         foreach (var t in c.Linhas($"SEÇÃO {id}-{id}", $"SECTION {id}-{id}")) { c.Texto(t, x0, y, 1.2 * hc); y -= 2 * hc; }
@@ -560,6 +567,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         if (a != null) CotasAbaNaSecao(c, a, b, sx0, sy1 - hCorte, sy0 - 3 * hc);
         if (comRess) CotasRessaltoNaSecao(c, rs, b, hCorte, sx0, sy1 - hCorte);
         if (ab != null) AberturaNaSecaoForma(c, ab, b, sx0, sy0);
+        if (capa > 0)
+        {
+            // 2º estágio: a capa em tracejado acima da peça e a altura dela cotada do lado esquerdo
+            c.R.Contornos.Add(new ContornoTemplate { Vertices = { (sx0, sy1), (sx0, sy1 + capa), (sx0 + b, sy1 + capa), (sx0 + b, sy1) }, Layer = "ARM-FURO-OCULTO" });
+            c.Cota(sx0, sy1, sx0, sy1 + capa, sx0 - 3 * hc, sy1 + capa / 2, Math.PI / 2, esc);
+        }
         return sy0 - 6 * hc;
     }
 
