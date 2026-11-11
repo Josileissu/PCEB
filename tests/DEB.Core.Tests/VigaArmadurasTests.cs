@@ -84,7 +84,7 @@ public class VigaArmadurasTests
         // no vão: 4 + 2 inferiores e 2 superiores; nos dentes: só as superiores (as inferiores param antes dos dentes)
         // + em cada dente: 3 tirantes, 4 grampos e 3 costuras (a perna de um lado) = 10
         Assert.Equal(2 * 2 + 8 + 2 * 10, r.Circulos.Count(k => k.Layer == "ARM-BARRA-SECAO"));
-        Assert.Equal(3 + 2 + 2 * 4 + 2 * 2, r.Faixas.Count(f => f.Tipo == TipoFaixa.Indicacao));   // + dente: Gerber, tirante, grampo, costura na seção; Gerber e suspensão na elevação
+        Assert.Equal(3 + 2 + 2 * 4, r.Faixas.Count(f => f.Tipo == TipoFaixa.Indicacao));   // + dente: Gerber, tirante, grampo, costura na seção (na elevação, Gerber e suspensão em faixa com cota)
         // 2ª camada acima da 1ª, com folga de pelo menos 2 cm entre as faces
         var pts = TemplateVigaPreMoldada.PontosNaSecao(
             new LinhaLongViga { Funcao = TemplateVigaPreMoldada.FInferior, Quantidade = 2, Bitola = 20, Camada = 2 }, 40, 50, 2.5, 2.5, 2.5, 6.3,
@@ -124,6 +124,26 @@ public class VigaArmadurasTests
         Assert.Equal(t.EstGerberQtd, ge.Quantidade);
         Assert.Equal(35 - 5, ge.Vertices.Max(p => p.Y) - ge.Vertices.Min(p => p.Y), 0);
         Assert.Equal(t.SuspQtd, r.Barras.Single(b => b.Nome == "suspensao_E").Quantidade);
+        // dente e suspensão em faixa com cota (padrão do escritório, 2026-11-11): o dente da ponta à face do recorte, a suspensão
+        // logo depois, encadeada com a faixa dos estribos; a quantidade da faixa pela regra do plugin = a da barra, sem "c/"
+        var cfg = new Configuracao.ConfiguracaoArmadura();
+        var fg = r.Faixas.Single(f => f.Barra == "gerber_E" && f.Tipo == Modelo.TipoFaixa.Ortogonal);
+        var fs = r.Faixas.Single(f => f.Barra == "suspensao_E" && f.Tipo == Modelo.TipoFaixa.Ortogonal);
+        var fe = r.Faixas.Where(f => f.Barra == "estribo").OrderBy(f => f.P1.X).First();
+        Assert.All(new[] { fg, fs }, f => { Assert.Equal(Modelo.TipoFaixa.Ortogonal, f.Tipo); Assert.False(f.MostrarEspacamento); });
+        Assert.Equal((0.0, 25.0), (fg.P1.X, fg.P2.X));
+        Assert.Equal(25.0, fs.P1.X);
+        Assert.Equal(fe.P1.X, fs.P2.X, 6);
+        Assert.Equal(fe.P1.Y, fg.P1.Y, 6);
+        int Qtd(FaixaTemplate f) => Modelo.CalculoFaixa.Quantidade(f.P2.X - f.P1.X, f.Espacamento, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
+        Assert.Equal(t.EstGerberQtd, Qtd(fg));
+        Assert.Equal(t.SuspQtd, Qtd(fs));
+        foreach (var modo in new[] { Modelo.ModoQuantidadeFaixa.Teto, Modelo.ModoQuantidadeFaixa.TetoMaisUm })
+        {
+            var c2 = new Configuracao.ConfiguracaoArmadura { ModoQuantidadeFaixa = modo, EspacamentoInicialFaixa = 0.5 };
+            var f2 = TemplateVigaPreMoldada.FaixaContada("x", 0, 25, 0, 4, 0, 50, c2);
+            Assert.Equal(4, Modelo.CalculoFaixa.Quantidade(25, f2.Espacamento, 0.5, modo));
+        }
         // inferior com barra soldada nas duas pontas, "VER DET. DE SOLDA"
         Assert.Contains(r.Barras, b => b.Nome == "solda_inf1_E");
         Assert.Contains(r.Barras, b => b.Nome == "solda_inf1_D");

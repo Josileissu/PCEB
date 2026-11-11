@@ -183,16 +183,8 @@ public sealed partial class TemplatePilarPreMoldado
                         Aviso(r, $"Emenda das longitudinais {ant.Grupo.Linha.Linha} e {l.Grupo.Linha.Linha} ({l.Grupo.Linha.Arranjo}): traspasse " +
                                  $"{Num(bFim - a, "0.#")} cm < {Num(req, "0")} cm (NBR 6118 na mesma seção, mín. 45ø).");
                 }
-                // emenda: cota do traspasse e a nota para o projetista
+                // emenda: só a cota do traspasse (a nota "EMENDA: TRASPASSE … AJUSTAR SE NECESSÁRIO" saiu a pedido do usuário, 2026-11-11)
                 c.Cota(x + 3.6 * hv, a, x + 3.6 * hv, bFim, x + 4.6 * hv, (a + bFim) / 2, Math.PI / 2, c.escV);
-                // texto na vertical, centrado na emenda; PT e EN lado a lado
-                double xn = x + 6.0 * hv;
-                foreach (var t in c.Linhas($"EMENDA: TRASPASSE {Num(bFim - a, "0")} cm (NBR 6118, MÍN. 45ø) - AJUSTAR SE NECESSÁRIO",
-                                           $"SPLICE: LAP {bFim - a:0} cm (NBR 6118, MIN. 45ø) - ADJUST IF NECESSARY"))
-                {
-                    c.Texto(t, xn, (a + bFim) / 2, 0.6 * hv, 1, Math.PI / 2);
-                    xn += 0.9 * hv;
-                }
             }
             x += 12 * hv;
         }

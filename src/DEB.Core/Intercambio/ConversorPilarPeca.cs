@@ -61,9 +61,11 @@ public static class ConversorPilarPeca
                 continue;
             }
             var simples = catalogo.FirstOrDefault(t => !t.Duplo && Casa(t, c));
-            if (simples != null) { linhas.Add(new[] { simples.Nome, c.Face.ToString(CultureInfo.InvariantCulture), N(c.Topo), N(desl) }); continue; }
+            // o arquivo de peças usa a face interna (1 = +x); o template recebe o número apresentado (1 = oeste)
+            int fx = Templates.PilarPreMoldado.TemplatePilarPreMoldado.FaceExibida(c.Face);
+            if (simples != null) { linhas.Add(new[] { simples.Nome, fx.ToString(CultureInfo.InvariantCulture), N(c.Topo), N(desl) }); continue; }
             faltantes?.Add((c, par != null));
-            avisos.Add($"{p.Marca}: consolo da face {c.Face} com topo a {N(c.Topo)} cm da base ({Resumo(c)}) não está no catálogo " +
+            avisos.Add($"{p.Marca}: consolo da face {fx} com topo a {N(c.Topo)} cm da base ({Resumo(c)}) não está no catálogo " +
                        "(ARMCONSOLOS) e ficou de fora.");
         }
         return linhas;

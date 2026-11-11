@@ -85,8 +85,8 @@ public class PilarArmadurasTests
         Assert.Equal(12, longs.Where(b => b.Vertices[0].Y < 10).Sum(b => b.Quantidade)); // peças que começam na base
         Assert.True(longs.All(b => Math.Abs(b.Vertices[1].Y - b.Vertices[0].Y) <= 1200 + 1e-9));
         // notas das emendas, U no topo e na base, estribos por bitola e grampos
-        Assert.Contains(r.Textos, t => t.Texto.StartsWith("EMENDA: TRASPASSE") && t.Texto.Contains("AJUSTAR SE NECESSÁRIO"));
-        Assert.Contains(r.Textos, t => t.Texto.StartsWith("(SPLICE: LAP"));
+        // a nota do traspasse saiu (pedido do usuário, 2026-11-11); fica a cota da emenda
+        Assert.DoesNotContain(r.Textos, t => t.Texto.Contains("TRASPASSE") || t.Texto.Contains("SPLICE"));
         Assert.Equal(4, r.Barras.Count(b => b.Nome.StartsWith("U")));
         Assert.Equal(2, r.Barras.Count(b => b.Nome.StartsWith("estribo") && b.Estribo));
         Assert.Single(r.Barras, b => b.Nome.StartsWith("grampo")); // seção quadrada: um grampo com "2x"
@@ -160,9 +160,9 @@ public class PilarArmadurasTests
         var p = TemplatePilarPreMoldado.PosicoesLinhas(50, 50, Cob, 8, l, 5);
         // feixe de 2 ø20: o círculo envolvente tem raio φ = 2 cm → centro a 3,5 + 0,8 + 2 da face
         Assert.Contains(p[1], x => Math.Abs(x.X - 6.3) < 1e-9 && Math.Abs(x.Y - 6.3) < 1e-9 && x.Feixe == 2);
-        // face 1 (+x): 2 barras, todas no lado direito
+        // face 1 = oeste (−x, numeração apresentada desde 2026-11-11): 2 barras, todas no lado esquerdo
         Assert.Equal(2, p[2].Count);
-        Assert.All(p[2], x => Assert.True(x.X > 40));
+        Assert.All(p[2], x => Assert.True(x.X < 10));
         // faces 2 e 4: uma por face, no meio
         Assert.Equal(2, p[3].Count);
         Assert.All(p[3], x => Assert.Equal(25, x.X, 6));
@@ -182,7 +182,7 @@ public class PilarArmadurasTests
     {
         // faces 2 e 4: 2 ø20 até 700 e 1 ø16 a partir de 600 → emenda de 100 cm entre as linhas
         var r = Gerar(("Longitudinais", "Cantos||25|1||;Faces 2 e 4|2|20|1||700;Faces 2 e 4|1|16|1|600|"));
-        Assert.Contains(r.Textos, t => t.Texto.StartsWith("EMENDA: TRASPASSE 100 cm"));
+        Assert.Contains(r.Cotas, k => Math.Abs(Math.Abs(k.P2.Y - k.P1.Y) - 100) < 1e-6 && Math.Abs(k.P2.X - k.P1.X) < 1e-6);
         // seções: base, corrente abaixo da emenda, corrente acima, topo
         Assert.Contains(r.Textos, t => t.Texto == "SEÇÃO 4-4 - ARMADURA");
         Assert.DoesNotContain(r.Textos, t => t.Texto == "SEÇÃO 5-5 - ARMADURA");

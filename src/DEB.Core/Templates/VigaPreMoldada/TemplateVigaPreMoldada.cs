@@ -76,9 +76,12 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
 
                 P(G3, "ExtE", "Ponta esquerda", padrao, tipo: TipoParametro.Opcao, descricao: dExt, opcoes: ext),
                 P(G3, "ExtD", "Ponta direita", padrao, tipo: TipoParametro.Opcao, descricao: dExt, opcoes: ext),
-                P(G3, "FurosE", "Furos de pino na ponta esquerda", "1", tipo: TipoParametro.Inteiro, min: 0, max: 4,
+                P(G3, "FurosModo", "Quantidade de furos de pino", FurosPelaLargura, tipo: TipoParametro.Opcao, opcoes: new[] { FurosPelaLargura, FurosDigitados },
+                  descricao: "Padrão do escritório (2026-11-11): viga com até 25 cm de largura leva 1 furo; com 30 cm ou mais, 2 furos. " +
+                             "\"Digitada\" usa os valores das pontas abaixo (0 = sem furo)."),
+                P(G3, "FurosE", "Furos de pino na ponta esquerda (digitada)", "1", tipo: TipoParametro.Inteiro, min: 0, max: 4,
                   descricao: "Furos verticais para o pino do consolo, distribuídos por igual na largura."),
-                P(G3, "FurosD", "Furos de pino na ponta direita", "1", tipo: TipoParametro.Inteiro, min: 0, max: 4),
+                P(G3, "FurosD", "Furos de pino na ponta direita (digitada)", "1", tipo: TipoParametro.Inteiro, min: 0, max: 4),
                 P(G3, "FuroDiam", "Furos: diâmetro", "32", "mm", min: 10),
                 P(G3, "FuroDistE", "Furos: distância à ponta esquerda", "11.5", "cm", min: 1),
                 P(G3, "FuroDistD", "Furos: distância à ponta direita", "11.5", "cm", min: 1),
@@ -128,12 +131,18 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         return m / (a0 - a1 - a2);
     }
 
+    public const string FurosPelaLargura = "Pela largura (até 25 cm: 1; 30 cm ou mais: 2)", FurosDigitados = "Digitada";
+
+    /// <summary>Furos de pino pela largura da viga (padrão do escritório, 2026-11-11): b &lt; 30 cm → 1; b ≥ 30 cm → 2.</summary>
+    public static int FurosPorLargura(double b) => b < 30 - 1e-6 ? 1 : 2;
+
     /// <summary>Lê a ponta ("ExtE"/"ExtD"): reta ou o dente do catálogo (nome desconhecido = reta, com aviso).</summary>
     public static ExtremidadeViga LerExtremidade(ValoresTemplate v, bool esquerda, IReadOnlyList<TipoDente> catalogo, List<string> avisos)
     {
         string k = esquerda ? "E" : "D", lado = esquerda ? "esquerda" : "direita";
         string nome = v["Ext" + k];
-        var e = new ExtremidadeViga { Furos = Math.Max(0, v.Inteiro("Furos" + k)), DistFuro = v.Numero("FuroDist" + k) };
+        int furos = v["FurosModo"] == FurosDigitados ? Math.Max(0, v.Inteiro("Furos" + k)) : FurosPorLargura(v.Numero("B"));
+        var e = new ExtremidadeViga { Furos = furos, DistFuro = v.Numero("FuroDist" + k) };
         if (!string.IsNullOrWhiteSpace(nome) && !nome.Equals(Reta, StringComparison.OrdinalIgnoreCase))
         {
             e.Dente = TipoDente.Obter(catalogo, nome);
@@ -285,7 +294,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         double vol = Volume(b, h, L, e, d) + aba.VolumeCm3 / 1e6 + ress.VolumeCm3(L) / 1e6, peso = vol * v.Numero("PesoEspecifico") / 1000;
         r.Tabelas.Add(KitDesenho.TabelaProducao(c.Idioma, v.Numero("FcjSaque"), v.Numero("FcjMontagem"), v.Numero("Fck"),
             vol, peso, qtd, xD, yD, escV, protendida: prot,
-            taxaPassiva: prot ? PesoPassivo(r, cfg, zonas, nEstAba) / vol : 0, taxaAtiva: prot ? PesoAtivo(r, cfg) / vol : 0));
+            taxaPassiva: prot ? PesoPassivo(r, cfg, zonas, nEstAba * (GrampoNaAba(v, aba) ? aba.Lados : 1)) / vol : 0, taxaAtiva: prot ? PesoAtivo(r, cfg) / vol : 0));
         r.PosicaoRA = (xD + 75 * hv, 0);
 
         // ---------------- detalhes típicos da biblioteca do escritório (DWG; coluna à direita, o usuário ajusta) ----------------

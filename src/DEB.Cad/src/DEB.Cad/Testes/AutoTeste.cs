@@ -1832,7 +1832,7 @@ public sealed class AutoTeste
             foreach (var a in r.Avisos) Rel.AppendLine("        aviso do pilar com redução: " + a);
             var secoes = r.Textos.Where(x => x.Texto.StartsWith("SEÇÃO ") && x.Texto.EndsWith(" - ARMADURA")).Select(x => x.Texto.Substring(6, 3)).ToList();
             Rel.AppendLine("        pilar com redução: seções " + string.Join(", ", secoes));
-            Checar(secoes.Count >= 4 && r.Textos.Any(x => x.Texto.StartsWith("EMENDA: TRASPASSE 100 cm")),
+            Checar(secoes.Count >= 4 && r.Cotas.Any(k => Math.Abs(Math.Abs(k.P2.Y - k.P1.Y) - 100) < 1e-6 && Math.Abs(k.P2.X - k.P1.X) < 1e-6),
                 "pilar com redução: emenda de 100 cm entre as linhas e uma seção por composição");
             // coluna das faces 2 e 4: ø20 até 700 e ø16 (feixe) a partir de 600
             var x16 = r.Barras.First(b => b.Nome.StartsWith("long") && b.Bitola == 16).Vertices[0].X;
@@ -2446,7 +2446,7 @@ public sealed class AutoTeste
         var vReta = new Core.Templates.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V149"), ("Quantidade", "17"), ("B", "40"), ("H", "95"), ("L", "1150"),
                      ("ExtE", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta),
-                     ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
+                     ("FurosModo", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.FurosDigitados), ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
                      // VP-3: protendida como a V148 da GRU 710 (11 ø15,2, isolamento em grupos)
                      ("Protendida", "Sim"), ("Longitudinais", "Superior|2|12.5|1|0|0||;Pele|3|10|1|0|0||"), ("Cordoalhas", "1|5|15.2|0|0|20.5;1|2|15.2|250|250|20.5;2|2|15.2|0|0|20.5;2|2|15.2|120|120|20.5;18|2|12.7|0|0|10") })
             vReta[k] = val;

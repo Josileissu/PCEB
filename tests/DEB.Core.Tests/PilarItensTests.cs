@@ -120,7 +120,28 @@ public class PilarItensTests
         Assert.Equal(60 - 3, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
         v["AlcaFace"] = "1"; v["CobFace3"] = "2.5";
         Assert.Equal(40 - 2.5, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
-        v["AlcaEmb"] = "45";
-        Assert.Equal(45, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        v["AlcaEmb"] = "30";
+        Assert.Equal(30, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        v["AlcaEmb"] = "45";   // passa da face oposta: limitado (2026-11-11)
+        Assert.Equal(40 - 2.5, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+    }
+
+    [Fact]
+    public void PernasDaAlcaNaoSaemDoPilar()
+    {
+        // relato do usuário (2026-11-11): embutimento digitado maior que o pilar deixava as pernas e o pé fora da face oposta
+        var t = new TemplatePilarPreMoldado();
+        var v = new ValoresTemplate(t.Parametros);
+        v["B"] = "40"; v["H"] = "40"; v["AlcaEmb"] = "60";
+        double max = 40 - v.Numero("CobFace4");   // alça na face 2 (sul): a oposta é a 4
+        Assert.Equal(max, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 40), 6);
+        Assert.True(TemplatePilarPreMoldado.EmbutimentoAlcaLimitado(v, 40, 40));
+        var r = t.Gerar(v, new ConfiguracaoArmadura());
+        Assert.Contains(r.Avisos, a => a.StartsWith("Alça: embutimento"));
+        // nas vistas de lado, nenhum ponto das alças passa da face oposta à da alça
+        var k = r.Contornos.Where(c => c.Layer == "ARM-ALCA" && c.Vertices.Count > 2).ToList();
+        Assert.NotEmpty(k);
+        v["AlcaEmb"] = "20";
+        Assert.Equal(20, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 40), 6);
     }
 }

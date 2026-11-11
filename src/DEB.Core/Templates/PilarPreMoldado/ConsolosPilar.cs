@@ -18,6 +18,10 @@ public sealed class ConsoloPilar
     public bool TipoDuplo { get; set; }
     /// <summary>Letra do corte de forma (B, C…).</summary>
     public string Letra { get; set; } = "B";
+    /// <summary>Grupo de consolos mostrados no mesmo corte (topos a menos de 50 cm), numerado de cima para baixo.</summary>
+    public int GrupoCorte { get; set; }
+    /// <summary>O corte deste grupo é desenhado; falso = o grupo repete um corte já apresentado (mesma letra, sem desenho novo).</summary>
+    public bool CorteDesenhado { get; set; } = true;
     public List<int> Faces { get; set; } = new List<int>();
     /// <summary>Distância da base do pilar ao topo do consolo (cm).</summary>
     public double ZTopo { get; set; }
@@ -68,7 +72,34 @@ public sealed class ConsoloPilar
 public sealed partial class TemplatePilarPreMoldado
 {
     public const string AncSoldada = "Barra transversal soldada", AncLaco = "Laço (alça horizontal)";
-    private static readonly string[] LetrasCorte = { "B", "C", "D", "E", "F", "G" };
+    private static readonly string[] LetrasCorte = { "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" };
+
+    /// <summary>Consolos com topos a menos disto (cm) aparecem no mesmo corte (pedido do usuário, 2026-11-11).</summary>
+    public const double DistanciaCorteComum = 50;
+
+    /// <summary>
+    /// Cortes de forma dos consolos (pedido do usuário, 2026-11-11, pela prancha de pilar do escritório): de cima para baixo, os consolos com
+    /// topos a menos de <see cref="DistanciaCorteComum"/> do primeiro do grupo ficam num corte só; e um grupo igual a um já
+    /// apresentado (mesmas faces, tipos e deslocamentos) usa a letra dele, sem desenhar de novo ("evita muita informação no desenho").
+    /// </summary>
+    public static void AgruparCortes(List<ConsoloPilar> consolos)
+    {
+        var ordem = consolos.OrderByDescending(co => co.ZTopo).ThenBy(co => co.Slot).ToList();
+        var letras = new Dictionary<string, string>();
+        int grupo = 0;
+        for (int i = 0; i < ordem.Count;)
+        {
+            double z0 = ordem[i].ZTopo;
+            var g = new List<ConsoloPilar>();
+            while (i < ordem.Count && z0 - ordem[i].ZTopo < DistanciaCorteComum - 1e-6) g.Add(ordem[i++]);
+            string ass = string.Join(";", g.Select(co => FormattableString.Invariant($"{string.Join(",", co.Faces)}|{co.Tipo}|{Math.Round(co.Desl, 1)}"))
+                                           .OrderBy(s => s, StringComparer.Ordinal));
+            bool novo = !letras.TryGetValue(ass, out var letra);
+            if (novo) { letra = LetrasCorte[letras.Count % LetrasCorte.Length]; letras[ass] = letra; }
+            grupo++;
+            foreach (var co in g) { co.Letra = letra; co.GrupoCorte = grupo; co.CorteDesenhado = novo; }
+        }
+    }
 
     public const string SemConsolo = "(nenhum)";
 
@@ -86,7 +117,7 @@ public sealed partial class TemplatePilarPreMoldado
         {
             Grupo = "12. Consolos", Nome = "Consolos", Rotulo = "Consolos do pilar", Tipo = TipoParametro.Tabela, NomeItem = "consolo",
             Padrao = padrao,
-            Descricao = "Clique em … para incluir os consolos: tipo (catálogo do ARMCONSOLOS), face (1 = +x, 2 = −y, 3 = −x, 4 = +y; " +
+            Descricao = "Clique em … para incluir os consolos: tipo (catálogo do ARMCONSOLOS), face (1 = oeste/−x, 2 = sul/−y, 3 = leste/+x, 4 = norte/+y; " +
                         "tipo duplo já ocupa as duas faces opostas: 1 e 3 ou 2 e 4), distância da base ao topo e deslocamento lateral.",
             Colunas =
             {
@@ -142,7 +173,7 @@ public sealed partial class TemplatePilarPreMoldado
             if (t == null) { avisos.Add($"Consolo {k}: tipo \"{nomeTipo}\" não existe no catálogo (ARMCONSOLOS)."); continue; }
             var faces = ValoresTemplate.Celula(l, 1).Split(new[] { ',', ';', ' ', '/' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out var f) ? f : 0)
-                .Where(f => f >= 1 && f <= 4).Distinct().OrderBy(f => f).ToList();
+                .Where(f => f >= 1 && f <= 4).Select(FaceExibida).Distinct().OrderBy(f => f).ToList();   // digitada (apresentada) → interna
             if (faces.Count == 0) { avisos.Add($"Consolo {k}: nenhuma face válida (use 1 a 4)."); continue; }
             if (t.Duplo && !((faces.Contains(1) && faces.Contains(3)) || (faces.Contains(2) && faces.Contains(4))))
             {
@@ -163,6 +194,7 @@ public sealed partial class TemplatePilarPreMoldado
             if (c.ZTopo - c.H < 0 || c.ZTopo > L) { avisos.Add($"Consolo {k}: fora do pilar (topo a {Num(c.ZTopo, "0.#")} cm da base)."); continue; }
             r.Add(c);
         }
+        AgruparCortes(r);
         return r;
     }
 
@@ -333,17 +365,21 @@ public sealed partial class TemplatePilarPreMoldado
     private double CortesConsolo(Ctx c, List<ConsoloPilar> consolos, double b, double h, double xD, double yCur, double[] cob)
     {
         double hc = c.hC;
-        foreach (var co in consolos)
+        // um corte por grupo (consolos próximos juntos); os grupos que repetem um corte já apresentado não são desenhados
+        foreach (var grupo in consolos.Where(co => co.CorteDesenhado).GroupBy(co => co.GrupoCorte).OrderBy(g => g.Key))
         {
-            foreach (var t in c.Linhas($"CORTE {co.Letra}-{co.Letra}", $"SECTION {co.Letra}-{co.Letra}")) { c.Texto(t, xD, yCur, 1.4 * hc); yCur -= 2.2 * hc; }
+            var lista = grupo.ToList();
+            string letra = lista[0].Letra;
+            foreach (var t in c.Linhas($"CORTE {letra}-{letra}", $"SECTION {letra}-{letra}")) { c.Texto(t, xD, yCur, 1.4 * hc); yCur -= 2.2 * hc; }
             c.Texto($"ESC 1:{c.escC:0}", xD, yCur, 0.8 * hc);
-            bool f3 = co.Faces.Contains(3), f1 = co.Faces.Contains(1), f2 = co.Faces.Contains(2), f4 = co.Faces.Contains(4);
-            // folgas para as cotas encadeadas do consolo (até ~5 textos além da ponta)
+            // balanço máximo em cada face (0 = sem consolo nela) e a folga para as cotas encadeadas (até ~5 textos além da ponta)
             double extra = 5.5 * hc;
-            double ox = xD + 8 * hc + (f3 ? co.A + extra : 0);
-            double topo = yCur - 7 * hc - (f4 ? co.A + extra : 0);
+            double Ext(int f) { double a = lista.Where(co => co.Faces.Contains(f)).Select(co => co.A).DefaultIfEmpty(0).Max(); return a > 0 ? a + extra : 0; }
+            double ox = xD + 8 * hc + Ext(3);
+            double topo = yCur - 7 * hc - Ext(4);
             double oy = topo - h;
             c.Retangulo(ox, oy, ox + b, oy + h, "ARM-PILAR-SECAO"); // pilar cortado (magenta no P56)
+            foreach (var co in lista)
             foreach (int f in co.Faces)
             {
                 var (x0, y0, x1, y1) = RetanguloPlanta(co, f, b, h, 0, co.A);
@@ -364,13 +400,13 @@ public sealed partial class TemplatePilarPreMoldado
                 CotasConsoloNoCorte(c, co, f, b, h, ox, oy, nPino);
             }
             // pilar: b em cima e h à direita (além dos consolos dessas faces)
-            double yb = oy + h + (f4 ? co.A + extra : 0) + 2.5 * hc, xh = ox + b + (f1 ? co.A + extra : 0) + 2.5 * hc;
+            double yb = oy + h + Ext(4) + 2.5 * hc, xh = ox + b + Ext(1) + 2.5 * hc;
             c.Cota(ox, oy + h, ox + b, oy + h, ox + b / 2, yb, 0, c.escC);
             c.Cota(ox + b, oy, ox + b, oy + h, xh, oy + h / 2, Math.PI / 2, c.escC);
-            double baixo = oy - (f2 ? co.A + extra : 0);
+            double baixo = oy - Ext(2);
             RotuloVista(c, 4, ox + b / 2, yb + 1.5 * hc);
             RotuloVista(c, 2, ox + b / 2, baixo - 1.5 * hc);
-            RotuloVista(c, 3, ox - (f3 ? co.A + extra : 0) - 1.5 * hc, oy + h / 2);
+            RotuloVista(c, 3, ox - Ext(3) - 1.5 * hc, oy + h / 2);
             RotuloVista(c, 1, xh + 2 * hc, oy + h / 2);
             yCur = baixo - 12 * hc;
         }
