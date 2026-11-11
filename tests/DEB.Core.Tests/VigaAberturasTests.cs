@@ -80,11 +80,14 @@ public class VigaAberturasTests
     [Fact]
     public void SegundoEstagioDeConcretagem()
     {
-        // V139 "20 x 65+10" (pedido do usuário, 2026-11-11): nota, seção h+capa, estribos na capa, superior no 2º estágio e porta-estribo 2 ø6,3
+        // V139 "20 x 65+10" (pedido do usuário, 2026-11-11): nota, seção h+capa, estribos na capa e porta-estribo 2 ø6,3; a superior é
+        // suprimida (vai no detalhe do capeamento da laje)
         var r = Gerar(v => { V139(v); v["SegEstagio"] = "Sim"; v["SegEstagioCapa"] = "10"; });
         Assert.Contains(r.Textos, t => t.Texto == "V139 (20 x 65+10)");
         Assert.Contains(r.Textos, t => t.Texto.StartsWith("**VIGA COM SEGUNDO ESTÁGIO DE CONCRETAGEM**"));
-        Assert.Contains(r.Textos, t => t.Texto.Contains("ARMADURA SUPERIOR (2º ESTÁGIO)"));
+        Assert.Contains(r.Textos, t => t.Texto.StartsWith("ARMADURA SUPERIOR NO DETALHE DO CAPEAMENTO DA LAJE"));
+        Assert.DoesNotContain(r.Textos, t => t.Texto.StartsWith("ARMADURA SUPERIOR /") || t.Texto == "ARMADURA SUPERIOR");
+        Assert.Contains(r.Avisos, a => a.Contains("capeamento da laje"));
         var porta = r.Barras.Single(b => b.Nome == "portaestribo");
         Assert.Equal((2, 6.3), (porta.Quantidade, porta.Bitola));
         // estribo: 20 − 5 por 65 + 10 − 5 (sobe na capa)
@@ -97,5 +100,6 @@ public class VigaAberturasTests
         var r0 = Gerar(V139);
         Assert.DoesNotContain(r0.Barras, b => b.Nome == "portaestribo");
         Assert.Contains(r0.Textos, t => t.Texto == "V139 (20 x 65)");
+        Assert.Contains(r0.Textos, t => t.Texto.StartsWith("ARMADURA SUPERIOR"));
     }
 }

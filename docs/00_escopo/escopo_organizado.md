@@ -145,6 +145,7 @@ dimensionamento ficam registrados, mas sem aprofundar agora.
 | D20 | Catálogo (05/11/2026) | aço (mCalc, Dimperfil), vento (Visual Ventos) e steel/wood frame **adiados** para a fase de análise; Tekla será estudado depois, no outro computador do usuário (onde está instalado) |
 | D21 | Ordem (05/11/2026) | **obra-piloto ainda não** (etapa B adiada); primeiro fazer o **detalhamento no Revit** (etapa E) |
 | D22 | Revit → CAD (09/11/2026) | as peças do modelo Revit vão para o CAD como **dados**, não como desenho: o DEB.Revit exporta os grupos de peças iguais (iguais ou giradas) num JSON (`DEB.Core/Intercambio`) e o DEB.Cad gera um detalhamento por grupo pelo template, com as repetições = nº de peças. 1º passo: pilares pré-moldados (botão "Exportar para o CAD" + ARMIMPORTARPECAS); 2º: vigas pré-moldadas (dentes Gerber pela geometria, invertidas = iguais) |
+| D23 | Vigas pré-moldadas (11/11/2026) | **2º estágio**: porta-estribo em cima, por dentro do estribo; a **armadura superior é suprimida** (vai no detalhe do capeamento da laje; o cálculo futuro das vigas fará as adequações). **Construtiva do ressalto** = as 4 longitudinais dele. **Furos de pino no dente**: largura < 30 cm → 1 furo; ≥ 30 cm → 2. **Consolo inclinado na lateral da viga**: adiado ("não vamos continuar com os consolos por hora") |
 
 ## Perguntas em aberto
 16. **Titular do copyright**: "Projeto PCEB" (10/11/2026: o usuário pediu para tirar o nome do escritório do repositório público).

@@ -89,10 +89,11 @@ Feito no PC2 nos dias 10 e 11/11 (detalhes nos CLAUDE.md e no histórico do Git)
   prévia de peças de um JSON real.
 
 Pendente:
-- **Consolo inclinado na lateral da viga** (viga com aba no fundo de um lado e consolo do outro): o reconhecimento da seção
+- **Consolo inclinado na lateral da viga** — ADIADO pelo usuário em 11/11 (proposta feita no PC1: tratar como consolo local da viga,
+  reaproveitando o motor do consolo do pilar). Era: (viga com aba no fundo de um lado e consolo do outro): o reconhecimento da seção
   (`SecaoComAba`) aceita uma saliência lateral só; depois a armadura (estribos horizontais do consolo e verticais de alturas variáveis).
-- Interpretações a confirmar com o usuário: porta-estribo nos cantos de cima do estribo com a superior logo abaixo; "construtiva do
-  ressalto" = as 4 longitudinais dele; largura entre 25 e 30 cm → 1 furo.
+- ~~Interpretações a confirmar~~ — confirmadas pelo PC1 em 11/11 (D23): porta-estribo em cima por dentro do estribo e **superior suprimida no 2º
+  estágio** (já implementado, branch `pc1/segundo-estagio-sem-superior`); construtiva do ressalto = as 4 longitudinais; < 30 cm → 1 furo, ≥ 30 → 2.
 - Instalador do Revit: a instalação real ainda não foi rodada (o Revit do usuário estava aberto no PC2).
 - Pilar no Revit pelo padrão do CAD ("o do CAD está mais bem acabado").
 - Consolos digitados nas faces 1/3 em modelos salvos antes da 0.1.37 trocam de lado (a face 1 agora é oeste).
