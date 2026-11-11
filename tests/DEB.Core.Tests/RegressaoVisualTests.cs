@@ -52,7 +52,7 @@ public class RegressaoVisualTests
             case "viga_padrao_dentes": return Gerar(viga, ("Nome", "V144"), ("L", "308"));
             case "viga_reta_protendida":
                 return Gerar(viga, ("Nome", "V149"), ("Quantidade", "17"), ("B", "40"), ("H", "95"), ("L", "1150"), ("ExtE", TemplateVigaPreMoldada.Reta),
-                    ("ExtD", TemplateVigaPreMoldada.Reta), ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
+                    ("ExtD", TemplateVigaPreMoldada.Reta), ("FurosModo", TemplateVigaPreMoldada.FurosDigitados), ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
                     ("Protendida", "Sim"), ("Longitudinais", "Superior|2|12.5|1|0|0||;Pele|3|10|1|0|0||"),
                     ("Cordoalhas", "1|5|15.2|0|0|20.5;1|2|15.2|250|250|20.5;2|2|15.2|0|0|20.5;2|2|15.2|120|120|20.5;18|2|12.7|0|0|10"));
             case "viga_aba_topo_dois_lados":

@@ -93,6 +93,34 @@ public class VigaRessaltoTests
         v["Ressalto"] = TemplateVigaPreMoldada.RessaltoDir; v["RessaltoLargura"] = "13"; v["RessaltoAltura"] = "27.5";
     }
 
+    /// <summary>V144 do modelo real (2026-11-11): alma 30 × 65, aba de laje à direita rente ao topo, ressalto 13 × 23,5 à esquerda.</summary>
+    internal static void V144(ValoresTemplate v)
+    {
+        v["Nome"] = "V144"; v["B"] = "30"; v["H"] = "65"; v["L"] = "818.5";
+        v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "15"; v["AbaAltura"] = "15"; v["AbaAlturaPonta"] = "12"; v["AbaBase"] = "50";
+        v["Ressalto"] = TemplateVigaPreMoldada.RessaltoEsq; v["RessaltoLargura"] = "13"; v["RessaltoAltura"] = "23.5";
+    }
+
+    [Fact]
+    public void RessaltoAparecaComAAbaRenteAoTopoDoOutroLado()
+    {
+        // V144: a aba à direita rente ao topo tira do contorno o canto superior direito da alma; o ressalto (esquerda) tem de entrar
+        var a = new AbaViga { Direita = true, Largura = 15, Altura = 15, AlturaPonta = 12, Base = 50, Ini = 0, Fim = 818.5 };
+        foreach (bool esq in new[] { true, false })
+        {
+            var rs = new RessaltoViga { Esquerda = esq, Largura = 13, Altura = 23.5 };
+            var p = TemplateVigaPreMoldada.ContornoSecao(30, 65, a, rs, 0, 0);
+            Assert.Equal(88.5, p.Max(q => q.Y));
+            double xa = esq ? 0 : 17, xb = xa + 13;
+            Assert.Contains((xa, 88.5), p);
+            Assert.Contains((xb, 88.5), p);
+            Assert.Contains((xb, 65.0), p);
+        }
+        var r = Gerar(V144);
+        Assert.Contains(r.Contornos, k => k.Layer == "ARM-PILAR-SECAO" && k.Fechado && k.Vertices.Max(q => q.Y) - k.Vertices.Min(q => q.Y) == 88.5);
+        Assert.Contains(r.Contornos, k => k.Layer == "ARM-FORMA" && k.Fechado && k.Vertices.Max(q => q.Y) - k.Vertices.Min(q => q.Y) == 88.5);
+    }
+
     [Fact]
     public void DesenhaORessaltoComAArmaduraProposta()
     {
@@ -115,7 +143,7 @@ public class VigaRessaltoTests
         Assert.Contains(r.Faixas, f => f.Barra == "ressestribo" && f.Tipo == Modelo.TipoFaixa.Ortogonal && f.Espacamento == 15);
         Assert.Contains(r.Faixas, f => f.Barra == "ligcapa" && f.Tipo == Modelo.TipoFaixa.Ortogonal && f.Espacamento == 20);
         Assert.Contains(r.Faixas, f => f.Barra == "ligcapa" && f.Tipo == Modelo.TipoFaixa.Indicacao);
-        Assert.Contains(r.Textos, t => t.Texto.Contains("ARMADURA RESSALTO"));
+        Assert.Contains(r.Textos, t => t.Texto.Contains("ARMADURA CONSTRUTIVA RESSALTO"));
         // volume com o ressalto: 30×50×457 − recortes dos dentes padrão (DG 45x25: 5 × 25) + aba + ressalto 13 × 27,5 × 457
         var prod = r.Tabelas.SelectMany(t => t.Linhas).SelectMany(x => x).ToList();
         double vol = (30 * 50 * 457 - 2 * 30 * 5 * 25 + 15 * 13.5 * 457 + 13 * 27.5 * 457) / 1e6;

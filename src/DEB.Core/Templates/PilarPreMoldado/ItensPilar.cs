@@ -83,13 +83,18 @@ public sealed partial class TemplatePilarPreMoldado
     /// </summary>
     public static double EmbutimentoAlca(ValoresTemplate v, double b, double h)
     {
-        double dado = v.Numero("AlcaEmb");
-        if (dado > 0) return dado;
-        int face = Math.Max(1, Math.Min(4, v.Inteiro("AlcaFace")));
+        int face = FaceExibida(Math.Max(1, Math.Min(4, v.Inteiro("AlcaFace"))));   // apresentada → interna
         int oposta = (face + 1) % 4 + 1;                  // 1↔3, 2↔4
         double prof = face == 1 || face == 3 ? b : h;
-        return Math.Max(10, prof - Cobrimentos(v)[oposta - 1]);
+        double max = Math.Max(10, prof - Cobrimentos(v)[oposta - 1]);
+        // o digitado nunca passa da face oposta (relato do usuário, 2026-11-11: as pernas e o pé saíam do pilar)
+        double dado = v.Numero("AlcaEmb");
+        return dado > 0 ? Math.Min(dado, max) : max;
     }
+
+    /// <summary>O embutimento digitado da alça passa da face oposta (menos o cobrimento) e foi limitado.</summary>
+    public static bool EmbutimentoAlcaLimitado(ValoresTemplate v, double b, double h) =>
+        v.Numero("AlcaEmb") > EmbutimentoAlca(v, b, h) + 1e-6;
 
     // ======================== içamento, montagem e inserto nas vistas ========================
 
@@ -110,6 +115,8 @@ public sealed partial class TemplatePilarPreMoldado
         var it = new Itens { Alcas = v.SimNao("Alcas"), AlcaTopo = v["Montagem"] == MontagemAlcaTopo, Furo = v["Montagem"] == MontagemFuro };
         double acima = v.Numero("AlcaAcima"), entre = v.Numero("AlcaEntre");
         double emb = it.EmbAlca = EmbutimentoAlca(v, b, h);
+        if (it.Alcas && EmbutimentoAlcaLimitado(v, b, h))
+            r.Avisos.Add($"Alça: embutimento de {Num(v.Numero("AlcaEmb"), "0.#")} cm passa da face oposta do pilar; limitado a {Num(emb, "0.#")} cm (até o cobrimento).");
 
         // laço da alça na vista de lado (pernas dentro, laço fora da face) e o traço na vista de frente
         double peAlca = v.Numero("AlcaPe");
@@ -129,7 +136,7 @@ public sealed partial class TemplatePilarPreMoldado
 
         if (it.Alcas)
         {
-            int face = Math.Max(1, Math.Min(4, v.Inteiro("AlcaFace")));
+            int face = FaceExibida(Math.Max(1, Math.Min(4, v.Inteiro("AlcaFace"))));   // apresentada → interna
             double cg = AlturaCG(b, h, L, ch, consolos);
             (it.Z1, it.Z2) = PosicaoAlcas(L, cg, v.Numero("AlcaPct"), v.Numero("AlcaZ1"), v.Numero("AlcaZ2"));
             it.NAlcas = 2;
@@ -239,7 +246,7 @@ public sealed partial class TemplatePilarPreMoldado
             if (!topo && (face < 1 || face > 4)) { avisos.Add($"Inserto {k}: local \"{local}\" inválido (Topo ou Face 1…4)."); continue; }
             if (topo != t.NoTopo)
                 avisos.Add($"Inserto {k}: o tipo \"{t.Nome}\" é {(t.NoTopo ? "de topo" : "de face")} e foi posto {(topo ? "no topo" : "numa face")}.");
-            var ins = new InsertoPilar { Tipo = t, Topo = topo, Face = face, Z = ValoresTemplate.NumeroCelula(l, 2), Desl = ValoresTemplate.NumeroCelula(l, 3) };
+            var ins = new InsertoPilar { Tipo = t, Topo = topo, Face = topo ? 0 : FaceExibida(face), Z = ValoresTemplate.NumeroCelula(l, 2), Desl = ValoresTemplate.NumeroCelula(l, 3) };
             if (!topo && (ins.Z < 0 || ins.Z > L)) { avisos.Add($"Inserto {k}: fora do pilar ({Num(ins.Z, "0.#")} cm da base)."); continue; }
             r.Add(ins);
         }
@@ -266,7 +273,8 @@ public sealed partial class TemplatePilarPreMoldado
                         c.Linha(xm + u, L + t.ChumbAcima, xm + u, L - t.ChumbComp, "ARM-INSERTO");
                 }
                 // nome à esquerda da VISTA 1, sublinhado, com a linha de chamada até os chumbadores (como no P56)
-                double xn = xs[0] - 4 * hv, xAlvo = xs[0] + larguras[0] / 2 - (t.ChumbN <= 1 ? 0 : t.Ay / 2);
+                int i1 = FaceExibida(1) - 1;   // a VISTA 1 (a mais à esquerda) olha a face interna 3
+                double xn = xs[i1] - 4 * hv, xAlvo = xs[i1] + larguras[i1] / 2 - (t.ChumbN <= 1 ? 0 : t.Ay / 2);
                 c.Texto("INSERTO", xn, yNome + 1.3 * hv, 0.9 * hv, 1, 0, "ARM-COTA-FORMA");
                 c.Texto(t.Nome, xn, yNome, 0.9 * hv, 1, 0, "ARM-COTA-FORMA");
                 c.Linha(xn - 3 * hv, yNome + 1.0 * hv, xn + 3 * hv, yNome + 1.0 * hv, "ARM-COTA-FORMA");

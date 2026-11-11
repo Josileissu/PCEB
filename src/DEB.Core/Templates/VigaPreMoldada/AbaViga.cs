@@ -86,8 +86,12 @@ public sealed partial class TemplateVigaPreMoldada
                      "\"Passa\" com a aba descendo abaixo do recorte = ela fica pendurada abaixo do dente (aba de escada)."),
         P(G10, "AbaIni", "Aba: início (0 = pela opção dos dentes)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda."),
         P(G10, "AbaFim", "Aba: fim (0 = pela opção dos dentes)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda."),
+        P(G10, "AbaEstForma", "Armadura da aba de laje", AbaGrampo, tipo: TipoParametro.Opcao, opcoes: new[] { AbaGrampo, AbaFechado },
+          descricao: "Grampo (padrão do escritório, 2026-11-11): U deitado, aberto para a alma — o ramo de cima vai da face oposta da alma " +
+                     "à ponta da aba, desce pela ponta e volta pelo fundo, acompanhando a inclinação. Fechado: estribo que abraça a alma e a aba. " +
+                     "O consolo curto (até 60 cm) usa sempre o fechado."),
         P(G10, "AbaEstBitola", "Estribo da aba: bitola", "8", "mm", TipoParametro.Bitola, 5, 16,
-          descricao: "Estribo fechado que abraça a alma e a(s) aba(s); o ramo de cima é o tirante da aba (consolo corrido)."),
+          descricao: "Grampo ou estribo da aba; o ramo de cima é o tirante da aba (consolo corrido)."),
         P(G10, "AbaEstEsp", "Estribo da aba: espaçamento", "15", "cm", min: 2),
         P(G10, "AbaLongQtd", "Longitudinais na ponta de cada aba", "2", tipo: TipoParametro.Inteiro, min: 0, max: 6),
         P(G10, "AbaLongBitola", "Longitudinais da aba: bitola", "10", "mm", TipoParametro.Bitola, 5, 25),
@@ -186,6 +190,30 @@ public sealed partial class TemplateVigaPreMoldada
         return CalculoFaixa.Posicoes(x1 - x0, n, esp, cfg.EspacamentoInicialFaixa).Select(s => x0 + s).ToList();
     }
 
+    public const string AbaGrampo = "Grampo (U aberto para a alma)", AbaFechado = "Fechado (abraça a alma e a aba)";
+
+    /// <summary>A aba de laje leva o grampo (U aberto) em vez do estribo fechado: opção padrão, nunca no consolo curto.</summary>
+    public static bool GrampoNaAba(ValoresTemplate v, AbaViga a) => a != null && a.Existe && !a.Consolo && v["AbaEstForma"] != AbaFechado;
+
+    /// <summary>
+    /// Grampo da aba de um lado (eixo), o "N10" das pranchas do escritório (2026-11-11): ramo de cima da face OPOSTA da alma (por dentro
+    /// do estribo dela) até a ponta da aba, perna na ponta e ramo de baixo voltando para a alma com a inclinação do fundo da aba.
+    /// Pontos: (fundo, cima), (ponta, cima), (ponta, baixo), (fundo, baixo); null se não cabe.
+    /// </summary>
+    public static List<(double X, double Y)> PoligonoGrampoAba(ValoresTemplate v, AbaViga a, double b, double sx0, double sy0, bool direita)
+    {
+        double cobL = v.Numero("CobLateral"), cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo"), t = v.Numero("AbaEstBitola") / 20,
+               tEst = v.Numero("EstBitola") / 10;
+        double z0 = sy0 + a.Base, z1 = z0 + a.Altura, zp = z1 - a.AltPonta;
+        double xPonta = direita ? sx0 + b + a.Largura - cobL - t : sx0 - a.Largura + cobL + t;
+        double xFundo = direita ? sx0 + cobL + tEst + t : sx0 + b - cobL - tEst - t;
+        double yCima = z1 - cobT - tEst - t, yPonta = zp + cobF + t;
+        if (yCima - yPonta < 2 || Math.Abs(xPonta - xFundo) < 2) return null;
+        double sobe = a.Largura > 0 ? (zp - z0) / a.Largura : 0;   // o fundo da aba sobe da alma para a ponta
+        double yFundo = Math.Max(sy0 + cobF + t, yPonta - sobe * Math.Abs(xPonta - xFundo));
+        return new List<(double X, double Y)> { (xFundo, yCima), (xPonta, yCima), (xPonta, yPonta), (xFundo, yFundo) };
+    }
+
     /// <summary>
     /// Estribo da aba (eixo) na seção com o canto inferior esquerdo da alma em (sx0, sy0): fechado, com o ramo de cima reto (o
     /// tirante), descendo pela ponta de cada aba (ou pela face da alma, do lado sem aba) e o ramo de baixo reto sob a alma e
@@ -261,6 +289,7 @@ public sealed partial class TemplateVigaPreMoldada
     private static void AbaNaSecaoArmadura(Ctx c, ValoresTemplate v, AbaViga a, double b, double sx0, double sy0)
     {
         double hc = c.hC;
+        if (GrampoNaAba(v, a)) { GramposNaSecaoArmadura(c, v, a, b, sx0, sy0); return; }
         var pol = PoligonoEstriboAba(v, a, b, sx0, sy0);
         if (pol == null) return;
         c.R.Contornos.Add(new ContornoTemplate { Vertices = pol, Fechado = true, Layer = "ARM-BARRA-DETALHE" });
@@ -291,6 +320,38 @@ public sealed partial class TemplateVigaPreMoldada
         });
     }
 
+    /// <summary>Os grampos da(s) aba(s) na SEÇÃO - ARMADURA, as longitudinais na ponta (dentro da dobra) e uma indicação de cada.</summary>
+    private static void GramposNaSecaoArmadura(Ctx c, ValoresTemplate v, AbaViga a, double b, double sx0, double sy0)
+    {
+        double hc = c.hC, phi = v.Numero("AbaLongBitola"), rr = phi / 20, t = v.Numero("AbaEstBitola") / 20;
+        int q0 = Math.Max(0, v.Inteiro("AbaLongQtd"));
+        var pts = new List<(double X, double Y)>();
+        bool indicou = false;
+        foreach (bool dir in new[] { true, false })
+        {
+            if (dir ? !a.Direita : !a.Esquerda) continue;
+            var g = PoligonoGrampoAba(v, a, b, sx0, sy0, dir);
+            if (g == null) continue;
+            c.R.Contornos.Add(new ContornoTemplate { Vertices = g, Fechado = false, Layer = "ARM-BARRA-DETALHE" });
+            double xp = g[1].X, ya = g[2].Y, yb = g[1].Y, ym = (ya + yb) / 2, xt = dir ? sx0 + b + a.Largura + 4 * hc : sx0 - a.Largura - 4 * hc;
+            if (!indicou)
+            {
+                c.R.Faixas.Add(new FaixaTemplate { Barra = "abaestribo", Tipo = TipoFaixa.Indicacao, Referencias = { (xp, ym) }, Posicao = (xt, ym - 1.2 * hc), Escala = c.escC });
+                indicou = true;
+            }
+            double xx = xp + (dir ? -1 : 1) * (t + rr);
+            for (int i = 0; i < q0; i++) pts.Add((xx, q0 == 1 ? yb - t - rr : ya + t + rr + i * (yb - ya - 2 * t - 2 * rr) / (q0 - 1)));
+        }
+        foreach (var (px, py) in pts) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = rr, Layer = "ARM-BARRA-SECAO" });
+        if (pts.Count > 0)
+        {
+            bool dirP = pts[0].X > sx0 + b;
+            double xt = dirP ? sx0 + b + a.Largura + 4 * hc : sx0 - a.Largura - 4 * hc, ym = pts.Average(p => p.Y);
+            c.R.Faixas.Add(new FaixaTemplate { Barra = "abalong", Tipo = TipoFaixa.Indicacao, Referencias = pts.Where(p => (p.X > sx0 + b) == dirP).ToList(),
+                Posicao = (xt, ym + 1.2 * hc), Escala = c.escC });
+        }
+    }
+
     /// <summary>
     /// Aba nas ARMADURAS EM ELEVAÇÃO: os estribos da aba dentro da forma (traços na altura da aba) e a faixa deles em cota, na
     /// linha <paramref name="yFaixa"/>; devolve se desenhou a faixa.
@@ -306,6 +367,7 @@ public sealed partial class TemplateVigaPreMoldada
         {
             Barra = "abaestribo", Tipo = TipoFaixa.Ortogonal, P1 = (x0, yFaixa), P2 = (x1, yFaixa), Posicao = ((x0 + x1) / 2, yFaixa + 0.8 * c.hV),
             Espacamento = Math.Max(2, v.Numero("AbaEstEsp")), Escala = c.escV,
+            Repeticoes = GrampoNaAba(v, a) ? a.Lados : 1,   // um grampo por aba em cada posição ("2x40 N10")
         });
         return true;
     }
@@ -330,6 +392,17 @@ public sealed partial class TemplateVigaPreMoldada
     /// <summary>Forma do estribo da aba (fechado, com ganchos) para a relação do aço; o canto inferior esquerdo em (x, y).</summary>
     private static BarraTemplate FormaEstriboAba(ValoresTemplate v, ConfiguracaoArmadura cfg, AbaViga a, double b, double x, double y)
     {
+        if (GrampoNaAba(v, a))
+        {
+            // o grampo como na prancha: aberto à esquerda, ponta à direita (a forma não depende do lado)
+            var g = PoligonoGrampoAba(v, a, b, 0, 0, true);
+            if (g == null) return null;
+            double gx = g.Min(q => q.X), gy = g.Min(q => q.Y);
+            var bg = new BarraTemplate { Nome = "abaestribo", Bitola = v.Numero("AbaEstBitola"), Aco = v["EstAco"], Escala = 0, Quantidade = 1,
+                Formatos = { FormatoSegmento.Linha, FormatoSegmento.Linha, FormatoSegmento.Linha } };
+            bg.Vertices.AddRange(g.Select(q => (q.X - gx + x, q.Y - gy + y)));
+            return bg;
+        }
         var pol = PoligonoEstriboAba(v, a, b, 0, 0);
         if (pol == null) return null;
         double mx = pol.Min(q => q.X), my = pol.Min(q => q.Y), phi = v.Numero("AbaEstBitola");

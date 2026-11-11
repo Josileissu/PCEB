@@ -238,8 +238,9 @@ public sealed partial class TemplatePilarPreMoldado
                 case ArrFace2: p.AddRange(Divisoes(ax, bx, l.PorFace).Select(x => (x, yBai))); break;
                 case ArrFace4: p.AddRange(Divisoes(ax, bx, l.PorFace).Select(x => (x, yCim))); break;
                 case ArrFaces13: foreach (var y in Divisoes(ay, by, l.PorFace)) { p.Add((xEsq, y)); p.Add((xDir, y)); } break;
-                case ArrFace3: p.AddRange(Divisoes(ay, by, l.PorFace).Select(y => (xEsq, y))); break;
-                case ArrFace1: p.AddRange(Divisoes(ay, by, l.PorFace).Select(y => (xDir, y))); break;
+                // "Face 1" = oeste (−x, à esquerda da seção) e "Face 3" = leste (+x): numeração apresentada (2026-11-11)
+                case ArrFace1: p.AddRange(Divisoes(ay, by, l.PorFace).Select(y => (xEsq, y))); break;
+                case ArrFace3: p.AddRange(Divisoes(ay, by, l.PorFace).Select(y => (xDir, y))); break;
             }
             r[l.Linha] = p.Select(q => new BarraNaSecao(q.X, q.Y, l.Bitola, l.Chave, l.Feixe, l.Arranjo)).ToList();
         }

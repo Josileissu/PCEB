@@ -184,4 +184,44 @@ public class PilarConsolosTests
             Assert.Contains(r.Avisos, a => a.Contains("1/6"));
         });
     }
+
+    [Fact]
+    public void ConsolosProximosNoMesmoCorteERepetidosUsamOCorteJaApresentado()
+    {
+        // como o P28 do modelo real (2026-11-11): três níveis; em cada um, consolos em faces diferentes com topos a menos de 50 cm
+        // (1277,5 nas faces 1 e 3 e 1261,5 na 4) → um corte por nível; os níveis de baixo repetem a composição do de cima
+        string S(int f, double z) => FormattableString.Invariant($"CS 20x28,5x25|{f}|{z}|0");
+        var linhas = new[] { S(1, 1277.5), S(3, 1277.5), S(4, 1261.5), S(1, 887.5), S(3, 887.5), S(4, 871.5), S(1, 487.5), S(3, 487.5), S(4, 471.5), S(4, 219.1) };
+        var r = Gerar(("L", "1320"), ("Consolos", string.Join(";", linhas)));
+        // um corte desenhado para os três níveis iguais e outro para o consolo sozinho embaixo
+        Assert.Contains(r.Textos, t => t.Texto == "CORTE B-B");
+        Assert.Contains(r.Textos, t => t.Texto == "CORTE C-C");
+        Assert.DoesNotContain(r.Textos, t => t.Texto == "CORTE D-D");
+        // marcas na VISTA 2: uma por grupo, dos dois lados (4 grupos × 2) — B em três alturas
+        Assert.Equal(6, r.Textos.Count(t => t.Texto == "B" && t.Layer == "ARM-CORTE"));
+        Assert.Equal(2, r.Textos.Count(t => t.Texto == "C" && t.Layer == "ARM-CORTE"));
+        var v = new ValoresTemplate(new TemplatePilarPreMoldado().Parametros);
+        v["Consolos"] = string.Join(";", linhas);
+        var cs = TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1320, new List<string>());
+        Assert.Equal(4, cs.Select(co => co.GrupoCorte).Distinct().Count());
+        Assert.Equal(3, cs.Count(co => co.CorteDesenhado && co.Letra == "B"));
+        Assert.Equal(2, cs.Where(co => co.CorteDesenhado).Select(co => co.GrupoCorte).Distinct().Count());
+        Assert.Equal(new[] { "B", "C" }, cs.Select(co => co.Letra).Distinct().OrderBy(x => x));
+    }
+
+    [Fact]
+    public void VistasNaOrdemOesteSulLesteNorte()
+    {
+        // pedido do usuário (2026-11-11): VISTA 1 = oeste (−x), 2 = sul, 3 = leste (+x), 4 = norte, lado a lado nessa ordem
+        var r = Gerar(("Consolos", "CS 20x28,5x25|1|900|0"));
+        var xs = Enumerable.Range(1, 4).Select(n => r.Textos.First(t => t.Texto == $"VISTA {n}").X).ToList();
+        Assert.True(xs[0] < xs[1] && xs[1] < xs[2] && xs[2] < xs[3]);
+        Assert.Equal(1, TemplatePilarPreMoldado.FaceExibida(3));
+        Assert.Equal(3, TemplatePilarPreMoldado.FaceExibida(1));
+        // o consolo digitado na face 1 (oeste) sai para −x no corte de forma: à esquerda do pilar
+        var pil = r.Contornos.First(k => k.Layer == "ARM-PILAR-SECAO" && k.Vertices.Count == 4 && r.Textos.Any(t => t.Texto == "CORTE B-B" && t.Y > k.Vertices.Max(q => q.Y)));
+        var forma = r.Contornos.Where(k => k.Layer == "ARM-FORMA" && k.Fechado && k.Vertices.Count == 4)
+                     .First(k => k.Vertices.Max(q => q.Y) <= pil.Vertices.Max(q => q.Y) + 1e-6 && k.Vertices.Min(q => q.Y) >= pil.Vertices.Min(q => q.Y) - 1e-6);
+        Assert.True(forma.Vertices.Max(q => q.X) <= pil.Vertices.Min(q => q.X) + 1e-6);
+    }
 }

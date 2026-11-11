@@ -38,29 +38,50 @@ public sealed partial class TemplateVigaPreMoldada
     /// <summary>Comprimento ocupado pela suspensão a partir da face do recorte (os estribos normais começam depois).</summary>
     public static double ExtensaoSuspensao(ExtremidadeViga x) => x.TemDente && x.Dente.SuspQtd > 0 ? x.Dente.SuspQtd * x.Dente.SuspEsp : 0;
 
-    /// <summary>Estribos Gerber e suspensão na elevação das armaduras (linhas dentro da forma + indicação N acima).</summary>
-    private static void DenteEmElevacao(Ctx c, ValoresTemplate v, double h, double L, ExtremidadeViga x, bool esquerda, double yT, double yB)
+    /// <summary>
+    /// Estribos Gerber e suspensão na elevação das armaduras: as linhas dentro da forma e, como nas pranchas do escritório
+    /// (pedido do usuário, 2026-11-11: "na região próxima ao dente é apresentada a armadura de suspensão, a armadura do dente e as
+    /// faixas respectivas"), uma FAIXA COM COTA de cada um na linha <paramref name="yF"/> das faixas dos estribos: o dente (da ponta
+    /// à face do recorte, "4 N4" em 25) e a suspensão (da face do recorte ao fim dela, "5 N10" em 20), encadeadas com a faixa dos
+    /// estribos da alma. O texto da suspensão fica uma linha abaixo para não encavalar com o do dente.
+    /// </summary>
+    private static void DenteEmElevacao(Ctx c, ValoresTemplate v, ConfiguracaoArmadura cfg, double L, ExtremidadeViga x, bool esquerda,
+        double yT, double yB, double yF)
     {
         if (!x.TemDente) return;
         var t = x.Dente;
         double hv = c.hV, cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo"), cob = v.Numero("CobPontas");
         string suf = Sufixo(esquerda);
+        double X(double d) => esquerda ? d : L - d;   // distância à ponta → x da elevação
         var g = PosicoesGerber(t, cob, esquerda, L);
         foreach (var xx in g) c.Linha(xx, yT - t.Altura + cobF, xx, yT - cobT, "ARM-BARRA-DETALHE");
-        if (g.Count > 0)
-            c.R.Faixas.Add(new FaixaTemplate
-            {
-                Barra = "gerber" + suf, Tipo = TipoFaixa.Indicacao, Referencias = g.Select(xx => (xx, yT - cobT - 2.0)).ToList(),
-                Posicao = (g.Average() + (esquerda ? -1 : 1) * 3 * hv, yT + 3 * hv), Escala = c.escV,
-            });
+        if (g.Count > 0) c.R.Faixas.Add(FaixaContada("gerber" + suf, X(0), X(x.CompDente), yF, g.Count, yF + 0.8 * hv, c.escV, cfg));
         var s = PosicoesSuspensao(t, cob, esquerda, L);
         foreach (var xx in s) c.Linha(xx, yB + cobF, xx, yT - cobT, "ARM-BARRA-DETALHE");
         if (s.Count > 0)
-            c.R.Faixas.Add(new FaixaTemplate
-            {
-                Barra = "suspensao" + suf, Tipo = TipoFaixa.Indicacao, Referencias = s.Select(xx => (xx, yB + cobF + 2.0)).ToList(),
-                Posicao = (s.Average() + (esquerda ? 1 : -1) * 2 * hv, yB - 2.5 * hv), Escala = c.escV,
-            });
+        {
+            // até onde começa a faixa dos estribos da alma (ZonasEstribos), para a cadeia de cotas não ter folga
+            double fim = x.CompDente + ExtensaoSuspensao(x) + cob + v.Numero("EstBitola") / 20;
+            c.R.Faixas.Add(FaixaContada("suspensao" + suf, X(x.CompDente), X(fim), yF, s.Count, yF - 2.4 * hv, c.escV, cfg));
+        }
+    }
+
+    /// <summary>
+    /// Faixa com cota de <paramref name="n"/> barras exatamente entre xa e xb (estribos do dente, suspensão): o espaçamento é o que dá
+    /// <paramref name="n"/> pela regra de faixas da configuração, e ele não aparece no texto ("4 N4", não "4 N4 c/6.7").
+    /// </summary>
+    public static FaixaTemplate FaixaContada(string barra, double xa, double xb, double y, int n, double yTexto, double esc, ConfiguracaoArmadura cfg)
+    {
+        double comp = Math.Abs(xb - xa), f0 = Math.Max(0, Math.Min(1, cfg.EspacamentoInicialFaixa));
+        // Quantidade = piso(q) + 1 (ou teto(q) + 1) com q = comp/s − 2·f0 → q = n − 1; no modo Teto, q = n
+        double k = cfg.ModoQuantidadeFaixa == ModoQuantidadeFaixa.Teto ? n : n - 1;
+        double s = n <= 1 && k <= 0 ? comp : comp / (k + 2 * f0);
+        double x1 = Math.Min(xa, xb), x2 = Math.Max(xa, xb);
+        return new FaixaTemplate
+        {
+            Barra = barra, Tipo = TipoFaixa.Ortogonal, P1 = (x1, y), P2 = (x2, y), Posicao = ((x1 + x2) / 2, yTexto),
+            Espacamento = Math.Max(0.1, s), MostrarEspacamento = false, Escala = esc,
+        };
     }
 
     /// <summary>Uma barra do dente desenhada fora da forma, na ponta dela: descrição em cima, função embaixo.</summary>

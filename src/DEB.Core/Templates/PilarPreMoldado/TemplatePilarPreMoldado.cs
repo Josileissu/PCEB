@@ -21,7 +21,10 @@ public sealed class NivelPilar
 /// notas (cobrimentos por face, tolerâncias da NBR 9062) e informações para produção (volume e peso).
 /// Tudo em verdadeira grandeza (cm); a escala de cada região só define a altura dos textos e das cotas, como no
 /// DWG do P61 (a folha é montada com viewports). Origem: nome dos níveis à esquerda, na cota da base do pilar.
-/// Faces: seção b (x) × h (y); face 1 = +x, 2 = −y, 3 = −x, 4 = +y — a VISTA n olha a face n.
+/// Faces: seção b (x) × h (y). Numeração INTERNA (geometria, arquivo de peças do Revit): 1 = +x, 2 = −y, 3 = −x, 4 = +y.
+/// Numeração APRESENTADA (desenho e o que o usuário digita; pedido de 2026-11-11): 1 = oeste (−x), 2 = sul (−y), 3 = leste (+x),
+/// 4 = norte (+y) — as vistas ficam lado a lado na ordem 1-2-3-4 e a VISTA 2 tem a 1 à esquerda e a 3 à direita. A troca é só
+/// 1 ↔ 3 (<see cref="FaceExibida"/>, que serve para os dois sentidos); a VISTA n olha a face n.
 /// </summary>
 public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 {
@@ -126,7 +129,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 
     /// <summary>Cobrimentos: faces 1 a 4, topo, base (cm).</summary>
     private static double[] Cobrimentos(ValoresTemplate v) =>
-        new[] { "CobFace1", "CobFace2", "CobFace3", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
+        // índice = face interna (0 = +x); os parâmetros "Face n" são os números apresentados (Face 1 = oeste = −x)
+        new[] { "CobFace3", "CobFace2", "CobFace1", "CobFace4", "CobTopo", "CobBase" }.Select(k => v.Numero(k)).ToArray();
 
     public static string Num(double v, string formato) => KitDesenho.Num(v, formato);
 
@@ -159,6 +163,9 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 
     public static IdiomaDesenho LerIdioma(string s) => KitDesenho.LerIdioma(s);
 
+    /// <summary>Face interna → número apresentado (e vice-versa): troca 1 (+x) e 3 (−x); 2 e 4 não mudam.</summary>
+    public static int FaceExibida(int f) => f == 1 ? 3 : f == 3 ? 1 : f;
+
     /// <summary>Tolerância de comprimento da NBR 9062 (tab. 2) para pilares, em mm.</summary>
     public static int ToleranciaComprimento(double lCm) => lCm <= 500 ? 10 : lCm <= 1000 ? 15 : 20;
 
@@ -182,10 +189,10 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         // ---------------- colunas da faixa das vistas ----------------
         double xTotal = 12 * hv, xCadeia = 15 * hv, xMarca = 17 * hv, xVista0 = 26 * hv;
         double passoVista = Math.Max(b, h) + 20 * hv;
-        // VISTA n olha a face n: 1 e 3 mostram h; 2 e 4 mostram b
+        // VISTA n olha a face n: 1 e 3 mostram h; 2 e 4 mostram b. xs/larguras pela face INTERNA; a posição, pelo número apresentado
         var larguras = new[] { h, b, h, b };
-        var xs = Enumerable.Range(0, 4).Select(i => xVista0 + i * passoVista).ToArray();
-        double xFimVistas = xs[3] + larguras[3];
+        var xs = Enumerable.Range(0, 4).Select(i => xVista0 + (FaceExibida(i + 1) - 1) * passoVista).ToArray();
+        double xFimVistas = Enumerable.Range(0, 4).Max(i => xs[i] + larguras[i]);
 
         // título do pilar
         c.Texto(nome, 0, L + 22 * hv, 3 * hv);
@@ -216,7 +223,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             if (ch > 0) { c.Linha(x0 + ch, 0, x0 + ch, L); c.Linha(x1 - ch, 0, x1 - ch, L); }
             // título: VISTA n / (VIEW n) / Esc. 1:50
             double y = L + 16 * hv;
-            foreach (var t in c.Linhas($"VISTA {i + 1}", $"VIEW {i + 1}")) { c.Texto(t, xm, y, 1.5 * hv, 1); y -= 1.9 * hv; }
+            foreach (var t in c.Linhas($"VISTA {FaceExibida(i + 1)}", $"VIEW {FaceExibida(i + 1)}")) { c.Texto(t, xm, y, 1.5 * hv, 1); y -= 1.9 * hv; }
             c.Texto($"Esc. 1:{escV:0}", xm, y, 0.7 * hv, 1);
         }
 
@@ -251,7 +258,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
             string nota = interf == Chaves ? "CHAVES DE CISALHAMENTO" : interf == Rugosa ? "SUPERFÍCIE RUGOSA" : "SUPERFÍCIE LISA";
             string notaEn = interf == Chaves ? "SHEAR KEYS" : interf == Rugosa ? "ROUGH SURFACE" : "SMOOTH SURFACE";
             double yN = lemb / 2;
-            foreach (var t in c.Linhas(nota, notaEn)) { c.Texto(t, xs[3] + larguras[3] + 2 * hv, yN, 0.8 * hv); yN -= 1.3 * 0.8 * hv; }
+            foreach (var t in c.Linhas(nota, notaEn)) { c.Texto(t, xFimVistas + 2 * hv, yN, 0.8 * hv); yN -= 1.3 * 0.8 * hv; }
             if (lemb < 40) r.Avisos.Add($"Embutimento de {Num(lemb, "0.#")} cm < 40 cm (NBR 9062, 7.7.2.4).");
             double fator = interf == Chaves ? 1.2 : 1.5;
             if (lemb < fator * Math.Max(b, h) - 1e-6)
@@ -317,7 +324,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         foreach (var xm in new[] { xMarcaE, xMarcaD })
         {
             c.MarcaCorte("A", xm, yA, hv);
-            foreach (var co in consolos) c.MarcaCorte(co.Letra, xm, co.ZTopo - co.H / 2, hv);
+            // uma marca por grupo de consolos (no meio deles); grupo que repete um corte leva a letra dele
+            foreach (var g in consolos.GroupBy(co => co.GrupoCorte)) c.MarcaCorte(g.First().Letra, xm, g.Average(co => co.ZTopo - co.H / 2), hv);
         }
 
         // ---------------- coluna da direita: corte A-A, notas, produção ----------------
@@ -373,7 +381,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         double hn = 0.9 * hv;
         var cob = Cobrimentos(v);
         int tol = ToleranciaComprimento(L);
-        string cobPt = $"COBRIMENTOS: FACE 1 = {Num(cob[0], "0.0#")}; FACE 2 = {Num(cob[1], "0.0#")}; FACE 3 = {Num(cob[2], "0.0#")}; " +
+        // as notas usam os números apresentados (FACE 1 = oeste = cob[2], o −x interno)
+        string cobPt = $"COBRIMENTOS: FACE 1 = {Num(cob[2], "0.0#")}; FACE 2 = {Num(cob[1], "0.0#")}; FACE 3 = {Num(cob[0], "0.0#")}; " +
                        $"FACE 4 = {Num(cob[3], "0.0#")}; TOPO = {Num(cob[4], "0.0#")}; BASE = {Num(cob[5], "0.0#")} cm;";
         var notasPt = new[]
         {
@@ -387,7 +396,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         {
             "NOTES:",
             "1) DIMENSIONS IN cm;",
-            "2) " + FormattableString.Invariant($"CONCRETE COVER: FACE 1 = {cob[0]:0.0#}; FACE 2 = {cob[1]:0.0#}; FACE 3 = {cob[2]:0.0#}; FACE 4 = {cob[3]:0.0#}; TOP = {cob[4]:0.0#}; BASE = {cob[5]:0.0#} cm;"),
+            "2) " + FormattableString.Invariant($"CONCRETE COVER: FACE 1 = {cob[2]:0.0#}; FACE 2 = {cob[1]:0.0#}; FACE 3 = {cob[0]:0.0#}; FACE 4 = {cob[3]:0.0#}; TOP = {cob[4]:0.0#}; BASE = {cob[5]:0.0#} cm;"),
             $"3) MANUFACTURING TOLERANCES (NBR 9062, TABLE 2): LENGTH ±{tol} mm; SECTION -5/+10 mm;",
             "    DISTORTION ±5 mm; STRAIGHTNESS ±L/1000; POSITION OF INSERTS ±15 mm;",
         };
@@ -426,7 +435,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     /// </summary>
     private static void RotuloVista(Ctx c, int n, double x, double y)
     {
-        var linhas = c.Linhas($"VISTA {n}", $"VIEW {n}");
+        // n = face interna (decide o lado do corte); o texto leva o número apresentado
+        var linhas = c.Linhas($"VISTA {FaceExibida(n)}", $"VIEW {FaceExibida(n)}");
         double h = 0.9 * c.hC, tri = 0.6 * h, larg = 0.6 * h, d = 1.3 * h;
         (double, double) P(double a, double b) => (a, b);
         switch (n)

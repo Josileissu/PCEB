@@ -212,14 +212,15 @@ public sealed partial class TemplateVigaPreMoldada
         double cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo");
         foreach (var x in zonas.SelectMany(z => z.Posicoes))
             c.Linha(x, yB + cobF, x, yT - cobT + sal + (sal > 0 ? cobT : 0), "ARM-BARRA-DETALHE");
-        DenteEmElevacao(c, v, h, L, e, true, yT, yB);
-        DenteEmElevacao(c, v, h, L, d, false, yT, yB);
         AbaEmElevacao(c, aba, L, yB, cotar: false);
         // marcas das seções também aqui
         foreach (var (id, xc) in cortes) { c.MarcaCorte(id, xc, yT + ress.Altura + 0.2 * hv, hv); MarcaCorteBaixo(c, id, xc, yB - 0.2 * hv, hv); }
 
-        // faixas de estribos por zona, em cota embaixo da forma (cadeia a partir das pontas)
+        // faixas de estribos por zona, em cota embaixo da forma (cadeia a partir das pontas); o dente e a suspensão na mesma linha da
+        // zona vizinha de cada ponta
         double yF = yB - 4.5 * hv;
+        DenteEmElevacao(c, v, cfg, L, e, true, yT, yB, yF);
+        DenteEmElevacao(c, v, cfg, L, d, false, yT, yB, yF - (Math.Max(0, zonas.Count - 1) % 2) * 3.2 * hv);
         // zonas vizinhas com o texto em alturas alternadas (zonas curtas não se encavalam)
         for (int iz = 0; iz < zonas.Count; iz++)
         {
@@ -235,7 +236,7 @@ public sealed partial class TemplateVigaPreMoldada
         // estribos da aba: traços na altura da aba e a faixa deles numa linha própria, abaixo das faixas dos estribos da alma
         bool faixaAba = AbaEstribosEmElevacao(c, v, cfg, aba, yB, yF - (zonas.Count > 1 ? 6.4 : 3.2) * hv);
         // ressalto: a faixa dele acima do topo, os estribos em traços e as faixas (estribos e ligação com a capa) abaixo das outras
-        int faixasRess = RessaltoEmElevacaoArmaduras(c, v, cfg, ress, L, yT, yF - ((zonas.Count > 1 ? 6.4 : 3.2) + (faixaAba ? 3.2 : 0)) * hv);
+        int faixasRess = RessaltoEmElevacaoArmaduras(c, v, cfg, ress, L, h, yT, yF - ((zonas.Count > 1 ? 6.4 : 3.2) + (faixaAba ? 3.2 : 0)) * hv);
         y = yF - (zonas.Count > 1 ? 10 : 7) * hv - (faixaAba ? 3.2 * hv : 0) - faixasRess * 3.2 * hv;
         bool soldada = v.SimNao("InfSoldada");
         foreach (var l in baixo)
