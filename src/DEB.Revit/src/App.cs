@@ -94,6 +94,20 @@ namespace DEB.Revit
             };
             precast.AddItem(exportar);
 
+            var lajeAlveolar = new PushButtonData("DEB_PaginarLajeAlveolar", "Paginar laje\nalveolar", dll, typeof(LajeAlveolar.PaginarLajeAlveolarCommand).FullName)
+            {
+                ToolTip = "Pagina os pisos selecionados em painéis alveolares (módulo, ajustes, aberturas, pilares, faixas maciças) e insere os painéis no modelo.",
+                LongDescription =
+                    "Lê o contorno e os furos do croqui de cada piso, o sentido do vão, as vigas em volta (alma e aba medidas na geometria) e os " +
+                    "pilares; distribui os painéis pela estratégia escolhida (aberturas primeiro, melhor distribuição ou de um lado), mostra a prévia " +
+                    "com os avisos e, ao confirmar, insere os painéis (família de quadro estrutural escolhida), as faixas maciças e, se ligados, a capa, " +
+                    "as chaves de cisalhamento e os tirantes dos suportes de instalações. Marca, etapa de concretagem e relatório no fim.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "LA"),
+                Image = IconFactory.Create(16, "L")
+            };
+            precast.AddItem(lajeAlveolar);
+
             AddToolsPanel(application, dll);
 
             AutoRun.Register(application);

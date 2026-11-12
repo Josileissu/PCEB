@@ -148,6 +148,21 @@ Revit do usuário aberto segura a DLL: renomeie `DEB.Revit.dll`/`DEB.Core.dll` p
 o Revit dele segue com a carregada; os abertos depois pegam a nova. Próximo (etapa 3): marca editável gravada no Revit, função dos
 trechos, aceitar/ignorar, Extensible Storage, exportar pela janela, "Selecionar no modelo".
 
+## Paginar laje alveolar (12/11/2026, decisão D24 — `src/LajeAlveolar`)
+Botão no painel Pré-moldados (`PaginarLajeAlveolarCommand`, base `ToolCommand`). Motor puro em **`DEB.Core/Lajes`** (`MotorPaginacao` =
+port fiel do protótipo; `PaginacaoObra` = planta → sistema do pano (u = vão, v = transversal; `SistemaPano`), numeração, marcas, relatório;
+`ConfigPaginacao` = medidas em metros, JSON em `%AppData%\PCEB\DEB.Revit\LajeAlveolar\config_paginacao.json`). Fluxo: pisos selecionados →
+`ExtracaoLajeAlveolar` (croqui do piso, SpanDirectionAngle, topo; vigas: linhas horizontais × sólido no meio da viga nas cotas de
+`leitura_viga`, RELATIVAS à base do painel; pilares: varredura a 80% da altura do painel) → `ConfigPaginacaoWindow` (família/tipo de quadro
+estrutural do projeto, estratégia, medidas, catálogo de fornecedor fora do Git, fase 3, "Restaurar padrão") → `PreviaPaginacaoWindow` (planta
++ relatório + avisos) → uma transação: `InsercaoLajeAlveolar` (painel = quadro estrutural na cota do topo do painel, folgas zeradas, offsets
+y/z corrigidos pela caixa medida, ajuste por recorte lateral ou tipo por largura, recortes por `NewOpening(CenterZ)`, faixa maciça = piso
+"FAIXA MACIÇA h…") + complementos `IComplementoLajeAlveolar` em subtransação (`Fase3LajeAlveolar`: capa = tipo "CAPA …" com o mesmo topo,
+chaves = DirectShape com o perfil medido entre os painéis, tirantes = DirectShape barra + chapas + porcas). Barra que não cabe na parte
+estreita da junta: **furo em obra** (padrão, Ø = barra + folga) anotado no comentário do tirante e listado por painel no relatório.
+Controle: comentário `LAJE ALVEOLAR <marca> (…, piso <id>)` — o que existe não é refeito; "Completar" mantém a numeração do piso.
+Etapa pelo NOME do parâmetro (configurável). Relatório em `logs/laje_alveolar_*.txt`. **Ainda não testado no Revit** (só compilado).
+
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.
 - `ToolCommand`: base de todos — barreira de exceções (mensagem + log `logs/ferramentas_AAAAMMDD.log`), `ToolCancelled`.
