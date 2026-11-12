@@ -30,6 +30,13 @@ internal sealed class Sincronizador
     private static readonly HashSet<string> ComandosDeExplodir = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "EXPLODE", "XPLODE", "BURST" };
     private int _suspenso;
 
+    // JOIN / PEDIT→Juntar (nome GLOBAL: cobre o "Juntar"/"JUNTAR" das versões traduzidas; pedido de 2026-11-12): o CAD cria
+    // uma polilinha NOVA e apaga a armadura (GstarCAD 2021, diagnóstico ARMTESTEJOINLOG). Guardamos as armaduras apagadas e as
+    // polilinhas anexadas durante o comando; no fim, a armadura volta (UNERASE) com a geometria juntada e a nova é apagada.
+    private static readonly HashSet<string> ComandosDeJuntar = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "JOIN", "PEDIT" };
+    private readonly HashSet<ObjectId> _juntarApagadas = new HashSet<ObjectId>();
+    private readonly HashSet<ObjectId> _juntarNovas = new HashSet<ObjectId>();
+
     // MATCHPROP (pedido do usuário, 2026-11-05): o comando nativo só copia layer/cor/estilo; os dados do plugin
     // (barra, faixa, tabela) vão junto por aqui. A origem é o 1º objeto escolhido (ou o pré-selecionado); os destinos
     // são os escolhidos depois e os modificados pelo comando.
@@ -126,6 +133,11 @@ internal sealed class Sincronizador
         {
             if (e.Erased && e.DBObject is BlockReference br && ComandosDeExplodir.Contains(_comando)) _explodidos.Add(br.BlockTransform);
             if (!Interessa(e.DBObject)) return;
+            if (ComandosDeJuntar.Contains(_comando) && e.DBObject is Polyline && XDataCad.Tipo(e.DBObject) == TipoParte.Barra)
+            {
+                if (e.Erased) _juntarApagadas.Add(e.DBObject.ObjectId);
+                else _juntarApagadas.Remove(e.DBObject.ObjectId);
+            }
             if (e.Erased) _apagados.Add(e.DBObject.ObjectId);
             else _apagados.Remove(e.DBObject.ObjectId);
         }
@@ -135,7 +147,11 @@ internal sealed class Sincronizador
     private void AoAnexar(object sender, ObjectEventArgs e)
     {
         if (_suspenso > 0) return;
-        try { if (Interessa(e.DBObject)) _anexados.Add(e.DBObject.ObjectId); }
+        try
+        {
+            if (ComandosDeJuntar.Contains(_comando) && e.DBObject is Polyline) _juntarNovas.Add(e.DBObject.ObjectId);
+            if (Interessa(e.DBObject)) _anexados.Add(e.DBObject.ObjectId);
+        }
         catch (Exception ex) { Log.Erro("AoAnexar", ex); }
     }
 
@@ -333,6 +349,8 @@ internal sealed class Sincronizador
         _apagados.Clear();
         _anexados.Clear();
         _explodidos.Clear();
+        _juntarApagadas.Clear();
+        _juntarNovas.Clear();
     }
 
     // ---------- processamento ----------
@@ -344,6 +362,8 @@ internal sealed class Sincronizador
         var apagados = _apagados.ToList();
         var modificados = _modificados.ToList();
         var explodidos = _explodidos.ToList();
+        var juntarApagadas = _juntarApagadas.ToList();
+        var juntarNovas = _juntarNovas.ToList();
         var matchOrigem = _matchOrigemPendente;
         var matchDestinos = _matchDestinosPendentes.Concat(modificados).ToList();
         _matchOrigemPendente = ObjectId.Null;
@@ -365,6 +385,9 @@ internal sealed class Sincronizador
 
                 // 0. EXPLODE: as faixas que saíram de um bloco levam os pontos guardados pela transformação do bloco
                 if (explodidos.Count > 0) AjustarExplodidas(tr, anexados, explodidos);
+
+                // 0b. JOIN / PEDIT→Juntar: a armadura apagada volta com a geometria juntada (antes do caminho de "barra apagada")
+                if (juntarApagadas.Count > 0 && juntarNovas.Count > 0) Juntar(tr, db, cfg, juntarApagadas, juntarNovas, apagados, barras);
 
                 // 1. objetos novos: cópias de barra ganham GUID novo; textos copiados sem a barra são órfãos
                 if (anexados.Count > 0)
@@ -603,6 +626,61 @@ internal sealed class Sincronizador
             // lentidão no uso real fica registrada (checagem de desempenho, 2026-10-30)
             if (relogio.ElapsedMilliseconds > 200 || Detalhado)
                 Log.Info($"Sincronizador: {relogio.ElapsedMilliseconds} ms (modificados {modificados.Count}, apagados {apagados.Count}, anexados {anexados.Count})");
+        }
+    }
+
+    /// <summary>
+    /// JOIN / PEDIT→Juntar (pedido do usuário, 2026-11-12). Para cada polilinha nova do comando, procura as armaduras apagadas
+    /// cujos vértices estão nela (sentido direto ou inverso). A de maior comprimento real fica: volta (UNERASE) com a geometria
+    /// juntada NO SENTIDO DELA, os dados por trecho são realocados (trechos novos = retos, cotados, sem gancho) e a polilinha
+    /// nova é apagada — handle, XData, descrição, cotas, faixas e a linha da relação do aço continuam os mesmos. As outras
+    /// armaduras juntadas continuam apagadas (o passo seguinte apaga as partes delas) e o usuário é avisado.
+    /// </summary>
+    private void Juntar(Transaction tr, Database db, Core.Configuracao.ConfiguracaoArmadura cfg, List<ObjectId> antigas,
+        List<ObjectId> novas, List<ObjectId> apagados, HashSet<ObjectId> barras)
+    {
+        double cpu = Desenho.CmPorUnidade(db, cfg);
+        const double tol = 1e-4;
+        var usadas = new HashSet<ObjectId>();
+        foreach (var nid in novas)
+        {
+            if (!nid.IsValid || nid.IsErased || !(tr.GetObject(nid, OpenMode.ForRead) is Polyline nova)) continue;
+            if (nova.Closed) { Log.Info("JOIN: polilinha juntada fechada — armadura não recuperada (não tratado)."); continue; }
+            var vn = GeometriaBarra.Vertices(nova);
+            var achadas = new List<(ObjectId id, Core.Modelo.DadosArmadura d, Core.Calculo.PosicaoNaJuncao pos, double comp, int nv)>();
+            foreach (var aid in antigas)
+            {
+                if (usadas.Contains(aid) || !aid.IsValid || !aid.IsErased) continue;
+                if (!(tr.GetObject(aid, OpenMode.ForRead, true) is Polyline ant) || ant.Closed) continue;
+                var d = XDataCad.LerBarra(ant);
+                if (d == null) continue;
+                var pos = Core.Calculo.JuncaoBarra.Localizar(GeometriaBarra.Vertices(ant), vn, tol);
+                if (pos == null) continue;
+                double comp = Core.Calculo.CalculoComprimento.ComprimentoUnitario(GeometriaBarra.Ler(ant, cpu), cfg, d);
+                achadas.Add((aid, d, pos, comp, ant.NumberOfVertices));
+            }
+            if (achadas.Count == 0) continue;
+            // duas armaduras juntadas: fica a mais longa (decisão do usuário, 2026-11-12)
+            var fica = achadas.OrderByDescending(a => a.comp).First();
+            var (vertices, antes, depois) = Core.Calculo.JuncaoBarra.NoSentidoDaBarra(vn, fica.pos, fica.nv);
+            var pl = (Polyline)tr.GetObject(fica.id, OpenMode.ForWrite, true);
+            pl.Erase(false);
+            GeometriaBarra.DefinirVertices(pl, vertices);
+            fica.d.Segmentos = Core.Calculo.JuncaoBarra.Realocar(fica.d.Segmentos, antes, depois);
+            XDataCad.Gravar(pl, fica.d);
+            nova.UpgradeOpen();
+            nova.Erase();
+            apagados.Remove(fica.id);
+            barras.Add(fica.id);
+            foreach (var a in achadas) usadas.Add(a.id);
+            Log.Info($"JOIN: armadura {XDataCad.Hex(fica.id)} recuperada com a geometria juntada ({antes} trecho(s) antes, {depois} depois" +
+                     (fica.pos.Invertida ? ", sentido desfeito" : "") + ").");
+            if (achadas.Count > 1)
+            {
+                string saiu = string.Join(", ", achadas.Where(a => a.id != fica.id).Select(a => $"N{a.d.Numero} (C={a.comp.ToString(System.Globalization.CultureInfo.InvariantCulture)})"));
+                try { _doc.Editor.WriteMessage($"\nArmadura: junção de {achadas.Count} armaduras — ficou N{fica.d.Numero} (a mais longa, C={fica.comp.ToString(System.Globalization.CultureInfo.InvariantCulture)}); saiu {saiu} (descrição, cotas e faixas dela(s) apagadas)."); } catch { }
+                Log.Info($"JOIN: ficou N{fica.d.Numero} ({XDataCad.Hex(fica.id)}), saiu {saiu}.");
+            }
         }
     }
 

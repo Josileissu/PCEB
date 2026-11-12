@@ -145,6 +145,40 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   (2026-11-02, relato do usuário: no REFEDIT do P61 as chamadas iam para longe = deslocadas do ponto de inserção).
   Autoteste ARMTESTEMOVERPILAR/ARMTESTEMOVIDO desloca o pilar explodido pela API sem tocar no XData (como o REFEDIT).
   Teste por script: o EXPLODE do GstarCAD pega UM objeto e termina — mande um Enter só.
+  **EXPLODE de uma BARRA** (polilinha da armadura) NÃO transfere nada: a barra é apagada e o Sincronizador apaga descrição,
+  cotas e faixas (caminho "barra apagada", `ServicoBarra.ApagarPartes`). O tratamento de EXPLODE é só para faixas dentro de blocos.
+- **JOIN / PEDIT→Juntar / "Juntar"** (pedido de 2026-11-12, aprovado pelo usuário): o GstarCAD 2021 cria uma polilinha NOVA
+  (sem XData) e apaga a armadura e o objeto juntado — sempre, seja quem for selecionado primeiro; quando os sentidos não
+  batem, mantém o da LINE e INVERTE a polilinha (diagnóstico `ARMTESTEJOINLOG`). O PEDIT feito NA armadura edita no lugar
+  (mesmo handle); o PEDIT feito na LINE converte a linha (polilinha nova) e apaga a armadura.
+  `Sincronizador` (nome GLOBAL do comando: JOIN/PEDIT — cobre o "Juntar" traduzido): guarda as armaduras apagadas e as
+  polilinhas anexadas durante o comando; no fim (`Juntar`, antes do caminho de barra apagada) acha a armadura dentro da
+  polilinha nova (`Core/Calculo/JuncaoBarra.Localizar`, direto ou inverso, tolerância 1e-4), faz UNERASE, copia a geometria
+  NO SENTIDO DA BARRA (`NoSentidoDaBarra`), realoca os dados por trecho (`Realocar`: trechos novos retos, cotados, sem gancho;
+  gancho em que a linha encostou vira reto) e apaga a polilinha nova — handle, XData, descrição, cotas, faixas continuam.
+  Duas armaduras juntadas: fica a de MAIOR comprimento real (decisão do usuário); a outra continua apagada com as partes e a
+  linha de comando avisa qual N ficou e qual saiu. Linha que não encosta: nada muda. Polilinha juntada FECHADA: não tratada.
+  PEDIT na própria armadura com o trecho no INÍCIO: `ServicoBarra.Atualizar` realinha os dados pelos comprimentos registrados
+  (`JuncaoBarra.TrechosAntes`) — antes o `AjustarSegmentos` só mexia no fim e desalinhava gancho/cotas.
+  A relação do aço NÃO se atualiza sozinha no JOIN (igual à barra esticada; JOIN não está em `ComandosQueAtualizamRA`).
+  U logo depois do JOIN volta tudo (a correção feita no fim do comando entra no mesmo grupo de desfazer) — testado no GstarCAD.
+  Autoteste: `ARMTESTEJOIN` (passa/falha; 2026-11-12: 124 ok no GstarCAD 2021; relatório `logs\autoteste_join_teste_<CAD>.txt`
+  e `logs\autoteste.txt`). **AutoCAD ainda NÃO testado** (não instalado no PC1): rode `tools\autoteste_autocad.ps1 -Comando
+  ARMTESTEJOIN` no PC2 — se o JOIN do AutoCAD editar a armadura no lugar em vez de criar uma nova, vale o realinhamento por
+  comprimentos, mas a regra "fica a mais longa" não se aplica (fica a de origem); se ele fundir trechos colineares (tirar o
+  vértice do encontro), a armadura não é achada na polilinha nova e as partes se perdem como antes.
+  Armadilhas do teste por script: no GstarCAD o ESC tem de ir SOZINHO no `SendStringToExecute` (`"\x1B\x1BARM…"` virou o
+  comando desconhecido "\x1BRM…" e a fila parou); JOIN = "Select source object or a merger of multiple objects" — 2 seleções
+  e UM Enter; PEDIT = "Select polyline or [Multiple]", opções, `_J`, "Select object:", Enter fecha a seleção e outro Enter sai;
+  com PEDITACCEPT=0 (padrão do GstarCAD) o PEDIT numa LINE pergunta "Do you want to turn it into polyline? <Y>" — leia a
+  variável e responda conforme (não mude: é do perfil). Os eventos `PromptingFor*` disparam nos comandos nativos, mas quase
+  sempre com a mensagem vazia. Faixas ÓRFÃS (barra apagada com o Sincronizador suspenso) recebem ObjectModified do plugin a
+  cada faixa apagada em outra barra: num autoteste, limpe a área de cada caso.
+- **ARMCONVERTER com linhas soltas** (pedido de 2026-11-12): aceita LINE além de LWPOLYLINE. Linhas que se encostam ponta com
+  ponta (tolerância 0,01 cm) viram UMA polilinha nova na ordem das ligações (`JuncaoBarra.Encadear`), que substitui as linhas;
+  linha isolada = barra reta; cadeia fechada = poligonal fechada (pergunta do estribo, como antes); 3+ linhas no mesmo ponto =
+  grupo ramificado, avisa e NÃO converte. O ARMRECONHECER já aceitava LINE (cada linha = uma barra, casada com o texto mais
+  próximo) e ficou como estava. Teste: caso "conv" do `ARMTESTEJOIN`.
 - Tela soldada: opções por tela no XData ("TDIS" distribuição dos fios, "TCOT" cotas das 2 dimensões, "TDIAG"
   texto na diagonal; padrão: cotas e diagonal ligadas). Fios: `DistribuicaoTela` (Core; longitudinais ao longo do
   lado maior, famílias centradas). Na paleta, `[SoQuando("Tela")]`/`IPropriedadesCondicionais` escondem o que não se aplica.
