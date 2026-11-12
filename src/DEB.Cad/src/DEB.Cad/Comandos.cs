@@ -142,13 +142,21 @@ public sealed class Comandos
     public void ArmConverter() => Executar("ARMCONVERTER", (doc, ed, db, cfg) =>
     {
         ed.WriteMessage($"\nValores usados: {ResumoCorrente(cfg)}");
-        var filtro = new SelectionFilter(new[] { new TypedValue((int)DxfCode.Start, "LWPOLYLINE") });
-        var r = ed.GetSelection(new PromptSelectionOptions { MessageForAdding = "\nSelecione as polilinhas a converter:" }, filtro);
+        // LINEs soltas também (pedido do usuário, 2026-11-12): as que se encostam ponta com ponta viram UMA barra
+        var filtro = new SelectionFilter(new[] { new TypedValue((int)DxfCode.Start, "LWPOLYLINE,LINE") });
+        var r = ed.GetSelection(new PromptSelectionOptions { MessageForAdding = "\nSelecione as polilinhas/linhas a converter:" }, filtro);
         if (r.Status != PromptStatus.OK) return;
+        var ids = r.Value.GetObjectIds();
+        List<CadeiaLinhas> cadeias;
+        List<Line> linhas;
+        double tol = 0.01 / Desenho.CmPorUnidade(db, cfg); // 0,01 cm
         bool estribos = false;
         using (var tr = new TransacaoSegura(db))
         {
-            bool algumaFechada = r.Value.GetObjectIds().Any(id => ServicoEstribo.PoligonoFechado((Polyline)tr.GetObject(id, OpenMode.ForRead)) != null);
+            linhas = ids.Select(id => tr.GetObject(id, OpenMode.ForRead)).OfType<Line>().Where(l => !XDataCad.TemDados(l)).ToList();
+            cadeias = JuncaoBarra.Encadear(linhas.Select(l => ((l.StartPoint.X, l.StartPoint.Y), (l.EndPoint.X, l.EndPoint.Y))).ToList(), tol);
+            bool algumaFechada = ids.Select(id => tr.GetObject(id, OpenMode.ForRead)).OfType<Polyline>().Any(pl => ServicoEstribo.PoligonoFechado(pl) != null)
+                                 || cadeias.Any(c => c.Fechada && !c.Ramificada && c.Pontos.Count >= 3);
             if (algumaFechada)
             {
                 var est = PerguntarEstribo(ed);
@@ -156,10 +164,29 @@ public sealed class Comandos
                 estribos = est.Value;
             }
         }
-        int n = 0, ja = 0, e = 0;
+        int n = 0, ja = 0, e = 0, deLinhas = 0, ramificadas = 0;
         using (var tr = db.TransactionManager.StartTransaction())
         {
-            foreach (var id in r.Value.GetObjectIds())
+            var polis = ids.Where(id => id.ObjectClass.DxfName == "LWPOLYLINE").ToList();
+            // cadeias de linhas → polilinha nova no lugar das linhas
+            foreach (var c in cadeias)
+            {
+                if (c.Ramificada) { ramificadas++; continue; }
+                var l0 = (Line)tr.GetObject(linhas[c.Linhas[0]].ObjectId, OpenMode.ForRead);
+                var pl = new Polyline();
+                pl.SetDatabaseDefaults(db);
+                pl.LayerId = l0.LayerId;
+                pl.Elevation = l0.StartPoint.Z;
+                for (int k = 0; k < c.Pontos.Count; k++) pl.AddVertexAt(k, new Point2d(c.Pontos[k].X, c.Pontos[k].Y), 0, 0, 0);
+                pl.Closed = c.Fechada && c.Pontos.Count >= 3;
+                var dono = (BlockTableRecord)tr.GetObject(l0.OwnerId, OpenMode.ForWrite);
+                dono.AppendEntity(pl);
+                tr.AddNewlyCreatedDBObject(pl, true);
+                foreach (var k in c.Linhas) ((Line)tr.GetObject(linhas[k].ObjectId, OpenMode.ForWrite)).Erase();
+                polis.Add(pl.ObjectId);
+                deLinhas += c.Linhas.Count;
+            }
+            foreach (var id in polis)
             {
                 var pl = (Polyline)tr.GetObject(id, OpenMode.ForWrite);
                 if (XDataCad.TemDados(pl)) { ja++; continue; }
@@ -168,8 +195,11 @@ public sealed class Comandos
             }
             tr.Commit();
         }
-        ed.WriteMessage($"\n{n} polilinha(s) convertida(s) em armadura" + (e > 0 ? $" ({e} estribo(s) com ganchos)" : "") +
+        ed.WriteMessage($"\n{n} barra(s) convertida(s) em armadura" + (e > 0 ? $" ({e} estribo(s) com ganchos)" : "") +
+                        (deLinhas > 0 ? $"; {deLinhas} linha(s) encadeada(s)" : "") +
                         (ja > 0 ? $"; {ja} já era(m) armadura." : "."));
+        if (ramificadas > 0)
+            ed.WriteMessage($"\n{ramificadas} grupo(s) de linhas ramificado(s) (3 ou mais linhas no mesmo ponto) NÃO foram convertidos: separe o caminho da barra.");
     });
 
     /// <summary>"Polilinha fechada vira estribo com ganchos?" (null = cancelado).</summary>
