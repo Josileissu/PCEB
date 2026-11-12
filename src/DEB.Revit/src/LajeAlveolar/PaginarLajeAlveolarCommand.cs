@@ -69,7 +69,7 @@ namespace DEB.Revit.LajeAlveolar
                 if (!m.Success) continue;
                 int n = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
                 maxNum = Math.Max(maxNum, n);
-                var mp = Regex.Match(coment, @"piso (\d+)\)");
+                var mp = Regex.Match(coment, @"(?:piso|pano) (\d+)\)");   // "pano" = comentário do protótipo
                 if (mp.Success) numeroDoPiso[mp.Groups[1].Value] = n;
             }
             var jaFeitos = pisos.Where(p => numeroDoPiso.ContainsKey(ExtracaoLajeAlveolar.Id(p))).ToList();

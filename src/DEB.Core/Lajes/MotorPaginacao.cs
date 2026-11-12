@@ -30,7 +30,9 @@ public static class MotorPaginacao
     {
         var ext = loops[0];
         var furos = loops.Skip(1).ToList();
-        double U0 = ext.Min(p => p.U), U1 = ext.Max(p => p.U), V0 = ext.Min(p => p.V), V1 = ext.Max(p => p.V);
+        // limites arredondados como as linhas da grade: com coordenadas do modelo (ruído de 1e-9), o limite exato e o arredondado
+        // viravam duas linhas da grade e a célula fininha entre elas (no contorno) ligava o vazio ao corpo do pano inteiro
+        double U0 = Arred(ext.Min(p => p.U), 4), U1 = Arred(ext.Max(p => p.U), 4), V0 = Arred(ext.Min(p => p.V), 4), V1 = Arred(ext.Max(p => p.V), 4);
         var g = new ClassificacaoPano { U0 = U0, U1 = U1, V0 = V0, V1 = V1 };
         var caixa = new RetUV(U0, V0, U1, V1);
         g.Pilares = pilares.Where(p => Intersecao(p.Ret.Expandido(0.1), caixa) != null).ToList();

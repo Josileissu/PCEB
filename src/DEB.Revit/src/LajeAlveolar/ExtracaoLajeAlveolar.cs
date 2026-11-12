@@ -11,7 +11,7 @@ namespace DEB.Revit.LajeAlveolar
     /// <summary>
     /// Leitura do modelo para a paginação (só lê): contorno e furos do croqui do piso, sentido do vão (SpanDirectionAngle), topo;
     /// vigas em volta (seção medida por linhas horizontais que cortam o sólido — acha alma, aba e se a viga sobe ao lado do painel);
-    /// pilares (pontos da seção na altura do painel). Saída em metros, coordenadas do modelo.
+    /// pilares (pontos da seção na altura do painel). Saída em metros (arredondados a 0,1 mm), coordenadas do modelo.
     /// </summary>
     internal static class ExtracaoLajeAlveolar
     {
@@ -31,7 +31,7 @@ namespace DEB.Revit.LajeAlveolar
                 Id = Id(piso),
                 Nome = (piso.Name + " " + (piso.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString() ?? "")).Trim(),
                 AnguloVao = piso.SpanDirectionAngle,
-                ZTopo = M(bb.Max.Z),
+                ZTopo = M4(bb.Max.Z),
             };
             r.Loops = Loops(doc, piso);
             if (r.Loops.Count == 0) throw new InvalidOperationException("não consegui ler o contorno do piso");
@@ -77,7 +77,7 @@ namespace DEB.Revit.LajeAlveolar
                     foreach (Curve c in ca)
                     {
                         var t = c.Tessellate();
-                        for (int k = 0; k < t.Count - 1; k++) pts.Add((M(t[k].X), M(t[k].Y)));
+                        for (int k = 0; k < t.Count - 1; k++) pts.Add((M4(t[k].X), M4(t[k].Y)));
                     }
                     if (pts.Count >= 3) loops.Add(pts);
                 }
@@ -93,7 +93,7 @@ namespace DEB.Revit.LajeAlveolar
                     foreach (EdgeArray ea in topo.EdgeLoops)
                     {
                         var pts = new List<(double, double)>();
-                        foreach (Edge ed in ea) { var t = ed.Tessellate(); for (int k = 0; k < t.Count - 1; k++) pts.Add((M(t[k].X), M(t[k].Y))); }
+                        foreach (Edge ed in ea) { var t = ed.Tessellate(); for (int k = 0; k < t.Count - 1; k++) pts.Add((M4(t[k].X), M4(t[k].Y))); }
                         if (pts.Count >= 3) loops.Add(pts);
                     }
                 GC.KeepAlive(donos);
@@ -110,7 +110,7 @@ namespace DEB.Revit.LajeAlveolar
             var dh = new XYZ(a1.X - a0.X, a1.Y - a0.Y, 0);
             if (dh.GetLength() < 1e-6) return null;   // viga vertical
             var d = dh.Normalize(); var n = new XYZ(-d.Y, d.X, 0);
-            var v = new VigaPlanta { Id = Id(fi), Tipo = fi.Symbol?.Name ?? "", P0 = (M(a0.X), M(a0.Y)), P1 = (M(a1.X), M(a1.Y)) };
+            var v = new VigaPlanta { Id = Id(fi), Tipo = fi.Symbol?.Name ?? "", P0 = (M4(a0.X), M4(a0.Y)), P1 = (M4(a1.X), M4(a1.Y)) };
             var ss = Solidos(fi, out var donos);
             if (ss.Count == 0) return null;
             var c0 = a0 + d * ((a1 - a0).DotProduct(d) * 0.5);
@@ -123,7 +123,7 @@ namespace DEB.Revit.LajeAlveolar
                 var o = new XYZ(c0.X, c0.Y, Ft(zBase + z));
                 var tr = TrechosDentro(ss, o, n, Ft(1.5));
                 if (tr.Count == 0) continue;
-                v.Secao.Linhas.Add(new LinhaSecao { Z = z, Trechos = tr.Select(t => (M(t.A), M(t.B))).ToList() });
+                v.Secao.Linhas.Add(new LinhaSecao { Z = z, Trechos = tr.Select(t => (M4(t.A), M4(t.B))).ToList() });
             }
             GC.KeepAlive(donos);
             return v.Secao.Linhas.Count > 0 ? v : null;
@@ -143,11 +143,11 @@ namespace DEB.Revit.LajeAlveolar
                 double y = bb.Min.Y + (bb.Max.Y - bb.Min.Y) * i / nAm;
                 var o = new XYZ((bb.Min.X + bb.Max.X) / 2, y, z);
                 double meio = (bb.Max.X - bb.Min.X) / 2 + 0.5;
-                foreach (var t in TrechosDentro(ss, o, XYZ.BasisX, meio)) { p.Pontos.Add((M(o.X + t.A), M(y))); p.Pontos.Add((M(o.X + t.B), M(y))); }
+                foreach (var t in TrechosDentro(ss, o, XYZ.BasisX, meio)) { p.Pontos.Add((M4(o.X + t.A), M4(y))); p.Pontos.Add((M4(o.X + t.B), M4(y))); }
                 double x = bb.Min.X + (bb.Max.X - bb.Min.X) * i / nAm;
                 var o2 = new XYZ(x, (bb.Min.Y + bb.Max.Y) / 2, z);
                 double meio2 = (bb.Max.Y - bb.Min.Y) / 2 + 0.5;
-                foreach (var t in TrechosDentro(ss, o2, XYZ.BasisY, meio2)) { p.Pontos.Add((M(x), M(o2.Y + t.A))); p.Pontos.Add((M(x), M(o2.Y + t.B))); }
+                foreach (var t in TrechosDentro(ss, o2, XYZ.BasisY, meio2)) { p.Pontos.Add((M4(x), M4(o2.Y + t.A))); p.Pontos.Add((M4(x), M4(o2.Y + t.B))); }
             }
             GC.KeepAlive(donos);
             return p.Pontos.Count > 0 ? p : null;

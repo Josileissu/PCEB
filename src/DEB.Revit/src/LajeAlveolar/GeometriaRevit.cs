@@ -13,6 +13,9 @@ namespace DEB.Revit.LajeAlveolar
         public static readonly Options Fino = new Options { DetailLevel = ViewDetailLevel.Fine };
 
         public static double M(double pes) => pes * Pe;
+        /// <summary>Metros arredondados a 0,1 mm, para as coordenadas lidas do modelo (como o protótipo). Sem isso, no teste com um modelo
+        /// real, recortes de pilar com borda a frações de 0,1 mm não cortavam o painel (NewOpening sem efeito).</summary>
+        public static double M4(double pes) => Math.Round(pes * Pe, 4, MidpointRounding.AwayFromZero);
         public static double Ft(double m) => m / Pe;
         public static XYZ P(double xm, double ym, double zm) => new XYZ(xm / Pe, ym / Pe, zm / Pe);
 

@@ -134,6 +134,26 @@ public class LajeAlveolarPaginacaoTests
     }
 
     [Fact]
+    public void RuidoNasCoordenadasDoModeloNaoTiraOCorpoDoPano()
+    {
+        // teste no Revit (modelo real): contorno em L com entalhes de pilar e coordenadas com ruído de 1e-9 (pés → metros). O limite
+        // exato e o arredondado viravam duas linhas da grade; a célula fininha no contorno ligava o vazio ao corpo do pano, que saía
+        // inteiro como "fora do contorno" (0 peças).
+        var rnd = new Random(1);
+        PontoUV P(double u, double v) => new PontoUV(u + (rnd.NextDouble() - 0.5) * 2e-8, v + (rnd.NextDouble() - 0.5) * 2e-8);
+        var contorno = new List<PontoUV> { P(0, 0.15), P(0.05, 0.15), P(0.05, 0), P(6, 0), P(6, 4.93), P(0.05, 4.93), P(0.05, 4.73), P(0, 4.73) };
+        var pil = new List<PilarPano>
+        {
+            new PilarPano { Id = "P1", Ret = new RetUV(-0.36, -0.26, 0.04, 0.14) },
+            new PilarPano { Id = "P2", Ret = new RetUV(-0.36, 4.74, 0.04, 5.14) },
+        };
+        var r = Paginar(4.93, pilares: pil, contorno: contorno);
+        Assert.Empty(r.Geo.Fora);
+        Assert.Equal(4, r.Pecas.Count());
+        Assert.DoesNotContain(r.Alertas, a => a.Contains("0 peça"));
+    }
+
+    [Fact]
     public void SobraMenorQueAjusteMinimoViraDoisAjustes()
     {
         var r = Paginar(5.2);

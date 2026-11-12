@@ -264,12 +264,18 @@ namespace DEB.Revit.LajeAlveolar
             var x = new RetUV(r.Ret.U0 - (Math.Abs(r.Ret.U0 - pc.U0) < tol ? e : 0), r.Ret.V0 - (Math.Abs(r.Ret.V0 - pc.V0) < tol ? e : 0),
                               r.Ret.U1 + (Math.Abs(r.Ret.U1 - pc.U1) < tol ? e : 0), r.Ret.V1 + (Math.Abs(r.Ret.V1 - pc.V1) < tol ? e : 0));
             double esperado = r.Ret.LarguraU * r.Ret.LarguraV * ctx.Cfg.AlturaPainel;
-            return Abrir(ctx, fi, s.Marca, x, pano, "recorte " + r.Tipo, 0.2 * esperado);
+            if (Abrir(ctx, fi, s.Marca, x, pano, "recorte " + r.Tipo, 0.2 * esperado, false)) return true;
+            // o Revit às vezes não corta com a borda do recorte quase sobre uma face interna do painel: tenta com 1 mm a mais em volta
+            var x1 = new RetUV(x.U0 - 0.001, x.V0 - 0.001, x.U1 + 0.001, x.V1 + 0.001);
+            if (!Abrir(ctx, fi, s.Marca, x1, pano, "recorte " + r.Tipo, 0.2 * esperado)) return false;
+            ctx.Avisos.Add($"{s.Marca}: recorte de {r.Tipo} ampliado 1 mm (com a medida exata o Revit não cortou)");
+            return true;
         }
 
         /// <summary>Abertura estrutural vertical no painel (perfil no plano médio). Confere pelo volume; senão desfaz.</summary>
-        private static bool Abrir(ContextoLajeAlveolar ctx, FamilyInstance fi, string marca, RetUV r, PanoPaginado pano, string oque, double volMin)
+        private static bool Abrir(ContextoLajeAlveolar ctx, FamilyInstance fi, string marca, RetUV r, PanoPaginado pano, string oque, double volMin, bool registrarFalha = true)
         {
+            var erros = registrarFalha ? ctx.Erros : new List<string>();
             var doc = ctx.Doc;
             try
             {
@@ -278,15 +284,15 @@ namespace DEB.Revit.LajeAlveolar
                     st.Start();
                     double v0 = Volume(fi);
                     var op = doc.Create.NewOpening(fi, PerfilRet(pano.Sistema, r, pano.ZTopoPainel - ctx.Cfg.AlturaPainel / 2), Autodesk.Revit.Creation.eRefFace.CenterZ);
-                    if (op == null) { st.RollBack(); ctx.Erros.Add($"{marca} {oque}: NewOpening devolveu null"); return false; }
+                    if (op == null) { st.RollBack(); erros.Add($"{marca} {oque}: NewOpening devolveu null"); return false; }
                     doc.Regenerate();
                     double dv = v0 - Volume(fi);
-                    if (dv < Math.Max(1e-6, volMin)) { st.RollBack(); ctx.Erros.Add($"{marca} {oque}: a abertura não cortou (Δvol = {Fmt.N(dv, "0.0000")} m³)"); return false; }
+                    if (dv < Math.Max(1e-6, volMin)) { st.RollBack(); erros.Add($"{marca} {oque}: a abertura não cortou (Δvol = {Fmt.N(dv, "0.0000")} m³)"); return false; }
                     st.Commit();
                 }
                 return true;
             }
-            catch (Exception ex) { ctx.Erros.Add($"{marca} {oque}: {ex.Message}"); return false; }
+            catch (Exception ex) { erros.Add($"{marca} {oque}: {ex.Message}"); return false; }
         }
     }
 }
