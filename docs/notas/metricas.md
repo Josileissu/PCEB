@@ -11,7 +11,7 @@ Pedido do usuário (11/11/2026): saber quantos acessos o site tem e quantos down
   Rodar na hora: Actions → "Métricas de download" → Run workflow (ou `gh workflow run metricas.yml`).
 
 ## Visitas ao site (www.pceb.com.br)
-O GitHub Pages não conta visitas. A escolha é um contador sem cookies (o site promete "sem cadastro, cookies ou formulário"):
+LIGADO em 12/11/2026: painel em **https://josileissu.goatcounter.com** (conta do usuário). O GitHub Pages não conta visitas. A escolha foi um contador sem cookies (o site promete "sem cadastro, cookies ou formulário"):
 **GoatCounter** (gratuito para uso não comercial, código aberto, sem cookies, não precisa de aviso de privacidade). Para ligar:
 1. O usuário cria a conta em goatcounter.com com o código do site (por exemplo `pceb` → painel em `https://pceb.goatcounter.com`).
 2. Acrescentar em todas as páginas do site, antes de `</body>`:
