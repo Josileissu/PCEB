@@ -1,0 +1,40 @@
+name: Métricas de download
+
+# Uma vez por dia grava o total de downloads de cada instalador (Releases) na branch "metricas", arquivo downloads.csv.
+# O GitHub só informa o total acumulado; com este registro dá para ver quantos downloads houve em cada período.
+on:
+  schedule:
+    - cron: "17 9 * * *"   # 06:17 em Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  gravar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Branch metricas
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" metricas >/dev/null; then
+            git clone --depth 1 --branch metricas "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" m
+          else
+            git init m && cd m && git checkout --orphan metricas && git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" && cd ..
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Downloads de hoje
+        run: |
+          cd m
+          [ -f downloads.csv ] || echo "data;programa;versao;arquivo;downloads" > downloads.csv
+          hoje=$(TZ=America/Sao_Paulo date +%Y-%m-%d)
+          gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[] | .tag_name as $t | .assets[] |
+            [(if (.name | startswith("DEB_Revit_Setup_")) then "Revit" else "CAD" end), $t, .name, (.download_count|tostring)] | join(";")' |
+            sed "s/^/${hoje};/" >> downloads.csv
+          git add downloads.csv
+          git commit -q -m "Downloads em ${hoje}" || echo "nada novo"
+          git push -q origin metricas
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
