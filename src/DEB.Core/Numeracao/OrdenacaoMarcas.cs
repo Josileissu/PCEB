@@ -91,12 +91,17 @@ public static class OrdenacaoMarcas
     /// Lajes, pela caixa do contorno da face superior: uma laje entra na linha com que mais se sobrepõe em Y, desde que
     /// a sobreposição cubra pelo menos <paramref name="sobreposicaoMinima"/> da altura dela; linhas de cima para baixo
     /// (topo), cada uma da esquerda para a direita (XMin).
+    /// A faixa da linha é a INTERSEÇÃO das lajes dela (maior YMin, menor YMax), não a união: com a união, uma laje da altura
+    /// das duas fileiras alargava a faixa e as lajes de baixo caíam na fileira de cima (relato do usuário, 13/11/2026). A laje
+    /// de altura inteira entra na fileira de cima. No empate do topo, as mais baixas (menor altura) abrem a fileira primeiro,
+    /// para a faixa não depender da ordem de entrada.
     /// </summary>
     public static ResultadoOrdenacao Lajes(IReadOnlyList<(double XMin, double XMax, double YMin, double YMax)> caixas,
         double sobreposicaoMinima = 0.5)
     {
         var linhas = new List<(List<int> Itens, double YMin, double YMax)>();
-        foreach (int i in Enumerable.Range(0, caixas.Count).OrderByDescending(i => caixas[i].YMax))
+        foreach (int i in Enumerable.Range(0, caixas.Count).OrderByDescending(i => caixas[i].YMax)
+                     .ThenBy(i => caixas[i].YMax - caixas[i].YMin).ThenBy(i => caixas[i].XMin))
         {
             var c = caixas[i];
             double altura = c.YMax - c.YMin;
@@ -108,10 +113,12 @@ public static class OrdenacaoMarcas
                 double f = altura > 0 ? s / altura : 1.0;
                 if (f >= sobreposicaoMinima && f > melhorFracao) { melhor = k; melhorFracao = f; }
             }
-            if (melhor < 0) { linhas.Add((new List<int>(), double.MaxValue, double.MinValue)); melhor = linhas.Count - 1; }
+            if (melhor < 0) { linhas.Add((new List<int>(), c.YMin, c.YMax)); melhor = linhas.Count - 1; }
             var l = linhas[melhor];
             l.Itens.Add(i);
-            linhas[melhor] = (l.Itens, Math.Min(l.YMin, c.YMin), Math.Max(l.YMax, c.YMax));
+            // interseção (a faixa só encolhe); se ficasse vazia, mantém a da linha
+            double y0 = Math.Max(l.YMin, c.YMin), y1 = Math.Min(l.YMax, c.YMax);
+            linhas[melhor] = y1 > y0 ? (l.Itens, y0, y1) : l;
         }
         var r = new ResultadoOrdenacao { Linhas = linhas.Count };
         foreach (var l in linhas.OrderByDescending(l => l.YMax))

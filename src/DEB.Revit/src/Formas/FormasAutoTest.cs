@@ -52,6 +52,7 @@ namespace DEB.Revit.Formas
             var sb = new StringBuilder();
             void Gravar() { try { File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8); } catch { } }
             if (tarefa == "formaslevantar") { sb.Append(Levantamento(doc)); Gravar(); return Path.Combine(dir, "resultado.txt"); }
+            if (tarefa == "formasrenumerar") { OrdemLajes(doc, sb); Gravar(); return Path.Combine(dir, "resultado.txt"); }
             if (tarefa == "formaslinhas") { Linhas(doc, dir, sb); Gravar(); return Path.Combine(dir, "resultado.txt"); }
             var log = new PieceLog(tarefa);
             PresentationStandard std = ExecucaoFormas.Padrao(log);
@@ -334,6 +335,28 @@ namespace DEB.Revit.Formas
             sb.AppendLine(ExecucaoFormas.Relatorio(log, "Relatório", out _));
         }
 
+        /// <summary>formasrenumerar: a ordem que "Renumerar → Lajes" daria às lajes do nível SD_NIVEL (só leitura, nada é gravado).</summary>
+        private static void OrdemLajes(Document doc, StringBuilder sb)
+        {
+            List<Level> niveis = ModeloFormas.Niveis(doc);
+            string pedido = Environment.GetEnvironmentVariable("SD_NIVEL")?.Trim() ?? "";
+            Level nivel = niveis.FirstOrDefault(l => string.Equals(l.Name, pedido, StringComparison.OrdinalIgnoreCase)) ?? FormasUi.NivelPadrao(doc, niveis, TipoPlanta.Montagem);
+            var pisos = new FilteredElementCollector(doc).OfClass(typeof(Floor)).Cast<Floor>().Where(f => f.LevelId == nivel.Id).Cast<Element>().ToList();
+            sb.AppendLine($"nível {nivel.Name}: {pisos.Count} piso(s)");
+            var fora = pisos.Where(f => Tools.RenumberSlabsCommand.ForaDaNumeracao(doc, f, "L") != null).ToList();
+            foreach (Element f in fora) sb.AppendLine($"   fora ({Tools.RenumberSlabsCommand.ForaDaNumeracao(doc, f, "L")}): {ModeloFormas.Marca(f)} id {f.Id.Value} {doc.GetElement(f.GetTypeId())?.Name}");
+            var dentro = pisos.Except(fora).ToList();
+            List<Element> ordem = new Tools.RenumberSlabsCommand().Ordem(dentro);
+            int n = 0;
+            foreach (Element f in ordem)
+            {
+                BoundingBoxXYZ bb = f.get_BoundingBox(null);
+                string M(double pes) => DEB.Core.Fmt.N(U.ToMm(pes) / 1000, "0.0");
+                sb.AppendLine($"   {++n,2}. marca atual \"{ModeloFormas.Marca(f)}\" id {f.Id.Value} {doc.GetElement(f.GetTypeId())?.Name} " +
+                              $"x {M(bb.Min.X)}..{M(bb.Max.X)} y {M(bb.Min.Y)}..{M(bb.Max.Y)}");
+            }
+        }
+
         /// <summary>Níveis com painéis alveolares (quadro estrutural do filtro de painéis, com marca).</summary>
         private static List<Level> NiveisComPaineis(Document doc, FormasSettings cfg)
         {
@@ -360,7 +383,8 @@ namespace DEB.Revit.Formas
                 List<Floor> pisos = new FilteredElementCollector(doc).OfClass(typeof(Floor)).Cast<Floor>().Where(f => f.LevelId == l.Id).ToList();
                 if (pisos.Count == 0) continue;
                 pav++;
-                var sem = pisos.Where(f => ModeloFormas.Marca(f) == "").Cast<Element>().ToList();
+                // faixas maciças ficam fora (decisão do usuário); com marca não são tocadas
+                var sem = pisos.Where(f => ModeloFormas.Marca(f) == "" && Tools.RenumberSlabsCommand.ForaDaNumeracao(doc, f, "L") == null).Cast<Element>().ToList();
                 int max = pisos.Select(ModeloFormas.Marca).Select(m => System.Text.RegularExpressions.Regex.Match(m, @"^L(\d+)$"))
                     .Where(m => m.Success).Select(m => int.Parse(m.Groups[1].Value)).Where(n => n / 100 == pav).DefaultIfEmpty(pav * 100).Max();
                 if (sem.Count == 0) { sb.Append($"{l.Name}: nada sem marca; "); continue; }

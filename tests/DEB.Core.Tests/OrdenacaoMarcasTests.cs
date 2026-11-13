@@ -1,3 +1,4 @@
+using System.Linq;
 using DEB.Core.Numeracao;
 using Xunit;
 
@@ -45,6 +46,27 @@ public class OrdenacaoMarcasTests
         var r = OrdenacaoMarcas.Lajes(caixas);
         Assert.Equal(new[] { 1, 3, 2, 0 }, r.Ordem);
         Assert.Equal(2, r.Linhas);
+    }
+
+    [Fact]
+    public void LajeDeAlturaInteiraNaoJuntaAsFileiras()
+    {
+        // duas fileiras com lajes de altura inteira (4 e 5) que entram na de cima; a ordem esperada é a do índice + 1
+        var esperado = new (double, double, double, double)[]
+        {
+            (12.3, 18.5, -129.7, -122.9), (18.9, 26.3, -129.7, -122.9), (26.7, 32.7, -129.7, -122.9), (33.1, 39.1, -134.9, -122.9),
+            (39.5, 45.5, -134.9, -122.9), (45.9, 51.9, -129.7, -122.9), (52.3, 58.3, -129.7, -122.9), (58.7, 64.8, -131.3, -122.9),
+            (12.3, 18.5, -134.9, -130.0), (18.9, 20.3, -134.8, -129.9), (24.3, 26.3, -134.9, -129.9), (26.7, 32.7, -134.9, -130.0),
+            (45.9, 51.9, -134.9, -130.0), (52.3, 58.3, -134.9, -130.0), (58.7, 60.1, -134.9, -132.1),
+        };
+        // entrada embaralhada (a ordem de entrada não pode mudar o resultado)
+        int[] mistura = { 14, 3, 8, 0, 12, 7, 5, 10, 1, 13, 4, 9, 2, 11, 6 };
+        var caixas = mistura.Select(i => esperado[i]).ToArray();
+        var r = OrdenacaoMarcas.Lajes(caixas);
+        Assert.Equal(Enumerable.Range(0, 15).ToArray(), r.Ordem.Select(k => mistura[k]).ToArray());
+        Assert.Equal(2, r.Linhas);
+        // e na ordem original também
+        Assert.Equal(Enumerable.Range(0, 15).ToArray(), OrdenacaoMarcas.Lajes(esperado).Ordem.ToArray());
     }
 
     [Fact]

@@ -111,6 +111,7 @@ namespace DEB.Revit
                     case "formassonda":
                     case "formaslevantar":
                     case "formaslinhas":
+                    case "formasrenumerar":
                     case "formaspaginacao":
                     case "formascortes":
                     case "formassecoes":
