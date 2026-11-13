@@ -134,21 +134,23 @@ namespace DEB.Revit.Formas
             if (familias.Count == 0) log.Warn("Painéis sem linhas ocultas: nenhuma família de painel encontrada pelo filtro.");
             foreach (Family fam in familias)
             {
+                // o nome é guardado antes: depois do LoadFamily o objeto Family antigo fica inválido (InvalidObjectException)
+                string nome = fam.Name;
                 Document fd = null;
                 try
                 {
                     fd = doc.EditFamily(fam);
                     Parameter p = fd.OwnerFamily.get_Parameter(BuiltInParameter.STRUCTURAL_DISPLAY_IN_HIDDEN_VIEWS_FRAMING);
-                    if (p == null || p.IsReadOnly) { log.Warn($"Família \"{fam.Name}\": sem \"Exibir em vistas ocultas\" editável."); continue; }
+                    if (p == null || p.IsReadOnly) { log.Warn($"Família \"{nome}\": sem \"Exibir em vistas ocultas\" editável."); continue; }
                     int alvo = valor ?? cfg.ValorPaineisVistasOcultas;
                     string antes = $"{p.AsInteger()} \"{p.AsValueString()}\"";
-                    if (p.AsInteger() == alvo) { log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" já é {antes}."); continue; }
+                    if (p.AsInteger() == alvo) { log.Info($"Família \"{nome}\": \"Exibir em vistas ocultas\" já é {antes}."); continue; }
                     using (var t = new Transaction(fd, "Painel sem linhas ocultas")) { t.Start(); p.Set(alvo); t.Commit(); }
-                    log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" {antes} -> {p.AsInteger()} \"{p.AsValueString()}\".");
+                    string depois = $"{p.AsInteger()} \"{p.AsValueString()}\"";
                     fd.LoadFamily(doc, new RecarregarFamilia());
-                    log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" desligado (era {p.AsValueString()}).");
+                    log.Info($"Família \"{nome}\": \"Exibir em vistas ocultas\" {antes} -> {depois} (recarregada no projeto).");
                 }
-                catch (Exception ex) { log.Warn($"Família \"{fam.Name}\": linhas ocultas não alteradas ({ex.Message})."); }
+                catch (Exception ex) { log.Warn($"Família \"{nome}\": linhas ocultas não alteradas ({ex.Message})."); }
                 finally { try { fd?.Close(false); } catch { } }
             }
         }
