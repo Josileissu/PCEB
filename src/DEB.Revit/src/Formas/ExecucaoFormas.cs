@@ -59,6 +59,7 @@ namespace DEB.Revit.Formas
                     else log.Info($"{nivel.Name}: sem laje com marca — sem tabela de lajes.");
                 });
                 var planta = new PlantaFormas(doc, std.Formas, log);
+                if (tipo != TipoPlanta.Locacao && std.Formas.PaineisSemLinhasOcultas) PaineisSemOcultas(doc, std.Formas, log);
                 if (Etapa(doc, "Formas: vista", log, () => v = planta.Vista(nivel, tipo, indicada)))
                 {
                     Etapa(doc, "Formas: anotações", log, () => planta.Anotar(v, nivel, tipo));
@@ -120,6 +121,39 @@ namespace DEB.Revit.Formas
                 tg.Assimilate();
             }
             return sheet != null && sheet.IsValidObject ? sheet : null;
+        }
+
+        /// <summary>
+        /// "Exibir em vistas ocultas" das famílias dos painéis alveolares desligado (a família é editada e recarregada no projeto).
+        /// Fora de transação. Só com <see cref="FormasSettings.PaineisSemLinhasOcultas"/>.
+        /// </summary>
+        public static void PaineisSemOcultas(Document doc, FormasSettings cfg, PieceLog log)
+        {
+            var familias = ModeloFormas.Filtrar(doc, BuiltInCategory.OST_StructuralFraming, cfg.FiltroPaineis, null, "painel")
+                .Select(f => f.Symbol?.Family).Where(f => f != null).GroupBy(f => f.Id).Select(g => g.First()).ToList();
+            foreach (Family fam in familias)
+            {
+                Document fd = null;
+                try
+                {
+                    fd = doc.EditFamily(fam);
+                    Parameter p = fd.OwnerFamily.get_Parameter(BuiltInParameter.STRUCTURAL_DISPLAY_IN_HIDDEN_VIEWS_FRAMING);
+                    if (p == null || p.IsReadOnly) { log.Warn($"Família \"{fam.Name}\": sem \"Exibir em vistas ocultas\" editável."); continue; }
+                    if (p.AsInteger() == 0) continue;
+                    using (var t = new Transaction(fd, "Painel sem linhas ocultas")) { t.Start(); p.Set(0); t.Commit(); }
+                    fd.LoadFamily(doc, new RecarregarFamilia());
+                    log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" desligado (era {p.AsValueString()}).");
+                }
+                catch (Exception ex) { log.Warn($"Família \"{fam.Name}\": linhas ocultas não alteradas ({ex.Message})."); }
+                finally { try { fd?.Close(false); } catch { } }
+            }
+        }
+
+        private sealed class RecarregarFamilia : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues) { overwriteParameterValues = false; return true; }
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            { source = FamilySource.Family; overwriteParameterValues = false; return true; }
         }
 
         /// <summary>Uma etapa = uma transação. Erro (exceção ou erro do Revit) desfaz a etapa e vai para o relatório.</summary>

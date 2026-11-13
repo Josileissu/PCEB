@@ -52,6 +52,7 @@ namespace DEB.Revit.Formas
             var sb = new StringBuilder();
             void Gravar() { try { File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8); } catch { } }
             if (tarefa == "formaslevantar") { sb.Append(Levantamento(doc)); Gravar(); return Path.Combine(dir, "resultado.txt"); }
+            if (tarefa == "formaslinhas") { Linhas(doc, dir, sb); Gravar(); return Path.Combine(dir, "resultado.txt"); }
             var log = new PieceLog(tarefa);
             PresentationStandard std = ExecucaoFormas.Padrao(log);
             if (Environment.GetEnvironmentVariable("SD_FORMAS_MARCAR") == "1") sb.AppendLine("modelo de teste: " + CompletarTeste(doc) + "; " + MarcasDeTeste(doc));
@@ -239,6 +240,77 @@ namespace DEB.Revit.Formas
             foreach (FamilyInstance b in ModeloFormas.Filtrar(doc, BuiltInCategory.OST_StructuralFraming, cfg.FiltroVigas, null, "viga"))
                 if (ModeloFormas.Marca(b) != "" && ModeloFormas.NivelDaViga(doc, b) is Level l) ids.Add(l.Id);
             return ModeloFormas.Niveis(doc).Where(l => ids.Contains(l.Id)).ToList();
+        }
+
+        /// <summary>
+        /// formaslinhas: compara as maneiras de mostrar as linhas ocultas das vigas e não as dos painéis alveolares (os dois são
+        /// "Quadro estrutural"). Cria a montagem do nível (SD_NIVEL) SEM as linhas ocultas do padrão, duplica a vista em variantes e
+        /// exporta PNG de cada uma: V0 como sai, V1 "Todas", V2 Todas + capa transparente (o que o padrão faz), V3 disciplina
+        /// estrutural, V4 Todas + pisos escondidos (referência) e, depois de editar a família dos painéis, V5 Todas + painel sem
+        /// "Exibir em vistas ocultas".
+        /// </summary>
+        private static void Linhas(Document doc, string dir, StringBuilder sb)
+        {
+            var log = new PieceLog("linhas");
+            PresentationStandard std = ExecucaoFormas.Padrao(log);
+            std.Formas.MostrarLinhasOcultas = "";
+            std.Formas.PisosTransparentes = new List<string>();
+            List<Level> niveis = ModeloFormas.Niveis(doc);
+            string pedido = Environment.GetEnvironmentVariable("SD_NIVEL")?.Trim() ?? "";
+            Level nivel = niveis.FirstOrDefault(l => string.Equals(l.Name, pedido, StringComparison.OrdinalIgnoreCase)) ?? FormasUi.NivelPadrao(doc, niveis, TipoPlanta.Montagem);
+            ExecucaoFormas.Planta(doc, std, TipoPlanta.Montagem, nivel, null, "", "", false, log, out ViewPlan v);
+            if (v == null) { sb.AppendLine("vista não criada"); return; }
+            sb.AppendLine($"nível {nivel.Name}; vista {v.Name}; mostrar linhas ocultas = {v.get_Parameter(BuiltInParameter.VIEW_SHOW_HIDDEN_LINES)?.AsValueString()}; disciplina {v.Discipline}; template {(v.ViewTemplateId != ElementId.InvalidElementId)}");
+            var ids = new List<ElementId> { v.Id };
+            var cfgTodas = new FormasSettings { MostrarLinhasOcultas = "Todas", PisosTransparentes = new List<string>() };
+            var cfgCapa = new FormasSettings { MostrarLinhasOcultas = "Todas", PisosTransparentes = new List<string> { "CAPA" } };
+            ViewPlan Dup(string nome)
+            {
+                var d = (ViewPlan)doc.GetElement(v.Duplicate(ViewDuplicateOption.WithDetailing));
+                d.Name = NameRegistry.ForViews(doc).Unique(nome);
+                ids.Add(d.Id);
+                return d;
+            }
+            ViewPlan v1 = null;
+            using (var t = new Transaction(doc, "Linhas ocultas: variantes"))
+            {
+                t.Start();
+                WarningSwallower.Attach(t);
+                v1 = Dup("V1 - todas");
+                new PlantaFormas(doc, cfgTodas, log).LinhasOcultas(v1, nivel);
+                ViewPlan v2 = Dup("V2 - todas + capa transparente");
+                new PlantaFormas(doc, cfgCapa, log).LinhasOcultas(v2, nivel);
+                ViewPlan v3 = Dup("V3 - disciplina estrutural");
+                try { v3.Discipline = ViewDiscipline.Structural; v3.get_Parameter(BuiltInParameter.VIEW_SHOW_HIDDEN_LINES)?.Set((int)ShowHiddenLinesValues.ByDiscipline); }
+                catch (Exception ex) { sb.AppendLine("V3: " + ex.Message); }
+                ViewPlan v4 = Dup("V4 - todas + pisos escondidos");
+                new PlantaFormas(doc, cfgTodas, log).LinhasOcultas(v4, nivel);
+                try { v4.SetCategoryHidden(new ElementId(BuiltInCategory.OST_Floors), true); } catch (Exception ex) { sb.AppendLine("V4: " + ex.Message); }
+                t.Commit();
+            }
+            void Exportar(List<ElementId> quais, string prefixo)
+            {
+                var ieo = new ImageExportOptions
+                {
+                    ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, prefixo), FitDirection = FitDirectionType.Horizontal,
+                    HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG,
+                    ImageResolution = ImageResolution.DPI_300, PixelSize = 6000, ZoomType = ZoomFitType.FitToPage
+                };
+                ieo.SetViewsAndSheets(quais);
+                doc.ExportImage(ieo);
+            }
+            Exportar(ids, "linhas");
+            // V5: família dos painéis sem "Exibir em vistas ocultas" (muda a família no projeto — por isso por último)
+            ExecucaoFormas.PaineisSemOcultas(doc, std.Formas, log);
+            using (var t = new Transaction(doc, "Linhas ocultas: V5"))
+            {
+                t.Start();
+                var d = (ViewPlan)doc.GetElement(v1.Duplicate(ViewDuplicateOption.WithDetailing));
+                d.Name = NameRegistry.ForViews(doc).Unique("V5 - todas + painel sem ocultas");
+                t.Commit();
+                Exportar(new List<ElementId> { d.Id }, "linhas5");
+            }
+            sb.AppendLine(ExecucaoFormas.Relatorio(log, "Relatório", out _));
         }
 
         /// <summary>Níveis com painéis alveolares (quadro estrutural do filtro de painéis, com marca).</summary>

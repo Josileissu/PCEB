@@ -429,6 +429,18 @@ namespace DEB.Revit.Presentation
         /// <summary>Elevações (as quatro fachadas da estrutura), como cortes por fora olhando para dentro.</summary>
         public FormasSheetSpec Elevacoes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - ELEVAÇÃO {Lado}", NumeroFolha = "FOR-ELEV", NomeFolha = "ELEVAÇÕES", RegiaoPlanta = "Folha" };
         public int EscalaCortes { get; set; } = 50;
+        /// <summary>
+        /// Linhas ocultas na montagem e na paginação (pedido do usuário, 13/11/2026: vigas sob as lajes tracejadas, lajes alveolares não).
+        /// Viga e painel alveolar são os dois "Quadro estrutural": o V/G por categoria não separa. <see cref="MostrarLinhasOcultas"/> =
+        /// "Todas", "PorDisciplina", "Nenhuma" ou vazio (não mexe na vista).
+        /// </summary>
+        public string MostrarLinhasOcultas { get; set; } = "Todas";
+        /// <summary>Pisos cujo nome do tipo contém um destes trechos (capa sobre os painéis) ficam transparentes na vista do comando
+        /// (sobreposição por elemento), para não esconderem as juntas dos painéis. Vazio = não mexe.</summary>
+        public List<string> PisosTransparentes { get; set; } = new List<string> { "CAPA" };
+        /// <summary>Muda na FAMÍLIA dos painéis (filtro de painéis) o "Exibir em vistas ocultas" para não mostrar arestas ocultas.
+        /// Altera a família no projeto (vale para todas as vistas): desligado por padrão.</summary>
+        public bool PaineisSemLinhasOcultas { get; set; }
         /// <summary>Faixa (m) de estrutura que cada elevação mostra a partir da fachada.</summary>
         public double ProfundidadeElevacaoM { get; set; } = 3.0;
         /// <summary>Seções consideradas: tabelas por tipo de viga e de pilar (seção, quantidade, material).</summary>

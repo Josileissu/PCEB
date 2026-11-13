@@ -212,6 +212,7 @@ namespace DEB.Revit.Formas
 
             if (tipo == TipoPlanta.Paginacao)
             {
+                LinhasOcultas(v, nivel);
                 // painéis alveolares (quadro estrutural com marca L…) do nível: identificador no meio, ao longo do painel
                 var paineisOk = new HashSet<ElementId>(ModeloFormas.Filtrar(_doc, BuiltInCategory.OST_StructuralFraming, _cfg.FiltroPaineis, null, "painel").Select(c => c.Id));
                 List<FamilyInstance> paineis = Visiveis<FamilyInstance>(v, BuiltInCategory.OST_StructuralFraming)
@@ -255,6 +256,47 @@ namespace DEB.Revit.Formas
                 return c == null ? null : (Ponto(v, (c.Value.MinR + c.Value.MaxR) / 2, (c.Value.MinU + c.Value.MaxU) / 2, z), (double?)null);
             });
             SentidoDoVao(v, lajes, z);
+            LinhasOcultas(v, nivel);
+        }
+
+        /// <summary>
+        /// Linhas ocultas da montagem/paginação: liga "Mostrar linhas ocultas" na vista do comando e deixa transparentes (sobreposição
+        /// por elemento, só nesta vista) os pisos de capa do nível — a capa por cima dos painéis tracejava todas as juntas. As vigas
+        /// continuam tracejadas, porque quem as esconde são os próprios painéis. Repetir não duplica nada (sobreposição é por elemento).
+        /// </summary>
+        internal void LinhasOcultas(View v, Level nivel)
+        {
+            string modo = _cfg.MostrarLinhasOcultas?.Trim() ?? "";
+            if (modo != "")
+            {
+                ShowHiddenLinesValues val = modo.Equals("Nenhuma", StringComparison.OrdinalIgnoreCase) ? ShowHiddenLinesValues.None
+                    : modo.Equals("PorDisciplina", StringComparison.OrdinalIgnoreCase) ? ShowHiddenLinesValues.ByDiscipline : ShowHiddenLinesValues.All;
+                try
+                {
+                    Parameter p = v.get_Parameter(BuiltInParameter.VIEW_SHOW_HIDDEN_LINES);
+                    if (p != null && !p.IsReadOnly) { if (p.AsInteger() != (int)val) p.Set((int)val); }
+                    else _log.Warn($"Vista \"{v.Name}\": \"Mostrar linhas ocultas\" controlado pelo template de vista (não alterado).");
+                }
+                catch (Exception ex) { _log.Warn($"Mostrar linhas ocultas não ajustado: {ex.Message}"); }
+            }
+            var trechos = (_cfg.PisosTransparentes ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            if (trechos.Count == 0) return;
+            int n = 0;
+            foreach (Floor f in new FilteredElementCollector(_doc, v.Id).OfClass(typeof(Floor)).Cast<Floor>())
+            {
+                string tipo = _doc.GetElement(f.GetTypeId())?.Name ?? "";
+                if (!trechos.Any(x => tipo.IndexOf(x.Trim(), StringComparison.OrdinalIgnoreCase) >= 0)) continue;
+                try
+                {
+                    OverrideGraphicSettings o = v.GetElementOverrides(f.Id);
+                    if (o.Transparency == 100) continue;
+                    o.SetSurfaceTransparency(100);
+                    v.SetElementOverrides(f.Id, o);
+                    n++;
+                }
+                catch { /* elemento que não aceita */ }
+            }
+            if (n > 0) _log.Info($"Vista \"{v.Name}\": {n} piso(s) de capa transparentes (juntas dos painéis sem tracejado).");
         }
 
         /// <summary>Marcas de corte e de elevação que não são do comando ficam escondidas nas vistas do comando (poluíam a planta).</summary>
