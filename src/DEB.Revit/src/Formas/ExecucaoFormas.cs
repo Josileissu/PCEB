@@ -131,6 +131,7 @@ namespace DEB.Revit.Formas
         {
             var familias = ModeloFormas.Filtrar(doc, BuiltInCategory.OST_StructuralFraming, cfg.FiltroPaineis, null, "painel")
                 .Select(f => f.Symbol?.Family).Where(f => f != null).GroupBy(f => f.Id).Select(g => g.First()).ToList();
+            if (familias.Count == 0) log.Warn("Painéis sem linhas ocultas: nenhuma família de painel encontrada pelo filtro.");
             foreach (Family fam in familias)
             {
                 Document fd = null;
@@ -139,7 +140,7 @@ namespace DEB.Revit.Formas
                     fd = doc.EditFamily(fam);
                     Parameter p = fd.OwnerFamily.get_Parameter(BuiltInParameter.STRUCTURAL_DISPLAY_IN_HIDDEN_VIEWS_FRAMING);
                     if (p == null || p.IsReadOnly) { log.Warn($"Família \"{fam.Name}\": sem \"Exibir em vistas ocultas\" editável."); continue; }
-                    if (p.AsInteger() == 0) continue;
+                    if (p.AsInteger() == 0) { log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" já desligado."); continue; }
                     using (var t = new Transaction(fd, "Painel sem linhas ocultas")) { t.Start(); p.Set(0); t.Commit(); }
                     fd.LoadFamily(doc, new RecarregarFamilia());
                     log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" desligado (era {p.AsValueString()}).");

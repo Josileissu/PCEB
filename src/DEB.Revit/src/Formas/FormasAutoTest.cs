@@ -254,6 +254,7 @@ namespace DEB.Revit.Formas
             var log = new PieceLog("linhas");
             PresentationStandard std = ExecucaoFormas.Padrao(log);
             std.Formas.MostrarLinhasOcultas = "";
+            std.Formas.VistaEstrutural = false;
             std.Formas.PisosTransparentes = new List<string>();
             List<Level> niveis = ModeloFormas.Niveis(doc);
             string pedido = Environment.GetEnvironmentVariable("SD_NIVEL")?.Trim() ?? "";
@@ -262,8 +263,8 @@ namespace DEB.Revit.Formas
             if (v == null) { sb.AppendLine("vista não criada"); return; }
             sb.AppendLine($"nível {nivel.Name}; vista {v.Name}; mostrar linhas ocultas = {v.get_Parameter(BuiltInParameter.VIEW_SHOW_HIDDEN_LINES)?.AsValueString()}; disciplina {v.Discipline}; template {(v.ViewTemplateId != ElementId.InvalidElementId)}");
             var ids = new List<ElementId> { v.Id };
-            var cfgTodas = new FormasSettings { MostrarLinhasOcultas = "Todas", PisosTransparentes = new List<string>() };
-            var cfgCapa = new FormasSettings { MostrarLinhasOcultas = "Todas", PisosTransparentes = new List<string> { "CAPA" } };
+            var cfgTodas = new FormasSettings { MostrarLinhasOcultas = "Todas", VistaEstrutural = false, PisosTransparentes = new List<string>() };
+            var cfgCapa = new FormasSettings { MostrarLinhasOcultas = "Todas", VistaEstrutural = false, PisosTransparentes = new List<string> { "CAPA" } };
             ViewPlan Dup(string nome)
             {
                 var d = (ViewPlan)doc.GetElement(v.Duplicate(ViewDuplicateOption.WithDetailing));
@@ -272,6 +273,8 @@ namespace DEB.Revit.Formas
                 return d;
             }
             ViewPlan v1 = null;
+            var cfgEst = new FormasSettings { MostrarLinhasOcultas = "PorDisciplina", VistaEstrutural = true, PisosTransparentes = new List<string>() };
+            var cfgEstCapa = new FormasSettings { MostrarLinhasOcultas = "PorDisciplina", VistaEstrutural = true, PisosTransparentes = new List<string> { "CAPA" } };
             using (var t = new Transaction(doc, "Linhas ocultas: variantes"))
             {
                 t.Start();
@@ -283,6 +286,11 @@ namespace DEB.Revit.Formas
                 ViewPlan v3 = Dup("V3 - disciplina estrutural");
                 try { v3.Discipline = ViewDiscipline.Structural; v3.get_Parameter(BuiltInParameter.VIEW_SHOW_HIDDEN_LINES)?.Set((int)ShowHiddenLinesValues.ByDiscipline); }
                 catch (Exception ex) { sb.AppendLine("V3: " + ex.Message); }
+                ViewPlan v6 = Dup("V6 - estrutural + capa transparente");
+                new PlantaFormas(doc, cfgEstCapa, log).LinhasOcultas(v6, nivel);
+                ViewPlan v7 = Dup("V7 - estrutural + pisos escondidos");
+                new PlantaFormas(doc, cfgEst, log).LinhasOcultas(v7, nivel);
+                try { v7.SetCategoryHidden(new ElementId(BuiltInCategory.OST_Floors), true); } catch (Exception ex) { sb.AppendLine("V7: " + ex.Message); }
                 ViewPlan v4 = Dup("V4 - todas + pisos escondidos");
                 new PlantaFormas(doc, cfgTodas, log).LinhasOcultas(v4, nivel);
                 try { v4.SetCategoryHidden(new ElementId(BuiltInCategory.OST_Floors), true); } catch (Exception ex) { sb.AppendLine("V4: " + ex.Message); }

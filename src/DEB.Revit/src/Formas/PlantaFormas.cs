@@ -266,6 +266,9 @@ namespace DEB.Revit.Formas
         /// </summary>
         internal void LinhasOcultas(View v, Level nivel)
         {
+            if (_cfg.VistaEstrutural && v.Discipline != ViewDiscipline.Structural)
+                try { v.Discipline = ViewDiscipline.Structural; }
+                catch { _log.Warn($"Vista \"{v.Name}\": disciplina controlada pelo template de vista (não alterada)."); }
             string modo = _cfg.MostrarLinhasOcultas?.Trim() ?? "";
             if (modo != "")
             {

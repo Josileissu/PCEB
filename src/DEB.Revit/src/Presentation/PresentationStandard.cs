@@ -434,7 +434,10 @@ namespace DEB.Revit.Presentation
         /// Viga e painel alveolar são os dois "Quadro estrutural": o V/G por categoria não separa. <see cref="MostrarLinhasOcultas"/> =
         /// "Todas", "PorDisciplina", "Nenhuma" ou vazio (não mexe na vista).
         /// </summary>
-        public string MostrarLinhasOcultas { get; set; } = "Todas";
+        public string MostrarLinhasOcultas { get; set; } = "PorDisciplina";
+        /// <summary>Vista do comando na disciplina Estrutural: com "Por disciplina" só aparecem as arestas dos membros escondidas
+        /// por OUTROS membros (vigas sob os painéis); "Todas" desenhava os alvéolos de todos os painéis (teste no modelo real, 13/11).</summary>
+        public bool VistaEstrutural { get; set; } = true;
         /// <summary>Pisos cujo nome do tipo contém um destes trechos (capa sobre os painéis) ficam transparentes na vista do comando
         /// (sobreposição por elemento), para não esconderem as juntas dos painéis. Vazio = não mexe.</summary>
         public List<string> PisosTransparentes { get; set; } = new List<string> { "CAPA" };
