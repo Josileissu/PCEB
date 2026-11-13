@@ -361,6 +361,19 @@ namespace DEB.Revit.Presentation
         public double FolgaRecorteM { get; set; } = 1.0;
         /// <summary>Distância (mm de papel) da linha de cotas dos eixos à estrutura.</summary>
         public double AfastamentoCotasMm { get; set; } = 15;
+        /// <summary>Altura (mm de papel) do texto do tipo de cota que o comando cria para os eixos.</summary>
+        public double AlturaTextoCotaMm { get; set; } = 2.5;
+        /// <summary>"Esquematicas" (padrão: fundações ainda não dimensionadas — nota na locação e identificador de bloco só com o nome)
+        /// ou "Dimensionadas".</summary>
+        public string Fundacoes { get; set; } = "Esquematicas";
+        [JsonIgnore]
+        public bool FundacoesEsquematicas => !string.Equals(Fundacoes?.Trim(), "Dimensionadas", StringComparison.OrdinalIgnoreCase);
+        /// <summary>Parâmetros Sim/Não do tipo do identificador de bloco que ficam ligados nas fundações esquemáticas.</summary>
+        public List<string> VisiveisEsquematica { get; set; } = new List<string> { "N" };
+        /// <summary>Nota da locação com fundações esquemáticas.</summary>
+        public string NotaFundacoesEsquematicas { get; set; } = "AS FUNDAÇÕES SÃO ESQUEMÁTICAS: DIMENSÕES E NÍVEIS DOS BLOCOS A CONFIRMAR NO PROJETO DE FUNDAÇÕES.";
+        /// <summary>Tipo de texto das notas fixas (nome; vazio = o padrão do projeto).</summary>
+        public string TipoTextoNotas { get; set; } = "";
         /// <summary>Distância (mm de papel) do identificador à peça.</summary>
         public double AfastamentoIdentificadorMm { get; set; } = 2;
         /// <summary>Tipo de cota das cotas de eixos (nome exato; vazio ou inexistente = o 1º tipo linear, com aviso).</summary>
@@ -378,12 +391,15 @@ namespace DEB.Revit.Presentation
         public FormasSheetSpec Locacao { get; set; } = new FormasSheetSpec
         {
             NomeVista = "PCEB - LOCAÇÃO - {Nivel}",
+            VistaBase = "Locação",
             NumeroFolha = "FOR-LOC",
             NomeFolha = "PLANTA DE LOCAÇÃO E CARGAS NA FUNDAÇÃO",
         };
         public FormasSheetSpec Montagem { get; set; } = new FormasSheetSpec
         {
             NomeVista = "PCEB - MONTAGEM - {Nivel}",
+            VistaBase = "montagem",
+            Notas = new List<string> { "FUROS NAS LAJES ALVEOLARES: PASSAR SOMENTE PELOS ALVÉOLOS, COM DIÂMETRO/LARGURA MÁXIMA IGUAL À LARGURA DO ALVÉOLO." },
             NumeroFolha = "FOR-{Nivel}",
             NomeFolha = "PLANTA DE MONTAGEM - {Nivel}",
         };
@@ -402,6 +418,10 @@ namespace DEB.Revit.Presentation
         public string Tipo { get; set; } = "";
         /// <summary>.rfa carregado quando a família não está no projeto (caminho local, fora do Git).</summary>
         public string Arquivo { get; set; } = "";
+        /// <summary>Ajuste fino (mm de papel, direita/para cima) depois do posicionamento automático — a caixa de algumas famílias
+        /// inclui rótulos escondidos.</summary>
+        public double DeslocamentoXMm { get; set; }
+        public double DeslocamentoYMm { get; set; }
     }
 
     /// <summary>Quais peças da categoria entram (dados, identificador, tabela).</summary>
@@ -419,6 +439,10 @@ namespace DEB.Revit.Presentation
     public sealed class FormasSheetSpec
     {
         public string NomeVista { get; set; } = "";
+        /// <summary>Trecho do nome da planta do nível que serve de base (copiada) quando o comando cria a vista.</summary>
+        public string VistaBase { get; set; } = "";
+        /// <summary>Notas fixas da folha (texto do comando, um bloco por item), na região "Notas" (ou "Legendas").</summary>
+        public List<string> Notas { get; set; } = new List<string>();
         public string NumeroFolha { get; set; } = "";
         public string NomeFolha { get; set; } = "";
         /// <summary>Legendas fixas do projeto (detalhes, convenções, notas), pelo nome; as que não existem são avisadas.</summary>

@@ -101,6 +101,22 @@ namespace DEB.Revit.Formas
             return bb == null ? null : (bb.Min + bb.Max) / 2;
         }
 
+        /// <summary>
+        /// Z (interno) do topo da viga no meio do vão: eixo (já com os deslocamentos de nível das pontas) + "Valor do deslocamento z",
+        /// conforme a justificação z (topo, centro, origem = topo, base). A caixa da peça não serve: abas, consolos e capas aninhados
+        /// sobem acima do topo da alma (deu "e=0" em todas as vigas de um modelo real).
+        /// </summary>
+        public static double? TopoDaViga(FamilyInstance b, FormasSettings cfg)
+        {
+            if (!(b.Location is LocationCurve lc)) return b.get_BoundingBox(null)?.Max.Z;
+            double z = lc.Curve.Evaluate(0.5, true).Z + (b.get_Parameter(BuiltInParameter.Z_OFFSET_VALUE)?.AsDouble() ?? 0);
+            int just = b.get_Parameter(BuiltInParameter.Z_JUSTIFICATION)?.AsInteger() ?? 0;   // 0 topo, 1 centro, 2 origem, 3 base
+            double h = U.Mm((Medida(b, cfg.ParametrosAltura, BuiltInParameter.STRUCTURAL_SECTION_COMMON_HEIGHT) ?? 0) * 10);
+            if (just == 1) z += h / 2;
+            else if (just == 3) z += h;
+            return z;
+        }
+
         /// <summary>Nível de referência da viga (parâmetro da instância; senão o hospedeiro).</summary>
         public static Level NivelDaViga(Document doc, FamilyInstance b) =>
             doc.GetElement(b.get_Parameter(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM)?.AsElementId() ?? ElementId.InvalidElementId) as Level

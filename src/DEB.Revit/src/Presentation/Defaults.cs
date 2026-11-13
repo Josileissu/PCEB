@@ -37,7 +37,7 @@ namespace DEB.Revit.Presentation
         private static PresentationStandard FormasStandard() => new PresentationStandard
         {
             Codigo = "PCEB-FORMAS-A0",
-            Versao = 1,
+            Versao = 2,
             Nome = "Pranchas de formas (locação e montagem)",
             Elemento = Formas,
             Descricao = "Planta de locação (com a tabela de cargas na fundação) e plantas de montagem por pavimento (com a tabela de lajes). " +
@@ -48,14 +48,16 @@ namespace DEB.Revit.Presentation
                 NumeroFolha = "",
                 NomeFolha = "",
                 LegendaNiveis = false,
-                EscalasAlternativas = new[] { 50 },
+                EscalasAlternativas = new[] { 50, 75, 100 },
             },
             Textos = new TextSettings { TituloPeca = "" },
             Regioes = new Dictionary<string, Region>
             {
-                ["Planta"] = new Region(0.00, 0.00, 0.72, 1.00),
-                ["Tabelas"] = new Region(0.73, 0.40, 0.27, 0.60),
-                ["Legendas"] = new Region(0.73, 0.00, 0.27, 0.40),
+                // planta em cima, com a largura toda (obras compridas); tabelas, notas e legendas embaixo
+                ["Planta"] = new Region(0.00, 0.36, 1.00, 0.64),
+                ["Tabelas"] = new Region(0.00, 0.00, 0.45, 0.35),
+                ["Notas"] = new Region(0.46, 0.20, 0.30, 0.15),
+                ["Legendas"] = new Region(0.46, 0.00, 0.54, 0.20),
             },
             Vistas = new List<ViewSpec>(),
             Tabelas = new List<TableSpec>(),

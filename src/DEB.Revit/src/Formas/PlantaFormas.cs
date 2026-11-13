@@ -54,7 +54,7 @@ namespace DEB.Revit.Formas
             }
             else
             {
-                v = NovaVista(nivel);
+                v = NovaVista(nivel, tipo == TipoPlanta.Locacao ? _cfg.Locacao.VistaBase : _cfg.Montagem.VistaBase);
                 string nome = ModeloFormas.Nome(TabelasFormas.Fill(tipo == TipoPlanta.Locacao ? _cfg.Locacao.NomeVista : _cfg.Montagem.NomeVista, nivel));
                 v.Name = NameRegistry.ForViews(_doc).Unique(nome);
                 MarcaFormas.Marcar(v, papel);
@@ -75,13 +75,18 @@ namespace DEB.Revit.Formas
 
         /// <summary>Cópia (sem anotações) de uma planta estrutural do nível — guarda o template e a visibilidade do escritório —,
         /// senão uma planta estrutural nova.</summary>
-        private ViewPlan NovaVista(Level nivel)
+        private ViewPlan NovaVista(Level nivel, string preferida)
         {
+            // a planta do nível cujo nome contém o trecho do padrão ("montagem", "Locação"); depois as sem template (o template de
+            // outra disciplina, ex. plantas de cargas, esconde pisos e peças); depois as estruturais
+            string pref = preferida?.Trim() ?? "";
             ViewPlan fonte = new FilteredElementCollector(_doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
                 .Where(p => !p.IsTemplate && p.GenLevel != null && p.GenLevel.Id == nivel.Id &&
                             (p.ViewType == ViewType.EngineeringPlan || p.ViewType == ViewType.FloorPlan) &&
                             MarcaFormas.Papel(p) == "" && p.CanViewBeDuplicated(ViewDuplicateOption.Duplicate))
-                .OrderBy(p => p.ViewType == ViewType.EngineeringPlan ? 0 : 1).ThenBy(p => p.Name).FirstOrDefault();
+                .OrderBy(p => pref != "" && p.Name.IndexOf(pref, StringComparison.OrdinalIgnoreCase) >= 0 ? 0 : 1)
+                .ThenBy(p => p.ViewTemplateId == ElementId.InvalidElementId ? 0 : 1)
+                .ThenBy(p => p.ViewType == ViewType.EngineeringPlan ? 0 : 1).ThenBy(p => p.Name).FirstOrDefault();
             if (fonte != null)
             {
                 _log.Info($"Planta nova = cópia de \"{fonte.Name}\" (sem anotações).");
@@ -185,6 +190,11 @@ namespace DEB.Revit.Formas
             Identificar(v, "Viga", BuiltInCategory.OST_StructuralFramingTags, vigas.Cast<Element>().ToList(), Lado.Viga, e => PosicaoViga((FamilyInstance)e, v, z));
 
             List<Floor> lajes = Visiveis<Floor>(v, BuiltInCategory.OST_Floors).Where(f => f.LevelId == nivel.Id && ModeloFormas.Marca(f) != "").ToList();
+            var doNivel = new FilteredElementCollector(_doc).OfClass(typeof(Floor)).Cast<Floor>().Where(f => f.LevelId == nivel.Id).ToList();
+            int comMarca = doNivel.Count(f => ModeloFormas.Marca(f) != "");
+            if (comMarca > lajes.Count || comMarca < doNivel.Count)
+                _log.Warn($"Lajes do nível: {doNivel.Count} piso(s), {comMarca} com marca, {lajes.Count} visíveis na vista " +
+                          "(sem marca não recebem identificador nem entram na tabela; marca não visível = faixa ou visibilidade da vista).");
             Identificar(v, "Laje", BuiltInCategory.OST_FloorTags, lajes.Cast<Element>().ToList(), Lado.Centro, e =>
             {
                 var c = Caixa(e, v);
@@ -287,9 +297,23 @@ namespace DEB.Revit.Formas
             string nome = _cfg.TipoDeCota?.Trim() ?? "";
             DimensionType t = lin.FirstOrDefault(x => string.Equals(x.Name, nome, StringComparison.OrdinalIgnoreCase));
             if (t != null) return t;
-            if (nome != "") _log.Warn($"Tipo de cota \"{nome}\" não existe no projeto; usado o tipo padrão do Revit.");
-            return null;
+            if (nome != "") _log.Warn($"Tipo de cota \"{nome}\" não existe no projeto; usado \"{NomeCotaEixos}\".");
+            // tipo próprio em cm inteiros: o das unidades do projeto pode ter 6 casas ("645.000000")
+            t = lin.FirstOrDefault(x => x.Name == NomeCotaEixos);
+            if (t != null) return t;
+            DimensionType fonte = lin.Where(x => x.GetSpecTypeId() == SpecTypeId.Length).OrderBy(x => x.Name).FirstOrDefault() ?? lin.FirstOrDefault();
+            if (fonte == null) return null;
+            try
+            {
+                t = (DimensionType)fonte.Duplicate(NomeCotaEixos);
+                t.SetUnitsFormatOptions(new FormatOptions(UnitTypeId.Centimeters) { UseDefault = false, Accuracy = 1, SuppressTrailingZeros = true });
+                t.get_Parameter(BuiltInParameter.TEXT_SIZE)?.Set(U.Mm(_cfg.AlturaTextoCotaMm));
+                return t;
+            }
+            catch (Exception ex) { _log.Warn($"Tipo de cota próprio não criado ({ex.Message}); usado o padrão do Revit."); return null; }
         }
+
+        public const string NomeCotaEixos = "PCEB - Cota eixos (cm)";
 
         // ------------------------------------------------------------------ identificadores
 
@@ -332,9 +356,34 @@ namespace DEB.Revit.Formas
                 else if (s != null) _log.Info($"Identificador {papel}: sem família no padrão; usado \"{s.FamilyName} : {s.Name}\".");
                 else _log.Warn($"Identificador {papel}: nenhuma família de identificador desta categoria no projeto — peças sem identificador. Carregue a família (ou indique o arquivo no padrão).");
             }
+            if (s != null && papel == "Fundacao" && _cfg.FundacoesEsquematicas) s = TipoEsquematico(s);
             if (s != null && !s.IsActive) { s.Activate(); _doc.Regenerate(); }
             _tipos[papel] = s;
             return s;
+        }
+
+        /// <summary>
+        /// Fundações esquemáticas: cópia do tipo do identificador ("… (esquemática)") com os parâmetros Sim/Não de TIPO ligados só nos
+        /// nomes de <see cref="FormasSettings.VisiveisEsquematica"/> (ex.: "N" = só o nome do bloco; dimensões e níveis apagados).
+        /// </summary>
+        private FamilySymbol TipoEsquematico(FamilySymbol s)
+        {
+            string nome = s.Name + " (esquemática)";
+            FamilySymbol e = new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                .FirstOrDefault(x => x.Family.Id == s.Family.Id && x.Name == nome);
+            if (e != null) return e;
+            try
+            {
+                e = (FamilySymbol)s.Duplicate(nome);
+                var vis = new HashSet<string>(_cfg.VisiveisEsquematica ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                int n = 0;
+                foreach (Parameter p in e.Parameters.Cast<Parameter>())
+                    if (!p.IsReadOnly && p.StorageType == StorageType.Integer && p.Definition.GetDataType() == SpecTypeId.Boolean.YesNo)
+                    { p.Set(vis.Contains(p.Definition.Name) ? 1 : 0); n++; }
+                _log.Info($"Fundações esquemáticas: tipo \"{nome}\" criado ({n} opção(ões) de visibilidade; ligadas: {string.Join(", ", vis)}).");
+                return e;
+            }
+            catch (Exception ex) { _log.Warn($"Tipo esquemático do identificador de fundação não criado ({ex.Message}); usado o normal."); return s; }
         }
 
         private void Identificar(ViewPlan v, string papel, BuiltInCategory tagCat, List<Element> alvos, Lado lado, Func<Element, (XYZ, double?)?> posicao)
@@ -381,7 +430,7 @@ namespace DEB.Revit.Formas
                 }
                 catch (Exception ex) { falhas++; erro ??= ex.Message; }
             }
-            Ajustar(v, novos, lado);
+            Ajustar(v, novos, lado, _cfg.Role(papel));
             _log.Info($"Identificadores {papel}: {criados} criado(s), {mantidos} mantido(s), {apagados} apagado(s)" +
                       (manuais > 0 ? $", {manuais} peça(s) já identificadas à mão" : "") + ".");
             if (falhas > 0) _log.Warn($"Identificadores {papel}: {falhas} não criados{(erro != null ? $" ({erro})" : "")}.");
@@ -395,8 +444,9 @@ namespace DEB.Revit.Formas
         /// cresce para a esquerda, outras para a direita): pilar = texto à direita da peça, centrado na altura; fundação = abaixo,
         /// alinhado à esquerda; laje = centrado; viga = acima da peça (viga mais em pé que deitada: à esquerda). Uma regeneração só.
         /// </summary>
-        private void Ajustar(View v, List<(IndependentTag Tag, Element Alvo)> novos, Lado lado)
+        private void Ajustar(View v, List<(IndependentTag Tag, Element Alvo)> novos, Lado lado, TagRoleSpec papel)
         {
+            double exR = U.Mm(papel.DeslocamentoXMm * v.Scale), exU = U.Mm(papel.DeslocamentoYMm * v.Scale);
             if (novos.Count == 0) return;
             try { _doc.Regenerate(); } catch { return; }
             double off = Afast(v);
@@ -421,6 +471,7 @@ namespace DEB.Revit.Formas
                             else { dr = a.MinR - off - b.MaxR; du = cu - tu; }
                             break;
                     }
+                    dr += exR; du += exU;
                     if (Math.Abs(dr) < 1e-6 && Math.Abs(du) < 1e-6) continue;
                     t.TagHeadPosition = t.TagHeadPosition + Ponto(v, dr, du, 0);
                 }

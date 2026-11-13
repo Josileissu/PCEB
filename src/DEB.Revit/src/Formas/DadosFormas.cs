@@ -104,9 +104,9 @@ namespace DEB.Revit.Formas
                 if (secao == "") semSecao.Add(Nome(b));
                 Texto(b, ParametrosFormas.Secao, secao);
                 Level lvl = ModeloFormas.NivelDaViga(_doc, b);
-                BoundingBoxXYZ bb = b.get_BoundingBox(null);
-                if (lvl == null || bb == null) { _log.Warn($"Viga {Nome(b)}: sem nível de referência; SD_Elevacao não calculado."); continue; }
-                Texto(b, ParametrosFormas.Elevacao, TextosFormas.Elevacao(U.ToMm(bb.Max.Z - lvl.ProjectElevation) / 10));
+                double? topo = ModeloFormas.TopoDaViga(b, _cfg);
+                if (lvl == null || topo == null) { _log.Warn($"Viga {Nome(b)}: sem nível de referência ou eixo; SD_Elevacao não calculado."); continue; }
+                Texto(b, ParametrosFormas.Elevacao, TextosFormas.Elevacao(U.ToMm(topo.Value - lvl.ProjectElevation) / 10));
             }
             if (semSecao.Count > 0) _log.Warn($"Seção não encontrada nas vigas: {Lista(semSecao)}.");
             return vigas.Count;

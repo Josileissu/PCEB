@@ -94,8 +94,45 @@ namespace DEB.Revit.Formas
                 itens.Add((lvp, reg));
             }
 
+            // notas fixas (texto do comando: refeito a cada vez, nunca duplicado)
+            var notas = new List<string>(spec.Notas ?? new List<string>());
+            if (tipo == TipoPlanta.Locacao && _std.Formas.FundacoesEsquematicas && !string.IsNullOrWhiteSpace(_std.Formas.NotaFundacoesEsquematicas))
+                notas.Insert(0, _std.Formas.NotaFundacoesEsquematicas);
+            foreach (Element velha in MarcaFormas.ComPrefixo(new FilteredElementCollector(_doc, sheet.Id).OfClass(typeof(TextNote)), "nota:"))
+                _doc.Delete(velha.Id);
+            string regNotas = _std.Regioes.ContainsKey("Notas") ? "Notas" : "Legendas";
+            ElementId tipoTexto = TipoTexto();
+            Rect2 rn = Rect2Of(regNotas);
+            for (int i = 0; i < notas.Count; i++)
+            {
+                if (string.IsNullOrWhiteSpace(notas[i])) continue;
+                TextNote tn = TextNote.Create(_doc, sheet.Id, XYZ.Zero, Math.Max(U.Mm(60), rn.W * 0.95), notas[i].Trim(), new TextNoteOptions(tipoTexto));
+                MarcaFormas.Marcar(tn, "nota:" + i);
+                itens.Add((tn, regNotas));
+            }
+
             composer.ComposePlain(sheet, itens);
             return sheet;
+        }
+
+        /// <summary>Largura aproximada da região (fração da folha A0 útil), para a largura da caixa das notas.</summary>
+        private Rect2 Rect2Of(string region)
+        {
+            Region g = _std.Regioes.TryGetValue(region, out Region r) ? r : new Region(0, 0, 0.3, 0.2);
+            return new Rect2(0, 0, U.Mm(1100) * g.L, U.Mm(780) * g.A);
+        }
+
+        private ElementId TipoTexto()
+        {
+            string nome = _std.Formas.TipoTextoNotas?.Trim() ?? "";
+            if (nome != "")
+            {
+                TextNoteType t = new FilteredElementCollector(_doc).OfClass(typeof(TextNoteType)).Cast<TextNoteType>()
+                    .FirstOrDefault(x => string.Equals(x.Name, nome, StringComparison.OrdinalIgnoreCase));
+                if (t != null) return t.Id;
+                _log.Warn($"Tipo de texto das notas \"{nome}\" não existe; usado o padrão do projeto.");
+            }
+            return _doc.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
         }
 
         private List<Viewport> Viewports(ViewSheet s) => s.GetAllViewports().Select(_doc.GetElement).OfType<Viewport>().ToList();

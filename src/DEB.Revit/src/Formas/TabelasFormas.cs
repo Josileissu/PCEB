@@ -60,13 +60,31 @@ namespace DEB.Revit.Formas
             // filtro pelo nível (coluna escondida)
             SchedulableField sfNivel = def.GetSchedulableFields().FirstOrDefault(f =>
                 f.ParameterId == new ElementId(BuiltInParameter.LEVEL_PARAM) || f.ParameterId == new ElementId(BuiltInParameter.SCHEDULE_LEVEL_PARAM));
+            var esperadas = new HashSet<string>(new FilteredElementCollector(_doc).OfClass(typeof(Floor)).Cast<Floor>()
+                .Where(f => f.LevelId == nivel.Id && (f.get_Parameter(ParametrosFormas.Ordem.Guid)?.AsInteger() ?? 0) > 0)
+                .Select(ModeloFormas.Marca), StringComparer.OrdinalIgnoreCase);
             if (sfNivel != null)
             {
                 ScheduleField fn = def.AddField(sfNivel);
                 fn.IsHidden = true;
-                def.AddFilter(new ScheduleFilter(fn.FieldId, ScheduleFilterType.Equal, nivel.Id));
+                // filtro pelo nível: pelo id; se o Revit não casar (tabela vazia com lajes no nível), pelo nome; senão sem filtro
+                var tentativas = new List<Func<ScheduleFilter>>
+                {
+                    () => new ScheduleFilter(fn.FieldId, ScheduleFilterType.Equal, nivel.Id),
+                    () => new ScheduleFilter(fn.FieldId, ScheduleFilterType.Equal, nivel.Name),
+                };
+                bool ok = false;
+                foreach (var t in tentativas)
+                {
+                    int n = def.GetFilterCount();
+                    try { def.AddFilter(t()); } catch { continue; }
+                    if (esperadas.Count == 0 || Linhas(vs, esperadas) > 0) { ok = true; break; }
+                    def.RemoveFilter(n);
+                }
+                if (!ok) _log.Warn($"Tabela \"{nome}\": o filtro pelo nível não funcionou; a tabela lista as lajes de todos os níveis.");
             }
             else _log.Warn($"Tabela \"{nome}\": campo de nível não encontrado; a tabela lista as lajes de todos os níveis.");
+            _log.Info($"Tabela \"{nome}\": {Linhas(vs, esperadas)} de {esperadas.Count} laje(s) com marca do nível.");
             Titulo(vs, Fill(_cfg.TituloTabelaLajes, nivel));
             Agrupar(vs, new[] { (6, 8, "Sobrecarga (kgf/m²)") });
             Estilos(vs);
@@ -74,6 +92,21 @@ namespace DEB.Revit.Formas
         }
 
         // ------------------------------------------------------------------
+
+        /// <summary>Quantas linhas do corpo da tabela têm, na 1ª coluna, uma das marcas dadas (depois de regenerar).</summary>
+        private int Linhas(ViewSchedule vs, HashSet<string> marcas)
+        {
+            try
+            {
+                _doc.Regenerate();
+                TableSectionData b = vs.GetTableData().GetSectionData(SectionType.Body);
+                int n = 0;
+                for (int r = b.FirstRowNumber; r <= b.LastRowNumber; r++)
+                    if (marcas.Contains(vs.GetCellText(SectionType.Body, r, b.FirstColumnNumber) ?? "")) n++;
+                return n;
+            }
+            catch { return -1; }
+        }
 
         public static string Fill(string s, Level l) => (s ?? "").Replace("{Nivel}", l?.Name ?? "");
 
