@@ -185,8 +185,14 @@ transação por etapa — dados → tabela → vista → anotações → folha �
   material pedido, o critério de material é ignorado com aviso.
 - AutoRun: `formasdados`, `formaslocacao`, `formasmontagem` (rodam duas vezes; PNG da vista e da folha; `SD_NIVEL`, `SD_FORMAS_MARCAR=1`)
   e `formassonda` (`SD_FAMILIAS_PASTA`, `SD_SONDA_PULAR`): qual parâmetro cada rótulo das famílias de identificador lê; grava linha a
-  linha (uma sondagem igual já derrubou o Revit — só em instância de teste). **Ainda não rodados no Revit** (13/11: sem como carregar a DLL
-  nova numa instância separada sem instalar na pasta de add-ins; `APPDATA` trocado não serve — o Revit usa a pasta conhecida do Windows).
+  linha (uma sondagem igual já derrubou o Revit — só em instância de teste: ler `TagText` do tipo "NV" de uma família de pilar do
+  escritório causa queda nativa; a sondagem pula os tipos com " NV "). `APPDATA` trocado NÃO isola a instância de teste (o Revit usa
+  a pasta conhecida do Windows): o teste usa a DLL instalada.
+- Depois (13/11, pedido do usuário): paginação das lajes alveolares, cortes do comando + 4 elevações (fachada: 3 m de estrutura),
+  "Seções consideradas" (tabelas por tipo), fundações esquemáticas, notas fixas em bloco, detalhes típicos = legendas criadas de DXF
+  (`LegendFactory`, etapa própria com resolução de falhas). AutoRun: `formaslevantar` (inventário), `formaspaginacao`, `formascortes`,
+  `formassecoes`, `formastudo`; `SD_MODELO` abre o arquivo pela API destacado do central; `SD_FORMAS_MARCAR_LAJES=1` usa o
+  renumerar lajes. **Testado no Revit 2026 numa cópia destacada de um modelo real** (todas as folhas saem; ver os relatórios).
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.
