@@ -61,6 +61,7 @@ namespace DEB.Revit.Presentation
             if (!string.IsNullOrWhiteSpace(font)) t.get_Parameter(BuiltInParameter.TEXT_FONT)?.Set(font);
             t.get_Parameter(BuiltInParameter.TEXT_BOX_VISIBILITY)?.Set(border ? 1 : 0);
             t.get_Parameter(BuiltInParameter.TEXT_BACKGROUND)?.Set(1);   // transparente
+            t.get_Parameter(BuiltInParameter.LINE_COLOR)?.Set(0);        // preto (o tipo padrão do projeto pode ser colorido)
             return t;
         }
     }

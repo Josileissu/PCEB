@@ -297,7 +297,7 @@ namespace DEB.Revit.Presentation
         private string Fill(string s) => PresentationStandard.Fill(s, _ctx.Values);
 
         /// <summary>Tipo de viewport igual ao atual, mas sem o título do Revit ("PCEB - Sem título").</summary>
-        private ElementId ViewportTypeWithoutLabel(Viewport vp)
+        internal ElementId ViewportTypeWithoutLabel(Viewport vp)
         {
             const string name = "PCEB - Sem título";
             try

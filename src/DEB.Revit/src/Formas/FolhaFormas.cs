@@ -132,6 +132,12 @@ namespace DEB.Revit.Formas
                 View lg = LegendFactory.Find(_doc, ls.Nome.Trim());   // as do DXF são criadas antes, na etapa própria (CriarLegendas)
                 if (lg == null) { _log.Warn($"Legenda \"{ls.Nome}\" não existe no projeto (não colocada)."); continue; }
                 Viewport lvp = Viewports(sheet).FirstOrDefault(x => x.ViewId == lg.Id) ?? Viewport.Create(_doc, sheet.Id, lg.Id, XYZ.Zero);
+                if (!string.IsNullOrWhiteSpace(ls.Arquivo))
+                {
+                    // o detalhe do DXF já traz o título desenhado: viewport sem a etiqueta do Revit (não duplica o título)
+                    ElementId sem = composer.ViewportTypeWithoutLabel(lvp);
+                    if (sem != ElementId.InvalidElementId && lvp.GetTypeId() != sem) lvp.ChangeTypeId(sem);
+                }
                 string reg = _std.Regioes.ContainsKey(ls.Regiao ?? "") ? ls.Regiao : "Legendas";
                 itens.Add((lvp, reg));
             }

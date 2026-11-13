@@ -307,6 +307,8 @@ namespace DEB.Revit.Presentation
         public string Arquivo { get; set; } = "";
         /// <summary>Escala da legenda criada do DXF (0 = a da legenda duplicada).</summary>
         public int Escala { get; set; }
+        /// <summary>Layers do DXF que não são desenhados (começo do nome; ex.: "PDF_PREENCH" = preenchimentos vindos de PDF).</summary>
+        public List<string> IgnorarLayers { get; set; } = new List<string>();
         /// <summary>Tipo de vista (ex.: "AlcaIcamento") que ocupa este lugar no lugar da legenda: a vista da peça vai para a
         /// posição da legenda na região, e a legenda não entra.</summary>
         public string Vista { get; set; } = "";

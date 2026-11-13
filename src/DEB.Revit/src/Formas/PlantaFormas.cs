@@ -185,6 +185,7 @@ namespace DEB.Revit.Formas
         // ------------------------------------------------------------------ anotações
 
         private double _centroR, _centroU;
+        private List<(double MinR, double MaxR, double MinU, double MaxU)> _blocos;
 
         public void Anotar(ViewPlan v, Level nivel, TipoPlanta tipo)
         {
@@ -200,6 +201,9 @@ namespace DEB.Revit.Formas
             List<FamilyInstance> pilares = Visiveis<FamilyInstance>(v, BuiltInCategory.OST_StructuralColumns)
                 .Where(c => pilaresOk.Contains(c.Id) && ModeloFormas.Marca(c) != "").ToList();
             string papelPilar = tipo == TipoPlanta.Locacao ? "PilarLocacao" : "PilarMontagem";
+            // locação: identificador do pilar à direita do BLOCO sob ele (não do pilar: caía em cima do contorno do bloco)
+            _blocos = tipo != TipoPlanta.Locacao ? null : Visiveis<Element>(v, BuiltInCategory.OST_StructuralFoundation)
+                .Select(f => Caixa(f, v)).Where(c => c != null).Select(c => c.Value).ToList();
             Identificar(v, papelPilar, BuiltInCategory.OST_StructuralColumnTags, pilares.Cast<Element>().ToList(), Lado.Direita, e =>
             {
                 var c = Caixa(e, v);
@@ -553,7 +557,11 @@ namespace DEB.Revit.Formas
                     double dr, du;
                     switch (lado)
                     {
-                        case Lado.Direita: dr = a.MaxR + off - b.MinR; du = cu - tu; break;
+                        case Lado.Direita:
+                            double maxR = a.MaxR;
+                            foreach (var bl in _blocos ?? Enumerable.Empty<(double MinR, double MaxR, double MinU, double MaxU)>())
+                                if (cr >= bl.MinR && cr <= bl.MaxR && cu >= bl.MinU && cu <= bl.MaxU) maxR = Math.Max(maxR, bl.MaxR);
+                            dr = maxR + off - b.MinR; du = cu - tu; break;
                         case Lado.Abaixo: dr = a.MinR - b.MinR; du = a.MinU - off - b.MaxU; break;
                         case Lado.Centro: dr = cr - tr; du = cu - tu; break;
                         case Lado.Acima: dr = cr - tr; du = a.MaxU + off - b.MinU; break;
