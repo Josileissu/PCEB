@@ -91,6 +91,64 @@ namespace DEB.Revit.Formas
             return vs;
         }
 
+        public static string PapelPaineis(Level l) => "tabela-paineis:" + l.UniqueId;
+
+        /// <summary>Painéis alveolares do nível (quadro estrutural com marca do prefixo do filtro): Painel | Tipo | Comprimento.</summary>
+        public ViewSchedule Paineis(Level nivel)
+        {
+            string nome = Fill(_cfg.NomeTabelaPaineis, nivel);
+            ViewSchedule vs = Obter(PapelPaineis(nivel), BuiltInCategory.OST_StructuralFraming, nome);
+            ScheduleDefinition def = Limpar(vs);
+            ScheduleField fm = Campo(def, new ElementId(BuiltInParameter.ALL_MODEL_MARK), "Painel");
+            Campo(def, new ElementId(BuiltInParameter.ELEM_TYPE_PARAM), "Tipo");
+            ScheduleField fc = Campo(def, new ElementId(BuiltInParameter.STRUCTURAL_FRAME_CUT_LENGTH), "Comprimento\n(cm)");
+            if (fc != null) try { fc.SetFormatOptions(new FormatOptions(UnitTypeId.Centimeters) { UseDefault = false, Accuracy = 0.1 }); } catch { }
+            if (fm != null)
+            {
+                string pre = _cfg.FiltroPaineis?.PrefixoMarca?.Trim() ?? "";
+                if (pre != "") def.AddFilter(new ScheduleFilter(fm.FieldId, ScheduleFilterType.BeginsWith, pre));
+                def.AddSortGroupField(new ScheduleSortGroupField(fm.FieldId, ScheduleSortOrder.Ascending));
+            }
+            SchedulableField sfn = def.GetSchedulableFields().FirstOrDefault(f => f.ParameterId == new ElementId(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM));
+            if (sfn != null)
+            {
+                ScheduleField fn = def.AddField(sfn);
+                fn.IsHidden = true;
+                def.AddFilter(new ScheduleFilter(fn.FieldId, ScheduleFilterType.Equal, nivel.Id));
+            }
+            Titulo(vs, Fill(_cfg.TituloTabelaPaineis, nivel));
+            Estilos(vs);
+            return vs;
+        }
+
+        /// <summary>"Seções consideradas": uma linha por tipo (seção SD_Secao, tipo, quantidade, material) das vigas ou dos pilares
+        /// tratados pelo "Atualizar dados" (os que têm SD_Secao).</summary>
+        public ViewSchedule Secoes(bool vigas)
+        {
+            BuiltInCategory cat = vigas ? BuiltInCategory.OST_StructuralFraming : BuiltInCategory.OST_StructuralColumns;
+            ViewSchedule vs = Obter(vigas ? "tabela-secoes-vigas" : "tabela-secoes-pilares", cat,
+                vigas ? "PCEB - SEÇÕES CONSIDERADAS - VIGAS" : "PCEB - SEÇÕES CONSIDERADAS - PILARES");
+            ScheduleDefinition def = Limpar(vs);
+            def.IsItemized = false;
+            ScheduleField fs = Campo(def, ParametrosFormas.Secao, "Seção\n(cm)");
+            ScheduleField ft = Campo(def, new ElementId(BuiltInParameter.ELEM_FAMILY_AND_TYPE_PARAM), "Família e tipo");
+            try { def.AddField(ScheduleFieldType.Count).ColumnHeading = "Quantidade"; } catch { }
+            Campo(def, new ElementId(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM), "Material");
+            if (fs != null)
+            {
+                try { def.AddFilter(new ScheduleFilter(fs.FieldId, ScheduleFilterType.HasValue)); }
+                catch { try { def.AddFilter(new ScheduleFilter(fs.FieldId, ScheduleFilterType.NotEqual, "")); } catch { } }
+                def.AddSortGroupField(new ScheduleSortGroupField(fs.FieldId, ScheduleSortOrder.Ascending));
+            }
+            if (ft != null) def.AddSortGroupField(new ScheduleSortGroupField(ft.FieldId, ScheduleSortOrder.Ascending));
+            def.ShowGrandTotal = true;
+            def.ShowGrandTotalTitle = true;
+            def.ShowGrandTotalCount = true;
+            Titulo(vs, vigas ? "SEÇÕES CONSIDERADAS - VIGAS" : "SEÇÕES CONSIDERADAS - PILARES");
+            Estilos(vs);
+            return vs;
+        }
+
         // ------------------------------------------------------------------
 
         /// <summary>Quantas linhas do corpo da tabela têm, na 1ª coluna, uma das marcas dadas (depois de regenerar).</summary>

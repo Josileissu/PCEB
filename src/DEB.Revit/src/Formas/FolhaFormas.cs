@@ -8,11 +8,11 @@ using DEB.Revit.Presentation;
 namespace DEB.Revit.Formas
 {
     /// <summary>
-    /// Folha da planta de formas (D25, etapa 4): planta + tabela(s) + legendas fixas do projeto (pelo nome) + carimbo do padrão,
-    /// arranjados pelas regiões do padrão com o <see cref="SheetComposer"/>. Número e nome da folha pelos parâmetros da folha.
-    /// Nunca apaga folhas nem o que está nelas: se o número pedido já é de uma folha, ela é adotada e atualizada (decisão do
-    /// usuário, 13/11/2026) — só o que o comando coloca (planta, tabelas, legendas) é acrescentado e arranjado; o resto fica e é
-    /// relatado. A folha do comando é reaproveitada e rearranjada. Precisa de transação.
+    /// Folha das pranchas de formas (D25, etapa 4): vista(s) + tabela(s) + legendas fixas do projeto (pelo nome) + notas fixas +
+    /// carimbo do padrão, arranjados pelas regiões do padrão com o <see cref="SheetComposer"/>. Número e nome da folha pelos
+    /// parâmetros da folha (por nível, se o padrão tiver). Nunca apaga folhas nem o que está nelas: se o número pedido já é de uma
+    /// folha, ela é adotada e atualizada (decisão do usuário, 13/11/2026) — só o que o comando coloca é acrescentado e arranjado; o
+    /// resto fica e é relatado. A folha do comando é reaproveitada e rearranjada. Precisa de transação.
     /// </summary>
     internal sealed class FolhaFormas
     {
@@ -24,17 +24,42 @@ namespace DEB.Revit.Formas
 
         public static string Papel(TipoPlanta t, Level l) => $"folha-{PlantaFormas.Chave(t)}:{l.UniqueId}";
 
+        /// <summary>Número e nome da folha: os do nível no padrão (<see cref="FormasSheetSpec.PorNivel"/>), senão os dados.</summary>
+        public static (string Numero, string Nome) NumeroENome(FormasSheetSpec spec, Level nivel, string numero, string nome)
+        {
+            if (nivel != null && spec?.PorNivel != null && spec.PorNivel.TryGetValue(nivel.Name, out FolhaNome fn) && fn != null)
+                return (string.IsNullOrWhiteSpace(fn.Numero) ? numero : fn.Numero, string.IsNullOrWhiteSpace(fn.Nome) ? nome : fn.Nome);
+            return (numero, nome);
+        }
+
         public ViewSheet Montar(TipoPlanta tipo, Level nivel, ViewPlan planta, IEnumerable<ViewSchedule> tabelas, string numero, string nome)
         {
-            FormasSheetSpec spec = tipo == TipoPlanta.Locacao ? _std.Formas.Locacao : _std.Formas.Montagem;
+            FormasSheetSpec spec = Spec(tipo);
+            var notas = new List<string>();
+            if (tipo == TipoPlanta.Locacao && _std.Formas.FundacoesEsquematicas && !string.IsNullOrWhiteSpace(_std.Formas.NotaFundacoesEsquematicas))
+                notas.Add(_std.Formas.NotaFundacoesEsquematicas);
+            return Montar(Papel(tipo, nivel), spec, nivel, new[] { (View)planta }, tabelas, numero, nome, notas);
+        }
+
+        public FormasSheetSpec Spec(TipoPlanta t) => t switch
+        {
+            TipoPlanta.Locacao => _std.Formas.Locacao,
+            TipoPlanta.Paginacao => _std.Formas.Paginacao,
+            _ => _std.Formas.Montagem,
+        };
+
+        /// <summary>Folha genérica: <paramref name="papel"/> = marca do comando; vistas na região de plantas, tabelas na de tabelas.</summary>
+        public ViewSheet Montar(string papel, FormasSheetSpec spec, Level nivel, IEnumerable<View> vistas, IEnumerable<ViewSchedule> tabelas,
+                                string numero, string nome, IEnumerable<string> notasExtras = null)
+        {
+            (numero, nome) = NumeroENome(spec, nivel, numero, nome);
             numero = ModeloFormas.Nome(TabelasFormas.Fill(numero, nivel));
             nome = TabelasFormas.Fill(nome, nivel).Trim();
             if (numero == "") { _log.Warn("Número da folha vazio: folha não montada."); return null; }
 
-            var ctx = new PresentationContext { Standard = _std, Values = new Dictionary<string, string> { ["Nivel"] = nivel.Name, ["Marca"] = "", ["Numero"] = numero } };
+            var ctx = new PresentationContext { Standard = _std, Values = new Dictionary<string, string> { ["Nivel"] = nivel?.Name ?? "", ["Marca"] = "", ["Numero"] = numero } };
             var composer = new SheetComposer(_doc, ctx, null, _log);
             List<ViewSheet> folhas = new FilteredElementCollector(_doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>().ToList();
-            string papel = Papel(tipo, nivel);
             ViewSheet sheet = folhas.FirstOrDefault(f => MarcaFormas.Papel(f) == papel);
             ViewSheet comNumero = folhas.FirstOrDefault(f => string.Equals(f.SheetNumber, numero, StringComparison.OrdinalIgnoreCase));
             if (sheet == null && comNumero != null)
@@ -70,16 +95,19 @@ namespace DEB.Revit.Formas
             composer.FillTitleBlock(sheet);
 
             var itens = new List<(Element, string)>();
-            Viewport vp = Viewports(sheet).FirstOrDefault(x => x.ViewId == planta.Id);
-            if (vp == null)
+            foreach (View v in vistas.Where(x => x != null))
             {
-                if (Viewport.CanAddViewToSheet(_doc, sheet.Id, planta.Id)) vp = Viewport.Create(_doc, sheet.Id, planta.Id, XYZ.Zero);
-                else _log.Warn($"A vista \"{planta.Name}\" já está em outra folha: não foi colocada na {sheet.SheetNumber}.");
+                Viewport vp = Viewports(sheet).FirstOrDefault(x => x.ViewId == v.Id);
+                if (vp == null)
+                {
+                    if (Viewport.CanAddViewToSheet(_doc, sheet.Id, v.Id)) vp = Viewport.Create(_doc, sheet.Id, v.Id, XYZ.Zero);
+                    else _log.Warn($"A vista \"{v.Name}\" já está em outra folha: não foi colocada na {sheet.SheetNumber}.");
+                }
+                if (vp != null) itens.Add((vp, spec.RegiaoPlanta));
             }
-            if (vp != null) itens.Add((vp, spec.RegiaoPlanta));
 
             List<ScheduleSheetInstance> naFolha = new FilteredElementCollector(_doc, sheet.Id).OfClass(typeof(ScheduleSheetInstance)).Cast<ScheduleSheetInstance>().ToList();
-            foreach (ViewSchedule vs in tabelas.Where(t => t != null))
+            foreach (ViewSchedule vs in (tabelas ?? Enumerable.Empty<ViewSchedule>()).Where(t => t != null && t.IsValidObject))
             {
                 ScheduleSheetInstance si = naFolha.FirstOrDefault(x => x.ScheduleId == vs.Id) ?? ScheduleSheetInstance.Create(_doc, sheet.Id, vs.Id, XYZ.Zero);
                 itens.Add((si, spec.RegiaoTabelas));
@@ -95,9 +123,8 @@ namespace DEB.Revit.Formas
             }
 
             // notas fixas (texto do comando: refeito a cada vez, nunca duplicado)
-            var notas = new List<string>(spec.Notas ?? new List<string>());
-            if (tipo == TipoPlanta.Locacao && _std.Formas.FundacoesEsquematicas && !string.IsNullOrWhiteSpace(_std.Formas.NotaFundacoesEsquematicas))
-                notas.Insert(0, _std.Formas.NotaFundacoesEsquematicas);
+            var notas = new List<string>(notasExtras ?? Enumerable.Empty<string>());
+            notas.AddRange(spec.Notas ?? new List<string>());
             foreach (Element velha in MarcaFormas.ComPrefixo(new FilteredElementCollector(_doc, sheet.Id).OfClass(typeof(TextNote)), "nota:"))
                 _doc.Delete(velha.Id);
             string regNotas = _std.Regioes.ContainsKey("Notas") ? "Notas" : "Legendas";

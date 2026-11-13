@@ -189,6 +189,15 @@ namespace DEB.Revit
                 "Planta de montagem do pavimento em 1:50: cotas de eixos, identificadores de pilares, vigas e lajes, sentido do vão, tabela de lajes e folha.",
                 "As famílias de identificador e os nomes vêm da seção \"Formas\" do padrão PCEB-FORMAS-A0. Rodar de novo atualiza o que o comando " +
                 "criou, sem duplicar.", "MO"));
+            formas.AddItem(Btn("DEB_FormasPaginacao", "Paginação\ndas lajes", typeof(Formas.PlantaPaginacaoCommand),
+                "Planta de paginação das lajes alveolares do pavimento: painéis identificados, tabela dos painéis, nota dos furos e folha.",
+                "Painéis = quadro estrutural com a marca do filtro de painéis (padrão: começa com L). Rodar de novo atualiza sem duplicar.", "PG"));
+            formas.AddItem(Btn("DEB_FormasCortes", "Cortes e\nelevações", typeof(Formas.CortesFormasCommand),
+                "Cria (ou atualiza) um corte por direção entre os eixos centrais e as quatro elevações da estrutura, com identificadores e folhas.",
+                "Os cortes que já existem no modelo não são alterados; os do comando são reaproveitados ao rodar de novo.", "CT"));
+            formas.AddItem(Btn("DEB_FormasSecoes", "Seções\nconsideradas", typeof(Formas.SecoesFormasCommand),
+                "Folha com as seções de vigas e pilares usadas no modelo (tabela por tipo: seção, quantidade, material).",
+                "Usa SD_Secao gravado pelo \"Atualizar dados\".", "SC"));
         }
 
         public Result OnShutdown(UIControlledApplication application) => Result.Succeeded;

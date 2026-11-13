@@ -110,6 +110,10 @@ namespace DEB.Revit
                     case "formasmontagem":
                     case "formassonda":
                     case "formaslevantar":
+                    case "formaspaginacao":
+                    case "formascortes":
+                    case "formassecoes":
+                    case "formastudo":
                         status = "OK " + Formas.FormasAutoTest.Run(uiapp, uidoc, task);
                         break;
                     default:

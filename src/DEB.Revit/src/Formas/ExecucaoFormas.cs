@@ -50,7 +50,7 @@ namespace DEB.Revit.Formas
                 Etapa(doc, "Formas: tabelas", log, () =>
                 {
                     var t = new TabelasFormas(doc, std.Formas, log);
-                    tabelas.Add(tipo == TipoPlanta.Locacao ? t.Cargas() : t.Lajes(nivel));
+                    tabelas.Add(tipo == TipoPlanta.Locacao ? t.Cargas() : tipo == TipoPlanta.Paginacao ? t.Paineis(nivel) : t.Lajes(nivel));
                 });
                 var planta = new PlantaFormas(doc, std.Formas, log);
                 if (Etapa(doc, "Formas: vista", log, () => v = planta.Vista(nivel, tipo, indicada)))
@@ -64,6 +64,53 @@ namespace DEB.Revit.Formas
                 tg.Assimilate();
             }
             vista = v;
+            return sheet != null && sheet.IsValidObject ? sheet : null;
+        }
+
+        /// <summary>Cortes (true) ou elevações (false): vistas do comando + identificadores + folha. Devolve a folha (ou null).</summary>
+        public static ViewSheet Cortes(Document doc, PresentationStandard std, bool cortes, PieceLog log, out List<ViewSection> vistas)
+        {
+            List<ViewSection> vs = new List<ViewSection>();
+            ViewSheet sheet = null;
+            using (var tg = new TransactionGroup(doc, cortes ? "Cortes" : "Elevações"))
+            {
+                tg.Start();
+                Dados(doc, std, log);
+                var c = new CortesFormas(doc, std.Formas, log);
+                if (Etapa(doc, "Formas: " + (cortes ? "cortes" : "elevações"), log, () => vs = c.Vistas(cortes)) && vs.Count > 0)
+                {
+                    var planta = new PlantaFormas(doc, std.Formas, log);
+                    foreach (ViewSection v in vs) Etapa(doc, "Formas: identificadores em " + v.Name, log, () => c.Anotar(v, planta));
+                    FormasSheetSpec spec = cortes ? std.Formas.Cortes : std.Formas.Elevacoes;
+                    Etapa(doc, "Formas: folha", log, () => sheet = new FolhaFormas(doc, std, log)
+                        .Montar(cortes ? "folha-cortes" : "folha-elevacoes", spec, null, vs, null, spec.NumeroFolha, spec.NomeFolha));
+                }
+                tg.Assimilate();
+            }
+            vistas = vs.Where(v => v.IsValidObject).ToList();
+            return sheet != null && sheet.IsValidObject ? sheet : null;
+        }
+
+        /// <summary>Folha "Seções consideradas": tabelas por tipo de viga e de pilar.</summary>
+        public static ViewSheet Secoes(Document doc, PresentationStandard std, PieceLog log)
+        {
+            ViewSheet sheet = null;
+            using (var tg = new TransactionGroup(doc, "Seções consideradas"))
+            {
+                tg.Start();
+                Dados(doc, std, log);
+                var tabs = new List<ViewSchedule>();
+                Etapa(doc, "Formas: tabelas de seções", log, () =>
+                {
+                    var t = new TabelasFormas(doc, std.Formas, log);
+                    tabs.Add(t.Secoes(true));
+                    tabs.Add(t.Secoes(false));
+                });
+                FormasSheetSpec spec = std.Formas.Secoes;
+                Etapa(doc, "Formas: folha", log, () => sheet = new FolhaFormas(doc, std, log)
+                    .Montar("folha-secoes", spec, null, new View[0], tabs, spec.NumeroFolha, spec.NomeFolha));
+                tg.Assimilate();
+            }
             return sheet != null && sheet.IsValidObject ? sheet : null;
         }
 

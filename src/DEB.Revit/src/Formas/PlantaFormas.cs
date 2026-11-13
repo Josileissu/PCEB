@@ -8,7 +8,7 @@ using DEB.Revit.Presentation;
 
 namespace DEB.Revit.Formas
 {
-    public enum TipoPlanta { Locacao, Montagem }
+    public enum TipoPlanta { Locacao, Montagem, Paginacao }
 
     /// <summary>
     /// Plantas de formas (D25, etapa 3): prepara a vista do nível (a indicada, a que o comando já criou, ou uma cópia/nova planta
@@ -26,7 +26,9 @@ namespace DEB.Revit.Formas
 
         public PlantaFormas(Document doc, FormasSettings cfg, PieceLog log) { _doc = doc; _cfg = cfg; _log = log; }
 
-        public static string Chave(TipoPlanta t) => t == TipoPlanta.Locacao ? "locacao" : "montagem";
+        public static string Chave(TipoPlanta t) => t == TipoPlanta.Locacao ? "locacao" : t == TipoPlanta.Paginacao ? "paginacao" : "montagem";
+
+        private FormasSheetSpec SpecDe(TipoPlanta t) => t == TipoPlanta.Locacao ? _cfg.Locacao : t == TipoPlanta.Paginacao ? _cfg.Paginacao : _cfg.Montagem;
         public static string PapelVista(TipoPlanta t, Level l) => $"vista-{Chave(t)}:{l.UniqueId}";
 
         // ------------------------------------------------------------------ vista
@@ -54,8 +56,8 @@ namespace DEB.Revit.Formas
             }
             else
             {
-                v = NovaVista(nivel, tipo == TipoPlanta.Locacao ? _cfg.Locacao.VistaBase : _cfg.Montagem.VistaBase);
-                string nome = ModeloFormas.Nome(TabelasFormas.Fill(tipo == TipoPlanta.Locacao ? _cfg.Locacao.NomeVista : _cfg.Montagem.NomeVista, nivel));
+                v = NovaVista(nivel, SpecDe(tipo).VistaBase);
+                string nome = ModeloFormas.Nome(TabelasFormas.Fill(SpecDe(tipo).NomeVista, nivel));
                 v.Name = NameRegistry.ForViews(_doc).Unique(nome);
                 MarcaFormas.Marcar(v, papel);
                 nova = true;
@@ -173,6 +175,23 @@ namespace DEB.Revit.Formas
                 return c == null ? null : (Ponto(v, c.Value.MaxR + Afast(v), (c.Value.MinU + c.Value.MaxU) / 2, z), (double?)null);
             });
 
+            if (tipo == TipoPlanta.Paginacao)
+            {
+                // painéis alveolares (quadro estrutural com marca L…) do nível: identificador no meio, ao longo do painel
+                var paineisOk = new HashSet<ElementId>(ModeloFormas.Filtrar(_doc, BuiltInCategory.OST_StructuralFraming, _cfg.FiltroPaineis, null, "painel").Select(c => c.Id));
+                List<FamilyInstance> paineis = Visiveis<FamilyInstance>(v, BuiltInCategory.OST_StructuralFraming)
+                    .Where(b => paineisOk.Contains(b.Id) && ModeloFormas.Marca(b) != "")
+                    .Where(b => { Level l = ModeloFormas.NivelDaViga(_doc, b); return l == null || l.Id == nivel.Id; }).ToList();
+                Identificar(v, "Painel", BuiltInCategory.OST_StructuralFramingTags, paineis.Cast<Element>().ToList(), Lado.Centro, e =>
+                {
+                    var p = PosicaoViga((FamilyInstance)e, v, z);
+                    if (p == null) return null;
+                    var c = Caixa(e, v);
+                    return c == null ? p : (Ponto(v, (c.Value.MinR + c.Value.MaxR) / 2, (c.Value.MinU + c.Value.MaxU) / 2, z), p.Value.Item2);
+                });
+                return;
+            }
+
             if (tipo == TipoPlanta.Locacao)
             {
                 List<Element> fundacoes = Visiveis<Element>(v, BuiltInCategory.OST_StructuralFoundation).Where(f => ModeloFormas.Marca(f) != "").ToList();
@@ -213,7 +232,7 @@ namespace DEB.Revit.Formas
             new XYZ(v.RightDirection.X * r + v.UpDirection.X * u, v.RightDirection.Y * r + v.UpDirection.Y * u, z);
 
         /// <summary>Caixa do elemento nas coordenadas da vista (cantos da caixa projetados na direita/para cima).</summary>
-        private static (double MinR, double MaxR, double MinU, double MaxU)? Caixa(Element e, View v)
+        internal static (double MinR, double MaxR, double MinU, double MaxU)? Caixa(Element e, View v)
         {
             return CaixaDe(e.get_BoundingBox(v) ?? e.get_BoundingBox(null), v);
         }
@@ -386,7 +405,7 @@ namespace DEB.Revit.Formas
             catch (Exception ex) { _log.Warn($"Tipo esquemático do identificador de fundação não criado ({ex.Message}); usado o normal."); return s; }
         }
 
-        private void Identificar(ViewPlan v, string papel, BuiltInCategory tagCat, List<Element> alvos, Lado lado, Func<Element, (XYZ, double?)?> posicao)
+        internal void Identificar(View v, string papel, BuiltInCategory tagCat, List<Element> alvos, Lado lado, Func<Element, (XYZ, double?)?> posicao)
         {
             string marca = "id-" + papel;
             var ids = new HashSet<ElementId>(alvos.Select(e => e.Id));
@@ -437,7 +456,7 @@ namespace DEB.Revit.Formas
         }
 
         /// <summary>Onde o identificador fica em relação à peça.</summary>
-        private enum Lado { Direita, Abaixo, Centro, Viga }
+        internal enum Lado { Direita, Abaixo, Centro, Viga, Acima }
 
         /// <summary>
         /// Acerta a posição dos identificadores novos pela caixa REAL do texto (a origem de cada família é diferente: "Alinhamento dir"
@@ -465,6 +484,7 @@ namespace DEB.Revit.Formas
                         case Lado.Direita: dr = a.MaxR + off - b.MinR; du = cu - tu; break;
                         case Lado.Abaixo: dr = a.MinR - b.MinR; du = a.MinU - off - b.MaxU; break;
                         case Lado.Centro: dr = cr - tr; du = cu - tu; break;
+                        case Lado.Acima: dr = cr - tr; du = a.MaxU + off - b.MinU; break;
                         default:
                             bool deitada = a.MaxR - a.MinR >= a.MaxU - a.MinU;
                             if (deitada) { dr = cr - tr; du = a.MaxU + off - b.MinU; }
@@ -473,22 +493,24 @@ namespace DEB.Revit.Formas
                     }
                     dr += exR; du += exU;
                     if (Math.Abs(dr) < 1e-6 && Math.Abs(du) < 1e-6) continue;
-                    t.TagHeadPosition = t.TagHeadPosition + Ponto(v, dr, du, 0);
+                    t.TagHeadPosition = t.TagHeadPosition + v.RightDirection * dr + v.UpDirection * du;
                 }
                 catch { /* fica onde foi criado */ }
             }
         }
 
-        private static (double MinR, double MaxR, double MinU, double MaxU)? CaixaDe(BoundingBoxXYZ bb, View v)
+        /// <summary>Caixa nas coordenadas da vista: os 8 cantos projetados na direita/para cima (serve para plantas e cortes).</summary>
+        internal static (double MinR, double MaxR, double MinU, double MaxU)? CaixaDe(BoundingBoxXYZ bb, View v)
         {
             if (bb == null) return null;
             var rs = new List<double>(); var us = new List<double>();
             foreach (double x in new[] { bb.Min.X, bb.Max.X })
                 foreach (double y in new[] { bb.Min.Y, bb.Max.Y })
-                {
-                    var p = new XYZ(x, y, 0);
-                    rs.Add(p.DotProduct(v.RightDirection)); us.Add(p.DotProduct(v.UpDirection));
-                }
+                    foreach (double zz in new[] { bb.Min.Z, bb.Max.Z })
+                    {
+                        var p = new XYZ(x, y, zz);
+                        rs.Add(p.DotProduct(v.RightDirection)); us.Add(p.DotProduct(v.UpDirection));
+                    }
             return (rs.Min(), rs.Max(), us.Min(), us.Max());
         }
 

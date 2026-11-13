@@ -85,7 +85,7 @@ namespace DEB.Revit.Formas
         {
             var log = new PieceLog(Title);
             PresentationStandard std = ExecucaoFormas.Padrao(log);
-            FormasSheetSpec spec = Tipo == TipoPlanta.Locacao ? std.Formas.Locacao : std.Formas.Montagem;
+            FormasSheetSpec spec = new FolhaFormas(doc, std, log).Spec(Tipo);
             List<Level> niveis = ModeloFormas.Niveis(doc);
             if (niveis.Count == 0) throw new ToolCancelled("O projeto não tem níveis.");
 
@@ -98,7 +98,7 @@ namespace DEB.Revit.Formas
 
             var form = new FieldForm(Title,
                     "Prepara a planta do nível em 1:" + std.Formas.Escala + " com cotas de eixos e identificadores, a tabela " +
-                    (Tipo == TipoPlanta.Locacao ? "de cargas na fundação" : "de lajes do nível") +
+                    (Tipo == TipoPlanta.Locacao ? "de cargas na fundação" : Tipo == TipoPlanta.Paginacao ? "de painéis do nível" : "de lajes do nível") +
                     " e a folha. Rodar de novo atualiza o que o comando criou. {Nivel} = nome do nível.", 520)
                 .Choice("nivel", "Nível:", niveis.Select(l => l.Name), padrao?.Name)
                 .Choice("vista", "Vista:", new[] { automatica }.Concat(rotulos.Keys), automatica)
@@ -135,6 +135,48 @@ namespace DEB.Revit.Formas
     {
         protected override string Title => "Planta de montagem";
         protected override TipoPlanta Tipo => TipoPlanta.Montagem;
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    public class PlantaPaginacaoCommand : PlantaFormasCommand
+    {
+        protected override string Title => "Paginação das lajes";
+        protected override TipoPlanta Tipo => TipoPlanta.Paginacao;
+    }
+
+    /// <summary>"Cortes e elevações": cortes do comando (um por direção, entre os eixos centrais) e as quatro elevações, com
+    /// identificadores de pilares e vigas, e as duas folhas.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class CortesFormasCommand : ToolCommand
+    {
+        protected override string Title => "Cortes e elevações";
+
+        protected override Result Run(UIApplication uiapp, UIDocument uidoc, Document doc)
+        {
+            var log = new PieceLog(Title);
+            PresentationStandard std = ExecucaoFormas.Padrao(log);
+            ViewSheet a = ExecucaoFormas.Cortes(doc, std, true, log, out List<ViewSection> c);
+            ViewSheet b = ExecucaoFormas.Cortes(doc, std, false, log, out List<ViewSection> e);
+            FormasUi.Mostrar(Title, ExecucaoFormas.Relatorio(log, $"{c.Count} corte(s), {e.Count} elevação(ões); folhas {a?.SheetNumber ?? "-"} e {b?.SheetNumber ?? "-"}.", out string arq), arq);
+            try { if (a != null) uidoc.ActiveView = a; } catch { }
+            return c.Count + e.Count > 0 ? Result.Succeeded : Result.Failed;
+        }
+    }
+
+    /// <summary>"Seções consideradas": tabelas por tipo de viga e de pilar (seção, tipo, quantidade, material) e a folha.</summary>
+    [Transaction(TransactionMode.Manual)]
+    public class SecoesFormasCommand : ToolCommand
+    {
+        protected override string Title => "Seções consideradas";
+
+        protected override Result Run(UIApplication uiapp, UIDocument uidoc, Document doc)
+        {
+            var log = new PieceLog(Title);
+            ViewSheet s = ExecucaoFormas.Secoes(doc, ExecucaoFormas.Padrao(log), log);
+            FormasUi.Mostrar(Title, ExecucaoFormas.Relatorio(log, $"Folha {s?.SheetNumber ?? "-"}.", out string arq), arq);
+            try { if (s != null) uidoc.ActiveView = s; } catch { }
+            return s != null ? Result.Succeeded : Result.Failed;
+        }
     }
 
     internal static class FormasUi

@@ -76,28 +76,54 @@ namespace DEB.Revit.Formas
             }
             else
             {
-                TipoPlanta tipo = tarefa == "formaslocacao" ? TipoPlanta.Locacao : TipoPlanta.Montagem;
-                List<Level> niveis = ModeloFormas.Niveis(doc);
-                string pedido = Environment.GetEnvironmentVariable("SD_NIVEL")?.Trim() ?? "";
-                List<Level> alvo = pedido == "*" ? NiveisComPecas(doc, std.Formas)
-                    : new List<Level> { niveis.FirstOrDefault(l => string.Equals(l.Name, pedido, StringComparison.OrdinalIgnoreCase)) ?? FormasUi.NivelPadrao(doc, niveis, tipo) };
-                FormasSheetSpec spec = tipo == TipoPlanta.Locacao ? std.Formas.Locacao : std.Formas.Montagem;
-                int vezes = Environment.GetEnvironmentVariable("SD_FORMAS_VEZES") == "1" ? 1 : 2;
                 var ids = new List<ElementId>();
-                foreach (Level nivel in alvo)
+                int vezes = Environment.GetEnvironmentVariable("SD_FORMAS_VEZES") == "1" ? 1 : 2;
+                void Plantas(TipoPlanta tipo)
                 {
-                    sb.AppendLine($"nível: {nivel.Name}");
-                    ViewSheet folha = null; ViewPlan vista = null;
+                    List<Level> niveis = ModeloFormas.Niveis(doc);
+                    string pedido = Environment.GetEnvironmentVariable("SD_NIVEL")?.Trim() ?? "";
+                    List<Level> alvo = tipo == TipoPlanta.Paginacao && (pedido == "*" || tarefa == "formastudo") ? NiveisComPaineis(doc, std.Formas)
+                        : tipo == TipoPlanta.Montagem && (pedido == "*" || tarefa == "formastudo") ? NiveisComPecas(doc, std.Formas)
+                        : new List<Level> { niveis.FirstOrDefault(l => string.Equals(l.Name, pedido, StringComparison.OrdinalIgnoreCase)) ?? FormasUi.NivelPadrao(doc, niveis, tipo) };
+                    FormasSheetSpec spec = tipo == TipoPlanta.Locacao ? std.Formas.Locacao : tipo == TipoPlanta.Paginacao ? std.Formas.Paginacao : std.Formas.Montagem;
+                    foreach (Level nivel in alvo)
+                    {
+                        sb.AppendLine($"{tipo} - nível: {nivel.Name}");
+                        ViewSheet folha = null; ViewPlan vista = null;
+                        for (int vez = 1; vez <= vezes; vez++)
+                        {
+                            folha = ExecucaoFormas.Planta(doc, std, tipo, nivel, null, spec.NumeroFolha, spec.NomeFolha, true, log, out vista);
+                            sb.AppendLine($"execução {vez}: vista {vista?.Name ?? "-"} | folha {folha?.SheetNumber ?? "-"} | " + Contagem(doc, vista, folha));
+                            Gravar();
+                        }
+                        if (vista != null) ids.Add(vista.Id);
+                        if (folha != null) ids.Add(folha.Id);
+                    }
+                }
+                void Cortes(bool cortes)
+                {
                     for (int vez = 1; vez <= vezes; vez++)
                     {
-                        folha = ExecucaoFormas.Planta(doc, std, tipo, nivel, null, spec.NumeroFolha, spec.NomeFolha, true, log, out vista);
-                        sb.AppendLine($"execução {vez}: vista {vista?.Name ?? "-"} | folha {folha?.SheetNumber ?? "-"} | " + Contagem(doc, vista, folha));
+                        ViewSheet f = ExecucaoFormas.Cortes(doc, std, cortes, log, out List<ViewSection> vs);
+                        sb.AppendLine($"{(cortes ? "cortes" : "elevações")} execução {vez}: {vs.Count} vista(s) | folha {f?.SheetNumber ?? "-"} | " +
+                                      string.Join("; ", vs.Select(v => $"{v.Name}: {new FilteredElementCollector(doc, v.Id).OfClass(typeof(IndependentTag)).GetElementCount()} identificadores")));
                         Gravar();
+                        if (vez == vezes) { ids.AddRange(vs.Select(v => v.Id)); if (f != null) ids.Add(f.Id); }
                     }
-                    if (vista != null) ids.Add(vista.Id);
-                    if (folha != null) ids.Add(folha.Id);
+                }
+                if (Environment.GetEnvironmentVariable("SD_FORMAS_MARCAR_LAJES") == "1") sb.AppendLine("marcas das lajes: " + MarcarLajes(doc, std.Formas));
+                if (tarefa == "formaslocacao" || tarefa == "formastudo") Plantas(TipoPlanta.Locacao);
+                if (tarefa == "formasmontagem" || tarefa == "formastudo") Plantas(TipoPlanta.Montagem);
+                if (tarefa == "formaspaginacao" || tarefa == "formastudo") Plantas(TipoPlanta.Paginacao);
+                if (tarefa == "formascortes" || tarefa == "formastudo") { Cortes(true); Cortes(false); }
+                if (tarefa == "formassecoes" || tarefa == "formastudo")
+                {
+                    ViewSheet f = ExecucaoFormas.Secoes(doc, std, log);
+                    sb.AppendLine($"seções consideradas: folha {f?.SheetNumber ?? "-"}");
+                    if (f != null) ids.Add(f.Id);
                 }
                 Amostras(doc, sb);
+                Gravar();
                 if (ids.Count > 0)
                     try
                     {
@@ -107,7 +133,7 @@ namespace DEB.Revit.Formas
                             HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG,
                             ImageResolution = ImageResolution.DPI_150, PixelSize = 4000, ZoomType = ZoomFitType.FitToPage
                         };
-                        ieo.SetViewsAndSheets(ids.Distinct().ToList());
+                        ieo.SetViewsAndSheets(ids.Distinct().Where(i => doc.GetElement(i) != null).ToList());
                         doc.ExportImage(ieo);
                     }
                     catch (Exception ex) { sb.AppendLine("PNG não exportado: " + ex.Message); }
@@ -213,6 +239,42 @@ namespace DEB.Revit.Formas
             return ModeloFormas.Niveis(doc).Where(l => ids.Contains(l.Id)).ToList();
         }
 
+        /// <summary>Níveis com painéis alveolares (quadro estrutural do filtro de painéis, com marca).</summary>
+        private static List<Level> NiveisComPaineis(Document doc, FormasSettings cfg)
+        {
+            var ids = new HashSet<ElementId>();
+            foreach (FamilyInstance b in ModeloFormas.Filtrar(doc, BuiltInCategory.OST_StructuralFraming, cfg.FiltroPaineis, null, "painel"))
+                if (ModeloFormas.Marca(b) != "" && ModeloFormas.NivelDaViga(doc, b) is Level l) ids.Add(l.Id);
+            return ModeloFormas.Niveis(doc).Where(l => ids.Contains(l.Id)).ToList();
+        }
+
+        /// <summary>
+        /// SD_FORMAS_MARCAR_LAJES = 1 (decisão do usuário, 13/11/2026): marca as capas/lajes SEM marca por pavimento no padrão L101, L102…
+        /// (1º dígito = pavimento acima do térreo), pelo comando de renumerar lajes do plugin (Ferramentas → Renumerar → Lajes), começando
+        /// depois da maior marca que o pavimento já tem; as marcadas não são renumeradas.
+        /// </summary>
+        private static string MarcarLajes(Document doc, FormasSettings cfg)
+        {
+            var sb = new StringBuilder();
+            List<Level> niveis = ModeloFormas.Niveis(doc);
+            Level zero = FormasUi.NivelPadrao(doc, niveis, TipoPlanta.Locacao);
+            int pav = 0;
+            var cmd = new Tools.RenumberSlabsCommand();
+            foreach (Level l in niveis.Where(x => x.ProjectElevation > zero.ProjectElevation + 1e-6))
+            {
+                List<Floor> pisos = new FilteredElementCollector(doc).OfClass(typeof(Floor)).Cast<Floor>().Where(f => f.LevelId == l.Id).ToList();
+                if (pisos.Count == 0) continue;
+                pav++;
+                var sem = pisos.Where(f => ModeloFormas.Marca(f) == "").Cast<Element>().ToList();
+                int max = pisos.Select(ModeloFormas.Marca).Select(m => System.Text.RegularExpressions.Regex.Match(m, @"^L(\d+)$"))
+                    .Where(m => m.Success).Select(m => int.Parse(m.Groups[1].Value)).Where(n => n / 100 == pav).DefaultIfEmpty(pav * 100).Max();
+                if (sem.Count == 0) { sb.Append($"{l.Name}: nada sem marca; "); continue; }
+                string r = cmd.Apply(doc, sem, "L", max + 1);
+                sb.Append($"{l.Name}: {sem.Count} marcada(s) a partir de L{max + 1} ({r.Replace("\n", " ").Replace("\r", "")}); ");
+            }
+            return sb.ToString();
+        }
+
         /// <summary>Modelo de teste sem eixos/lajes: eixos pelos centros dos pilares e uma laje por nível acima do mais baixo
         /// (só com SD_FORMAS_MARCAR = 1).</summary>
         private static string CompletarTeste(Document doc)
@@ -290,6 +352,14 @@ namespace DEB.Revit.Formas
                     sb.AppendLine($"   {g.Key} | {mat} | {g.Count()} | {marcas.Count} | {string.Join(",", marcas.Distinct().Take(6))} | {niv}");
                 }
             }
+            sb.AppendLine("PISOS SEM MARCA (id | nível | tipo | área m²)");
+            foreach (Floor f in new FilteredElementCollector(doc).OfClass(typeof(Floor)).Cast<Floor>().Where(f => ModeloFormas.Marca(f) == "")
+                         .OrderBy(f => (doc.GetElement(f.LevelId) as Level)?.ProjectElevation ?? 0))
+                sb.AppendLine($"   {f.Id.Value} | {doc.GetElement(f.LevelId)?.Name} | {doc.GetElement(f.GetTypeId())?.Name} | " +
+                              $"{UnitUtils.ConvertFromInternalUnits(f.get_Parameter(BuiltInParameter.HOST_AREA_COMPUTED)?.AsDouble() ?? 0, UnitTypeId.SquareMeters):0.0}");
+            sb.AppendLine("CORTES E ELEVAÇÕES");
+            foreach (ViewSection v in new FilteredElementCollector(doc).OfClass(typeof(ViewSection)).Cast<ViewSection>().Where(v => !v.IsTemplate))
+                sb.AppendLine($"   {v.ViewType} \"{v.Name}\" 1:{v.Scale} folha={v.get_Parameter(BuiltInParameter.VIEWPORT_SHEET_NUMBER)?.AsString()}");
             sb.AppendLine("TABELAS");
             foreach (ViewSchedule vs in new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>().Where(v => !v.IsTemplate && !v.IsTitleblockRevisionSchedule))
                 sb.AppendLine($"   {vs.Name}");

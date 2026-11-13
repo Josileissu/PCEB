@@ -330,6 +330,7 @@ namespace DEB.Revit.Presentation
             ["Viga"] = new TagRoleSpec(),
             ["Laje"] = new TagRoleSpec(),
             ["Fundacao"] = new TagRoleSpec(),
+            ["Painel"] = new TagRoleSpec(),
         };
         /// <summary>Símbolo de sentido do vão nas lajes da montagem ("Família" ou "Família : Tipo"; vazio = o 1º carregado; sem
         /// nenhum carregado, não coloca).</summary>
@@ -340,6 +341,8 @@ namespace DEB.Revit.Presentation
         public PieceFilterSpec FiltroPilares { get; set; } = new PieceFilterSpec();
         /// <summary>Vigas que recebem dados e identificador (as metálicas e os painéis alveolares modelados como viga ficam de fora).</summary>
         public PieceFilterSpec FiltroVigas { get; set; } = new PieceFilterSpec { PrefixoMarca = "V" };
+        /// <summary>Painéis de laje alveolar modelados como quadro estrutural (paginação): identificador do papel "Painel".</summary>
+        public PieceFilterSpec FiltroPaineis { get; set; } = new PieceFilterSpec { PrefixoMarca = "L" };
 
         /// <summary>Nomes dos parâmetros de TIPO (ou de instância) com a largura e a altura da seção, na ordem de procura.</summary>
         public List<string> ParametrosLargura { get; set; } = new List<string> { "b", "B", "bw", "Largura" };
@@ -404,6 +407,25 @@ namespace DEB.Revit.Presentation
             NomeFolha = "PLANTA DE MONTAGEM - {Nivel}",
         };
 
+        /// <summary>Paginação das lajes alveolares por pavimento: planta com os painéis identificados, tabela dos painéis e notas.</summary>
+        public FormasSheetSpec Paginacao { get; set; } = new FormasSheetSpec
+        {
+            NomeVista = "PCEB - PAGINAÇÃO - {Nivel}",
+            VistaBase = "montagem",
+            Notas = new List<string> { "FUROS NAS LAJES ALVEOLARES: PASSAR SOMENTE PELOS ALVÉOLOS, COM DIÂMETRO/LARGURA MÁXIMA IGUAL À LARGURA DO ALVÉOLO." },
+            NumeroFolha = "FOR-PAG-{Nivel}",
+            NomeFolha = "PAGINAÇÃO DAS LAJES ALVEOLARES - {Nivel}",
+        };
+        public string NomeTabelaPaineis { get; set; } = "PCEB - PAINÉIS - {Nivel}";
+        public string TituloTabelaPaineis { get; set; } = "PAINÉIS ALVEOLARES - {Nivel}";
+        /// <summary>Cortes (um por direção, nos eixos centrais) — usa os cortes do comando; não mexe nos que já existem no modelo.</summary>
+        public FormasSheetSpec Cortes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - CORTE {Letra}-{Letra}", NumeroFolha = "FOR-CORTES", NomeFolha = "CORTES" };
+        /// <summary>Elevações (as quatro fachadas da estrutura), como cortes por fora olhando para dentro.</summary>
+        public FormasSheetSpec Elevacoes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - ELEVAÇÃO {Lado}", NumeroFolha = "FOR-ELEV", NomeFolha = "ELEVAÇÕES" };
+        public int EscalaCortes { get; set; } = 50;
+        /// <summary>Seções consideradas: tabelas por tipo de viga e de pilar (seção, quantidade, material).</summary>
+        public FormasSheetSpec Secoes { get; set; } = new FormasSheetSpec { NumeroFolha = "FOR-SEC", NomeFolha = "SEÇÕES CONSIDERADAS", RegiaoTabelas = "Planta" };
+
         /// <summary>Papel pelo nome; papel ausente no JSON = vazio (usa o identificador que houver).</summary>
         public TagRoleSpec Role(string name) =>
             Identificadores != null && Identificadores.TryGetValue(name, out TagRoleSpec r) && r != null ? r : new TagRoleSpec();
@@ -435,6 +457,12 @@ namespace DEB.Revit.Presentation
         public List<string> Familias { get; set; } = new List<string>();
     }
 
+    public sealed class FolhaNome
+    {
+        public string Numero { get; set; } = "";
+        public string Nome { get; set; } = "";
+    }
+
     /// <summary>Vista e folha de um tipo de planta de formas.</summary>
     public sealed class FormasSheetSpec
     {
@@ -445,6 +473,9 @@ namespace DEB.Revit.Presentation
         public List<string> Notas { get; set; } = new List<string>();
         public string NumeroFolha { get; set; } = "";
         public string NomeFolha { get; set; } = "";
+        /// <summary>Número e nome por nível (nome exato do nível), quando a numeração da obra não segue um modelo: prevalecem sobre
+        /// <see cref="NumeroFolha"/>/<see cref="NomeFolha"/>.</summary>
+        public Dictionary<string, FolhaNome> PorNivel { get; set; } = new Dictionary<string, FolhaNome>();
         /// <summary>Legendas fixas do projeto (detalhes, convenções, notas), pelo nome; as que não existem são avisadas.</summary>
         public List<LegendSpec> Legendas { get; set; } = new List<LegendSpec>();
         /// <summary>Regiões da folha (padrão: "Planta", "Tabelas", "Legendas" de <see cref="PresentationStandard.Regioes"/>).</summary>
