@@ -23,19 +23,42 @@ namespace DEB.Revit.Formas
     /// </summary>
     internal static class FormasAutoTest
     {
-        public static string Run(UIDocument uidoc, string tarefa)
+        /// <summary>SD_MODELO = .rvt aberto pela API (central destacado, preservando os subprojetos) em vez do arquivo da linha de
+        /// comando; o resultado só vai para SD_SAVEAS (o arquivo de origem nunca é salvo) e o documento é fechado no fim.</summary>
+        public static string Run(UIApplication uiapp, UIDocument uidoc, string tarefa)
         {
-            Document doc = uidoc.Document;
+            string modelo = Environment.GetEnvironmentVariable("SD_MODELO")?.Trim();
+            if (string.IsNullOrEmpty(modelo)) return Run(uidoc.Document, tarefa);
+            var oo = new OpenOptions();
+            try
+            {
+                if (BasicFileInfo.Extract(modelo).IsWorkshared)
+                {
+                    oo.DetachFromCentralOption = DetachFromCentralOption.DetachAndPreserveWorksets;
+                    oo.SetOpenWorksetsConfiguration(new WorksetConfiguration(WorksetConfigurationOption.OpenAllWorksets));
+                }
+            }
+            catch { /* arquivo comum */ }
+            Document d = uiapp.Application.OpenDocumentFile(ModelPathUtils.ConvertUserVisiblePathToModelPath(modelo), oo);
+            try { return Run(d, tarefa); }
+            finally { try { d.Close(false); } catch { /* fecha com o Revit */ } }
+        }
+
+        public static string Run(Document doc, string tarefa)
+        {
             if (tarefa == "formassonda") return Sonda(doc);
             string dir = Path.Combine(DetailingReport.LogDir, tarefa + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(dir);
             var sb = new StringBuilder();
+            void Gravar() { try { File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8); } catch { } }
+            if (tarefa == "formaslevantar") { sb.Append(Levantamento(doc)); Gravar(); return Path.Combine(dir, "resultado.txt"); }
             var log = new PieceLog(tarefa);
             PresentationStandard std = ExecucaoFormas.Padrao(log);
-            if (Environment.GetEnvironmentVariable("SD_FORMAS_MARCAR") == "1") sb.AppendLine("marcas de teste: " + MarcasDeTeste(doc));
+            if (Environment.GetEnvironmentVariable("SD_FORMAS_MARCAR") == "1") sb.AppendLine("modelo de teste: " + CompletarTeste(doc) + "; " + MarcasDeTeste(doc));
             sb.AppendLine($"pilares {Conta(doc, BuiltInCategory.OST_StructuralColumns)}, vigas {Conta(doc, BuiltInCategory.OST_StructuralFraming)}, " +
                           $"pisos {Conta(doc, BuiltInCategory.OST_Floors)}, fundações {Conta(doc, BuiltInCategory.OST_StructuralFoundation)}, " +
                           $"eixos {new FilteredElementCollector(doc).OfClass(typeof(Grid)).GetElementCount()}");
+            Gravar();
 
             if (tarefa == "formasdados")
             {
@@ -55,21 +78,26 @@ namespace DEB.Revit.Formas
             {
                 TipoPlanta tipo = tarefa == "formaslocacao" ? TipoPlanta.Locacao : TipoPlanta.Montagem;
                 List<Level> niveis = ModeloFormas.Niveis(doc);
-                string pedido = Environment.GetEnvironmentVariable("SD_NIVEL");
-                Level nivel = niveis.FirstOrDefault(l => string.Equals(l.Name, pedido?.Trim(), StringComparison.OrdinalIgnoreCase))
-                              ?? FormasUi.NivelPadrao(doc, niveis, tipo);
+                string pedido = Environment.GetEnvironmentVariable("SD_NIVEL")?.Trim() ?? "";
+                List<Level> alvo = pedido == "*" ? NiveisComPecas(doc, std.Formas)
+                    : new List<Level> { niveis.FirstOrDefault(l => string.Equals(l.Name, pedido, StringComparison.OrdinalIgnoreCase)) ?? FormasUi.NivelPadrao(doc, niveis, tipo) };
                 FormasSheetSpec spec = tipo == TipoPlanta.Locacao ? std.Formas.Locacao : std.Formas.Montagem;
-                sb.AppendLine($"nível: {nivel.Name}");
-                ViewSheet folha = null; ViewPlan vista = null;
-                for (int vez = 1; vez <= 2; vez++)
+                int vezes = Environment.GetEnvironmentVariable("SD_FORMAS_VEZES") == "1" ? 1 : 2;
+                var ids = new List<ElementId>();
+                foreach (Level nivel in alvo)
                 {
-                    folha = ExecucaoFormas.Planta(doc, std, tipo, nivel, null, spec.NumeroFolha, spec.NomeFolha, true, log, out vista);
-                    sb.AppendLine($"execução {vez}: vista {vista?.Name ?? "-"} | folha {folha?.SheetNumber ?? "-"} | " + Contagem(doc, vista, folha));
+                    sb.AppendLine($"nível: {nivel.Name}");
+                    ViewSheet folha = null; ViewPlan vista = null;
+                    for (int vez = 1; vez <= vezes; vez++)
+                    {
+                        folha = ExecucaoFormas.Planta(doc, std, tipo, nivel, null, spec.NumeroFolha, spec.NomeFolha, true, log, out vista);
+                        sb.AppendLine($"execução {vez}: vista {vista?.Name ?? "-"} | folha {folha?.SheetNumber ?? "-"} | " + Contagem(doc, vista, folha));
+                        Gravar();
+                    }
+                    if (vista != null) ids.Add(vista.Id);
+                    if (folha != null) ids.Add(folha.Id);
                 }
                 Amostras(doc, sb);
-                var ids = new List<ElementId>();
-                if (vista != null) ids.Add(vista.Id);
-                if (folha != null) ids.Add(folha.Id);
                 if (ids.Count > 0)
                     try
                     {
@@ -77,9 +105,9 @@ namespace DEB.Revit.Formas
                         {
                             ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, "formas"), FitDirection = FitDirectionType.Horizontal,
                             HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG,
-                            ImageResolution = ImageResolution.DPI_150, PixelSize = 3000, ZoomType = ZoomFitType.FitToPage
+                            ImageResolution = ImageResolution.DPI_150, PixelSize = 4000, ZoomType = ZoomFitType.FitToPage
                         };
-                        ieo.SetViewsAndSheets(ids);
+                        ieo.SetViewsAndSheets(ids.Distinct().ToList());
                         doc.ExportImage(ieo);
                     }
                     catch (Exception ex) { sb.AppendLine("PNG não exportado: " + ex.Message); }
@@ -88,7 +116,13 @@ namespace DEB.Revit.Formas
             foreach (string t in log.Traces) sb.AppendLine(t);
             string saveAs = Environment.GetEnvironmentVariable("SD_SAVEAS");
             if (!string.IsNullOrWhiteSpace(saveAs))
-                try { doc.SaveAs(saveAs, new SaveAsOptions { OverwriteExistingFile = true }); sb.AppendLine("modelo salvo em " + saveAs); }
+                try
+                {
+                    var so = new SaveAsOptions { OverwriteExistingFile = true };
+                    if (doc.IsWorkshared) so.SetWorksharingOptions(new WorksharingSaveAsOptions { SaveAsCentral = true });
+                    doc.SaveAs(saveAs, so);
+                    sb.AppendLine("modelo salvo em " + saveAs);
+                }
                 catch (Exception ex) { sb.AppendLine("SaveAs falhou: " + ex.Message); }
             string arq = Path.Combine(dir, "resultado.txt");
             File.WriteAllText(arq, sb.ToString(), Encoding.UTF8);
@@ -169,6 +203,106 @@ namespace DEB.Revit.Formas
             return n + " marca(s)";
         }
 
+        /// <summary>Níveis com lajes marcadas ou vigas do filtro (SD_NIVEL = "*": uma planta de montagem por pavimento).</summary>
+        private static List<Level> NiveisComPecas(Document doc, FormasSettings cfg)
+        {
+            var ids = new HashSet<ElementId>(new FilteredElementCollector(doc).OfClass(typeof(Floor)).Cast<Floor>()
+                .Where(f => ModeloFormas.Marca(f) != "").Select(f => f.LevelId));
+            foreach (FamilyInstance b in ModeloFormas.Filtrar(doc, BuiltInCategory.OST_StructuralFraming, cfg.FiltroVigas, null, "viga"))
+                if (ModeloFormas.Marca(b) != "" && ModeloFormas.NivelDaViga(doc, b) is Level l) ids.Add(l.Id);
+            return ModeloFormas.Niveis(doc).Where(l => ids.Contains(l.Id)).ToList();
+        }
+
+        /// <summary>Modelo de teste sem eixos/lajes: eixos pelos centros dos pilares e uma laje por nível acima do mais baixo
+        /// (só com SD_FORMAS_MARCAR = 1).</summary>
+        private static string CompletarTeste(Document doc)
+        {
+            if (new FilteredElementCollector(doc).OfClass(typeof(Grid)).GetElementCount() > 0) return "já tem eixos";
+            var cols = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType()
+                .OfType<FamilyInstance>().Where(f => f.SuperComponent == null).Select(ModeloFormas.Eixo).Where(p => p != null).ToList();
+            if (cols.Count == 0) return "sem pilares";
+            double tol = U.Mm(100), ext = U.Mm(2000);
+            List<double> Distintos(IEnumerable<double> v) { var r = new List<double>(); foreach (double x in v.OrderBy(x => x)) if (r.Count == 0 || x - r[r.Count - 1] > tol) r.Add(x); return r; }
+            List<double> xs = Distintos(cols.Select(p => p.X)), ys = Distintos(cols.Select(p => p.Y));
+            double x0 = xs.First() - ext, x1 = xs.Last() + ext, y0 = ys.First() - ext, y1 = ys.Last() + ext;
+            int ng = 0, nl = 0;
+            using (var t = new Transaction(doc, "Teste: eixos e lajes"))
+            {
+                t.Start();
+                WarningSwallower.Attach(t);
+                int i = 0;
+                foreach (double x in xs) { Grid g = Grid.Create(doc, Line.CreateBound(new XYZ(x, y0, 0), new XYZ(x, y1, 0))); try { g.Name = (++i).ToString(); } catch { } ng++; }
+                char c = 'A';
+                foreach (double y in ys) { Grid g = Grid.Create(doc, Line.CreateBound(new XYZ(x0, y, 0), new XYZ(x1, y, 0))); try { g.Name = (c++).ToString(); } catch { } ng++; }
+                double m = U.Mm(300);
+                var loop = new CurveLoop();
+                var q = new[] { new XYZ(xs.First() - m, ys.First() - m, 0), new XYZ(xs.Last() + m, ys.First() - m, 0), new XYZ(xs.Last() + m, ys.Last() + m, 0), new XYZ(xs.First() - m, ys.Last() + m, 0) };
+                for (int k = 0; k < 4; k++) loop.Append(Line.CreateBound(q[k], q[(k + 1) % 4]));
+                ElementId ft = doc.GetDefaultElementTypeId(ElementTypeGroup.FloorType);
+                foreach (Level l in ModeloFormas.Niveis(doc).Skip(1))
+                    try { Floor.Create(doc, new List<CurveLoop> { loop }, ft, l.Id); nl++; } catch { /* sem tipo de piso */ }
+                t.Commit();
+            }
+            return $"{ng} eixo(s), {nl} laje(s) criados";
+        }
+
+        /// <summary>formaslevantar: o que o modelo tem (só leitura) para ajustar a configuração local.</summary>
+        private static string Levantamento(Document doc)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("NÍVEIS");
+            foreach (Level l in ModeloFormas.Niveis(doc)) sb.AppendLine($"   {l.Name} | {U.ToMm(l.ProjectElevation) / 1000:0.000} m (interno)");
+            try { BasePoint pb = BasePoint.GetProjectBasePoint(doc); sb.AppendLine($"ponto base: Z interno {U.ToMm(pb.Position.Z) / 1000:0.000} m, compartilhado {U.ToMm(pb.SharedPosition.Z) / 1000:0.000} m"); } catch { }
+            sb.AppendLine("PLANTAS");
+            foreach (ViewPlan v in new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().Where(v => !v.IsTemplate).OrderBy(v => v.GenLevel?.ProjectElevation ?? 0).ThenBy(v => v.Name))
+                sb.AppendLine($"   {v.ViewType} \"{v.Name}\" [{v.GenLevel?.Name}] 1:{v.Scale} template={(v.ViewTemplateId != ElementId.InvalidElementId ? doc.GetElement(v.ViewTemplateId)?.Name : "-")} folha={v.get_Parameter(BuiltInParameter.VIEWPORT_SHEET_NUMBER)?.AsString()}");
+            sb.AppendLine("FOLHAS");
+            foreach (ViewSheet s in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>().Where(s => !s.IsPlaceholder).OrderBy(s => s.SheetNumber))
+            {
+                string tb = string.Join(", ", new FilteredElementCollector(doc, s.Id).OfCategory(BuiltInCategory.OST_TitleBlocks).WhereElementIsNotElementType()
+                    .Select(e => (doc.GetElement(e.GetTypeId()) as FamilySymbol) is FamilySymbol fs ? fs.FamilyName + " : " + fs.Name : "?"));
+                var vs = s.GetAllPlacedViews().Select(doc.GetElement).OfType<View>().Select(v => v.Name);
+                sb.AppendLine($"   {s.SheetNumber} | {s.Name} | carimbo {tb} | vistas: {string.Join("; ", vs)}");
+            }
+            sb.AppendLine("CARIMBOS CARREGADOS");
+            foreach (FamilySymbol fs in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_TitleBlocks).WhereElementIsElementType().OfType<FamilySymbol>())
+                sb.AppendLine($"   {fs.FamilyName} : {fs.Name}");
+            sb.AppendLine("IDENTIFICADORES CARREGADOS");
+            foreach (var cat in new[] { BuiltInCategory.OST_StructuralColumnTags, BuiltInCategory.OST_StructuralFramingTags, BuiltInCategory.OST_FloorTags,
+                                        BuiltInCategory.OST_StructuralFoundationTags, BuiltInCategory.OST_MultiCategoryTags, BuiltInCategory.OST_SpanDirectionSymbol,
+                                        BuiltInCategory.OST_GenericAnnotation, BuiltInCategory.OST_SpotElevSymbols })
+                foreach (FamilySymbol fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).OfCategory(cat).Cast<FamilySymbol>())
+                {
+                    int usos = new FilteredElementCollector(doc).OfClass(typeof(IndependentTag)).Cast<IndependentTag>().Count(t => t.GetTypeId() == fs.Id);
+                    sb.AppendLine($"   {cat} | {fs.FamilyName} : {fs.Name} | usado {usos}x");
+                }
+            foreach (var (cat, nome) in new[] { (BuiltInCategory.OST_StructuralColumns, "PILARES"), (BuiltInCategory.OST_StructuralFraming, "VIGAS"),
+                                                (BuiltInCategory.OST_Floors, "PISOS"), (BuiltInCategory.OST_StructuralFoundation, "FUNDAÇÕES") })
+            {
+                sb.AppendLine(nome + " (tipo | material | quantidade | com marca | exemplos de marca | nível)");
+                var els = new FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType()
+                    .Where(e => !(e is FamilyInstance fi) || fi.SuperComponent == null).ToList();
+                foreach (var g in els.GroupBy(e => (doc.GetElement(e.GetTypeId()) is ElementType et ? (et as FamilySymbol)?.FamilyName + " : " + et.Name : "?")).OrderBy(g => g.Key))
+                {
+                    string mat = g.First() is FamilyInstance f0 ? f0.StructuralMaterialType.ToString() : "";
+                    var marcas = g.Select(ModeloFormas.Marca).Where(m => m != "").ToList();
+                    string niv = string.Join("/", g.Select(e => doc.GetElement(e.LevelId)?.Name ?? (e is FamilyInstance fi && ModeloFormas.NivelDaViga(doc, fi) is Level lv ? lv.Name : "")).Distinct().Take(4));
+                    sb.AppendLine($"   {g.Key} | {mat} | {g.Count()} | {marcas.Count} | {string.Join(",", marcas.Distinct().Take(6))} | {niv}");
+                }
+            }
+            sb.AppendLine("TABELAS");
+            foreach (ViewSchedule vs in new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>().Where(v => !v.IsTemplate && !v.IsTitleblockRevisionSchedule))
+                sb.AppendLine($"   {vs.Name}");
+            sb.AppendLine("LEGENDAS");
+            foreach (View v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Where(v => v.ViewType == ViewType.Legend && !v.IsTemplate))
+                sb.AppendLine($"   {v.Name}");
+            sb.AppendLine("TIPOS DE COTA / TEXTO");
+            sb.AppendLine("   " + string.Join(" | ", new FilteredElementCollector(doc).OfClass(typeof(DimensionType)).Cast<DimensionType>().Where(t => t.StyleType == DimensionStyleType.Linear).Select(t => t.Name)));
+            sb.AppendLine("   " + string.Join(" | ", new FilteredElementCollector(doc).OfClass(typeof(TextNoteType)).Cast<TextNoteType>().Select(t => t.Name)));
+            sb.AppendLine($"EIXOS: {new FilteredElementCollector(doc).OfClass(typeof(Grid)).GetElementCount()}");
+            return sb.ToString();
+        }
+
         // ------------------------------------------------------------------ sondagem das famílias de identificador
 
         /// <summary>
@@ -232,6 +366,9 @@ namespace DEB.Revit.Formas
 
         private static void SondaFamilia(Document doc, string arquivo, Dictionary<BuiltInCategory, (Element E, View V)> alvos, Action<string> W)
         {
+            // tipos cujo TagText derrubou o Revit (13/11/2026: "Nome de Pilar" tipo "N - S - NV - Alinhamento dir", queda nativa);
+            // SD_SONDA_SEM_TEXTO = trechos de nome de tipo separados por ";" (padrão: " NV ")
+            string[] semTextoTipos = (Environment.GetEnvironmentVariable("SD_SONDA_SEM_TEXTO") ?? " NV ").Split(';').Where(x => x != "").ToArray();
             using (var tg = new TransactionGroup(doc, "Sonda: família"))
             {
                 tg.Start();
@@ -266,16 +403,17 @@ namespace DEB.Revit.Formas
                         WarningSwallower.Attach(t);
                         foreach (Element e in new[] { alvo.E, doc.GetElement(alvo.E.GetTypeId()) }.Where(x => x != null))
                             foreach (Parameter p in e.Parameters.Cast<Parameter>())
-                                if (p.StorageType == StorageType.String && !p.IsReadOnly && string.IsNullOrEmpty(p.AsString()))
+                                if (p.StorageType == StorageType.String && !p.IsReadOnly && !string.IsNullOrEmpty(p.Definition?.Name))
                                     try { if (p.Set("«" + p.Definition.Name + "»")) marcados.Add(p.Definition.Name); } catch { /* bloqueado */ }
                         t.Commit();
                     }
-                    W($"   {marcados.Count} parâmetro(s) de texto vazios marcados com «nome»");
+                    W($"   {marcados.Count} parâmetro(s) de texto graváveis marcados com «nome»");
                     var valores = Valores(doc, alvo.E);
 
                     foreach (FamilySymbol s in fam.GetFamilySymbolIds().Select(doc.GetElement).OfType<FamilySymbol>().OrderBy(x => x.Name))
                     {
-                        W($"   tipo \"{s.Name}\": criando identificador…");
+                        bool semTexto = semTextoTipos.Any(x => s.Name.IndexOf(x, StringComparison.OrdinalIgnoreCase) >= 0);
+                        W($"   tipo \"{s.Name}\": criando identificador…" + (semTexto ? " (texto NÃO lido: ler TagText deste tipo derruba o Revit)" : ""));
                         string texto;
                         using (var t = new Transaction(doc, "Sonda: identificador"))
                         {
@@ -288,7 +426,7 @@ namespace DEB.Revit.Formas
                             W("      criado; regenerando…");
                             doc.Regenerate();
                             W("      lendo o texto…");
-                            texto = tag.TagText ?? "";
+                            texto = semTexto ? "" : tag.TagText ?? "";
                             t.Commit();
                         }
                         string uma = texto.Replace("\r", " ").Replace("\n", " / ");

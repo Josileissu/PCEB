@@ -66,6 +66,7 @@ namespace DEB.Revit.Formas
                 catch { _log.Warn($"Escala da vista \"{v.Name}\" controlada pelo template de vista (ficou 1:{v.Scale})."); }
             if (nova)
             {
+                Profundidade(v, nivel);
                 _doc.Regenerate();
                 Recortar(v);
             }
@@ -91,6 +92,24 @@ namespace DEB.Revit.Formas
                 .OrderBy(t => t.ViewFamily == ViewFamily.StructuralPlan ? 0 : 1).FirstOrDefault()
                 ?? throw new InvalidOperationException("O projeto não tem tipo de vista de planta.");
             return ViewPlan.Create(_doc, vft.Id, nivel.Id);
+        }
+
+        /// <summary>Vista nova olha abaixo do nível (vigas com o topo no nível, blocos de fundação): fundo e profundidade = nível −
+        /// <see cref="FormasSettings.ProfundidadeVistaM"/>. Template que controla a faixa da vista: fica a dele, com aviso.</summary>
+        private void Profundidade(ViewPlan v, Level nivel)
+        {
+            if (_cfg.ProfundidadeVistaM <= 0) return;
+            try
+            {
+                PlanViewRange r = v.GetViewRange();
+                double d = -U.Mm(_cfg.ProfundidadeVistaM * 1000);
+                r.SetLevelId(PlanViewPlane.ViewDepthPlane, nivel.Id);
+                r.SetOffset(PlanViewPlane.ViewDepthPlane, d);
+                r.SetLevelId(PlanViewPlane.BottomClipPlane, nivel.Id);
+                r.SetOffset(PlanViewPlane.BottomClipPlane, d);
+                v.SetViewRange(r);
+            }
+            catch (Exception ex) { _log.Warn($"Faixa da vista \"{v.Name}\" não ajustada ({ex.Message}); peças abaixo do nível podem não aparecer."); }
         }
 
         /// <summary>Recorte da vista nova: eixos e peças estruturais visíveis, mais a folga do padrão.</summary>
@@ -143,7 +162,7 @@ namespace DEB.Revit.Formas
             List<FamilyInstance> pilares = Visiveis<FamilyInstance>(v, BuiltInCategory.OST_StructuralColumns)
                 .Where(c => pilaresOk.Contains(c.Id) && ModeloFormas.Marca(c) != "").ToList();
             string papelPilar = tipo == TipoPlanta.Locacao ? "PilarLocacao" : "PilarMontagem";
-            Identificar(v, papelPilar, BuiltInCategory.OST_StructuralColumnTags, pilares.Cast<Element>().ToList(), e =>
+            Identificar(v, papelPilar, BuiltInCategory.OST_StructuralColumnTags, pilares.Cast<Element>().ToList(), Lado.Direita, e =>
             {
                 var c = Caixa(e, v);
                 return c == null ? null : (Ponto(v, c.Value.MaxR + Afast(v), (c.Value.MinU + c.Value.MaxU) / 2, z), (double?)null);
@@ -152,7 +171,7 @@ namespace DEB.Revit.Formas
             if (tipo == TipoPlanta.Locacao)
             {
                 List<Element> fundacoes = Visiveis<Element>(v, BuiltInCategory.OST_StructuralFoundation).Where(f => ModeloFormas.Marca(f) != "").ToList();
-                Identificar(v, "Fundacao", BuiltInCategory.OST_StructuralFoundationTags, fundacoes, e =>
+                Identificar(v, "Fundacao", BuiltInCategory.OST_StructuralFoundationTags, fundacoes, Lado.Abaixo, e =>
                 {
                     var c = Caixa(e, v);
                     return c == null ? null : (Ponto(v, c.Value.MinR, c.Value.MinU - 2 * Afast(v), z), (double?)null);
@@ -163,10 +182,10 @@ namespace DEB.Revit.Formas
             List<FamilyInstance> vigas = Visiveis<FamilyInstance>(v, BuiltInCategory.OST_StructuralFraming)
                 .Where(b => vigasOk.Contains(b.Id) && ModeloFormas.Marca(b) != "")
                 .Where(b => { Level l = ModeloFormas.NivelDaViga(_doc, b); return l == null || l.Id == nivel.Id; }).ToList();
-            Identificar(v, "Viga", BuiltInCategory.OST_StructuralFramingTags, vigas.Cast<Element>().ToList(), e => PosicaoViga((FamilyInstance)e, v, z));
+            Identificar(v, "Viga", BuiltInCategory.OST_StructuralFramingTags, vigas.Cast<Element>().ToList(), Lado.Viga, e => PosicaoViga((FamilyInstance)e, v, z));
 
             List<Floor> lajes = Visiveis<Floor>(v, BuiltInCategory.OST_Floors).Where(f => f.LevelId == nivel.Id && ModeloFormas.Marca(f) != "").ToList();
-            Identificar(v, "Laje", BuiltInCategory.OST_FloorTags, lajes.Cast<Element>().ToList(), e =>
+            Identificar(v, "Laje", BuiltInCategory.OST_FloorTags, lajes.Cast<Element>().ToList(), Lado.Centro, e =>
             {
                 var c = Caixa(e, v);
                 return c == null ? null : (Ponto(v, (c.Value.MinR + c.Value.MaxR) / 2, (c.Value.MinU + c.Value.MaxU) / 2, z), (double?)null);
@@ -186,16 +205,7 @@ namespace DEB.Revit.Formas
         /// <summary>Caixa do elemento nas coordenadas da vista (cantos da caixa projetados na direita/para cima).</summary>
         private static (double MinR, double MaxR, double MinU, double MaxU)? Caixa(Element e, View v)
         {
-            BoundingBoxXYZ bb = e.get_BoundingBox(v) ?? e.get_BoundingBox(null);
-            if (bb == null) return null;
-            var rs = new List<double>(); var us = new List<double>();
-            foreach (double x in new[] { bb.Min.X, bb.Max.X })
-                foreach (double y in new[] { bb.Min.Y, bb.Max.Y })
-                {
-                    var p = new XYZ(x, y, 0);
-                    rs.Add(p.DotProduct(v.RightDirection)); us.Add(p.DotProduct(v.UpDirection));
-                }
-            return (rs.Min(), rs.Max(), us.Min(), us.Max());
+            return CaixaDe(e.get_BoundingBox(v) ?? e.get_BoundingBox(null), v);
         }
 
         /// <summary>Viga: no meio do eixo, acima da peça (lado "de cima" da vista; viga em pé = à esquerda), girado com a peça
@@ -327,7 +337,7 @@ namespace DEB.Revit.Formas
             return s;
         }
 
-        private void Identificar(ViewPlan v, string papel, BuiltInCategory tagCat, List<Element> alvos, Func<Element, (XYZ, double?)?> posicao)
+        private void Identificar(ViewPlan v, string papel, BuiltInCategory tagCat, List<Element> alvos, Lado lado, Func<Element, (XYZ, double?)?> posicao)
         {
             string marca = "id-" + papel;
             var ids = new HashSet<ElementId>(alvos.Select(e => e.Id));
@@ -347,6 +357,7 @@ namespace DEB.Revit.Formas
                 .SelectMany(t => t.GetTaggedLocalElementIds()));
             int criados = 0, mantidos = 0, manuais = 0, falhas = 0;
             string erro = null;
+            var novos = new List<(IndependentTag Tag, Element Alvo)>();
             foreach (Element e in alvos)
             {
                 if (meus.TryGetValue(e.Id, out IndependentTag t))
@@ -365,13 +376,69 @@ namespace DEB.Revit.Formas
                         ang == null ? TagOrientation.Horizontal : TagOrientation.AnyModelDirection, pt);
                     if (ang != null) try { nt.RotationAngle = ang.Value; } catch { /* família que não gira */ }
                     MarcaFormas.Marcar(nt, marca);
+                    novos.Add((nt, e));
                     criados++;
                 }
                 catch (Exception ex) { falhas++; erro ??= ex.Message; }
             }
+            Ajustar(v, novos, lado);
             _log.Info($"Identificadores {papel}: {criados} criado(s), {mantidos} mantido(s), {apagados} apagado(s)" +
                       (manuais > 0 ? $", {manuais} peça(s) já identificadas à mão" : "") + ".");
             if (falhas > 0) _log.Warn($"Identificadores {papel}: {falhas} não criados{(erro != null ? $" ({erro})" : "")}.");
+        }
+
+        /// <summary>Onde o identificador fica em relação à peça.</summary>
+        private enum Lado { Direita, Abaixo, Centro, Viga }
+
+        /// <summary>
+        /// Acerta a posição dos identificadores novos pela caixa REAL do texto (a origem de cada família é diferente: "Alinhamento dir"
+        /// cresce para a esquerda, outras para a direita): pilar = texto à direita da peça, centrado na altura; fundação = abaixo,
+        /// alinhado à esquerda; laje = centrado; viga = acima da peça (viga mais em pé que deitada: à esquerda). Uma regeneração só.
+        /// </summary>
+        private void Ajustar(View v, List<(IndependentTag Tag, Element Alvo)> novos, Lado lado)
+        {
+            if (novos.Count == 0) return;
+            try { _doc.Regenerate(); } catch { return; }
+            double off = Afast(v);
+            foreach (var (t, e) in novos)
+            {
+                try
+                {
+                    var c = Caixa(e, v);
+                    var tb = CaixaDe(t.get_BoundingBox(v), v);
+                    if (c == null || tb == null) continue;
+                    var (a, b) = (c.Value, tb.Value);
+                    double cr = (a.MinR + a.MaxR) / 2, cu = (a.MinU + a.MaxU) / 2, tr = (b.MinR + b.MaxR) / 2, tu = (b.MinU + b.MaxU) / 2;
+                    double dr, du;
+                    switch (lado)
+                    {
+                        case Lado.Direita: dr = a.MaxR + off - b.MinR; du = cu - tu; break;
+                        case Lado.Abaixo: dr = a.MinR - b.MinR; du = a.MinU - off - b.MaxU; break;
+                        case Lado.Centro: dr = cr - tr; du = cu - tu; break;
+                        default:
+                            bool deitada = a.MaxR - a.MinR >= a.MaxU - a.MinU;
+                            if (deitada) { dr = cr - tr; du = a.MaxU + off - b.MinU; }
+                            else { dr = a.MinR - off - b.MaxR; du = cu - tu; }
+                            break;
+                    }
+                    if (Math.Abs(dr) < 1e-6 && Math.Abs(du) < 1e-6) continue;
+                    t.TagHeadPosition = t.TagHeadPosition + Ponto(v, dr, du, 0);
+                }
+                catch { /* fica onde foi criado */ }
+            }
+        }
+
+        private static (double MinR, double MaxR, double MinU, double MaxU)? CaixaDe(BoundingBoxXYZ bb, View v)
+        {
+            if (bb == null) return null;
+            var rs = new List<double>(); var us = new List<double>();
+            foreach (double x in new[] { bb.Min.X, bb.Max.X })
+                foreach (double y in new[] { bb.Min.Y, bb.Max.Y })
+                {
+                    var p = new XYZ(x, y, 0);
+                    rs.Add(p.DotProduct(v.RightDirection)); us.Add(p.DotProduct(v.UpDirection));
+                }
+            return (rs.Min(), rs.Max(), us.Min(), us.Max());
         }
 
         // ------------------------------------------------------------------ sentido do vão
