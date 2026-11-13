@@ -365,7 +365,7 @@ namespace DEB.Revit.Presentation
         /// <summary>Quanto (m) os eixos passam da estrutura nas vistas do comando (extensão 2D, para o recorte ficar justo).</summary>
         public double EixoAlemM { get; set; } = 1.0;
         /// <summary>Folga (m) do recorte das vistas criadas pelo comando em volta dos eixos e das peças.</summary>
-        public double FolgaRecorteM { get; set; } = 0.8;
+        public double FolgaRecorteM { get; set; } = 0.7;
         /// <summary>Distância (mm de papel) da linha de cotas dos eixos à estrutura.</summary>
         public double AfastamentoCotasMm { get; set; } = 15;
         /// <summary>Altura (mm de papel) do texto do tipo de cota que o comando cria para os eixos.</summary>
