@@ -129,12 +129,7 @@ namespace DEB.Revit.Formas
             {
                 // detalhe típico: a legenda com o nome; se não existe e o padrão aponta um DXF (cm, tamanho real), é criada dele uma
                 // vez (linhas e textos nativos, LegendFactory — a mesma das pranchas dos pilares) e reaproveitada nas outras folhas
-                View lg = LegendFactory.Find(_doc, ls.Nome.Trim());
-                if (lg == null && !string.IsNullOrWhiteSpace(ls.Arquivo))
-                {
-                    _legendas ??= new LegendFactory(_doc, AnnotationStyles.Ensure(_doc, _std), _log, _std.Folha.ArquivoLegendaBase);
-                    lg = _legendas.Create(ls);
-                }
+                View lg = LegendFactory.Find(_doc, ls.Nome.Trim());   // as do DXF são criadas antes, na etapa própria (CriarLegendas)
                 if (lg == null) { _log.Warn($"Legenda \"{ls.Nome}\" não existe no projeto (não colocada)."); continue; }
                 Viewport lvp = Viewports(sheet).FirstOrDefault(x => x.ViewId == lg.Id) ?? Viewport.Create(_doc, sheet.Id, lg.Id, XYZ.Zero);
                 string reg = _std.Regioes.ContainsKey(ls.Regiao ?? "") ? ls.Regiao : "Legendas";
@@ -181,6 +176,18 @@ namespace DEB.Revit.Formas
                 ElementTransformUtils.MoveElements(_doc, outros.Select(e => e.Id).ToList(), new XYZ(0, dy, 0));
             }
             catch (Exception ex) { _log.Warn($"Tabelas/notas não aproximadas da planta: {ex.Message}"); }
+        }
+
+        /// <summary>Detalhes típicos da folha (legendas criadas dos DXF do padrão que ainda não existem). Etapa própria: um DXF ruim
+        /// não desfaz a folha. Precisa de transação.</summary>
+        public void CriarLegendas(FormasSheetSpec spec)
+        {
+            foreach (LegendSpec ls in (spec?.Legendas ?? new List<LegendSpec>()).Where(l => l.Ativa && !string.IsNullOrWhiteSpace(l.Nome) && !string.IsNullOrWhiteSpace(l.Arquivo)))
+            {
+                if (LegendFactory.Find(_doc, ls.Nome.Trim()) != null) continue;
+                _legendas ??= new LegendFactory(_doc, AnnotationStyles.Ensure(_doc, _std), _log, _std.Folha.ArquivoLegendaBase);
+                _legendas.Create(ls);
+            }
         }
 
         /// <summary>Largura aproximada da região (fração da folha A0 útil), para a largura da caixa das notas.</summary>

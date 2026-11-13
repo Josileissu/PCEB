@@ -26,6 +26,16 @@ namespace DEB.Revit.Formas
 
         public PlantaFormas(Document doc, FormasSettings cfg, PieceLog log) { _doc = doc; _cfg = cfg; _log = log; }
 
+        private static readonly HashSet<string> Recarregadas = new HashSet<string>();
+
+        /// <summary>Carrega a família por cima da do projeto, inclusive os valores dos parâmetros.</summary>
+        private sealed class SubstituirFamilia : IFamilyLoadOptions
+        {
+            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues) { overwriteParameterValues = true; return true; }
+            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+            { source = FamilySource.Family; overwriteParameterValues = true; return true; }
+        }
+
         public static string Chave(TipoPlanta t) => t == TipoPlanta.Locacao ? "locacao" : t == TipoPlanta.Paginacao ? "paginacao" : "montagem";
 
         private FormasSheetSpec SpecDe(TipoPlanta t) => t == TipoPlanta.Locacao ? _cfg.Locacao : t == TipoPlanta.Paginacao ? _cfg.Paginacao : _cfg.Montagem;
@@ -396,6 +406,20 @@ namespace DEB.Revit.Formas
             bool Eq(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
             List<FamilySymbol> todos = Todos();
             FamilySymbol s = todos.FirstOrDefault(x => fam != "" && Eq(x.FamilyName, fam) && (tipo == "" || Eq(x.Name, tipo)));
+            // família do padrão com arquivo: carregada SUBSTITUINDO a do projeto com o mesmo nome (o usuário adapta a família na
+            // biblioteca e o modelo pode ter a versão antiga), uma vez por arquivo e por documento na sessão
+            if (fam != "" && !string.IsNullOrWhiteSpace(r.Arquivo) && File.Exists(r.Arquivo.Trim()) && todos.Any(x => Eq(x.FamilyName, fam)) &&
+                Recarregadas.Add(_doc.GetHashCode() + "|" + r.Arquivo.Trim().ToLowerInvariant()))
+            {
+                try
+                {
+                    if (_doc.LoadFamily(r.Arquivo.Trim(), new SubstituirFamilia(), out Family _)) _log.Info($"Família \"{fam}\" atualizada de {r.Arquivo.Trim()}.");
+                    _doc.Regenerate();
+                    todos = Todos();
+                    s = todos.FirstOrDefault(x => fam != "" && Eq(x.FamilyName, fam) && (tipo == "" || Eq(x.Name, tipo)));
+                }
+                catch (Exception ex) { _log.Warn($"Identificador {papel}: família não atualizada de {r.Arquivo} ({ex.Message})."); }
+            }
             if (s == null && fam != "" && !todos.Any(x => Eq(x.FamilyName, fam)) && !string.IsNullOrWhiteSpace(r.Arquivo))
             {
                 string arq = r.Arquivo.Trim();

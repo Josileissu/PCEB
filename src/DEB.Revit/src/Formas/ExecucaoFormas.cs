@@ -63,6 +63,8 @@ namespace DEB.Revit.Formas
                 {
                     Etapa(doc, "Formas: anotações", log, () => planta.Anotar(v, nivel, tipo));
                     if (folha)
+                        Etapa(doc, "Formas: detalhes típicos", log, () => new FolhaFormas(doc, std, log).CriarLegendas(new FolhaFormas(doc, std, log).Spec(tipo)), resolver: true);
+                    if (folha)
                         Etapa(doc, "Formas: folha", log, () =>
                             sheet = new FolhaFormas(doc, std, log).Montar(tipo, nivel, v, tabelas.Where(x => x != null && x.IsValidObject), numero, nome));
                 }
@@ -121,13 +123,13 @@ namespace DEB.Revit.Formas
         }
 
         /// <summary>Uma etapa = uma transação. Erro (exceção ou erro do Revit) desfaz a etapa e vai para o relatório.</summary>
-        public static bool Etapa(Document doc, string nome, PieceLog log, Action acao)
+        public static bool Etapa(Document doc, string nome, PieceLog log, Action acao, bool resolver = false)
         {
             using (var t = new Transaction(doc, nome))
             {
                 var falhas = new List<string>();
                 FailureHandlingOptions o = t.GetFailureHandlingOptions();
-                o.SetFailuresPreprocessor(new SemJanelas(falhas));
+                o.SetFailuresPreprocessor(new SemJanelas(falhas, resolver));
                 o.SetForcedModalHandling(false);
                 o.SetClearAfterRollback(true);
                 t.SetFailureHandlingOptions(o);
@@ -154,16 +156,20 @@ namespace DEB.Revit.Formas
         private sealed class SemJanelas : IFailuresPreprocessor
         {
             private readonly List<string> _falhas;
-            public SemJanelas(List<string> f) { _falhas = f; }
+            private readonly bool _resolver;
+            public SemJanelas(List<string> f, bool resolver = false) { _falhas = f; _resolver = resolver; }
             public FailureProcessingResult PreprocessFailures(FailuresAccessor fa)
             {
+                bool resolveu = false;
                 foreach (FailureMessageAccessor f in fa.GetFailureMessages())
                 {
                     if (f.GetSeverity() == FailureSeverity.Warning) { fa.DeleteWarning(f); continue; }
                     _falhas.Add(f.GetDescriptionText());
+                    // detalhe típico vindo de DXF: linha curta demais etc. — apaga só o elemento ruim e segue
+                    if (_resolver && f.HasResolutions()) { fa.ResolveFailure(f); resolveu = true; continue; }
                     return FailureProcessingResult.ProceedWithRollBack;
                 }
-                return FailureProcessingResult.Continue;
+                return resolveu ? FailureProcessingResult.ProceedWithCommit : FailureProcessingResult.Continue;
             }
         }
 

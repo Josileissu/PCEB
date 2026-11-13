@@ -133,7 +133,9 @@ namespace DEB.Revit.Formas
                             HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG,
                             ImageResolution = ImageResolution.DPI_150, PixelSize = 4000, ZoomType = ZoomFitType.FitToPage
                         };
-                        ieo.SetViewsAndSheets(ids.Distinct().Where(i => doc.GetElement(i) != null).ToList());
+                        // só as folhas (as vistas soltas dobravam o tempo); SD_PNG_VISTAS = 1 exporta também as vistas
+                        bool vistas = Environment.GetEnvironmentVariable("SD_PNG_VISTAS") == "1";
+                        ieo.SetViewsAndSheets(ids.Distinct().Where(i => doc.GetElement(i) is ViewSheet || (vistas && doc.GetElement(i) != null)).ToList());
                         doc.ExportImage(ieo);
                     }
                     catch (Exception ex) { sb.AppendLine("PNG não exportado: " + ex.Message); }
