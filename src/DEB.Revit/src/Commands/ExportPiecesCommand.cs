@@ -40,12 +40,16 @@ namespace DEB.Revit.Commands
                 return false;
             }
 
+            // Modelo na nuvem: o caminho ("Autodesk Docs://…") não é uma pasta do Windows e derruba o diálogo; só vale pasta que existe.
+            string pasta = null;
+            try { pasta = string.IsNullOrEmpty(doc.PathName) ? null : Path.GetDirectoryName(doc.PathName); } catch { }
+            if (pasta == null || !Directory.Exists(pasta)) pasta = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             var dlg = new Microsoft.Win32.SaveFileDialog
             {
                 Title = "Exportar peças para o CAD",
                 Filter = "Peças do DEB (*.json)|*.json",
                 FileName = ArquivoPecas.NomeArquivo(arq.Origem, DateTime.Now),
-                InitialDirectory = string.IsNullOrEmpty(doc.PathName) ? null : Path.GetDirectoryName(doc.PathName),
+                InitialDirectory = pasta,
             };
             if (dlg.ShowDialog() != true) return false;
             arq.Gravar(dlg.FileName);
