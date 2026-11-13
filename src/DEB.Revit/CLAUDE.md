@@ -170,6 +170,24 @@ em L (limites arredondados como a grade em `ClassificarPano`); (2) recortes de p
 coordenadas da extração arredondadas a 0,1 mm (`M4`, como o protótipo) e nova tentativa com 1 mm a mais; (3) "Completar" reconhece
 também o comentário do protótipo (`pano <id>`). Falta testar as janelas WPF com o usuário.
 
+## Formas (13/11/2026, decisão D25 — `src/Formas`, plano em `docs/04_arquitetura/pranchas_de_formas.md`, etapas 1–4)
+Painel "Formas": Atualizar dados, Cargas (CSV), Planta de locação, Planta de montagem (base `ToolCommand`; fluxo em `ExecucaoFormas`: uma
+transação por etapa — dados → tabela → vista → anotações → folha —, a que falha é desfeita e vai para `logs/formas_*.txt`).
+- **Parâmetros** (`ParametrosFormas`): compartilhados de instância, GUIDs FIXOS `8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN` (nunca mudar),
+  criados por arquivo temporário (o do usuário é restaurado). `SD_Ordem` (inteiro) = posição da marca na ordem natural (núcleo:
+  `Numeracao/ComparadorNatural`): as tabelas ordenam e filtram (&gt; 0) por ele, escondido. Textos (`DEB.Core/Formas/TextosFormas`) e CSV
+  das cargas (`CsvCargas`) no núcleo, com testes (`FormasTests`).
+- **Marca do comando**: Extensible Storage `DEB_Formas` (`MarcaFormas`, campo Papel: `vista-locacao:<nível>`, `tabela-cargas`,
+  `id-PilarMontagem`, `cota-eixos`, `folha-…`). Rodar de novo: refaz as cotas, mantém/atualiza os identificadores, sem duplicar.
+  Folha com o número pedido que já existe = adotada e atualizada (decisão do usuário, 13/11): só acrescenta o que é do comando.
+- **Configuração**: seção `Formas` do padrão `PCEB-FORMAS-A0` (`%AppData%\PCEB\DEB.Revit\Padroes`; no Git só valores genéricos/vazios;
+  famílias do escritório e caminhos só na cópia local). Filtros de pilar/viga (material, prefixo da marca, família): sem nenhuma peça do
+  material pedido, o critério de material é ignorado com aviso.
+- AutoRun: `formasdados`, `formaslocacao`, `formasmontagem` (rodam duas vezes; PNG da vista e da folha; `SD_NIVEL`, `SD_FORMAS_MARCAR=1`)
+  e `formassonda` (`SD_FAMILIAS_PASTA`, `SD_SONDA_PULAR`): qual parâmetro cada rótulo das famílias de identificador lê; grava linha a
+  linha (uma sondagem igual já derrubou o Revit — só em instância de teste). **Ainda não rodados no Revit** (13/11: sem como carregar a DLL
+  nova numa instância separada sem instalar na pasta de add-ins; `APPDATA` trocado não serve — o Revit usa a pasta conhecida do Windows).
+
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.
 - `ToolCommand`: base de todos — barreira de exceções (mensagem + log `logs/ferramentas_AAAAMMDD.log`), `ToolCancelled`.

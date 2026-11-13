@@ -155,7 +155,36 @@ namespace DEB.Revit.Presentation
                 Put(ls.Regiao, new Item { Element = vp, Viewport = vp, LabelH = ownTitle ? 0 : label });
             }
 
-            // Arranjo por região, com aumento de escala das vistas quando não couber.
+            ArrangeRegions(sheet, area, byRegion);
+            AlignElevations(views, byView);
+            if (Std.Folha.LegendaNiveis && firstElev?.LevelLineStart != null)
+                try { PlaceLevelsLegend(sheet, firstElev, byView[firstElev.View.Id].Viewport, center, ref noLabel); }
+                catch (Exception ex) { _log.Warn($"Legenda de níveis não criada: {ex.Message}"); _log.Trace("Legenda de níveis", ex); }
+            return sheet;
+        }
+
+        /// <summary>
+        /// Prancha comum (pranchas de formas, D25): arranja na folha já criada os itens dados — viewports (plantas, legendas) e
+        /// tabelas (ScheduleSheetInstance) — cada um na sua região, pelo mesmo arranjo das pranchas das peças. Precisa de transação.
+        /// </summary>
+        public void ComposePlain(ViewSheet sheet, IEnumerable<(Element Item, string Region)> items)
+        {
+            _doc.Regenerate();
+            Rect2 area = DrawingArea(sheet);
+            double label = U.Mm(Std.Folha.TituloVistaMm);
+            var byRegion = new Dictionary<string, List<Item>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (e, region) in items)
+            {
+                string key = region != null && Std.Regioes.ContainsKey(region) ? region : "";
+                if (!byRegion.TryGetValue(key, out var l)) byRegion[key] = l = new List<Item>();
+                l.Add(e is Viewport vp ? new Item { Element = vp, Viewport = vp, LabelH = label } : new Item { Element = e });
+            }
+            ArrangeRegions(sheet, area, byRegion);
+        }
+
+        /// <summary>Arranjo por região, com aumento de escala das vistas quando não couber.</summary>
+        private void ArrangeRegions(ViewSheet sheet, Rect2 area, Dictionary<string, List<Item>> byRegion)
+        {
             foreach (var kv in byRegion)
             {
                 Rect2 r = RegionRect(area, kv.Key);
@@ -191,11 +220,6 @@ namespace DEB.Revit.Presentation
                 }
                 Apply(sheet, kv.Value);
             }
-            AlignElevations(views, byView);
-            if (Std.Folha.LegendaNiveis && firstElev?.LevelLineStart != null)
-                try { PlaceLevelsLegend(sheet, firstElev, byView[firstElev.View.Id].Viewport, center, ref noLabel); }
-                catch (Exception ex) { _log.Warn($"Legenda de níveis não criada: {ex.Message}"); _log.Trace("Legenda de níveis", ex); }
-            return sheet;
         }
 
         /// <summary>
@@ -310,7 +334,8 @@ namespace DEB.Revit.Presentation
             }
         }
 
-        private ElementId TitleBlock()
+        /// <summary>Carimbo do padrão (carregado do arquivo se faltar; senão o 1º do projeto, com aviso). Precisa de transação.</summary>
+        internal ElementId TitleBlock()
         {
             string family = Std.Folha.FamiliaCarimbo?.Trim() ?? "";
             string want = Std.Folha.Carimbo?.Trim() ?? "";
@@ -347,7 +372,7 @@ namespace DEB.Revit.Presentation
         }
 
         /// <summary>Carrega a família só se ela ainda não existe (não sobrescreve a do projeto).</summary>
-        private sealed class OverwriteNothing : IFamilyLoadOptions
+        internal sealed class OverwriteNothing : IFamilyLoadOptions
         {
             public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues) { overwriteParameterValues = false; return false; }
             public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
@@ -355,7 +380,7 @@ namespace DEB.Revit.Presentation
         }
 
         /// <summary>Preenche parâmetros do carimbo; se o carimbo não tiver o parâmetro, tenta a própria folha.</summary>
-        private void FillTitleBlock(ViewSheet sheet)
+        internal void FillTitleBlock(ViewSheet sheet)
         {
             Element tb = new FilteredElementCollector(_doc, sheet.Id).OfCategory(BuiltInCategory.OST_TitleBlocks)
                 .WhereElementIsNotElementType().FirstElement();

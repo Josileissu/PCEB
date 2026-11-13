@@ -45,6 +45,10 @@ namespace DEB.Revit.Presentation
         /// <summary>Valores de produção usados nos textos (resistências, densidade do concreto...).</summary>
         public Dictionary<string, string> Producao { get; set; } = new Dictionary<string, string>();
 
+        /// <summary>Pranchas de formas (locação e montagem, D25): identificadores, filtros, tabelas e folhas. Padrões que não
+        /// têm esta seção (JSONs antigos) recebem os valores de fábrica.</summary>
+        public FormasSettings Formas { get; set; } = new FormasSettings();
+
         // ------------------------------------------------------------------
 
         private static readonly JsonSerializerOptions Json = new JsonSerializerOptions
@@ -306,5 +310,119 @@ namespace DEB.Revit.Presentation
         /// <summary>Tipo de vista (ex.: "AlcaIcamento") que ocupa este lugar no lugar da legenda: a vista da peça vai para a
         /// posição da legenda na região, e a legenda não entra.</summary>
         public string Vista { get; set; } = "";
+    }
+
+    // ----------------------------------------------------------------------
+    // Pranchas de formas (D25, docs/04_arquitetura/pranchas_de_formas.md)
+
+    /// <summary>
+    /// Pranchas de formas: os papéis dos identificadores (família/tipo/arquivo), os filtros das peças, os nomes das tabelas, vistas e
+    /// folhas e os valores usados nos parâmetros calculados. Caminhos de arquivo (famílias, carimbo) ficam só na cópia do usuário em
+    /// %AppData% (padrões do escritório não vão para o Git). Campos de texto aceitam {Nivel} (nome do nível).
+    /// </summary>
+    public sealed class FormasSettings
+    {
+        /// <summary>Papéis dos identificadores: PilarLocacao, PilarMontagem, Viga, Laje, Fundacao.</summary>
+        public Dictionary<string, TagRoleSpec> Identificadores { get; set; } = new Dictionary<string, TagRoleSpec>
+        {
+            ["PilarLocacao"] = new TagRoleSpec(),
+            ["PilarMontagem"] = new TagRoleSpec(),
+            ["Viga"] = new TagRoleSpec(),
+            ["Laje"] = new TagRoleSpec(),
+            ["Fundacao"] = new TagRoleSpec(),
+        };
+        /// <summary>Símbolo de sentido do vão nas lajes da montagem ("Família" ou "Família : Tipo"; vazio = o 1º carregado; sem
+        /// nenhum carregado, não coloca).</summary>
+        public string SentidoDoVao { get; set; } = "";
+        public bool ColocarSentidoDoVao { get; set; } = true;
+
+        /// <summary>Pilares que recebem dados, identificador e entram na tabela de cargas.</summary>
+        public PieceFilterSpec FiltroPilares { get; set; } = new PieceFilterSpec();
+        /// <summary>Vigas que recebem dados e identificador (as metálicas e os painéis alveolares modelados como viga ficam de fora).</summary>
+        public PieceFilterSpec FiltroVigas { get; set; } = new PieceFilterSpec { PrefixoMarca = "V" };
+
+        /// <summary>Nomes dos parâmetros de TIPO (ou de instância) com a largura e a altura da seção, na ordem de procura.</summary>
+        public List<string> ParametrosLargura { get; set; } = new List<string> { "b", "B", "bw", "Largura" };
+        public List<string> ParametrosAltura { get; set; } = new List<string> { "h", "H", "Altura" };
+
+        /// <summary>Nível que é o zero dos níveis relativos (nome exato); vazio = ponto base do projeto. A cota absoluta vem sempre
+        /// do ponto de levantamento (coordenadas compartilhadas).</summary>
+        public string NivelZero { get; set; } = "";
+        /// <summary>Peso próprio da laje = espessura × densidade (kgf/m³), só quando o parâmetro está vazio.</summary>
+        public double DensidadeConcretoKgfM3 { get; set; } = 2500;
+        /// <summary>Peso próprio (kgf/m²) por nome de tipo de piso (laje alveolar, nervurada...), no lugar da conta pela espessura.</summary>
+        public Dictionary<string, double> PesoProprioPorTipo { get; set; } = new Dictionary<string, double>();
+
+        /// <summary>Escala das plantas de formas.</summary>
+        public int Escala { get; set; } = 50;
+        /// <summary>Folga (m) do recorte das vistas criadas pelo comando em volta dos eixos e das peças.</summary>
+        public double FolgaRecorteM { get; set; } = 1.0;
+        /// <summary>Distância (mm de papel) da linha de cotas dos eixos à estrutura.</summary>
+        public double AfastamentoCotasMm { get; set; } = 15;
+        /// <summary>Distância (mm de papel) do identificador à peça.</summary>
+        public double AfastamentoIdentificadorMm { get; set; } = 2;
+        /// <summary>Tipo de cota das cotas de eixos (nome exato; vazio ou inexistente = o 1º tipo linear, com aviso).</summary>
+        public string TipoDeCota { get; set; } = "";
+        /// <summary>Tipos de texto das tabelas (nome exato; vazio = o do Revit).</summary>
+        public string TextoTabelaCorpo { get; set; } = "";
+        public string TextoTabelaCabecalho { get; set; } = "";
+        public string TextoTabelaTitulo { get; set; } = "";
+
+        public string NomeTabelaCargas { get; set; } = "PCEB - CARGAS NA FUNDAÇÃO";
+        public string TituloTabelaCargas { get; set; } = "CARGAS NA FUNDAÇÃO";
+        public string NomeTabelaLajes { get; set; } = "PCEB - LAJES - {Nivel}";
+        public string TituloTabelaLajes { get; set; } = "LAJES - {Nivel}";
+
+        public FormasSheetSpec Locacao { get; set; } = new FormasSheetSpec
+        {
+            NomeVista = "PCEB - LOCAÇÃO - {Nivel}",
+            NumeroFolha = "FOR-LOC",
+            NomeFolha = "PLANTA DE LOCAÇÃO E CARGAS NA FUNDAÇÃO",
+        };
+        public FormasSheetSpec Montagem { get; set; } = new FormasSheetSpec
+        {
+            NomeVista = "PCEB - MONTAGEM - {Nivel}",
+            NumeroFolha = "FOR-{Nivel}",
+            NomeFolha = "PLANTA DE MONTAGEM - {Nivel}",
+        };
+
+        /// <summary>Papel pelo nome; papel ausente no JSON = vazio (usa o identificador que houver).</summary>
+        public TagRoleSpec Role(string name) =>
+            Identificadores != null && Identificadores.TryGetValue(name, out TagRoleSpec r) && r != null ? r : new TagRoleSpec();
+    }
+
+    /// <summary>Família de identificador de um papel. As famílias são feitas à mão (a API não cria rótulos) lendo os parâmetros SD_.</summary>
+    public sealed class TagRoleSpec
+    {
+        /// <summary>Nome da família no projeto (vazio = qualquer identificador da categoria).</summary>
+        public string Familia { get; set; } = "";
+        /// <summary>Nome do tipo (vazio = o 1º da família).</summary>
+        public string Tipo { get; set; } = "";
+        /// <summary>.rfa carregado quando a família não está no projeto (caminho local, fora do Git).</summary>
+        public string Arquivo { get; set; } = "";
+    }
+
+    /// <summary>Quais peças da categoria entram (dados, identificador, tabela).</summary>
+    public sealed class PieceFilterSpec
+    {
+        /// <summary>Material estrutural da família (Concrete, PrecastConcrete, Steel...); vazio = todos.</summary>
+        public List<string> Materiais { get; set; } = new List<string> { "Concrete", "PrecastConcrete" };
+        /// <summary>Começo da marca (sem diferenciar maiúsculas); vazio = qualquer.</summary>
+        public string PrefixoMarca { get; set; } = "";
+        /// <summary>Trechos do nome da família; vazio = qualquer família.</summary>
+        public List<string> Familias { get; set; } = new List<string>();
+    }
+
+    /// <summary>Vista e folha de um tipo de planta de formas.</summary>
+    public sealed class FormasSheetSpec
+    {
+        public string NomeVista { get; set; } = "";
+        public string NumeroFolha { get; set; } = "";
+        public string NomeFolha { get; set; } = "";
+        /// <summary>Legendas fixas do projeto (detalhes, convenções, notas), pelo nome; as que não existem são avisadas.</summary>
+        public List<LegendSpec> Legendas { get; set; } = new List<LegendSpec>();
+        /// <summary>Regiões da folha (padrão: "Planta", "Tabelas", "Legendas" de <see cref="PresentationStandard.Regioes"/>).</summary>
+        public string RegiaoPlanta { get; set; } = "Planta";
+        public string RegiaoTabelas { get; set; } = "Tabelas";
     }
 }

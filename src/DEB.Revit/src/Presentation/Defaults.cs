@@ -22,9 +22,45 @@ namespace DEB.Revit.Presentation
                 case "VigaPreMoldada": return Generic("VigaPreMoldada", "ARMADURA DA VIGA / BEAM REINFORCEMENT");
                 case "Laje": return Generic("Laje", "ARMADURA DA LAJE / SLAB REINFORCEMENT");
                 case "Fundacao": return Generic("Fundacao", "ARMADURA DA FUNDAÇÃO / FOUNDATION REINFORCEMENT");
+                case Formas: return FormasStandard();
                 default: return Generic(elemento, "DETALHAMENTO");
             }
         }
+
+        /// <summary>Elemento do padrão das pranchas de formas (locação e montagem).</summary>
+        public const string Formas = "Formas";
+
+        /// <summary>
+        /// Pranchas de formas (D25): planta à esquerda, tabelas e legendas à direita, sem título grande nem legenda de níveis, escala
+        /// fixa (a planta não muda de escala para caber). Família do carimbo, arquivos e legendas: na cópia do usuário em %AppData%.
+        /// </summary>
+        private static PresentationStandard FormasStandard() => new PresentationStandard
+        {
+            Codigo = "PCEB-FORMAS-A0",
+            Versao = 1,
+            Nome = "Pranchas de formas (locação e montagem)",
+            Elemento = Formas,
+            Descricao = "Planta de locação (com a tabela de cargas na fundação) e plantas de montagem por pavimento (com a tabela de lajes). " +
+                        "Ajuste a seção \"Formas\" (famílias dos identificadores, filtros, nomes) e o carimbo.",
+            Folha = new SheetSettings
+            {
+                Carimbo = "A0",   // referência em A0; o arquivo da família (ArquivoCarimbo) fica na cópia local do usuário
+                NumeroFolha = "",
+                NomeFolha = "",
+                LegendaNiveis = false,
+                EscalasAlternativas = new[] { 50 },
+            },
+            Textos = new TextSettings { TituloPeca = "" },
+            Regioes = new Dictionary<string, Region>
+            {
+                ["Planta"] = new Region(0.00, 0.00, 0.72, 1.00),
+                ["Tabelas"] = new Region(0.73, 0.40, 0.27, 0.60),
+                ["Legendas"] = new Region(0.73, 0.00, 0.27, 0.40),
+            },
+            Vistas = new List<ViewSpec>(),
+            Tabelas = new List<TableSpec>(),
+            Formas = new FormasSettings(),
+        };
 
         /// <summary>Padrão do PCEB embutido na DLL (arquivos src/DEB.Revit/Padroes/*.json) para o elemento.</summary>
         private static PresentationStandard Embedded(string elemento)

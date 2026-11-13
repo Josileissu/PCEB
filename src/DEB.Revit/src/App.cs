@@ -109,6 +109,7 @@ namespace DEB.Revit
             precast.AddItem(lajeAlveolar);
 
             AddToolsPanel(application, dll);
+            AddFormasPanel(application, dll);
 
             AutoRun.Register(application);
             return Result.Succeeded;
@@ -156,6 +157,38 @@ namespace DEB.Revit
             });
             copy.AddPushButton(Btn("DEB_CopFundacoes", "Fundações", typeof(CopyFoundationsCommand), "Fundações, sapatas corridas e montagens com fundações de outro arquivo.", "F"));
             copy.AddPushButton(Btn("DEB_CopMontagens", "Montagens com vistas", typeof(CopyAssembliesCommand), "Montagens com membros, vistas da montagem e folhas de outro arquivo.", "A"));
+        }
+
+        /// <summary>Painel "Formas" (D25): pranchas de locação e de montagem — dados SD_, cargas por CSV, plantas anotadas, tabelas e folhas.</summary>
+        private static void AddFormasPanel(UIControlledApplication application, string dll)
+        {
+            RibbonPanel formas = application.CreateRibbonPanel(TabName, "Formas");
+            string projectOnly = typeof(ProjectOnlyAvailability).FullName;
+            PushButtonData Btn(string id, string text, System.Type cmd, string tip, string longTip, string icon) => new PushButtonData(id, text, dll, cmd.FullName)
+            {
+                ToolTip = tip,
+                LongDescription = longTip,
+                AvailabilityClassName = projectOnly,
+                LargeImage = IconFactory.Create(32, icon),
+                Image = IconFactory.Create(16, icon.Substring(0, 1))
+            };
+            formas.AddItem(Btn("DEB_FormasDados", "Atualizar\ndados", typeof(Formas.AtualizarDadosFormasCommand),
+                "Cria os parâmetros SD_ das pranchas de formas e grava os textos calculados (seção, níveis, comprimento, elevação, dados das lajes).",
+                "Pilares: SD_Secao, SD_NivelTopo, SD_NivelTopoBloco, SD_NivelBase (\"12,00 m (907,80)\") e SD_ComprimentoTotal. Vigas: SD_Secao e " +
+                "SD_Elevacao (\"e=-29.5\"). Lajes com marca: altura, elevação, nível, tipo e peso próprio (estes dois só se vazios). Esforços, " +
+                "sobrecargas e observações digitados nunca são alterados. Rode de novo depois de mexer no modelo.", "D"));
+            formas.AddItem(Btn("DEB_FormasCargas", "Cargas\n(CSV)", typeof(Formas.CargasCsvFormasCommand),
+                "Importa ou exporta os esforços na fundação dos pilares (Marca;Fz_Max;Fz_Min;Mx_Pos;…;Fy_Neg).",
+                "Importar grava os valores nos pilares com a mesma marca (vírgula ou ponto decimal; célula vazia não altera) e lista as marcas " +
+                "que não existem no modelo. Exportar grava os valores do modelo no mesmo formato.", "CSV"));
+            formas.AddItem(Btn("DEB_FormasLocacao", "Planta de\nlocação", typeof(Formas.PlantaLocacaoCommand),
+                "Planta de locação do nível em 1:50: cotas de eixos, identificadores de pilares e fundações, tabela de cargas na fundação e folha.",
+                "As famílias de identificador e os nomes vêm da seção \"Formas\" do padrão PCEB-FORMAS-A0 (Configurar). Rodar de novo atualiza o " +
+                "que o comando criou, sem duplicar.", "LO"));
+            formas.AddItem(Btn("DEB_FormasMontagem", "Planta de\nmontagem", typeof(Formas.PlantaMontagemCommand),
+                "Planta de montagem do pavimento em 1:50: cotas de eixos, identificadores de pilares, vigas e lajes, sentido do vão, tabela de lajes e folha.",
+                "As famílias de identificador e os nomes vêm da seção \"Formas\" do padrão PCEB-FORMAS-A0. Rodar de novo atualiza o que o comando " +
+                "criou, sem duplicar.", "MO"));
         }
 
         public Result OnShutdown(UIControlledApplication application) => Result.Succeeded;

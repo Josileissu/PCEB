@@ -104,6 +104,12 @@ namespace DEB.Revit
                     case "ferramentas":
                         status = "OK " + Tools.ToolsAutoTest.Run(uiapp, uidoc);
                         break;
+                    case "formasdados":
+                    case "formaslocacao":
+                    case "formasmontagem":
+                    case "formassonda":
+                        status = "OK " + Formas.FormasAutoTest.Run(uidoc, task);
+                        break;
                     default:
                         status = "ERRO tarefa desconhecida: " + _task;
                         break;
