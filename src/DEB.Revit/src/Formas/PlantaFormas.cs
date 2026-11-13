@@ -124,15 +124,31 @@ namespace DEB.Revit.Formas
         {
             try
             {
+                // estrutura (caixa das peças estruturais visíveis); os eixos são encurtados nesta vista (extensão 2D) até a estrutura
+                // + EixoAlemM, e o recorte fica justo: estrutura + eixos + bolhas (FolgaRecorteM). Planta grande cabe em 1:50.
                 var pts = new List<XYZ>();
-                foreach (Grid g in new FilteredElementCollector(_doc, v.Id).OfClass(typeof(Grid)).Cast<Grid>())
-                    foreach (Curve c in g.GetCurvesInView(DatumExtentType.ViewSpecific, v)) { pts.Add(c.GetEndPoint(0)); pts.Add(c.GetEndPoint(1)); }
                 foreach (Element e in Estruturais(v))
                 {
                     BoundingBoxXYZ bb = e.get_BoundingBox(v);
                     if (bb != null) { pts.Add(bb.Min); pts.Add(bb.Max); }
                 }
                 if (pts.Count < 2) return;
+                double ext = U.Mm(_cfg.EixoAlemM * 1000);
+                foreach (Grid g in new FilteredElementCollector(_doc, v.Id).OfClass(typeof(Grid)).Cast<Grid>())
+                {
+                    try
+                    {
+                        if (!(g.GetCurvesInView(DatumExtentType.ViewSpecific, v).FirstOrDefault() is Line l)) continue;
+                        XYZ d = l.Direction, o = l.GetEndPoint(0);
+                        double t0 = pts.Min(p => (p - o).DotProduct(d)) - ext, t1 = pts.Max(p => (p - o).DotProduct(d)) + ext;
+                        g.SetDatumExtentType(DatumEnds.End0, v, DatumExtentType.ViewSpecific);
+                        g.SetDatumExtentType(DatumEnds.End1, v, DatumExtentType.ViewSpecific);
+                        g.SetCurveInView(DatumExtentType.ViewSpecific, v, Line.CreateBound(o + d * t0, o + d * t1));
+                    }
+                    catch { /* eixo que não aceita: fica como está */ }
+                }
+                foreach (Grid g in new FilteredElementCollector(_doc, v.Id).OfClass(typeof(Grid)).Cast<Grid>())
+                    foreach (Curve c in g.GetCurvesInView(DatumExtentType.ViewSpecific, v)) { pts.Add(c.GetEndPoint(0)); pts.Add(c.GetEndPoint(1)); }
                 BoundingBoxXYZ cb = v.CropBox;
                 Transform inv = cb.Transform.Inverse;
                 List<XYZ> loc = pts.Select(inv.OfPoint).ToList();
@@ -158,9 +174,14 @@ namespace DEB.Revit.Formas
 
         // ------------------------------------------------------------------ anotações
 
+        private double _centroR, _centroU;
+
         public void Anotar(ViewPlan v, Level nivel, TipoPlanta tipo)
         {
             _doc.Regenerate();
+            EsconderMarcasAlheias(v);
+            var cx = Estruturais(v).Select(e => Caixa(e, v)).Where(c => c != null).Select(c => c.Value).ToList();
+            if (cx.Count > 0) { _centroR = (cx.Min(c => c.MinR) + cx.Max(c => c.MaxR)) / 2; _centroU = (cx.Min(c => c.MinU) + cx.Max(c => c.MaxU)) / 2; }
             CotasDeEixos(v);
             double z = nivel.ProjectElevation;
 
@@ -220,6 +241,21 @@ namespace DEB.Revit.Formas
                 return c == null ? null : (Ponto(v, (c.Value.MinR + c.Value.MaxR) / 2, (c.Value.MinU + c.Value.MaxU) / 2, z), (double?)null);
             });
             SentidoDoVao(v, lajes, z);
+        }
+
+        /// <summary>Marcas de corte e de elevação que não são do comando ficam escondidas nas vistas do comando (poluíam a planta).</summary>
+        private void EsconderMarcasAlheias(View v)
+        {
+            try
+            {
+                var nossos = new HashSet<string>(new FilteredElementCollector(_doc).OfClass(typeof(ViewSection)).Cast<ViewSection>()
+                    .Where(s => MarcaFormas.Papel(s) != "").Select(s => s.Name));
+                var ids = new FilteredElementCollector(_doc, v.Id).WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>
+                    { BuiltInCategory.OST_Viewers, BuiltInCategory.OST_Elev, BuiltInCategory.OST_Callouts }))
+                    .WhereElementIsNotElementType().Where(e => !nossos.Contains(e.Name) && e.CanBeHidden(v)).Select(e => e.Id).ToList();
+                if (ids.Count > 0) { v.HideElements(ids); _log.Info($"{ids.Count} marca(s) de corte/elevação que não são do comando escondidas na vista."); }
+            }
+            catch (Exception ex) { _log.Warn($"Marcas de corte não escondidas: {ex.Message}"); }
         }
 
         private List<T> Visiveis<T>(View v, BuiltInCategory cat) where T : Element =>
@@ -286,12 +322,13 @@ namespace DEB.Revit.Formas
             double z = v.GenLevel?.ProjectElevation ?? 0;
             DimensionType tipo = TipoDeCota();
             int n = 0;
-            n += Cota(v, verticais, p => Ponto(v, p, maxU + afast, z), tipo);
-            n += Cota(v, horizontais, p => Ponto(v, minR - afast, p, z), tipo);
+            double passo = U.Mm(8 * v.Scale);   // 8 mm de papel entre a cadeia e a cota total
+            n += Cota(v, verticais, p => Ponto(v, p, maxU + afast, z), tipo, p => Ponto(v, p, maxU + afast + passo, z));
+            n += Cota(v, horizontais, p => Ponto(v, minR - afast, p, z), tipo, p => Ponto(v, minR - afast - passo, p, z));
             _log.Info($"Cotas de eixos: {n} linha(s) ({verticais.Count} eixo(s) verticais, {horizontais.Count} horizontais).");
         }
 
-        private int Cota(ViewPlan v, List<(Grid G, double Pos)> eixos, Func<double, XYZ> ponto, DimensionType tipo)
+        private int Cota(ViewPlan v, List<(Grid G, double Pos)> eixos, Func<double, XYZ> ponto, DimensionType tipo, Func<double, XYZ> afastTotal = null)
         {
             var ord = new List<(Grid G, double Pos)>();
             foreach (var e in eixos.OrderBy(x => x.Pos))
@@ -304,6 +341,16 @@ namespace DEB.Revit.Formas
                 Line linha = Line.CreateBound(ponto(ord[0].Pos), ponto(ord[ord.Count - 1].Pos));
                 Dimension d = tipo != null ? _doc.Create.NewDimension(v, linha, ra, tipo) : _doc.Create.NewDimension(v, linha, ra);
                 MarcaFormas.Marcar(d, "cota-eixos");
+                if (ord.Count > 2 && afastTotal != null)
+                {
+                    // cota total, por fora da cadeia
+                    var rt = new ReferenceArray();
+                    rt.Append(new Reference(ord[0].G));
+                    rt.Append(new Reference(ord[ord.Count - 1].G));
+                    Line lt = Line.CreateBound(afastTotal(ord[0].Pos), afastTotal(ord[ord.Count - 1].Pos));
+                    Dimension dt = tipo != null ? _doc.Create.NewDimension(v, lt, rt, tipo) : _doc.Create.NewDimension(v, lt, rt);
+                    MarcaFormas.Marcar(dt, "cota-eixos");
+                }
                 return 1;
             }
             catch (Exception ex) { _log.Warn($"Cota de eixos não criada: {ex.Message}"); return 0; }
@@ -319,7 +366,7 @@ namespace DEB.Revit.Formas
             if (nome != "") _log.Warn($"Tipo de cota \"{nome}\" não existe no projeto; usado \"{NomeCotaEixos}\".");
             // tipo próprio em cm inteiros: o das unidades do projeto pode ter 6 casas ("645.000000")
             t = lin.FirstOrDefault(x => x.Name == NomeCotaEixos);
-            if (t != null) return t;
+            if (t != null) { try { t.get_Parameter(BuiltInParameter.LINE_COLOR)?.Set(0); } catch { } return t; }
             DimensionType fonte = lin.Where(x => x.GetSpecTypeId() == SpecTypeId.Length).OrderBy(x => x.Name).FirstOrDefault() ?? lin.FirstOrDefault();
             if (fonte == null) return null;
             try
@@ -327,6 +374,7 @@ namespace DEB.Revit.Formas
                 t = (DimensionType)fonte.Duplicate(NomeCotaEixos);
                 t.SetUnitsFormatOptions(new FormatOptions(UnitTypeId.Centimeters) { UseDefault = false, Accuracy = 1, SuppressTrailingZeros = true });
                 t.get_Parameter(BuiltInParameter.TEXT_SIZE)?.Set(U.Mm(_cfg.AlturaTextoCotaMm));
+                t.get_Parameter(BuiltInParameter.LINE_COLOR)?.Set(0);   // preto
                 return t;
             }
             catch (Exception ex) { _log.Warn($"Tipo de cota próprio não criado ({ex.Message}); usado o padrão do Revit."); return null; }
@@ -486,9 +534,12 @@ namespace DEB.Revit.Formas
                         case Lado.Centro: dr = cr - tr; du = cu - tu; break;
                         case Lado.Acima: dr = cr - tr; du = a.MaxU + off - b.MinU; break;
                         default:
+                            // viga: do lado de FORA em relação ao centro da estrutura (as de borda não colam na linha de eixo
+                            // nem nas peças de dentro); afastamento extra de 1 altura de texto
                             bool deitada = a.MaxR - a.MinR >= a.MaxU - a.MinU;
-                            if (deitada) { dr = cr - tr; du = a.MaxU + off - b.MinU; }
-                            else { dr = a.MinR - off - b.MaxR; du = cu - tu; }
+                            double o2 = off * 2;
+                            if (deitada) { dr = cr - tr; du = cu >= _centroU ? a.MaxU + o2 - b.MinU : a.MinU - o2 - b.MaxU; }
+                            else { du = cu - tu; dr = cr < _centroR ? a.MinR - o2 - b.MaxR : a.MaxR + o2 - b.MinR; }
                             break;
                     }
                     dr += exR; du += exU;

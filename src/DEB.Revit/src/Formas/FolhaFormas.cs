@@ -19,6 +19,7 @@ namespace DEB.Revit.Formas
         private readonly Document _doc;
         private readonly PresentationStandard _std;
         private readonly PieceLog _log;
+        private LegendFactory _legendas;
 
         public FolhaFormas(Document doc, PresentationStandard std, PieceLog log) { _doc = doc; _std = std; _log = log; }
 
@@ -62,6 +63,17 @@ namespace DEB.Revit.Formas
             List<ViewSheet> folhas = new FilteredElementCollector(_doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>().ToList();
             ViewSheet sheet = folhas.FirstOrDefault(f => MarcaFormas.Papel(f) == papel);
             ViewSheet comNumero = folhas.FirstOrDefault(f => string.Equals(f.SheetNumber, numero, StringComparison.OrdinalIgnoreCase));
+            // folha com o número pedido que já tem vistas de outra coisa (ex.: plantas de cargas): não mistura — a do comando
+            // leva o sufixo do padrão ("-F") e a decisão fica com o usuário (13/11/2026)
+            if (sheet == null && comNumero != null && MarcaFormas.Papel(comNumero) == "" &&
+                Viewports(comNumero).Any(x => MarcaFormas.Papel(_doc.GetElement(x.ViewId)) == "" && (_doc.GetElement(x.ViewId) as View)?.ViewType != ViewType.Legend))
+            {
+                string antigo = numero;
+                while (folhas.Any(f => string.Equals(f.SheetNumber, numero, StringComparison.OrdinalIgnoreCase) && MarcaFormas.Papel(f) != papel))
+                    numero += _std.Formas.SufixoFolhaOcupada;
+                _log.Warn($"A folha {antigo} já existe com vistas que não são do comando (\"{comNumero.Name}\"): a do comando ficou como {numero}. Decida a numeração.");
+                comNumero = folhas.FirstOrDefault(f => string.Equals(f.SheetNumber, numero, StringComparison.OrdinalIgnoreCase));
+            }
             if (sheet == null && comNumero != null)
             {
                 // decisão do usuário (13/11/2026): vale o número da referência; a folha que já tem esse número é ATUALIZADA (o comando
@@ -115,31 +127,60 @@ namespace DEB.Revit.Formas
 
             foreach (LegendSpec ls in (spec.Legendas ?? new List<LegendSpec>()).Where(l => l.Ativa && !string.IsNullOrWhiteSpace(l.Nome)))
             {
+                // detalhe típico: a legenda com o nome; se não existe e o padrão aponta um DXF (cm, tamanho real), é criada dele uma
+                // vez (linhas e textos nativos, LegendFactory — a mesma das pranchas dos pilares) e reaproveitada nas outras folhas
                 View lg = LegendFactory.Find(_doc, ls.Nome.Trim());
+                if (lg == null && !string.IsNullOrWhiteSpace(ls.Arquivo))
+                {
+                    _legendas ??= new LegendFactory(_doc, AnnotationStyles.Ensure(_doc, _std), _log, _std.Folha.ArquivoLegendaBase);
+                    lg = _legendas.Create(ls);
+                }
                 if (lg == null) { _log.Warn($"Legenda \"{ls.Nome}\" não existe no projeto (não colocada)."); continue; }
                 Viewport lvp = Viewports(sheet).FirstOrDefault(x => x.ViewId == lg.Id) ?? Viewport.Create(_doc, sheet.Id, lg.Id, XYZ.Zero);
                 string reg = _std.Regioes.ContainsKey(ls.Regiao ?? "") ? ls.Regiao : "Legendas";
                 itens.Add((lvp, reg));
             }
 
-            // notas fixas (texto do comando: refeito a cada vez, nunca duplicado)
+            // notas fixas num bloco "NOTAS" numerado (texto do comando: refeito a cada vez, nunca duplicado)
             var notas = new List<string>(notasExtras ?? Enumerable.Empty<string>());
             notas.AddRange(spec.Notas ?? new List<string>());
+            notas = notas.Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n.Trim()).ToList();
             foreach (Element velha in MarcaFormas.ComPrefixo(new FilteredElementCollector(_doc, sheet.Id).OfClass(typeof(TextNote)), "nota:"))
                 _doc.Delete(velha.Id);
             string regNotas = _std.Regioes.ContainsKey("Notas") ? "Notas" : "Legendas";
-            ElementId tipoTexto = TipoTexto();
-            Rect2 rn = Rect2Of(regNotas);
-            for (int i = 0; i < notas.Count; i++)
+            if (notas.Count > 0)
             {
-                if (string.IsNullOrWhiteSpace(notas[i])) continue;
-                TextNote tn = TextNote.Create(_doc, sheet.Id, XYZ.Zero, Math.Max(U.Mm(60), rn.W * 0.95), notas[i].Trim(), new TextNoteOptions(tipoTexto));
-                MarcaFormas.Marcar(tn, "nota:" + i);
+                Rect2 rn = Rect2Of(regNotas);
+                string texto = "NOTAS:\n" + string.Join("\n", notas.Select((n, i) => $"{i + 1}) {n}"));
+                TextNote tn = TextNote.Create(_doc, sheet.Id, XYZ.Zero, Math.Max(U.Mm(60), rn.W * 0.95), texto, new TextNoteOptions(TipoTexto()));
+                MarcaFormas.Marcar(tn, "nota:0");
                 itens.Add((tn, regNotas));
             }
 
             composer.ComposePlain(sheet, itens);
+            Aproximar(sheet, itens, spec.RegiaoPlanta);
             return sheet;
+        }
+
+        /// <summary>
+        /// Tabelas, notas e legendas sobem para logo abaixo das vistas (a região fixa deixava um vão grande quando a planta é baixa).
+        /// Só o que o comando arranjou nesta folha.
+        /// </summary>
+        private void Aproximar(ViewSheet sheet, List<(Element Item, string Region)> itens, string regiaoVistas)
+        {
+            try
+            {
+                _doc.Regenerate();
+                var vistas = itens.Where(i => i.Region == regiaoVistas && i.Item is Viewport).Select(i => ((Viewport)i.Item).GetBoxOutline()).ToList();
+                var outros = itens.Where(i => i.Region != regiaoVistas).Select(i => i.Item).ToList();
+                if (vistas.Count == 0 || outros.Count == 0) return;
+                double baseVistas = vistas.Min(o => o.MinimumPoint.Y) - U.Mm(_std.Folha.TituloVistaMm + _std.Folha.EspacamentoMm);
+                double topo = outros.Select(e => e.get_BoundingBox(sheet)).Where(b => b != null).Select(b => b.Max.Y).DefaultIfEmpty(double.MinValue).Max();
+                double dy = baseVistas - topo;
+                if (topo == double.MinValue || dy <= U.Mm(5)) return;
+                ElementTransformUtils.MoveElements(_doc, outros.Select(e => e.Id).ToList(), new XYZ(0, dy, 0));
+            }
+            catch (Exception ex) { _log.Warn($"Tabelas/notas não aproximadas da planta: {ex.Message}"); }
         }
 
         /// <summary>Largura aproximada da região (fração da folha A0 útil), para a largura da caixa das notas.</summary>

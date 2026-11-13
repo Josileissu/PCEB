@@ -360,6 +360,8 @@ namespace DEB.Revit.Presentation
         public int Escala { get; set; } = 50;
         /// <summary>Quanto (m) as vistas criadas pelo comando enxergam abaixo do nível (vigas penduradas, blocos); 0 = a da vista copiada.</summary>
         public double ProfundidadeVistaM { get; set; } = 2.0;
+        /// <summary>Quanto (m) os eixos passam da estrutura nas vistas do comando (extensão 2D, para o recorte ficar justo).</summary>
+        public double EixoAlemM { get; set; } = 1.5;
         /// <summary>Folga (m) do recorte das vistas criadas pelo comando em volta dos eixos e das peças.</summary>
         public double FolgaRecorteM { get; set; } = 1.0;
         /// <summary>Distância (mm de papel) da linha de cotas dos eixos à estrutura.</summary>
@@ -375,6 +377,8 @@ namespace DEB.Revit.Presentation
         public List<string> VisiveisEsquematica { get; set; } = new List<string> { "N" };
         /// <summary>Nota da locação com fundações esquemáticas.</summary>
         public string NotaFundacoesEsquematicas { get; set; } = "AS FUNDAÇÕES SÃO ESQUEMÁTICAS: DIMENSÕES E NÍVEIS DOS BLOCOS A CONFIRMAR NO PROJETO DE FUNDAÇÕES.";
+        /// <summary>Sufixo do número quando a folha com o número pedido já tem vistas que não são do comando.</summary>
+        public string SufixoFolhaOcupada { get; set; } = "-F";
         /// <summary>Tipo de texto das notas fixas (nome; vazio = o padrão do projeto).</summary>
         public string TipoTextoNotas { get; set; } = "";
         /// <summary>Distância (mm de papel) do identificador à peça.</summary>
