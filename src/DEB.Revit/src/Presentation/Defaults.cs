@@ -55,6 +55,7 @@ namespace DEB.Revit.Presentation
             {
                 // planta em cima, com a largura toda (obras compridas); tabelas, notas e legendas embaixo
                 ["Planta"] = new Region(0.00, 0.36, 1.00, 0.64),
+                ["Folha"] = new Region(0.00, 0.00, 1.00, 1.00),
                 ["Tabelas"] = new Region(0.00, 0.00, 0.45, 0.35),
                 ["Notas"] = new Region(0.46, 0.00, 0.25, 0.35),
                 ["Legendas"] = new Region(0.72, 0.00, 0.28, 0.35),

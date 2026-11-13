@@ -57,7 +57,10 @@ namespace DEB.Revit.Formas
             }
             else
             {
-                double py = max.Y - min.Y + 2 * m, px = max.X - min.X + 2 * m;
+                // elevação = fachada: só a faixa da frente (ProfundidadeElevacaoM), senão os identificadores de todas as peças de trás
+                // se amontoam
+                double fx = m + U.Mm(_cfg.ProfundidadeElevacaoM * 1000);
+                double py = Math.Min(max.Y - min.Y + 2 * m, fx), px = Math.Min(max.X - min.X + 2 * m, fx);
                 planos.Add(new Plano { Papel = "elevacao:1", Nome = Nome(_cfg.Elevacoes.NomeVista, "", "1"), Origem = new XYZ(c.X, min.Y - m, 0), Dir = XYZ.BasisX, Meia = lx, Prof = py });
                 planos.Add(new Plano { Papel = "elevacao:2", Nome = Nome(_cfg.Elevacoes.NomeVista, "", "2"), Origem = new XYZ(max.X + m, c.Y, 0), Dir = XYZ.BasisY, Meia = ly, Prof = px });
                 planos.Add(new Plano { Papel = "elevacao:3", Nome = Nome(_cfg.Elevacoes.NomeVista, "", "3"), Origem = new XYZ(c.X, max.Y + m, 0), Dir = -XYZ.BasisX, Meia = lx, Prof = py });
@@ -115,6 +118,7 @@ namespace DEB.Revit.Formas
         public void Anotar(View v, PlantaFormas planta)
         {
             _doc.Regenerate();
+            planta.EsconderMarcasAlheias(v);
             var pilaresOk = new HashSet<ElementId>(ModeloFormas.Filtrar(_doc, BuiltInCategory.OST_StructuralColumns, _cfg.FiltroPilares, null, "pilar").Select(c => c.Id));
             var vigasOk = new HashSet<ElementId>(ModeloFormas.Filtrar(_doc, BuiltInCategory.OST_StructuralFraming, _cfg.FiltroVigas, null, "viga").Select(c => c.Id));
             List<Element> Vis(BuiltInCategory cat, HashSet<ElementId> ok) => new FilteredElementCollector(_doc, v.Id).OfCategory(cat)

@@ -423,10 +423,12 @@ namespace DEB.Revit.Presentation
         public string NomeTabelaPaineis { get; set; } = "PCEB - PAINÉIS - {Nivel}";
         public string TituloTabelaPaineis { get; set; } = "PAINÉIS ALVEOLARES - {Nivel}";
         /// <summary>Cortes (um por direção, nos eixos centrais) — usa os cortes do comando; não mexe nos que já existem no modelo.</summary>
-        public FormasSheetSpec Cortes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - CORTE {Letra}-{Letra}", NumeroFolha = "FOR-CORTES", NomeFolha = "CORTES" };
+        public FormasSheetSpec Cortes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - CORTE {Letra}-{Letra}", NumeroFolha = "FOR-CORTES", NomeFolha = "CORTES", RegiaoPlanta = "Folha" };
         /// <summary>Elevações (as quatro fachadas da estrutura), como cortes por fora olhando para dentro.</summary>
-        public FormasSheetSpec Elevacoes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - ELEVAÇÃO {Lado}", NumeroFolha = "FOR-ELEV", NomeFolha = "ELEVAÇÕES" };
+        public FormasSheetSpec Elevacoes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - ELEVAÇÃO {Lado}", NumeroFolha = "FOR-ELEV", NomeFolha = "ELEVAÇÕES", RegiaoPlanta = "Folha" };
         public int EscalaCortes { get; set; } = 50;
+        /// <summary>Faixa (m) de estrutura que cada elevação mostra a partir da fachada.</summary>
+        public double ProfundidadeElevacaoM { get; set; } = 3.0;
         /// <summary>Seções consideradas: tabelas por tipo de viga e de pilar (seção, quantidade, material).</summary>
         public FormasSheetSpec Secoes { get; set; } = new FormasSheetSpec { NumeroFolha = "FOR-SEC", NomeFolha = "SEÇÕES CONSIDERADAS", RegiaoTabelas = "Planta" };
 

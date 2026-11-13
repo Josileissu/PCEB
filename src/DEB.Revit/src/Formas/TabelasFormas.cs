@@ -98,17 +98,27 @@ namespace DEB.Revit.Formas
         {
             string nome = Fill(_cfg.NomeTabelaPaineis, nivel);
             ViewSchedule vs = Obter(PapelPaineis(nivel), BuiltInCategory.OST_StructuralFraming, nome);
+            // resumida (uma linha por tipo e comprimento, com a quantidade): a lista painel a painel passava da folha; a marca de cada
+            // painel está na planta
             ScheduleDefinition def = Limpar(vs);
-            ScheduleField fm = Campo(def, new ElementId(BuiltInParameter.ALL_MODEL_MARK), "Painel");
-            Campo(def, new ElementId(BuiltInParameter.ELEM_TYPE_PARAM), "Tipo");
+            def.IsItemized = false;
+            ScheduleField ft = Campo(def, new ElementId(BuiltInParameter.ELEM_TYPE_PARAM), "Tipo");
             ScheduleField fc = Campo(def, new ElementId(BuiltInParameter.STRUCTURAL_FRAME_CUT_LENGTH), "Comprimento\n(cm)");
             if (fc != null) try { fc.SetFormatOptions(new FormatOptions(UnitTypeId.Centimeters) { UseDefault = false, Accuracy = 0.1 }); } catch { }
-            if (fm != null)
+            try { def.AddField(ScheduleFieldType.Count).ColumnHeading = "Quantidade"; } catch { }
+            SchedulableField sfm = def.GetSchedulableFields().FirstOrDefault(f => f.ParameterId == new ElementId(BuiltInParameter.ALL_MODEL_MARK));
+            if (sfm != null)
             {
+                ScheduleField fm = def.AddField(sfm);
+                fm.IsHidden = true;
                 string pre = _cfg.FiltroPaineis?.PrefixoMarca?.Trim() ?? "";
                 if (pre != "") def.AddFilter(new ScheduleFilter(fm.FieldId, ScheduleFilterType.BeginsWith, pre));
-                def.AddSortGroupField(new ScheduleSortGroupField(fm.FieldId, ScheduleSortOrder.Ascending));
             }
+            if (ft != null) def.AddSortGroupField(new ScheduleSortGroupField(ft.FieldId, ScheduleSortOrder.Ascending));
+            if (fc != null) def.AddSortGroupField(new ScheduleSortGroupField(fc.FieldId, ScheduleSortOrder.Descending));
+            def.ShowGrandTotal = true;
+            def.ShowGrandTotalTitle = true;
+            def.ShowGrandTotalCount = true;
             SchedulableField sfn = def.GetSchedulableFields().FirstOrDefault(f => f.ParameterId == new ElementId(BuiltInParameter.INSTANCE_REFERENCE_LEVEL_PARAM));
             if (sfn != null)
             {
@@ -132,6 +142,7 @@ namespace DEB.Revit.Formas
             def.IsItemized = false;
             ScheduleField fs = Campo(def, ParametrosFormas.Secao, "Seção\n(cm)");
             ScheduleField ft = Campo(def, new ElementId(BuiltInParameter.ELEM_FAMILY_AND_TYPE_PARAM), "Família e tipo");
+            if (ft != null) try { ft.GridColumnWidth = U.Mm(110); } catch { /* largura do Revit */ }
             try { def.AddField(ScheduleFieldType.Count).ColumnHeading = "Quantidade"; } catch { }
             Campo(def, new ElementId(BuiltInParameter.STRUCTURAL_MATERIAL_PARAM), "Material");
             if (fs != null)

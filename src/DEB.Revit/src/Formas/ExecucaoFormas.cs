@@ -50,7 +50,13 @@ namespace DEB.Revit.Formas
                 Etapa(doc, "Formas: tabelas", log, () =>
                 {
                     var t = new TabelasFormas(doc, std.Formas, log);
-                    tabelas.Add(tipo == TipoPlanta.Locacao ? t.Cargas() : tipo == TipoPlanta.Paginacao ? t.Paineis(nivel) : t.Lajes(nivel));
+                    // tabela de lajes só se o nível tem laje com marca (o térreo saía com a tabela vazia)
+                    bool temLaje = new FilteredElementCollector(doc).OfClass(typeof(Floor)).Cast<Floor>()
+                        .Any(f => f.LevelId == nivel.Id && ModeloFormas.Marca(f) != "");
+                    if (tipo == TipoPlanta.Locacao) tabelas.Add(t.Cargas());
+                    else if (tipo == TipoPlanta.Paginacao) tabelas.Add(t.Paineis(nivel));
+                    else if (temLaje) tabelas.Add(t.Lajes(nivel));
+                    else log.Info($"{nivel.Name}: sem laje com marca — sem tabela de lajes.");
                 });
                 var planta = new PlantaFormas(doc, std.Formas, log);
                 if (Etapa(doc, "Formas: vista", log, () => v = planta.Vista(nivel, tipo, indicada)))

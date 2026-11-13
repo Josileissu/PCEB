@@ -244,7 +244,7 @@ namespace DEB.Revit.Formas
         }
 
         /// <summary>Marcas de corte e de elevação que não são do comando ficam escondidas nas vistas do comando (poluíam a planta).</summary>
-        private void EsconderMarcasAlheias(View v)
+        internal void EsconderMarcasAlheias(View v)
         {
             try
             {
