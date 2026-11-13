@@ -272,7 +272,7 @@ namespace DEB.Revit.Formas
                 ids.Add(d.Id);
                 return d;
             }
-            ViewPlan v1 = null;
+            ViewPlan v1 = null, v3 = null;
             var cfgEst = new FormasSettings { MostrarLinhasOcultas = "PorDisciplina", VistaEstrutural = true, PisosTransparentes = new List<string>() };
             var cfgEstCapa = new FormasSettings { MostrarLinhasOcultas = "PorDisciplina", VistaEstrutural = true, PisosTransparentes = new List<string> { "CAPA" } };
             using (var t = new Transaction(doc, "Linhas ocultas: variantes"))
@@ -283,7 +283,7 @@ namespace DEB.Revit.Formas
                 new PlantaFormas(doc, cfgTodas, log).LinhasOcultas(v1, nivel);
                 ViewPlan v2 = Dup("V2 - todas + capa transparente");
                 new PlantaFormas(doc, cfgCapa, log).LinhasOcultas(v2, nivel);
-                ViewPlan v3 = Dup("V3 - disciplina estrutural");
+                v3 = Dup("V3 - disciplina estrutural");
                 try { v3.Discipline = ViewDiscipline.Structural; v3.get_Parameter(BuiltInParameter.VIEW_SHOW_HIDDEN_LINES)?.Set((int)ShowHiddenLinesValues.ByDiscipline); }
                 catch (Exception ex) { sb.AppendLine("V3: " + ex.Message); }
                 ViewPlan v6 = Dup("V6 - estrutural + capa transparente");
@@ -317,6 +317,19 @@ namespace DEB.Revit.Formas
                 d.Name = NameRegistry.ForViews(doc).Unique("V5 - todas + painel sem ocultas");
                 t.Commit();
                 Exportar(new List<ElementId> { d.Id }, "linhas5");
+            }
+            // V8: vista estrutural com cada valor do "Exibir em vistas ocultas" da família dos painéis
+            foreach (int val in new[] { 0, 1, 2, 3 })
+            {
+                ExecucaoFormas.PaineisSemOcultas(doc, std.Formas, log, val);
+                using (var t = new Transaction(doc, "Linhas ocultas: V8"))
+                {
+                    t.Start();
+                    var d = (ViewPlan)doc.GetElement(v3.Duplicate(ViewDuplicateOption.WithDetailing));
+                    d.Name = NameRegistry.ForViews(doc).Unique($"V8 - estrutural + painel valor {val}");
+                    t.Commit();
+                    Exportar(new List<ElementId> { d.Id }, "linhas8_" + val);
+                }
             }
             sb.AppendLine(ExecucaoFormas.Relatorio(log, "Relatório", out _));
         }

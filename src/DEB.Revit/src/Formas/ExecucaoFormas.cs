@@ -127,7 +127,7 @@ namespace DEB.Revit.Formas
         /// "Exibir em vistas ocultas" das famílias dos painéis alveolares desligado (a família é editada e recarregada no projeto).
         /// Fora de transação. Só com <see cref="FormasSettings.PaineisSemLinhasOcultas"/>.
         /// </summary>
-        public static void PaineisSemOcultas(Document doc, FormasSettings cfg, PieceLog log)
+        public static void PaineisSemOcultas(Document doc, FormasSettings cfg, PieceLog log, int? valor = null)
         {
             var familias = ModeloFormas.Filtrar(doc, BuiltInCategory.OST_StructuralFraming, cfg.FiltroPaineis, null, "painel")
                 .Select(f => f.Symbol?.Family).Where(f => f != null).GroupBy(f => f.Id).Select(g => g.First()).ToList();
@@ -140,8 +140,11 @@ namespace DEB.Revit.Formas
                     fd = doc.EditFamily(fam);
                     Parameter p = fd.OwnerFamily.get_Parameter(BuiltInParameter.STRUCTURAL_DISPLAY_IN_HIDDEN_VIEWS_FRAMING);
                     if (p == null || p.IsReadOnly) { log.Warn($"Família \"{fam.Name}\": sem \"Exibir em vistas ocultas\" editável."); continue; }
-                    if (p.AsInteger() == 0) { log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" já desligado."); continue; }
-                    using (var t = new Transaction(fd, "Painel sem linhas ocultas")) { t.Start(); p.Set(0); t.Commit(); }
+                    int alvo = valor ?? cfg.ValorPaineisVistasOcultas;
+                    string antes = $"{p.AsInteger()} \"{p.AsValueString()}\"";
+                    if (p.AsInteger() == alvo) { log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" já é {antes}."); continue; }
+                    using (var t = new Transaction(fd, "Painel sem linhas ocultas")) { t.Start(); p.Set(alvo); t.Commit(); }
+                    log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" {antes} -> {p.AsInteger()} \"{p.AsValueString()}\".");
                     fd.LoadFamily(doc, new RecarregarFamilia());
                     log.Info($"Família \"{fam.Name}\": \"Exibir em vistas ocultas\" desligado (era {p.AsValueString()}).");
                 }

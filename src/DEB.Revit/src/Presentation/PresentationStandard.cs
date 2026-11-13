@@ -444,6 +444,8 @@ namespace DEB.Revit.Presentation
         /// <summary>Muda na FAMÍLIA dos painéis (filtro de painéis) o "Exibir em vistas ocultas" para não mostrar arestas ocultas.
         /// Altera a família no projeto (vale para todas as vistas): desligado por padrão.</summary>
         public bool PaineisSemLinhasOcultas { get; set; }
+        /// <summary>Valor gravado no "Exibir em vistas ocultas" da família dos painéis (inteiro do Revit; ver a comparação formaslinhas).</summary>
+        public int ValorPaineisVistasOcultas { get; set; }
         /// <summary>Faixa (m) de estrutura que cada elevação mostra a partir da fachada.</summary>
         public double ProfundidadeElevacaoM { get; set; } = 3.0;
         /// <summary>Seções consideradas: tabelas por tipo de viga e de pilar (seção, quantidade, material).</summary>
