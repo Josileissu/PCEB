@@ -415,7 +415,7 @@ namespace DEB.Revit.Formas
             catch (Exception ex) { _log.Warn($"Cota de eixos não criada: {ex.Message}"); return 0; }
         }
 
-        private DimensionType TipoDeCota()
+        internal DimensionType TipoDeCota()
         {
             List<DimensionType> lin = new FilteredElementCollector(_doc).OfClass(typeof(DimensionType)).Cast<DimensionType>()
                 .Where(t => t.StyleType == DimensionStyleType.Linear).ToList();

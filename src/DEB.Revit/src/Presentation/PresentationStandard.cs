@@ -496,6 +496,8 @@ namespace DEB.Revit.Presentation
         public string FamiliaLaje { get; set; } = "Identificador de Piso-Laje";
         public string FamiliaParede { get; set; } = "Identificador de Parede";
         public string FamiliaEscada { get; set; } = "Identificador de escada";
+        /// <summary>Pasta da biblioteca de identificadores (configuração local): família que falta no projeto é carregada de lá.</summary>
+        public string PastaFamilias { get; set; } = "";
         /// <summary>Tipo dos identificadores (só o nome).</summary>
         public string TipoNome { get; set; } = "N";
         /// <summary>Distância (m) do identificador do pilar à face, na altura do 1º pavimento.</summary>
