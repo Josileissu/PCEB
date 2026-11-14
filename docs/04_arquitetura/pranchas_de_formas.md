@@ -86,6 +86,102 @@ de apresentação. Sem a família, o comando avisa e segue com o identificador q
 
 Etapas 1–4 primeiro (uma entrega revisável); 5–8 depois da revisão do usuário.
 
+## Regras de cotagem (usuário, 13/11/2026)
+Lidas das cotas feitas à mão pelo usuário nas plantas 1:50 do térreo, dos pavimentos e da locação (cotas em cm, texto 2,0 mm Arial preto):
+- **Todas as plantas**: cadeia com todos os eixos de cada direção e, mais afastada, a cota total.
+- **Locação**: só os eixos; pilar fora de eixo amarrado aos eixos vizinhos.
+- **Térreo (sem laje)**: cadeia das faces dos pilares por fila, nas duas direções; caixa de escada/elevador amarrada a eixo ou face de viga.
+- **Pavimentos**, nesta ordem:
+  1. **Entre faces de vigas**: cadeia contínua pela fila toda, com as duas faces de cada viga (largura e vão livre), nas duas direções.
+  2. **Aberturas**: face da viga → bordas da abertura (capa, painel alveolar ou corte de abertura) → face da viga seguinte, nas duas direções.
+  3. **Demais elementos**: pilares fora da fila (faces), consolos (face do pilar → faces do consolo → pilar), escada (viga → lances → viga),
+     paredes de alvenaria e janelas da caixa de escada/elevador (face da viga → faces da parede → janela → parede → viga).
+- **Cortes** (lidas de um corte transversal 1:50 cotado pelo usuário), todas verticais:
+  1. Entre níveis (térreo → pavimentos → cobertura) e, mais afastada, a altura total.
+  2. Topo do baldrame → térreo → topo da capa de cada piso.
+  3. Rebaixo da capa em relação ao nível, em cada piso.
+  4. Pela fachada (pilar de borda): baldrame, bloco de fundação, fundo e topo de cada viga de borda, topo do pilar.
+  5. No vão: espessura da laje (painel + capa) e pé-direito livre entre lajes, até o térreo.
+  6. Cotas de nível (elevação de ponto) no topo das vigas de cada piso, do baldrame e do topo do bloco.
+  7. Identificadores dos pilares, vigas e lajes cortados ou vistos.
+
+## Anotação automática de cortes e plantas de fôrma (especificação, 14/11/2026)
+Organizado a partir do trabalho feito com o usuário no modelo real: ele cotou e nomeou à mão um corte e as plantas de fôrma;
+o agente leu, repetiu nos outros cortes e registrou o que funcionou. Base para o comando do plugin.
+
+### Princípio: só se anota o que o leitor vê
+- Entram os elementos **cortados** (atravessam o plano de corte) e os **visíveis** além dele.
+- Elemento **oculto ou sobreposto** por outro mais próximo do observador **não é nomeado nem cotado**.
+- **Estrutura futura** (criada numa fase posterior à da vista) não aparece na vista: sem cota e sem nome.
+- Teste de visibilidade (peças pré-moldadas são prismas, a caixa basta): projetar a caixa de cada elemento no plano da vista
+  (horizontal × altura); um elemento visto (não cortado) está oculto quando a sua projeção fica coberta pela união das
+  projeções dos elementos mais próximos do observador. O identificador vai sobre a parte visível.
+- Rodar de novo não duplica: elemento que já tem identificador na vista é pulado; cotas com a marca do comando são refeitas.
+
+### Cortes — ordem de trabalho
+1. **Ajustar a vista**
+   - Posição pela regra dos cortes (geral longitudinal e transversal num vão típico, um pouco fora do eixo; local em escada,
+     caixa de elevador, ligação especial).
+   - Sentido do olhar para o eixo seguinte; profundidade até esse eixo.
+   - Pontas: 0,50 m além da última peça cortada ou vista; altura do fundo da fundação ao topo da estrutura, + 0,50 m.
+   - Modelo de vista próprio: 1:50, detalhe fino, disciplina estrutural, linhas ocultas por disciplina.
+   - Paredes de alvenaria estrutural precisam estar marcadas como estruturais, senão a disciplina estrutural as esconde.
+2. **Nomear** os elementos cortados e visíveis (tipo "N"):
+   - pilar: ao lado do pilar, ~0,24 m da face, na altura do 1º pavimento;
+   - viga e baldrame cortados: ao lado da seção, junto ao fundo (na ponta esquerda, por fora);
+   - viga em elevação: centrado, logo abaixo da viga;
+   - laje (capa) cortada: no meio do vão, na capa. Sem chamada.
+3. **Cotar** (todas verticais, nesta ordem):
+   1. níveis e total, do lado de fora do início do corte;
+   2. topo do baldrame → térreo → topo da capa de cada piso, no vão junto ao eixo da ponta;
+   3. rebaixo da capa em relação ao nível, em cada piso;
+   4. no vão (≈ 60% do vão da ponta): painel + capa e pé-direito livre entre lajes, até o térreo;
+   5. pela fachada (0,70 m além do último eixo): baldrame, bloco, fundo e topo de cada viga de borda, topo do pilar;
+   6. cotas de nível no topo das vigas cortadas no eixo vizinho, do baldrame e do topo do bloco.
+- **Corte da caixa de elevador** (lido de um corte cotado pelo usuário): níveis e total; cadeia junto ao pilar do eixo (bloco,
+  fundo e topo de cada viga, topo do pilar); cotas de nível no topo das vigas, do bloco, no fundo do poço e no topo da laje da
+  caixa; cadeia vertical por dentro da caixa (espessura da laje de topo, topo de cada porta, nível, peitoril, …, espessura da
+  laje do fundo do poço); altura de cada porta; e, em cada piso, face da parede → bordas da porta → face da parede.
+  Sem rebaixo, vão nem cadeia baldrame/capas.
+- **Corte de escada** (lido de um corte ajustado pelo usuário):
+  - níveis e total;
+  - cadeia vertical dos apoios de cada lado (nível → topo das vigas de apoio);
+  - vão de cada lance entre as faces dos apoios;
+  - cadeia vertical dos níveis com o início de cada lance (térreo → patamar → nível → …);
+  - em cada lance, alguns espelhos e pisos cotados;
+  - cotas de nível no início e no fim de cada lance;
+  - nome de cada lance (identificador de escada, marca "E1.L3").
+
+### Plantas de fôrma — ordem de trabalho
+1. **Ajustar a vista** — pavimento: **planta de forro** (vista de baixo para cima) do nível:
+   - faixa de vista: plano de corte e profundidade 2,00 m abaixo do nível, topo 1,00 m acima;
+   - 1:50, detalhe fino, linhas ocultas "Todas";
+   - modelo de vista "PLANTA DE MONTAGEM" do projeto.
+   
+   Térreo: planta estrutural, corte +1,00 m, profundidade −2,00 m, linhas ocultas por disciplina.
+2. **Nomear** os elementos visíveis:
+   - pilar: "N - S";
+   - viga: "N - S - e" (marca, seção, elevação), com chamada só onde não cabe;
+   - laje: "N - S - e";
+   - térreo: pilar com nível ("N - S - NV - Alinhamento esq/dir") e identificador das paredes da caixa.
+3. **Cotar as distâncias entre vigas**: cadeia contínua por fila com as duas faces de cada viga, nas duas direções, mais eixos e total.
+4. **Cotar as aberturas**: face da viga → bordas da abertura (capa, painel alveolar ou corte de abertura) → face da viga seguinte,
+   nas duas direções.
+5. **Demais**: pilares fora da fila, consolos, escada, caixa do elevador (regras em "Regras de cotagem").
+
+### Lições de API (do trabalho no modelo real)
+- Testes pelo servidor MCP: código enviado com mais de ~9 mil caracteres não chega a rodar (tempo esgotado com o Revit ocioso);
+  isso não afeta o plugin, que roda compilado.
+- Face de família: usar a geometria do **símbolo** e montar a referência estável da instância
+  (`"<UniqueId da instância>:0:INSTANCE:" + ref.ConvertToStableRepresentation(doc)`); a face da geometria da instância trava a cota.
+- Cota de nível: o ponto precisa estar **dentro** da face (`PlanarFace.IsInside`); o topo do bloco com cálice tem furo no centro.
+- Peças da vista pela caixa do recorte (`BoundingBoxIntersectsFilter`): pedir as peças à vista (`FilteredElementCollector(doc, vista)`)
+  obriga o Revit a gerar a vista e passou de 2 minutos num modelo grande.
+- Cota de nível de piso: usar `Level.ProjectElevation` (interna); `Level.Elevation` pode estar referida ao ponto de levantamento.
+- `CreateSection`: o corte olha para +BasisZ da caixa e o plano de corte fica em Min.Z.
+- Modelo de vista não se duplica pela API: aplicar os parâmetros de um modelo num corte (`ApplyViewTemplateParameters`) e
+  criar o novo com `CreateViewTemplate`.
+
 ## Cuidados
 - **Modelo real em nuvem/compartilhado**: desenvolver e testar em cópia local destacada ou no modelo-base; só aplicar no
   modelo real com a ordem do usuário. O comando roda numa transação única por etapa (falhou → desfaz tudo).

@@ -193,6 +193,13 @@ transação por etapa — dados → tabela → vista → anotações → folha �
   (`LegendFactory`, etapa própria com resolução de falhas). AutoRun: `formaslevantar` (inventário), `formaspaginacao`, `formascortes`,
   `formassecoes`, `formastudo`; `SD_MODELO` abre o arquivo pela API destacado do central; `SD_FORMAS_MARCAR_LAJES=1` usa o
   renumerar lajes. **Testado no Revit 2026 numa cópia destacada de um modelo real** (todas as folhas saem; ver os relatórios).
+- **Anotar corte** (14/11, `Formas/CorteAnotacao.cs`, botão "Anotar corte"): cotas verticais, identificadores e cotas de nível no
+  corte ativo ou nos escolhidos, tipo automático (escada se corta lances, caixa de elevador se corta paredes, senão geral) ou
+  escolhido na janela. Só o cortado ou visível (amostragem da caixa projetada contra as peças mais à frente; fase posterior à da
+  vista fora). Peças pela caixa do recorte (`BoundingBoxIntersectsFilter`); plano de corte = `CropBox.Max.Z`; faces de família pela
+  geometria do símbolo + referência estável da instância; cota de nível em ponto dentro da face. Marcas `corte-cota`, `corte-nivel`,
+  `id-corte-*`; uma transação por corte. Configuração `Formas.AnotarCorte` (tipos de cota, famílias, folgas). AutoRun
+  `formascorteanotar` cria os cortes de teste A-A…G-G na cópia e anota duas vezes.
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.

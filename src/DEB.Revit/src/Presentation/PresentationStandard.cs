@@ -450,6 +450,8 @@ namespace DEB.Revit.Presentation
         public double ProfundidadeElevacaoM { get; set; } = 3.0;
         /// <summary>Seções consideradas: tabelas por tipo de viga e de pilar (seção, quantidade, material).</summary>
         public FormasSheetSpec Secoes { get; set; } = new FormasSheetSpec { NumeroFolha = "FOR-SEC", NomeFolha = "SEÇÕES CONSIDERADAS", RegiaoTabelas = "Planta" };
+        /// <summary>"Anotar corte": cotas, nomes e cotas de nível nos cortes (padrão lido dos cortes cotados à mão pelo usuário).</summary>
+        public CorteAnotacaoSpec AnotarCorte { get; set; } = new CorteAnotacaoSpec();
 
         /// <summary>Papel pelo nome; papel ausente no JSON = vazio (usa o identificador que houver).</summary>
         public TagRoleSpec Role(string name) =>
@@ -480,6 +482,35 @@ namespace DEB.Revit.Presentation
         public string PrefixoMarca { get; set; } = "";
         /// <summary>Trechos do nome da família; vazio = qualquer família.</summary>
         public List<string> Familias { get; set; } = new List<string>();
+    }
+
+    /// <summary>Tipos, famílias e folgas do comando "Anotar corte" (padrão no código; ajuste na cópia local do padrão).</summary>
+    public sealed class CorteAnotacaoSpec
+    {
+        public string TipoCota { get; set; } = "2.0 - Arial - Preto - Tr";
+        public string TipoCotaNivel { get; set; } = "Alvo (Projeto) m";
+        /// <summary>Níveis que não entram na cadeia de níveis (trecho do nome; ex.: níveis de forro).</summary>
+        public List<string> NiveisIgnorar { get; set; } = new List<string> { "FORRO" };
+        public string FamiliaPilar { get; set; } = "Identificador de Pilar";
+        public string FamiliaViga { get; set; } = "Nome de Viga.0002";
+        public string FamiliaLaje { get; set; } = "Identificador de Piso-Laje";
+        public string FamiliaParede { get; set; } = "Identificador de Parede";
+        public string FamiliaEscada { get; set; } = "Identificador de escada";
+        /// <summary>Tipo dos identificadores (só o nome).</summary>
+        public string TipoNome { get; set; } = "N";
+        /// <summary>Distância (m) do identificador do pilar à face, na altura do 1º pavimento.</summary>
+        public double PilarAfastamentoM { get; set; } = 0.24;
+        /// <summary>Distância (m) do identificador da viga em elevação abaixo da viga.</summary>
+        public double VigaAbaixoM { get; set; } = 0.17;
+        /// <summary>Cadeia da fachada: distância (m) além do último eixo.</summary>
+        public double FachadaAlemM { get; set; } = 0.70;
+        /// <summary>Cadeia dos níveis: distância (m) para fora do início do corte; a total fica mais <see cref="PassoCadeiaM"/> para fora.</summary>
+        public double NiveisForaM { get; set; } = 0.80;
+        public double PassoCadeiaM { get; set; } = 0.60;
+        /// <summary>Cadeia baldrame/térreo/capas: distância (m) do eixo da ponta para dentro do vão.</summary>
+        public double JuntoEixoM { get; set; } = 0.50;
+        /// <summary>Peças mais estreitas que isto (m) contam como viga de apoio de escada.</summary>
+        public double ApoioEscadaMaxM { get; set; } = 0.25;
     }
 
     public sealed class FolhaNome

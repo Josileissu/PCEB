@@ -100,6 +100,15 @@ namespace DEB.Revit.Formas
             return sheet != null && sheet.IsValidObject ? sheet : null;
         }
 
+        /// <summary>"Anotar corte": uma etapa (transação) por corte; o que falhar é desfeito e o resto segue. Devolve quantos deram certo.</summary>
+        public static int AnotarCortes(Document doc, PresentationStandard std, IEnumerable<ViewSection> cortes, OpcoesCorte op, PieceLog log)
+        {
+            int ok = 0;
+            foreach (ViewSection v in cortes)
+                if (Etapa(doc, "Anotar corte: " + v.Name, log, () => new CorteAnotacao(doc, std.Formas, log).Anotar(v, op))) ok++;
+            return ok;
+        }
+
         /// <summary>Folha "Seções consideradas": tabelas por tipo de viga e de pilar.</summary>
         public static ViewSheet Secoes(Document doc, PresentationStandard std, PieceLog log)
         {

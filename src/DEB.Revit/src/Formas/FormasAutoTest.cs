@@ -52,6 +52,7 @@ namespace DEB.Revit.Formas
             var sb = new StringBuilder();
             void Gravar() { try { File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8); } catch { } }
             if (tarefa == "formaslevantar") { sb.Append(Levantamento(doc)); Gravar(); return Path.Combine(dir, "resultado.txt"); }
+            if (tarefa == "formascorteanotar") { CortesTeste(doc, dir, sb); Gravar(); return Path.Combine(dir, "resultado.txt"); }
             if (tarefa == "formasrenumerar") { OrdemLajes(doc, sb); Gravar(); return Path.Combine(dir, "resultado.txt"); }
             if (tarefa == "formaslinhas") { Linhas(doc, dir, sb); Gravar(); return Path.Combine(dir, "resultado.txt"); }
             var log = new PieceLog(tarefa);
@@ -333,6 +334,93 @@ namespace DEB.Revit.Formas
                 }
             }
             sb.AppendLine(ExecucaoFormas.Relatorio(log, "Relatório", out _));
+        }
+
+        /// <summary>
+        /// formascorteanotar: cria (se faltarem) os cortes de teste "PCEB - CORTE A-A…G-G" nas posições combinadas com o usuário
+        /// (coordenadas internas em m: linha, sentido do olhar, trecho, profundidade), anota cada um DUAS vezes (a 2ª não pode duplicar)
+        /// e grava as cotas criadas (valores dos trechos), as cotas de nível, os identificadores e o PNG de cada corte.
+        /// </summary>
+        private static void CortesTeste(Document doc, string dir, StringBuilder sb)
+        {
+            var log = new PieceLog("cortes");
+            PresentationStandard std = ExecucaoFormas.Padrao(log);
+            // nome, eixo da linha (x ou y), coordenada, olhar (+1/−1 no outro eixo), trecho (de, até), profundidade
+            var defs = new (string Nome, char Eixo, double Linha, int Olhar, double De, double Ate, double Prof)[]
+            {
+                ("A-A", 'y', -126.40, +1, 11.17, 66.02, 4.0),
+                ("B-B", 'x', 15.50, -1, -135.96, -121.81, 3.8),
+                ("C-C", 'x', 36.10, -1, -135.96, -121.81, 3.7),
+                ("D-D", 'x', 21.66, -1, -135.60, -129.20, 3.5),
+                ("E-E", 'y', -134.05, -1, 19.50, 25.50, 1.2),
+                ("F-F", 'y', -132.50, -1, 57.60, 66.00, 2.6),
+                ("G-G", 'x', 62.50, +1, -136.00, -129.00, 2.6),
+            };
+            double M(double m) => UnitUtils.ConvertToInternalUnits(m, UnitTypeId.Meters);
+            var vistas = new List<ViewSection>();
+            using (var t = new Transaction(doc, "Teste: cortes"))
+            {
+                t.Start();
+                WarningSwallower.Attach(t);
+                ViewFamilyType vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().First(x => x.ViewFamily == ViewFamily.Section);
+                foreach (var d in defs)
+                {
+                    string nome = "PCEB - CORTE " + d.Nome;
+                    var v = new FilteredElementCollector(doc).OfClass(typeof(ViewSection)).Cast<ViewSection>().FirstOrDefault(x => x.Name == nome);
+                    if (v == null)
+                    {
+                        XYZ olhar = d.Eixo == 'y' ? new XYZ(0, d.Olhar, 0) : new XYZ(d.Olhar, 0, 0);
+                        double meio = (d.De + d.Ate) / 2, meia = (d.Ate - d.De) / 2;
+                        XYZ origem = d.Eixo == 'y' ? new XYZ(M(meio), M(d.Linha), 0) : new XYZ(M(d.Linha), M(meio), 0);
+                        var tr = Transform.Identity;
+                        tr.Origin = origem;
+                        tr.BasisZ = olhar;                                  // direção do olhar
+                        tr.BasisY = XYZ.BasisZ;
+                        tr.BasisX = XYZ.BasisZ.CrossProduct(olhar);         // X = Y × Z
+                        var box = new BoundingBoxXYZ { Transform = tr, Min = new XYZ(-M(meia), M(-5.64), 0), Max = new XYZ(M(meia), M(13.87), M(d.Prof)) };
+                        v = ViewSection.CreateSection(doc, vft.Id, box);
+                        v.Name = nome;
+                    }
+                    try { v.Scale = 50; } catch { }
+                    try { v.DetailLevel = ViewDetailLevel.Fine; } catch { }
+                    try { v.Discipline = ViewDiscipline.Structural; } catch { }
+                    try { v.get_Parameter(BuiltInParameter.VIEW_SHOW_HIDDEN_LINES)?.Set((int)ShowHiddenLinesValues.ByDiscipline); } catch { }
+                    vistas.Add(v);
+                }
+                t.Commit();
+            }
+            var op = new OpcoesCorte();
+            for (int vez = 1; vez <= 2; vez++)
+            {
+                int ok = ExecucaoFormas.AnotarCortes(doc, std, vistas, op, log);
+                sb.AppendLine($"execução {vez}: {ok} de {vistas.Count} corte(s) anotados");
+            }
+            foreach (ViewSection v in vistas)
+            {
+                var dims = new FilteredElementCollector(doc, v.Id).OfClass(typeof(Dimension)).Cast<Dimension>().Where(x => !(x is SpotDimension)).ToList();
+                int spots = new FilteredElementCollector(doc, v.Id).OfClass(typeof(SpotDimension)).GetElementCount();
+                int tags = new FilteredElementCollector(doc, v.Id).OfClass(typeof(IndependentTag)).GetElementCount();
+                sb.AppendLine($"{v.Name}: {dims.Count} cota(s), {spots} cota(s) de nível, {tags} identificador(es)");
+                foreach (Dimension d in dims)
+                {
+                    string val = d.NumberOfSegments > 1 ? string.Join("/", d.Segments.Cast<DimensionSegment>().Select(sg => sg.ValueString)) : d.ValueString;
+                    sb.AppendLine("   " + val);
+                }
+            }
+            try
+            {
+                var ieo = new ImageExportOptions
+                {
+                    ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, "corte"), FitDirection = FitDirectionType.Horizontal,
+                    HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG,
+                    ImageResolution = ImageResolution.DPI_150, PixelSize = 3000, ZoomType = ZoomFitType.FitToPage
+                };
+                ieo.SetViewsAndSheets(vistas.Select(v => v.Id).ToList());
+                doc.ExportImage(ieo);
+            }
+            catch (Exception ex) { sb.AppendLine("PNG não exportado: " + ex.Message); }
+            sb.AppendLine(ExecucaoFormas.Relatorio(log, "Relatório", out _));
+            foreach (string tr in log.Traces) sb.AppendLine(tr);
         }
 
         /// <summary>formasrenumerar: a ordem que "Renumerar → Lajes" daria às lajes do nível SD_NIVEL (só leitura, nada é gravado).</summary>

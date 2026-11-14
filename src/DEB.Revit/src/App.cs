@@ -198,6 +198,10 @@ namespace DEB.Revit
             formas.AddItem(Btn("DEB_FormasSecoes", "Seções\nconsideradas", typeof(Formas.SecoesFormasCommand),
                 "Folha com as seções de vigas e pilares usadas no modelo (tabela por tipo: seção, quantidade, material).",
                 "Usa SD_Secao gravado pelo \"Atualizar dados\".", "SC"));
+            formas.AddItem(Btn("DEB_FormasAnotarCorte", "Anotar\ncorte", typeof(Formas.AnotarCorteCommand),
+                "Cota, nomeia e põe cotas de nível no corte ativo (ou nos cortes escolhidos), no padrão do escritório: geral, caixa de elevador ou escada.",
+                "Só o que está cortado ou visível é anotado (peça escondida atrás de outra ou de fase posterior fica de fora). Rodar de novo refaz " +
+                "as cotas do comando; o que foi feito à mão não é tocado.", "AC"));
         }
 
         public Result OnShutdown(UIControlledApplication application) => Result.Succeeded;

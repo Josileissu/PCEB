@@ -179,6 +179,47 @@ namespace DEB.Revit.Formas
         }
     }
 
+    /// <summary>
+    /// "Anotar corte" (pedido do usuário, 14/11/2026): cotas, nomes e cotas de nível no corte ativo ou nos cortes escolhidos,
+    /// no padrão do escritório (geral, caixa de elevador, escada). Uma transação por corte; rodar de novo refaz só o que é do comando.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class AnotarCorteCommand : ToolCommand
+    {
+        protected override string Title => "Anotar corte";
+
+        protected override Result Run(UIApplication uiapp, UIDocument uidoc, Document doc)
+        {
+            var cortes = new List<ViewSection>();
+            if (uidoc.ActiveView is ViewSection ativa && !ativa.IsTemplate && ativa.ViewType == ViewType.Section) cortes.Add(ativa);
+            else
+            {
+                var todos = new FilteredElementCollector(doc).OfClass(typeof(ViewSection)).Cast<ViewSection>()
+                    .Where(v => !v.IsTemplate && v.ViewType == ViewType.Section).OrderBy(v => v.Name).ToList();
+                if (todos.Count == 0) throw new ToolCancelled("O projeto não tem cortes.");
+                cortes = new CheckListWindow<ViewSection>(Title, todos.Select(v => (v, v.Name)), "cortes").Show();
+                if (cortes.Count == 0) throw new ToolCancelled();
+            }
+            var tipos = new[] { "Automático (pelo que o corte atravessa)", "Geral", "Caixa de elevador", "Escada" };
+            var form = new FieldForm(Title, $"{cortes.Count} corte(s). Só o que está cortado ou visível é anotado; o que o comando fez antes é refeito.", 460)
+                .Choice("tipo", "Tipo de corte:", tipos, tipos[0])
+                .Check("cotas", "Cotas", true)
+                .Check("nomes", "Nomes (identificadores)", true)
+                .Check("niveis", "Cotas de nível", true);
+            if (!form.Show("Anotar")) throw new ToolCancelled();
+            var op = new OpcoesCorte
+            {
+                Tipo = (TipoCorte)Array.IndexOf(tipos, form.Get("tipo")),
+                Cotas = form.IsChecked("cotas"), Nomes = form.IsChecked("nomes"), Niveis = form.IsChecked("niveis"),
+            };
+            var log = new PieceLog(Title);
+            PresentationStandard std = ExecucaoFormas.Padrao(log);
+            int ok = ExecucaoFormas.AnotarCortes(doc, std, cortes, op, log);
+            FormasUi.Mostrar(Title, ExecucaoFormas.Relatorio(log, $"{ok} de {cortes.Count} corte(s) anotado(s).", out string arq), arq);
+            return ok > 0 ? Result.Succeeded : Result.Failed;
+        }
+    }
+
     internal static class FormasUi
     {
         /// <summary>Relatório numa janela (texto longo: as primeiras linhas e o caminho do arquivo).</summary>
