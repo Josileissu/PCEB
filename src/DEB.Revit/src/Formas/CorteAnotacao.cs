@@ -329,26 +329,48 @@ namespace DEB.Revit.Formas
             _tipoCotaLido = true;
             string nome = _c.TipoCota?.Trim() ?? "";
             var lin = new FilteredElementCollector(_doc).OfClass(typeof(DimensionType)).Cast<DimensionType>().Where(t => t.StyleType == DimensionStyleType.Linear).ToList();
-            _tipoCota = lin.FirstOrDefault(t => string.Equals(t.Name, nome, StringComparison.OrdinalIgnoreCase));
+            _tipoCota = lin.FirstOrDefault(t => string.Equals(NomeTipo(t), nome, StringComparison.OrdinalIgnoreCase) || string.Equals(t.Name, nome, StringComparison.OrdinalIgnoreCase));
             if (_tipoCota != null) return _tipoCota;
-            // reserva: tipo próprio em cm com uma casa (os apoios de escada têm 250,4); nunca o "SecretInternal…" do Revit
-            _tipoCota = lin.FirstOrDefault(t => t.Name == NomeCotaReserva);
+            // reserva: tipo próprio em cm com uma casa (os apoios de escada têm 250,4); nunca um tipo interno ("SecretInternal…")
+            _tipoCota = lin.FirstOrDefault(t => NomeTipo(t) == NomeCotaReserva);
             if (_tipoCota == null)
             {
-                DimensionType fonte = lin.Where(t => !t.Name.StartsWith("SecretInternal", StringComparison.OrdinalIgnoreCase))
-                    .Where(t => t.GetSpecTypeId() == SpecTypeId.Length).OrderBy(t => t.Name).FirstOrDefault();
-                if (fonte != null)
+                // fonte: os tipos lineares de comprimento que o projeto já usa (mais usados primeiro), sem os internos
+                var uso = new FilteredElementCollector(_doc).OfClass(typeof(Dimension)).WhereElementIsNotElementType()
+                    .Select(d => d.GetTypeId()).GroupBy(id => id).ToDictionary(g => g.Key, g => g.Count());
+                var fontes = lin.Where(t => !Interno(t)).Where(t => t.GetSpecTypeId() == SpecTypeId.Length)
+                    .OrderByDescending(t => uso.TryGetValue(t.Id, out int n) ? n : 0).ThenBy(t => NomeTipo(t)).ToList();
+                foreach (DimensionType fonte in fontes)
+                {
                     try
                     {
-                        _tipoCota = (DimensionType)fonte.Duplicate(NomeCotaReserva);
-                        _tipoCota.SetUnitsFormatOptions(new FormatOptions(UnitTypeId.Centimeters) { UseDefault = false, Accuracy = 0.1, SuppressTrailingZeros = true });
-                        _tipoCota.get_Parameter(BuiltInParameter.LINE_COLOR)?.Set(0);
+                        var novo = (DimensionType)fonte.Duplicate(NomeCotaReserva);
+                        if (NomeTipo(novo) != NomeCotaReserva) { try { novo.Name = NomeCotaReserva; } catch { } }
+                        if (NomeTipo(novo) != NomeCotaReserva)
+                        { _log.Info($"Cópia de \"{NomeTipo(fonte)}\" saiu como \"{NomeTipo(novo)}\"; tentado outro tipo."); _doc.Delete(novo.Id); continue; }
+                        novo.SetUnitsFormatOptions(new FormatOptions(UnitTypeId.Centimeters) { UseDefault = false, Accuracy = 0.1, SuppressTrailingZeros = true });
+                        try { novo.get_Parameter(BuiltInParameter.LINE_COLOR)?.Set(0); } catch { }
+                        _tipoCota = novo;
+                        break;
                     }
-                    catch { _tipoCota = null; }
+                    catch (Exception ex) { _log.Info($"Tipo de cota de reserva não criado de \"{NomeTipo(fonte)}\" ({ex.Message})."); }
+                }
             }
-            _log.Warn($"Tipo de cota \"{nome}\" não existe no projeto; usado \"{_tipoCota?.Name ?? "o padrão do Revit"}\".");
+            _log.Warn($"Tipo de cota \"{nome}\" não existe no projeto; usado \"{(_tipoCota == null ? "o padrão do Revit" : NomeTipo(_tipoCota))}\".");
             return _tipoCota;
         }
+
+        /// <summary>Nome do tipo como o usuário vê (parâmetro do nome do tipo; o <c>Name</c> de alguns tipos de cota é o interno).</summary>
+        internal static string NomeTipo(ElementType t)
+        {
+            string n = null;
+            try { n = t.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)?.AsString(); } catch { }
+            if (string.IsNullOrEmpty(n)) try { n = t.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME)?.AsString(); } catch { }
+            return string.IsNullOrEmpty(n) ? t.Name : n;
+        }
+
+        private static bool Interno(ElementType t) =>
+            NomeTipo(t).StartsWith("SecretInternal", StringComparison.OrdinalIgnoreCase);
 
         public const string NomeCotaReserva = "PCEB - Cota corte (cm)", NomeNivelReserva = "PCEB - Cota de nível (m)";
 
@@ -368,7 +390,7 @@ namespace DEB.Revit.Formas
             var l = new List<RefZ>();
             foreach (var x in refs.Where(x => x != null).Select(x => x.Value).OrderBy(x => x.Z))
                 if (l.Count == 0 || x.Z - l[l.Count - 1].Z > U_(0.005)) l.Add(x);
-            if (l.Count < 2) return false;
+            if (l.Count < 2) { _log.Info($"{_v.Name}: cota \"{oQue}\" sem referências bastantes ({l.Count})."); return false; }
             var ra = new ReferenceArray();
             foreach (var x in l) ra.Append(x.Ref);
             double d = _cortD;
@@ -377,6 +399,7 @@ namespace DEB.Revit.Formas
             {
                 DimensionType tipo = TipoCota();
                 Dimension dim = tipo != null ? _doc.Create.NewDimension(_v, Line.CreateBound(a, b), ra, tipo) : _doc.Create.NewDimension(_v, Line.CreateBound(a, b), ra);
+                if (dim == null) { _log.Warn($"{_v.Name}: cota \"{oQue}\" não criada (o Revit não devolveu a cota)."); return false; }
                 MarcaFormas.Marcar(dim, PapelCota);
                 return true;
             }
@@ -524,8 +547,13 @@ namespace DEB.Revit.Formas
                 // sem "Bottom" (abertura sem sólido): plano de referência com nome de base, senão a face horizontal da parede na
                 // altura da soleira (fundo do vão na parede, ou a base da parede quando a porta começa nela)
                 rb = rb ?? RefDeBase(fi);
-                FaceH fb = rb != null ? null : Faces(fi).Concat(paredes.SelectMany(w => Faces(w.El))).Where(f => Math.Abs(f.Z - zb) < U_(0.005))
+                // a parede que recebe a porta (a do fundo da caixa, só vista) vem primeiro: o fundo do vão dela é a soleira
+                var donas = new List<Element>();
+                if (fi.Host is Wall hw) donas.Add(hw);
+                donas.AddRange(paredes.Select(w => w.El));
+                FaceH fb = rb != null ? null : Faces(fi).Concat(donas.SelectMany(Faces)).Where(f => Math.Abs(f.Z - zb) < U_(0.005))
                     .OrderBy(f => Math.Abs(f.Z - zb)).FirstOrDefault();
+                _log.Info($"{_v.Name}: porta {ModeloFormas.Marca(fi)}: base {(rb != null ? "pela referência da família" : fb != null ? "pela face da parede" : "NÃO achada")}, topo {(rt != null ? "pela referência Top" : "pela geometria")}; hospedeira {fi.Host?.Id.Value}.");
                 RefZ? b = rb != null ? new RefZ(rb, zb) : DeFace(fb);
                 RefZ? t = rt != null ? new RefZ(rt, zt) : DeFace(Faces(fi).Where(f => f.Topo).OrderBy(f => Math.Abs(f.Z - zt)).FirstOrDefault());
                 portas.Add((j, b, t));
@@ -798,12 +826,12 @@ namespace DEB.Revit.Formas
                 _tipoNivelLido = true;
                 string nome = _c.TipoCotaNivel?.Trim() ?? "";
                 var tipos = new FilteredElementCollector(_doc).OfClass(typeof(SpotDimensionType)).Cast<SpotDimensionType>().Where(t => t.StyleType == DimensionStyleType.SpotElevation).ToList();
-                _tipoNivel = tipos.FirstOrDefault(t => string.Equals(t.Name, nome, StringComparison.OrdinalIgnoreCase));
+                _tipoNivel = tipos.FirstOrDefault(t => string.Equals(NomeTipo(t), nome, StringComparison.OrdinalIgnoreCase) || string.Equals(t.Name, nome, StringComparison.OrdinalIgnoreCase));
                 if (_tipoNivel == null)
                 {
                     // reserva: tipo próprio em metros com duas casas e sinal (o padrão do Revit sai "232.561304 cm")
-                    _tipoNivel = tipos.FirstOrDefault(t => t.Name == NomeNivelReserva);
-                    SpotDimensionType fonte = tipos.Where(t => !t.Name.StartsWith("SecretInternal", StringComparison.OrdinalIgnoreCase)).OrderBy(t => t.Name).FirstOrDefault();
+                    _tipoNivel = tipos.FirstOrDefault(t => NomeTipo(t) == NomeNivelReserva);
+                    SpotDimensionType fonte = tipos.Where(t => !Interno(t)).OrderBy(t => NomeTipo(t)).FirstOrDefault();
                     if (_tipoNivel == null && fonte != null)
                         try
                         {
@@ -811,7 +839,7 @@ namespace DEB.Revit.Formas
                             _tipoNivel.SetUnitsFormatOptions(new FormatOptions(UnitTypeId.Meters) { UseDefault = false, Accuracy = 0.01, UsePlusPrefix = true });
                         }
                         catch { _tipoNivel = null; }
-                    _log.Warn($"Tipo de cota de nível \"{nome}\" não existe no projeto; usado \"{_tipoNivel?.Name ?? "o padrão"}\".");
+                    _log.Warn($"Tipo de cota de nível \"{nome}\" não existe no projeto; usado \"{(_tipoNivel == null ? "o padrão" : NomeTipo(_tipoNivel))}\".");
                 }
             }
             BoundingBoxUV bb = f.Face.GetBoundingBox();

@@ -413,6 +413,7 @@ namespace DEB.Revit.Formas
                 var zs = new FilteredElementCollector(doc, v.Id).OfClass(typeof(SpotDimension)).Cast<SpotDimension>()
                     .Select(x => DEB.Core.Fmt.N(UnitUtils.ConvertFromInternalUnits(x.Origin.Z - terreo.ProjectElevation, UnitTypeId.Meters), "+0.00;-0.00")).ToList();
                 sb.AppendLine("   níveis (m, do térreo): " + string.Join(" ", zs));
+                sb.AppendLine("   tipos: " + string.Join(", ", dims.Select(x => x.DimensionType).Where(x => x != null).Select(x => CorteAnotacao.NomeTipo(x) + " (Name " + x.Name + ")").Distinct()));
                 sb.Append(new CorteAnotacao(doc, std.Formas, new PieceLog("")).Diagnostico(v));
             }
             try
