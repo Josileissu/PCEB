@@ -236,7 +236,7 @@ namespace DEB.Revit.Formas
                     {
                         int n = 0;
                         try { n = j.GetReferences(t).Count; } catch { }
-                        if (n > 0) nomes.Add(t + "=" + n);
+                        if (n > 0) nomes.Add(t + "=" + n + "(" + string.Join(",", j.GetReferences(t).Select(r => { try { return j.GetReferenceName(r); } catch { return "?"; } })) + ")");
                     }
                     sb.AppendLine($"           nível={(_doc.GetElement(j.LevelId) as Level)?.Name} soleira={(ps != null && ps.HasValue ? Cm(ps.AsDouble()) : "-")} " +
                                   $"topo={(ph != null && ph.HasValue ? Cm(ph.AsDouble()) : "-")} refs: {string.Join(" ", nomes)}; faces: " +
@@ -521,7 +521,12 @@ namespace DEB.Revit.Formas
                 double zb = ps != null && ps.HasValue ? nz + ps.AsDouble() : bb?.Min.Z ?? nz;
                 double zt = ph != null && ph.HasValue ? nz + ph.AsDouble() : bb?.Max.Z ?? nz;
                 Reference rt = fi.GetReferences(FamilyInstanceReferenceType.Top).FirstOrDefault(), rb = fi.GetReferences(FamilyInstanceReferenceType.Bottom).FirstOrDefault();
-                RefZ? b = rb != null ? new RefZ(rb, zb) : DeFace(Faces(fi).Where(f => !f.Topo).OrderBy(f => Math.Abs(f.Z - zb)).FirstOrDefault());
+                // sem "Bottom" (abertura sem sólido): plano de referência com nome de base, senão a face horizontal da parede na
+                // altura da soleira (fundo do vão na parede, ou a base da parede quando a porta começa nela)
+                rb = rb ?? RefDeBase(fi);
+                FaceH fb = rb != null ? null : Faces(fi).Concat(paredes.SelectMany(w => Faces(w.El))).Where(f => Math.Abs(f.Z - zb) < U_(0.005))
+                    .OrderBy(f => Math.Abs(f.Z - zb)).FirstOrDefault();
+                RefZ? b = rb != null ? new RefZ(rb, zb) : DeFace(fb);
                 RefZ? t = rt != null ? new RefZ(rt, zt) : DeFace(Faces(fi).Where(f => f.Topo).OrderBy(f => Math.Abs(f.Z - zt)).FirstOrDefault());
                 portas.Add((j, b, t));
             }
@@ -560,6 +565,20 @@ namespace DEB.Revit.Formas
                 }
                 Horizontal(j.MaxU + U_(0.30), refs, "parede/porta");
             }
+        }
+
+        /// <summary>Plano de referência da família cujo nome indica a base da abertura (soleira, peitoril, base, inferior, bottom, sill).</summary>
+        private static Reference RefDeBase(FamilyInstance fi)
+        {
+            string[] nomes = { "bottom", "sill", "soleira", "peitoril", "base", "inferior" };
+            foreach (var t in new[] { FamilyInstanceReferenceType.StrongReference, FamilyInstanceReferenceType.WeakReference, FamilyInstanceReferenceType.NotAReference })
+                foreach (Reference r in fi.GetReferences(t))
+                {
+                    string n = "";
+                    try { n = fi.GetReferenceName(r) ?? ""; } catch { }
+                    if (nomes.Any(x => n.IndexOf(x, StringComparison.OrdinalIgnoreCase) >= 0)) return r;
+                }
+            return null;
         }
 
         /// <summary>Faces verticais da peça perpendiculares à direita da vista (com a posição R), só de geometria própria (paredes).</summary>
