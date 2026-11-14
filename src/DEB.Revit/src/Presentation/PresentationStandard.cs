@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -511,8 +511,10 @@ namespace DEB.Revit.Presentation
         public double PassoCadeiaM { get; set; } = 0.60;
         /// <summary>Cadeia baldrame/térreo/capas: distância (m) do eixo da ponta para dentro do vão.</summary>
         public double JuntoEixoM { get; set; } = 0.50;
-        /// <summary>Peças mais estreitas que isto (m) contam como viga de apoio de escada.</summary>
-        public double ApoioEscadaMaxM { get; set; } = 0.25;
+        /// <summary>Viga de apoio de escada: viga cortada que chega até esta distância (m) da ponta do lance.</summary>
+        public double ApoioEscadaFolgaM { get; set; } = 0.30;
+        /// <summary>Fases cujas peças não são anotadas (trecho do nome; ex.: o que ainda vai ser construído).</summary>
+        public List<string> FasesIgnorar { get; set; } = new List<string> { "FUTURA" };
     }
 
     public sealed class FolhaNome

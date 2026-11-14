@@ -89,12 +89,16 @@ namespace DEB.Revit.Formas
                 .WhereElementIsNotElementType().ToList();
 
             int faseVista = OrdemFase(v.get_Parameter(BuiltInParameter.VIEW_PHASE)?.AsElementId());
+            var fasesIgn = (_c.FasesIgnorar ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
             int futuras = 0;
             _pecas = new List<Peca>();
             foreach (Element e in els)
             {
                 if (e is FamilyInstance fi && fi.SuperComponent != null) continue;
-                if (faseVista >= 0 && OrdemFase(e.CreatedPhaseId) > faseVista) { futuras++; continue; }
+                // fase posterior à da vista, ou fase da lista (ex.: "FUTURA", que a vista mostra em destaque mas não se anota)
+                string fase = (_doc.GetElement(e.CreatedPhaseId) as Phase)?.Name ?? "";
+                if ((faseVista >= 0 && OrdemFase(e.CreatedPhaseId) > faseVista)
+                    || fasesIgn.Any(x => fase.IndexOf(x, StringComparison.OrdinalIgnoreCase) >= 0)) { futuras++; continue; }
                 BoundingBoxXYZ bb = e.get_BoundingBox(null);
                 if (bb == null) continue;
                 var pts = new List<(double R, double U, double D)>();
@@ -112,7 +116,7 @@ namespace DEB.Revit.Formas
                 p.Cortada = p.MinD < _cortD - 1e-6 && p.MaxD > _cortD - 1e-6;
                 _pecas.Add(p);
             }
-            if (futuras > 0) _log.Info($"{v.Name}: {futuras} peça(s) de fase posterior à da vista ignoradas.");
+            if (futuras > 0) _log.Info($"{v.Name}: {futuras} peça(s) de fase posterior à da vista ou de fase ignorada ficaram de fora.");
 
             // eixos que cruzam o corte: direção perpendicular à direita da vista
             _eixos = new FilteredElementCollector(_doc).OfClass(typeof(Grid)).Cast<Grid>()
@@ -194,6 +198,56 @@ namespace DEB.Revit.Formas
             return tipo.ToString();
         }
 
+        /// <summary>
+        /// Diagnóstico para o autoteste (só leitura): peças cortadas, lances e portas com as medidas em cm (R a partir da borda esquerda
+        /// do recorte, Z a partir do térreo), faces horizontais e referências. Serve para ajustar as regras sem abrir o modelo.
+        /// </summary>
+        internal string Diagnostico(ViewSection v)
+        {
+            Ler(v);
+            var sb = new System.Text.StringBuilder();
+            double z0 = _terreo.ProjectElevation;
+            string Cm(double x) => DEB.Core.Fmt.N(UnitUtils.ConvertFromInternalUnits(x, UnitTypeId.Centimeters));
+            string Fase(Element e) => (_doc.GetElement(e.CreatedPhaseId) as Phase)?.Name ?? "?";
+            var vis = new HashSet<Peca>(Visiveis());
+            sb.AppendLine($"  [diag] fase da vista: {(_doc.GetElement(v.get_Parameter(BuiltInParameter.VIEW_PHASE)?.AsElementId() ?? ElementId.InvalidElementId) as Phase)?.Name}; eixos R: {string.Join(" ", _eixos.Select(r => Cm(r - _minR)))}");
+            foreach (Peca p in _pecas.OrderBy(p => p.MinR))
+            {
+                bool interessa = p.Cortada || Cat(p, BuiltInCategory.OST_Stairs) || Cat(p, BuiltInCategory.OST_Windows);
+                if (!interessa) continue;
+                string tipo = p.El is FamilyInstance fi ? fi.Symbol.FamilyName + ":" + fi.Symbol.Name : p.El.Name;
+                sb.AppendLine($"  [diag] {p.El.Id.Value} {p.El.Category?.Name} \"{tipo}\" marca={ModeloFormas.Marca(p.El)} fase={Fase(p.El)} " +
+                              $"R={Cm(p.MinR - _minR)}..{Cm(p.MaxR - _minR)} Z={Cm(p.MinU - UDeZ(z0))}..{Cm(p.MaxU - UDeZ(z0))} D={Cm(p.MinD - _cortD)}..{Cm(p.MaxD - _cortD)} " +
+                              $"{(p.Cortada ? "cortada" : "vista")}{(vis.Contains(p) ? "" : " OCULTA")} viga={EhViga(p)}");
+                if (Cat(p, BuiltInCategory.OST_Stairs) || EhViga(p) || p.El is Floor)
+                    foreach (FaceH f in Faces(p.El).OrderBy(f => f.Z))
+                        sb.AppendLine($"           {(f.Topo ? "topo " : "fundo")} z={Cm(f.Z - z0)} R={Cm(f.MinR - _minR)}..{Cm(f.MaxR - _minR)}");
+                if (Cat(p, BuiltInCategory.OST_Stairs))
+                {
+                    Lance l = Analisar(p.El, p);
+                    sb.AppendLine($"           início={(l.Inicio == null ? "-" : Cm(l.Inicio.Z - z0))} fim={(l.Fim == null ? "-" : Cm(l.Fim.Z - z0))} sobe={l.Sobe}; " +
+                                  $"faces verticais R: {string.Join(" ", FacesVerticais(p.El).Where(f => f != null).Select(f => Cm(f.Value.Item2 - _minR)))}");
+                }
+                if (p.El is FamilyInstance j && Cat(p, BuiltInCategory.OST_Windows))
+                {
+                    Parameter ps = j.get_Parameter(BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM), ph = j.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM);
+                    var nomes = new List<string>();
+                    foreach (FamilyInstanceReferenceType t in Enum.GetValues(typeof(FamilyInstanceReferenceType)))
+                    {
+                        int n = 0;
+                        try { n = j.GetReferences(t).Count; } catch { }
+                        if (n > 0) nomes.Add(t + "=" + n);
+                    }
+                    sb.AppendLine($"           nível={(_doc.GetElement(j.LevelId) as Level)?.Name} soleira={(ps != null && ps.HasValue ? Cm(ps.AsDouble()) : "-")} " +
+                                  $"topo={(ph != null && ph.HasValue ? Cm(ph.AsDouble()) : "-")} refs: {string.Join(" ", nomes)}; faces: " +
+                                  string.Join(" ", Faces(j).OrderBy(f => f.Z).Select(f => (f.Topo ? "t" : "f") + Cm(f.Z - z0))));
+                }
+                if (Cat(p, BuiltInCategory.OST_Walls))
+                    sb.AppendLine($"           faces verticais R: {string.Join(" ", FacesVerticais(p.El).Where(f => f != null).Select(f => Cm(f.Value.Item2 - _minR)))}");
+            }
+            return sb.ToString();
+        }
+
         private static bool Cat(Peca p, BuiltInCategory c) => p.El.Category?.Id.Value == (long)c;
 
         private bool EhViga(Peca p) => p.El is FamilyInstance fi && Cat(p, BuiltInCategory.OST_StructuralFraming) && ModeloFormas.Passa(fi, _cfg.FiltroVigas);
@@ -210,6 +264,19 @@ namespace DEB.Revit.Formas
             public Transform T = Transform.Identity;
             public double Z;   // Z interno
             public bool Topo;
+            public double MinR, MaxR;   // extensão da face na direita da vista
+            public double Comp => MaxR - MinR;
+        }
+
+        /// <summary>Extensão R da face (pelos vértices das arestas, já no modelo).</summary>
+        private void Extensao(FaceH h)
+        {
+            double a = double.MaxValue, b = double.MinValue;
+            foreach (EdgeArray ea in h.Face.EdgeLoops)
+                foreach (Edge ed in ea)
+                    foreach (XYZ q in ed.Tessellate())
+                    { double r = Local(h.T.OfPoint(q)).R; a = Math.Min(a, r); b = Math.Max(b, r); }
+            h.MinR = a; h.MaxR = b;
         }
 
         private readonly Dictionary<ElementId, List<FaceH>> _faces = new Dictionary<ElementId, List<FaceH>>();
@@ -239,13 +306,13 @@ namespace DEB.Revit.Formas
                                     Reference rf;
                                     try { rf = Reference.ParseFromStableRepresentation(_doc, fi.UniqueId + ":0:INSTANCE:" + f.Reference.ConvertToStableRepresentation(_doc)); }
                                     catch { continue; }
-                                    r.Add(new FaceH { Ref = rf, Face = pf, T = gi.Transform, Z = gi.Transform.OfPoint(pf.Origin).Z, Topo = n.Z > 0 });
+                                    { var h = new FaceH { Ref = rf, Face = pf, T = gi.Transform, Z = gi.Transform.OfPoint(pf.Origin).Z, Topo = n.Z > 0 }; Extensao(h); r.Add(h); }
                                 }
                     }
                     else if (go is Solid s && s.Volume > 1e-9)
                         foreach (Face f in s.Faces)
                             if (f is PlanarFace pf && f.Reference != null && Math.Abs(pf.FaceNormal.Z) > 0.999)
-                                r.Add(new FaceH { Ref = f.Reference, Face = pf, Z = pf.Origin.Z, Topo = pf.FaceNormal.Z > 0 });
+                                { var h = new FaceH { Ref = f.Reference, Face = pf, Z = pf.Origin.Z, Topo = pf.FaceNormal.Z > 0 }; Extensao(h); r.Add(h); }
                 }
             _faces[e.Id] = r;
             return r;
@@ -262,12 +329,28 @@ namespace DEB.Revit.Formas
             _tipoCotaLido = true;
             string nome = _c.TipoCota?.Trim() ?? "";
             var lin = new FilteredElementCollector(_doc).OfClass(typeof(DimensionType)).Cast<DimensionType>().Where(t => t.StyleType == DimensionStyleType.Linear).ToList();
-            _tipoCota = lin.FirstOrDefault(t => string.Equals(t.Name, nome, StringComparison.OrdinalIgnoreCase))
-                        ?? new PlantaFormas(_doc, _cfg, new PieceLog("")).TipoDeCota();   // reserva: o tipo em cm do plugin
-            if (_tipoCota == null || !string.Equals(_tipoCota.Name, nome, StringComparison.OrdinalIgnoreCase))
-                _log.Warn($"Tipo de cota \"{nome}\" não existe no projeto; usado \"{_tipoCota?.Name ?? "o padrão do Revit"}\".");
+            _tipoCota = lin.FirstOrDefault(t => string.Equals(t.Name, nome, StringComparison.OrdinalIgnoreCase));
+            if (_tipoCota != null) return _tipoCota;
+            // reserva: tipo próprio em cm com uma casa (os apoios de escada têm 250,4); nunca o "SecretInternal…" do Revit
+            _tipoCota = lin.FirstOrDefault(t => t.Name == NomeCotaReserva);
+            if (_tipoCota == null)
+            {
+                DimensionType fonte = lin.Where(t => !t.Name.StartsWith("SecretInternal", StringComparison.OrdinalIgnoreCase))
+                    .Where(t => t.GetSpecTypeId() == SpecTypeId.Length).OrderBy(t => t.Name).FirstOrDefault();
+                if (fonte != null)
+                    try
+                    {
+                        _tipoCota = (DimensionType)fonte.Duplicate(NomeCotaReserva);
+                        _tipoCota.SetUnitsFormatOptions(new FormatOptions(UnitTypeId.Centimeters) { UseDefault = false, Accuracy = 0.1, SuppressTrailingZeros = true });
+                        _tipoCota.get_Parameter(BuiltInParameter.LINE_COLOR)?.Set(0);
+                    }
+                    catch { _tipoCota = null; }
+            }
+            _log.Warn($"Tipo de cota \"{nome}\" não existe no projeto; usado \"{_tipoCota?.Name ?? "o padrão do Revit"}\".");
             return _tipoCota;
         }
+
+        public const string NomeCotaReserva = "PCEB - Cota corte (cm)", NomeNivelReserva = "PCEB - Cota de nível (m)";
 
         /// <summary>Uma referência com a sua altura (Z interno), para montar cadeias verticais.</summary>
         private readonly struct RefZ
@@ -411,37 +494,54 @@ namespace DEB.Revit.Formas
             if (paredes.Count == 0) return;
             double cx0 = paredes.Min(p => p.MinR), cx1 = paredes.Max(p => p.MaxR);
 
-            // cadeia junto ao pilar do eixo (bloco, fundo e topo das vigas, topo do pilar)
+            // cadeia junto ao pilar do eixo, como a da fachada: topo do bloco mais alto, fundo e topo das vigas CORTADAS, topo do pilar
             Peca pilar = vis.Where(p => Cat(p, BuiltInCategory.OST_StructuralColumns)).OrderBy(p => _eixos.Count == 0 ? 0 : _eixos.Min(g => Math.Abs(g - p.R))).FirstOrDefault();
             if (pilar != null)
             {
-                double rp = (pilar.R < (cx0 + cx1) / 2 ? pilar.MinR : pilar.MaxR) + (pilar.R < (cx0 + cx1) / 2 ? -1 : 1) * U_(_c.FachadaAlemM / 2);
+                bool esq = pilar.R < (cx0 + cx1) / 2;
+                double rp = (esq ? pilar.MinR : pilar.MaxR) + (esq ? -1 : 1) * U_(_c.FachadaAlemM / 2);
                 var c = new List<RefZ?> { DeFace(Topo(pilar.El)) };
-                foreach (Peca p in Em(vis, pilar.R, 0.40))
-                    if (Cat(p, BuiltInCategory.OST_StructuralFoundation) || EhViga(p)) { c.Add(DeFace(Fundo(p.El))); c.Add(DeFace(Topo(p.El))); }
+                Peca bloco = Em(vis.Where(p => Cat(p, BuiltInCategory.OST_StructuralFoundation)), pilar.R, 0.40)
+                    .OrderByDescending(p => Topo(p.El)?.Z ?? double.MinValue).FirstOrDefault();
+                if (bloco != null) c.Add(DeFace(Topo(bloco.El)));
+                foreach (Peca p in Em(cortadas, pilar.R, 0.40).Where(EhViga)) { c.Add(DeFace(Fundo(p.El))); c.Add(DeFace(Topo(p.El))); }
                 Vertical(rp, c, "pilar do eixo");
             }
 
-            // cadeia vertical por dentro da caixa: lajes de topo e do fundo, topo/base de cada porta, níveis
-            double rc = (cx0 + cx1) / 2;
+            // portas: base e topo pela soleira/altura da instância (a caixa da família começa no nível, a porta 3 cm abaixo dele);
+            // referência da base: "Bottom" da família, senão a face mais baixa da geometria
             var janelas = vis.Where(p => Cat(p, BuiltInCategory.OST_Windows) && p.El is FamilyInstance).ToList();
-            var cin = new List<RefZ?>();
-            foreach (Peca lj in cortadas.Where(p => p.El is Floor && p.MinR >= cx0 - U_(0.3) && p.MaxR <= cx1 + U_(0.3)))
-            { cin.Add(DeFace(Topo(lj.El))); cin.Add(DeFace(Fundo(lj.El))); }
+            var portas = new List<(Peca P, RefZ? Base, RefZ? Topo)>();
             foreach (Peca j in janelas)
             {
                 var fi = (FamilyInstance)j.El;
-                Reference rt = fi.GetReferences(FamilyInstanceReferenceType.Top).FirstOrDefault(), rb = fi.GetReferences(FamilyInstanceReferenceType.Bottom).FirstOrDefault();
+                double nz = (_doc.GetElement(fi.LevelId) as Level)?.ProjectElevation ?? 0;
+                Parameter ps = fi.get_Parameter(BuiltInParameter.INSTANCE_SILL_HEIGHT_PARAM), ph = fi.get_Parameter(BuiltInParameter.INSTANCE_HEAD_HEIGHT_PARAM);
                 BoundingBoxXYZ bb = fi.get_BoundingBox(null);
-                if (rt != null && bb != null) cin.Add(new RefZ(rt, bb.Max.Z));
-                if (rb != null && bb != null) cin.Add(new RefZ(rb, bb.Min.Z));
-                // altura de cada porta
-                if (rt != null && rb != null && bb != null) Vertical(j.MaxR + U_(0.15), new RefZ?[] { new RefZ(rb, bb.Min.Z), new RefZ(rt, bb.Max.Z) }, "altura da porta");
+                double zb = ps != null && ps.HasValue ? nz + ps.AsDouble() : bb?.Min.Z ?? nz;
+                double zt = ph != null && ph.HasValue ? nz + ph.AsDouble() : bb?.Max.Z ?? nz;
+                Reference rt = fi.GetReferences(FamilyInstanceReferenceType.Top).FirstOrDefault(), rb = fi.GetReferences(FamilyInstanceReferenceType.Bottom).FirstOrDefault();
+                RefZ? b = rb != null ? new RefZ(rb, zb) : DeFace(Faces(fi).Where(f => !f.Topo).OrderBy(f => Math.Abs(f.Z - zb)).FirstOrDefault());
+                RefZ? t = rt != null ? new RefZ(rt, zt) : DeFace(Faces(fi).Where(f => f.Topo).OrderBy(f => Math.Abs(f.Z - zt)).FirstOrDefault());
+                portas.Add((j, b, t));
             }
-            cin.AddRange(_niveis.Select(Nivel));
+
+            // cadeia vertical por dentro da caixa: lajes de topo e do fundo, base e topo de cada porta, níveis entre elas
+            double rc = (cx0 + cx1) / 2;
+            var cin = new List<RefZ?>();
+            foreach (Peca lj in cortadas.Where(p => p.El is Floor && p.MinR >= cx0 - U_(0.3) && p.MaxR <= cx1 + U_(0.3)))
+            { cin.Add(DeFace(Topo(lj.El))); cin.Add(DeFace(Fundo(lj.El))); }
+            foreach (var pt in portas) { cin.Add(pt.Base); cin.Add(pt.Topo); }
+            var zs = cin.Where(x => x != null).Select(x => x.Value.Z).ToList();
+            // só os níveis dentro da caixa (o da cobertura, acima da laje de topo, fica de fora)
+            if (zs.Count > 0) cin.AddRange(_niveis.Where(l => l.ProjectElevation > zs.Min() + U_(0.005) && l.ProjectElevation < zs.Max() - U_(0.005)).Select(Nivel));
             Vertical(rc, cin, "dentro da caixa");
 
-            // em cada piso: face da parede → bordas da porta → face da parede
+            // altura de cada porta
+            foreach (var pt in portas)
+                if (pt.Base != null && pt.Topo != null) Vertical(pt.P.MaxR + U_(0.15), new[] { pt.Base, pt.Topo }, "altura da porta");
+
+            // em cada piso: face externa da parede → bordas da porta → face externa da parede
             foreach (Peca j in janelas)
             {
                 var fi = (FamilyInstance)j.El;
@@ -452,9 +552,12 @@ namespace DEB.Revit.Formas
                     if (rr != null) refs.Add((rr, tipo == FamilyInstanceReferenceType.Left ? Math.Min(j.MinR, j.MaxR) : Math.Max(j.MinR, j.MaxR)));
                 }
                 if (refs.Count == 2 && refs[0].Value.Item2 > refs[1].Value.Item2) refs.Reverse();
-                foreach (Peca w in paredes.Where(w => j.MinU < w.MaxU && j.MaxU > w.MinU))
-                    foreach (var f in FacesVerticais(w.El))
-                        refs.Add(f);
+                var faces = paredes.Where(w => j.MinU < w.MaxU && j.MaxU > w.MinU).SelectMany(w => FacesVerticais(w.El)).Where(f => f != null).ToList();
+                if (faces.Count > 0)
+                {
+                    refs.Add(faces.OrderBy(f => f.Value.Item2).First());
+                    refs.Add(faces.OrderByDescending(f => f.Value.Item2).First());
+                }
                 Horizontal(j.MaxU + U_(0.30), refs, "parede/porta");
             }
         }
@@ -495,42 +598,100 @@ namespace DEB.Revit.Formas
 
         private void CotasEscada(List<Peca> vis)
         {
-            var lances = Lances(vis).Where(l => l.P.MaxD >= _fundoD && l.P.MinD <= _cortD).ToList();
-            if (lances.Count == 0) { _log.Warn($"{_v.Name}: corte de escada sem lances visíveis."); return; }
-            double e0 = lances.Min(l => l.P.MinR), e1 = lances.Max(l => l.P.MaxR);
-            var apoios = vis.Where(p => p.Cortada && EhViga(p) && p.Larg <= U_(_c.ApoioEscadaMaxM)).ToList();
+            var todos = Lances(vis).Where(l => l.P.MaxD >= _fundoD && l.P.MinD <= _cortD).ToList();
+            if (todos.Count == 0) { _log.Warn($"{_v.Name}: corte de escada sem lances visíveis."); return; }
+            // os lances cortados recebem vão, espelhos e pisos; os só vistos (atrás) entram só na cadeia dos níveis
+            var lances = todos.Any(l => l.P.Cortada) ? todos.Where(l => l.P.Cortada).ToList() : todos;
+            var cortadas = vis.Where(p => p.Cortada).ToList();
 
-            // apoios de cada lado: nível → topo das vigas de apoio
-            foreach (var lado in new[] { apoios.Where(a => a.R <= (e0 + e1) / 2).ToList(), apoios.Where(a => a.R > (e0 + e1) / 2).ToList() })
-            {
-                if (lado.Count == 0) continue;
-                double r = lado.Average(a => a.R) + (lado[0].R <= (e0 + e1) / 2 ? -1 : 1) * U_(0.60);
-                Vertical(r, _niveis.Select(Nivel).Concat(lado.Select(a => DeFace(Topo(a.El)))), "apoios da escada");
-            }
-
+            // apoios de cada lado: as vigas cortadas que chegam à ponta de algum lance definem a faixa do lado; entram todas as vigas
+            // cortadas dessa faixa acima do térreo (inclusive a do lance de fase ignorada) — cadeia térreo → topo de cada viga
+            double folga = U_(_c.ApoioEscadaFolgaM), zTerreo = _terreo.ProjectElevation;
+            var apoiosEsq = new List<Peca>(); var apoiosDir = new List<Peca>();
+            var info = new Dictionary<Element, Lance>();
             foreach (var (run, p) in lances)
             {
-                List<FaceH> hs = Faces(run).OrderBy(f => f.Z).ToList();
-                var pisos = hs.Where(f => f.Topo).ToList();
-                // vão do lance entre as faces dos apoios
-                Peca a0 = apoios.Where(a => a.MaxR <= p.MinR + U_(0.30)).OrderByDescending(a => a.MaxR).FirstOrDefault();
-                Peca a1 = apoios.Where(a => a.MinR >= p.MaxR - U_(0.30)).OrderBy(a => a.MinR).FirstOrDefault();
-                if (a0 != null && a1 != null)
-                {
-                    var f0 = FacesVerticais(a0.El).Where(f => f.Value.Item2 >= a0.R).OrderBy(f => f.Value.Item2).FirstOrDefault();
-                    var f1 = FacesVerticais(a1.El).Where(f => f.Value.Item2 <= a1.R).OrderByDescending(f => f.Value.Item2).FirstOrDefault();
-                    if (f0 != null && f1 != null) Horizontal(p.MaxU + U_(0.40), new[] { f0, f1 }, "vão do lance");
-                }
-                // 3 espelhos (pisos consecutivos) e 3 pisos (faces verticais consecutivas)
-                if (pisos.Count >= 4) Vertical(p.MinR - U_(0.30), pisos.Take(4).Select(DeFace), "espelhos");
-                var risers = FacesVerticais(run).Select(f => f.Value).OrderBy(f => Math.Abs(f.Item2 - p.MinR)).Take(4).Select(f => ((Reference, double)?)f).ToList();
-                if (risers.Count >= 4) Horizontal(p.MinU - U_(0.30), risers, "pisos");
+                Lance l = Analisar(run, p);
+                info[run] = l;
+                Peca a0 = cortadas.Where(EhViga).Where(a => a.MinR <= p.MinR + folga && a.MaxR >= p.MinR - folga && a.MaxU >= p.MinU - U_(0.6) && a.MaxU <= p.MaxU + U_(0.1))
+                    .OrderBy(a => Math.Abs(a.MaxR - p.MinR)).FirstOrDefault();
+                Peca a1 = cortadas.Where(EhViga).Where(a => a.MinR <= p.MaxR + folga && a.MaxR >= p.MaxR - folga && a.MaxU >= p.MinU - U_(0.6) && a.MaxU <= p.MaxU + U_(0.6))
+                    .OrderBy(a => Math.Abs(a.MinR - p.MaxR)).FirstOrDefault();
+                if (a0 != null) apoiosEsq.Add(a0);
+                if (a1 != null && a1 != a0) apoiosDir.Add(a1);
+                l.Esq = a0; l.Dir = a1;
+                // o patamar fica sobre o apoio mais baixo: face de cima abaixo do topo dele (encaixe, dente) não é o início
+                double? zApoio = new[] { a0, a1 }.Where(a => a != null).Select(a => Topo(a.El)?.Z).Where(z => z != null).Select(z => z.Value).DefaultIfEmpty(double.NaN).Min();
+                if (zApoio != null && !double.IsNaN(zApoio.Value)) Analisar(run, p, zApoio.Value - U_(0.01));
+            }
+            foreach (var (lado, sinal) in new[] { (apoiosEsq, -1), (apoiosDir, 1) })
+            {
+                if (lado.Count == 0) continue;
+                double f0 = lado.Min(a => a.MinR), f1 = lado.Max(a => a.MaxR);
+                var faixa = cortadas.Where(EhViga).Where(a => a.MaxR >= f0 - U_(0.05) && a.MinR <= f1 + U_(0.05)).Select(a => DeFace(Topo(a.El)))
+                    .Where(f => f != null && f.Value.Z > zTerreo + U_(0.10)).ToList();
+                double r = sinal < 0 ? f0 - U_(0.60) : f1 + U_(0.60);
+                Vertical(r, new[] { Nivel(_terreo) }.Concat(faixa), sinal < 0 ? "apoios da escada (esquerda)" : "apoios da escada (direita)");
             }
 
-            // níveis com o início de cada lance
+            var feitos = new HashSet<string>();
+            foreach (var (run, p) in lances)
+            {
+                Lance l = info[run];
+                // vão do lance entre as faces dos apoios voltadas para ele
+                if (l.Esq != null && l.Dir != null)
+                {
+                    var f0 = FacesVerticais(l.Esq.El).Where(f => f != null).OrderByDescending(f => f.Value.Item2).FirstOrDefault();
+                    var f1 = FacesVerticais(l.Dir.El).Where(f => f != null).OrderBy(f => f.Value.Item2).FirstOrDefault();
+                    string k = f0 == null || f1 == null ? "" : Math.Round(f0.Value.Item2, 2) + "|" + Math.Round(f1.Value.Item2, 2) + "|" + Math.Round(p.MaxU, 1);
+                    if (f0 != null && f1 != null && feitos.Add(k)) Horizontal(p.MaxU + U_(0.30), new[] { f0, f1 }, "vão do lance");
+                }
+                if (l.Inicio == null) continue;
+                // 3 espelhos: o patamar e os 3 degraus seguintes; 3 pisos: os 4 espelhos a partir da ponta do patamar
+                var degraus = Faces(run).Where(f => f.Topo && f.Z >= l.Inicio.Z - U_(0.005)).OrderBy(f => f.Z).Take(4).ToList();
+                double borda = l.Sobe > 0 ? l.Inicio.MaxR : l.Inicio.MinR;
+                var espelhos = FacesVerticais(run).Where(f => f != null && l.Sobe * (f.Value.Item2 - borda) >= -U_(0.005))
+                    .OrderBy(f => l.Sobe * (f.Value.Item2 - borda)).ToList();
+                var quatro = new List<(Reference, double)?>();
+                foreach (var f in espelhos)
+                    if (quatro.Count < 4 && (quatro.Count == 0 || Math.Abs(f.Value.Item2 - quatro[quatro.Count - 1].Value.Item2) > U_(0.005))) quatro.Add(f);
+                double rEsp = quatro.Count > 0 ? quatro[quatro.Count - 1].Value.Item2 + l.Sobe * U_(0.30) : borda + l.Sobe * U_(1.2);
+                if (degraus.Count >= 4) Vertical(rEsp, degraus.Select(DeFace), "espelhos");
+                if (quatro.Count >= 4) Horizontal(UDeZ(degraus.Count > 0 ? degraus[degraus.Count - 1].Z : l.Inicio.Z) + U_(0.30), quatro, "pisos");
+            }
+
+            // níveis com o início de cada lance (patamar): térreo → patamar → nível → …
             var cl = _niveis.Select(Nivel).ToList();
-            foreach (var (run, _) in lances) cl.Add(DeFace(Faces(run).Where(f => f.Topo).OrderBy(f => f.Z).FirstOrDefault()));
-            Vertical(e0 - U_(1.0), cl, "níveis e lances");
+            foreach (var (run, _) in todos) cl.Add(DeFace((info.TryGetValue(run, out Lance x) ? x : Analisar(run, null)).Inicio));
+            double e0 = todos.Min(l => l.P.MinR);
+            Vertical(Math.Min(e0, apoiosEsq.Count > 0 ? apoiosEsq.Min(a => a.MinR) - U_(0.60) : e0) - U_(_c.PassoCadeiaM), cl, "níveis e lances");
+        }
+
+        /// <summary>Lance de escada lido das faces: início (patamar = a face de cima mais comprida da metade de baixo), fim (a face
+        /// de cima mais alta) e o sentido em que sobe na vista. Os apoios são preenchidos por quem chama.</summary>
+        private sealed class Lance
+        {
+            public FaceH Inicio, Fim;
+            public int Sobe = 1;
+            public Peca Esq, Dir;
+        }
+
+        private readonly Dictionary<ElementId, Lance> _analise = new Dictionary<ElementId, Lance>();
+
+        /// <summary>Lê o lance (guardado: as cotas de nível usam o mesmo início). <paramref name="zMin"/> = o início não fica abaixo disto.</summary>
+        private Lance Analisar(Element run, Peca p, double zMin = double.NaN)
+        {
+            if (double.IsNaN(zMin) && _analise.TryGetValue(run.Id, out Lance ja)) return ja;
+            var l = _analise.TryGetValue(run.Id, out Lance velho) ? velho : new Lance();
+            _analise[run.Id] = l;
+            var topos = Faces(run).Where(f => f.Topo).OrderBy(f => f.Z).ToList();
+            if (!double.IsNaN(zMin) && topos.Any(f => f.Z >= zMin)) topos = topos.Where(f => f.Z >= zMin).ToList();
+            if (topos.Count == 0) return l;
+            l.Fim = topos[topos.Count - 1];
+            double meio = (topos[0].Z + l.Fim.Z) / 2;
+            l.Inicio = topos.Where(f => f.Z <= meio + U_(0.005)).OrderByDescending(f => f.Comp).ThenBy(f => f.Z).First();
+            l.Sobe = (l.Fim.MinR + l.Fim.MaxR) / 2 >= (l.Inicio.MinR + l.Inicio.MaxR) / 2 ? 1 : -1;
+            return l;
         }
 
         private List<(Element Run, Peca P)> _lances;
@@ -577,10 +738,12 @@ namespace DEB.Revit.Formas
             var cortadas = vis.Where(p => p.Cortada).ToList();
             if (tipo == TipoCorte.Escada)
             {
-                foreach (var (sr, _) in Lances(vis))
+                // início (patamar) e fim de cada lance cortado (sem cortado, dos vistos)
+                var ls = Lances(vis);
+                foreach (var (sr, _) in ls.Any(l => l.P.Cortada) ? ls.Where(l => l.P.Cortada) : ls)
                 {
-                    var t = Faces(sr).Where(f => f.Topo).OrderBy(f => f.Z).ToList();
-                    if (t.Count > 0) { alvos.Add(t[0]); alvos.Add(t[t.Count - 1]); }
+                    Lance l = Analisar(sr, null);
+                    alvos.Add(l.Inicio); alvos.Add(l.Fim);
                 }
             }
             else
@@ -617,7 +780,20 @@ namespace DEB.Revit.Formas
                 string nome = _c.TipoCotaNivel?.Trim() ?? "";
                 var tipos = new FilteredElementCollector(_doc).OfClass(typeof(SpotDimensionType)).Cast<SpotDimensionType>().Where(t => t.StyleType == DimensionStyleType.SpotElevation).ToList();
                 _tipoNivel = tipos.FirstOrDefault(t => string.Equals(t.Name, nome, StringComparison.OrdinalIgnoreCase));
-                if (_tipoNivel == null) _log.Warn($"Tipo de cota de nível \"{nome}\" não existe no projeto; usado o padrão.");
+                if (_tipoNivel == null)
+                {
+                    // reserva: tipo próprio em metros com duas casas e sinal (o padrão do Revit sai "232.561304 cm")
+                    _tipoNivel = tipos.FirstOrDefault(t => t.Name == NomeNivelReserva);
+                    SpotDimensionType fonte = tipos.Where(t => !t.Name.StartsWith("SecretInternal", StringComparison.OrdinalIgnoreCase)).OrderBy(t => t.Name).FirstOrDefault();
+                    if (_tipoNivel == null && fonte != null)
+                        try
+                        {
+                            _tipoNivel = (SpotDimensionType)fonte.Duplicate(NomeNivelReserva);
+                            _tipoNivel.SetUnitsFormatOptions(new FormatOptions(UnitTypeId.Meters) { UseDefault = false, Accuracy = 0.01, UsePlusPrefix = true });
+                        }
+                        catch { _tipoNivel = null; }
+                    _log.Warn($"Tipo de cota de nível \"{nome}\" não existe no projeto; usado \"{_tipoNivel?.Name ?? "o padrão"}\".");
+                }
             }
             BoundingBoxUV bb = f.Face.GetBoundingBox();
             XYZ melhor = null;
@@ -680,7 +856,7 @@ namespace DEB.Revit.Formas
                 if (Cat(p, BuiltInCategory.OST_StructuralColumns) && p.El is FamilyInstance fc && ModeloFormas.Passa(fc, _cfg.FiltroPilares))
                     Criar(p, _c.FamiliaPilar, BuiltInCategory.OST_StructuralColumnTags, "pilar", p.MaxR + off, uPav);
                 else if (EhViga(p))
-                    Criar(p, _c.FamiliaViga, BuiltInCategory.OST_StructuralFramingTags, p.Cortada ? "viga-cortada" : "viga-vista", p.Cortada ? p.MinR : p.R, p.MinU);
+                    Criar(p, _c.FamiliaViga, BuiltInCategory.OST_StructuralFramingTags, p.Cortada ? "viga-cortada" : "viga-vista", p.Cortada ? p.MinR : (Math.Max(p.MinR, _minR) + Math.Min(p.MaxR, _maxR)) / 2, p.MinU);
                 else if (p.El is Floor && p.Cortada && Tools.RenumberSlabsCommand.ForaDaNumeracao(_doc, p.El, "L") == null)
                 {
                     double r0 = Math.Max(p.MinR, _minR), r1 = Math.Min(p.MaxR, _maxR);
@@ -708,7 +884,10 @@ namespace DEB.Revit.Formas
                     if (b == null) continue;
                     double tr = (b.Value.MinR + b.Value.MaxR) / 2, tu = (b.Value.MinU + b.Value.MaxU) / 2;
                     // caixa do texto na vista → para o sistema do recorte (as duas usam a direita/para cima da vista)
-                    double pr0 = Mundo(p.MinR, 0, _cortD).DotProduct(_v.RightDirection), pr1 = Mundo(p.MaxR, 0, _cortD).DotProduct(_v.RightDirection);
+                    // só o trecho dentro do recorte (viga vista que passa do recorte tinha o nome fora do desenho)
+                    double cr0 = Math.Max(p.MinR, _minR), cr1 = Math.Min(p.MaxR, _maxR);
+                    if (cr1 < cr0) { cr0 = cr1 = Math.Max(_minR, Math.Min(_maxR, p.R)); }
+                    double pr0 = Mundo(cr0, 0, _cortD).DotProduct(_v.RightDirection), pr1 = Mundo(cr1, 0, _cortD).DotProduct(_v.RightDirection);
                     double pu0 = Mundo(0, p.MinU, _cortD).DotProduct(_v.UpDirection), pu1 = Mundo(0, p.MaxU, _cortD).DotProduct(_v.UpDirection);
                     double prMin = Math.Min(pr0, pr1), prMax = Math.Max(pr0, pr1), puMin = Math.Min(pu0, pu1), puMax = Math.Max(pu0, pu1);
                     double dr = 0, du = 0;

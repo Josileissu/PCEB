@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -401,11 +401,19 @@ namespace DEB.Revit.Formas
                 int spots = new FilteredElementCollector(doc, v.Id).OfClass(typeof(SpotDimension)).GetElementCount();
                 int tags = new FilteredElementCollector(doc, v.Id).OfClass(typeof(IndependentTag)).GetElementCount();
                 sb.AppendLine($"{v.Name}: {dims.Count} cota(s), {spots} cota(s) de nível, {tags} identificador(es)");
+                // valores crus em cm com uma casa (o texto da cota sai arredondado pelo tipo)
+                string Cm(double? pes) => pes == null ? "?" : DEB.Core.Fmt.N(UnitUtils.ConvertFromInternalUnits(pes.Value, UnitTypeId.Centimeters));
                 foreach (Dimension d in dims)
                 {
-                    string val = d.NumberOfSegments > 1 ? string.Join("/", d.Segments.Cast<DimensionSegment>().Select(sg => sg.ValueString)) : d.ValueString;
+                    string val = d.NumberOfSegments > 1 ? string.Join("/", d.Segments.Cast<DimensionSegment>().Select(sg => Cm(sg.Value))) : Cm(d.Value);
                     sb.AppendLine("   " + val);
                 }
+                // cotas de nível: altura do ponto em m a partir do térreo
+                Level terreo = FormasUi.NivelPadrao(doc, ModeloFormas.Niveis(doc), TipoPlanta.Locacao);
+                var zs = new FilteredElementCollector(doc, v.Id).OfClass(typeof(SpotDimension)).Cast<SpotDimension>()
+                    .Select(x => DEB.Core.Fmt.N(UnitUtils.ConvertFromInternalUnits(x.Origin.Z - terreo.ProjectElevation, UnitTypeId.Meters), "+0.00;-0.00")).ToList();
+                sb.AppendLine("   níveis (m, do térreo): " + string.Join(" ", zs));
+                sb.Append(new CorteAnotacao(doc, std.Formas, new PieceLog("")).Diagnostico(v));
             }
             try
             {

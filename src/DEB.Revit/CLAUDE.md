@@ -199,7 +199,14 @@ transação por etapa — dados → tabela → vista → anotações → folha �
   vista fora). Peças pela caixa do recorte (`BoundingBoxIntersectsFilter`); plano de corte = `CropBox.Max.Z`; faces de família pela
   geometria do símbolo + referência estável da instância; cota de nível em ponto dentro da face. Marcas `corte-cota`, `corte-nivel`,
   `id-corte-*`; uma transação por corte. Configuração `Formas.AnotarCorte` (tipos de cota, famílias, folgas). AutoRun
-  `formascorteanotar` cria os cortes de teste A-A…G-G na cópia e anota duas vezes.
+  `formascorteanotar` cria os cortes de teste A-A…G-G na cópia, anota duas vezes e lista os valores CRUS das cotas (cm, uma casa),
+  as cotas de nível (m do térreo) e um diagnóstico das peças cortadas, lances e portas (`CorteAnotacao.Diagnostico`).
+  Regras (14/11): fase da lista `FasesIgnorar` ("FUTURA") fica de fora; caixa: cadeia do pilar como a da fachada, base/topo da porta
+  pela soleira/altura da instância (sem referência "Bottom" = face de baixo da geometria), só níveis dentro da caixa, cadeia por piso
+  com as faces EXTERNAS das paredes; escada: apoio = viga cortada na ponta do lance, cadeia por lado térreo → topo de cada viga da
+  faixa, início do lance = patamar (face de cima mais comprida da metade de baixo, não abaixo do topo do apoio), espelhos/pisos a
+  partir da ponta do patamar, vão/espelhos/pisos só nos lances cortados. Sem os tipos do escritório: "PCEB - Cota corte (cm)" (0,1)
+  e "PCEB - Cota de nível (m)" (+0,00).
 
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.
