@@ -145,6 +145,40 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   (2026-11-02, relato do usuário: no REFEDIT do P61 as chamadas iam para longe = deslocadas do ponto de inserção).
   Autoteste ARMTESTEMOVERPILAR/ARMTESTEMOVIDO desloca o pilar explodido pela API sem tocar no XData (como o REFEDIT).
   Teste por script: o EXPLODE do GstarCAD pega UM objeto e termina — mande um Enter só.
+  **EXPLODE de uma BARRA** (polilinha da armadura) NÃO transfere nada: a barra é apagada e o Sincronizador apaga descrição,
+  cotas e faixas (caminho "barra apagada", `ServicoBarra.ApagarPartes`). O tratamento de EXPLODE é só para faixas dentro de blocos.
+- **JOIN / PEDIT→Juntar / "Juntar"** (pedido de 2026-11-12, aprovado pelo usuário): o GstarCAD 2021 cria uma polilinha NOVA
+  (sem XData) e apaga a armadura e o objeto juntado — sempre, seja quem for selecionado primeiro; quando os sentidos não
+  batem, mantém o da LINE e INVERTE a polilinha (diagnóstico `ARMTESTEJOINLOG`). O PEDIT feito NA armadura edita no lugar
+  (mesmo handle); o PEDIT feito na LINE converte a linha (polilinha nova) e apaga a armadura.
+  `Sincronizador` (nome GLOBAL do comando: JOIN/PEDIT — cobre o "Juntar" traduzido): guarda as armaduras apagadas e as
+  polilinhas anexadas durante o comando; no fim (`Juntar`, antes do caminho de barra apagada) acha a armadura dentro da
+  polilinha nova (`Core/Calculo/JuncaoBarra.Localizar`, direto ou inverso, tolerância 1e-4), faz UNERASE, copia a geometria
+  NO SENTIDO DA BARRA (`NoSentidoDaBarra`), realoca os dados por trecho (`Realocar`: trechos novos retos, cotados, sem gancho;
+  gancho em que a linha encostou vira reto) e apaga a polilinha nova — handle, XData, descrição, cotas, faixas continuam.
+  Duas armaduras juntadas: fica a de MAIOR comprimento real (decisão do usuário); a outra continua apagada com as partes e a
+  linha de comando avisa qual N ficou e qual saiu. Linha que não encosta: nada muda. Polilinha juntada FECHADA: não tratada.
+  PEDIT na própria armadura com o trecho no INÍCIO: `ServicoBarra.Atualizar` realinha os dados pelos comprimentos registrados
+  (`JuncaoBarra.TrechosAntes`) — antes o `AjustarSegmentos` só mexia no fim e desalinhava gancho/cotas.
+  A relação do aço NÃO se atualiza sozinha no JOIN (igual à barra esticada; JOIN não está em `ComandosQueAtualizamRA`).
+  U logo depois do JOIN volta tudo (a correção feita no fim do comando entra no mesmo grupo de desfazer) — testado no GstarCAD.
+  Autoteste: `ARMTESTEJOIN` (passa/falha; 2026-11-12: 124 ok no GstarCAD 2021; relatório `logs\autoteste_join_teste_<CAD>.txt`
+  e `logs\autoteste.txt`). **AutoCAD ainda NÃO testado** (não instalado no PC1): rode `tools\autoteste_autocad.ps1 -Comando
+  ARMTESTEJOIN` no PC2 — se o JOIN do AutoCAD editar a armadura no lugar em vez de criar uma nova, vale o realinhamento por
+  comprimentos, mas a regra "fica a mais longa" não se aplica (fica a de origem); se ele fundir trechos colineares (tirar o
+  vértice do encontro), a armadura não é achada na polilinha nova e as partes se perdem como antes.
+  Armadilhas do teste por script: no GstarCAD o ESC tem de ir SOZINHO no `SendStringToExecute` (`"\x1B\x1BARM…"` virou o
+  comando desconhecido "\x1BRM…" e a fila parou); JOIN = "Select source object or a merger of multiple objects" — 2 seleções
+  e UM Enter; PEDIT = "Select polyline or [Multiple]", opções, `_J`, "Select object:", Enter fecha a seleção e outro Enter sai;
+  com PEDITACCEPT=0 (padrão do GstarCAD) o PEDIT numa LINE pergunta "Do you want to turn it into polyline? <Y>" — leia a
+  variável e responda conforme (não mude: é do perfil). Os eventos `PromptingFor*` disparam nos comandos nativos, mas quase
+  sempre com a mensagem vazia. Faixas ÓRFÃS (barra apagada com o Sincronizador suspenso) recebem ObjectModified do plugin a
+  cada faixa apagada em outra barra: num autoteste, limpe a área de cada caso.
+- **ARMCONVERTER com linhas soltas** (pedido de 2026-11-12): aceita LINE além de LWPOLYLINE. Linhas que se encostam ponta com
+  ponta (tolerância 0,01 cm) viram UMA polilinha nova na ordem das ligações (`JuncaoBarra.Encadear`), que substitui as linhas;
+  linha isolada = barra reta; cadeia fechada = poligonal fechada (pergunta do estribo, como antes); 3+ linhas no mesmo ponto =
+  grupo ramificado, avisa e NÃO converte. O ARMRECONHECER já aceitava LINE (cada linha = uma barra, casada com o texto mais
+  próximo) e ficou como estava. Teste: caso "conv" do `ARMTESTEJOIN`.
 - Tela soldada: opções por tela no XData ("TDIS" distribuição dos fios, "TCOT" cotas das 2 dimensões, "TDIAG"
   texto na diagonal; padrão: cotas e diagonal ligadas). Fios: `DistribuicaoTela` (Core; longitudinais ao longo do
   lado maior, famílias centradas). Na paleta, `[SoQuando("Tela")]`/`IPropriedadesCondicionais` escondem o que não se aplica.
@@ -197,7 +231,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   GstarCAD (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
   grava a chave para cada idioma em `R21\`, avisa se o gcad.exe estiver aberto). Testado: instala, carrega
   sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do DEB.GstarCAD.csproj
-  (0.1.38 em 2026-11-11: ARMIMPORTARPECAS cerca de 4,5x mais rápido em arquivos grandes — as tabelas entram sem atualizar e uma ServicoRA.Atualizar só no fim; 0.1.37 em 2026-11-11: vigas e pilares pelo padrão do escritório — ressalto com aba rente ao topo, estribo do ressalto até o fundo, grampo U na aba, faixas do dente, furos pela largura, aberturas na alma com reforço, segundo estágio de concretagem; pilar com vistas 1 oeste/2 sul/3 leste/4 norte, cortes de consolos agrupados, sem nota de traspasse, alça limitada à face oposta; arquivo de peças versão 4; 0.1.36 em 2026-11-10: desenho em cm, m ou mm e medidas das barras escritas em cm, m ou mm (ARMUNIDADES, por desenho); 0.1.35 em 2026-11-10: relação do aço com a coluna do detalhamento em "Nunca" por padrão (configuração "Coluna do detalhamento (tabelas novas)") e, quando ela aparece, o nome só na linha do N1 com as de baixo mescladas; lista de escalas da paleta na configuração ("Escalas da lista"); 0.1.34 em 2026-11-10: viga com ressalto sobre a alma (estribo do ressalto e barra em L de ligação com a capa), arquivo de peças versão 3, escolha dos grupos a exportar no Revit; 0.1.33 em 2026-11-10: viga com aba (L, T invertido, elevada, no topo, fundo inclinado, pendurada no dente) e consolo lateral, reimportação das peças do Revit (mantém o que não mudou, substitui no lugar o que mudou), marca "conferir" na prancha, JSON versão 2 quando há aba, blocos do motor atualizados; 0.1.32 em 2026-11-09: ARMIMPORTARPECAS (peças do Revit) com dentes/consolos que faltam criados no catálogo, quadro "ARMADURAS console" pelos prints do escritório; 0.1.31 em 2026-11-09: viga pré-moldada completa — armaduras, dente Gerber com ARMDENTES, protensão, cantoneira; 0.1.30 em 2026-11-09: o aviso "feche o CAD" só conta os CADs da sessão do Windows de quem instala — o GstarCAD de
+  (0.1.39 em 2026-11-12: JOIN/PEDIT-Juntar preserva a armadura (duas armaduras: fica a mais longa) e ARMCONVERTER aceita linhas soltas; 0.1.38 em 2026-11-11: ARMIMPORTARPECAS cerca de 4,5x mais rápido em arquivos grandes — as tabelas entram sem atualizar e uma ServicoRA.Atualizar só no fim; 0.1.37 em 2026-11-11: vigas e pilares pelo padrão do escritório — ressalto com aba rente ao topo, estribo do ressalto até o fundo, grampo U na aba, faixas do dente, furos pela largura, aberturas na alma com reforço, segundo estágio de concretagem; pilar com vistas 1 oeste/2 sul/3 leste/4 norte, cortes de consolos agrupados, sem nota de traspasse, alça limitada à face oposta; arquivo de peças versão 4; 0.1.36 em 2026-11-10: desenho em cm, m ou mm e medidas das barras escritas em cm, m ou mm (ARMUNIDADES, por desenho); 0.1.35 em 2026-11-10: relação do aço com a coluna do detalhamento em "Nunca" por padrão (configuração "Coluna do detalhamento (tabelas novas)") e, quando ela aparece, o nome só na linha do N1 com as de baixo mescladas; lista de escalas da paleta na configuração ("Escalas da lista"); 0.1.34 em 2026-11-10: viga com ressalto sobre a alma (estribo do ressalto e barra em L de ligação com a capa), arquivo de peças versão 3, escolha dos grupos a exportar no Revit; 0.1.33 em 2026-11-10: viga com aba (L, T invertido, elevada, no topo, fundo inclinado, pendurada no dente) e consolo lateral, reimportação das peças do Revit (mantém o que não mudou, substitui no lugar o que mudou), marca "conferir" na prancha, JSON versão 2 quando há aba, blocos do motor atualizados; 0.1.32 em 2026-11-09: ARMIMPORTARPECAS (peças do Revit) com dentes/consolos que faltam criados no catálogo, quadro "ARMADURAS console" pelos prints do escritório; 0.1.31 em 2026-11-09: viga pré-moldada completa — armaduras, dente Gerber com ARMDENTES, protensão, cantoneira; 0.1.30 em 2026-11-09: o aviso "feche o CAD" só conta os CADs da sessão do Windows de quem instala — o GstarCAD de
   outro usuário conectado no computador travava a instalação; 0.1.29 em 2026-11-08: bloco pelo motor com variantes por nº de estacas, alça do pilar no fundo; 0.1.27 em 2026-11-06: reservatório e as novidades da main; 0.1.26 = instalador único com GstarCAD 2021-2027, AutoCAD e ZWCAD): SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto NA SESSÃO do usuário: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).

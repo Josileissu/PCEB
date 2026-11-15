@@ -43,6 +43,16 @@ internal static class ServicoBarra
         var geo = GeometriaBarra.Ler(pl, cpu);
         string hBarra = XDataCad.Hex(pl.ObjectId);
 
+        // trechos entraram na barra editada no lugar (PEDIT→Juntar na própria armadura, 2026-11-12): se os trechos antigos
+        // aparecem em sequência na geometria nova, os dados (gancho, cota, VAR…) vão junto para os índices novos — antes
+        // o AjustarSegmentos só acrescentava no fim e o trecho que entrava no INÍCIO desalinhava tudo
+        if (!pl.Closed && geo.Count > d.Segmentos.Count && d.Segmentos.Count > 0)
+        {
+            var antes = JuncaoBarra.TrechosAntes(d.Segmentos.Select(s => s.ComprimentoRegistrado).ToList(),
+                geo.Select(s => s.Comprimento).ToList(), TolCm);
+            if (antes != null)
+                d.Segmentos = JuncaoBarra.Realocar(d.Segmentos, antes.Value, geo.Count - d.Segmentos.Count - antes.Value);
+        }
         // número de segmentos mudou (vértice inserido/removido): apaga as cotas que sobraram
         for (int i = geo.Count; i < d.Segmentos.Count; i++)
             Apagar(tr, Parte<DBText>(tr, db, d.Segmentos[i].HandleCota, TipoParte.Cota, hBarra));

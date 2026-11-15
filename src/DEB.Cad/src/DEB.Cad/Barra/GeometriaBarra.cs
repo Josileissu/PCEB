@@ -116,4 +116,23 @@ internal static class GeometriaBarra
         double sinal = cruz > 0 ? 1 : -1; // pm à direita da corda p0→p1 → arco anti-horário (bulge > 0)
         return sinal * Math.Tan(theta / 4);
     }
+    /// <summary>Vértices com bulge (coordenadas do desenho), para o JOIN.</summary>
+    public static List<Core.Calculo.VerticePoli> Vertices(Polyline pl)
+    {
+        var r = new List<Core.Calculo.VerticePoli>(pl.NumberOfVertices);
+        for (int i = 0; i < pl.NumberOfVertices; i++)
+        {
+            var p = pl.GetPoint2dAt(i);
+            r.Add(new Core.Calculo.VerticePoli(p.X, p.Y, pl.GetBulgeAt(i)));
+        }
+        return r;
+    }
+
+    /// <summary>Troca toda a geometria da polilinha (mesmo objeto: handle, XData e vínculos ficam).</summary>
+    public static void DefinirVertices(Polyline pl, IReadOnlyList<Core.Calculo.VerticePoli> v)
+    {
+        int antigos = pl.NumberOfVertices;
+        for (int i = 0; i < v.Count; i++) pl.AddVertexAt(antigos + i, new Point2d(v[i].X, v[i].Y), v[i].Bulge, 0, 0);
+        for (int i = 0; i < antigos; i++) pl.RemoveVertexAt(0);
+    }
 }
