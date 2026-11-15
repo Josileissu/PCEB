@@ -58,7 +58,8 @@ namespace DEB.Revit
         {
             var uiapp = (UIApplication)sender;
             string task = _task.Trim().ToLowerInvariant();
-            bool semProjeto = task == "familias" || task == "criarmodelo" || task == "contarlegendas" || task == "exportar";   // tarefas que não precisam de projeto aberto
+            bool semProjeto = task == "familias" || task == "criarmodelo" || task == "contarlegendas" || task == "exportar"   // tarefas que não precisam de projeto aberto
+                              || (task.StartsWith("formas") && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SD_MODELO")));   // formas: abre SD_MODELO pela API
             UIDocument uidoc = uiapp.ActiveUIDocument;
             if (!semProjeto && (uidoc == null || uidoc.Document.IsFamilyDocument)) return;   // ainda abrindo o projeto
 
@@ -103,6 +104,20 @@ namespace DEB.Revit
                         break;
                     case "ferramentas":
                         status = "OK " + Tools.ToolsAutoTest.Run(uiapp, uidoc);
+                        break;
+                    case "formasdados":
+                    case "formaslocacao":
+                    case "formasmontagem":
+                    case "formassonda":
+                    case "formaslevantar":
+                    case "formaslinhas":
+                    case "formasrenumerar":
+                    case "formascorteanotar":
+                    case "formaspaginacao":
+                    case "formascortes":
+                    case "formassecoes":
+                    case "formastudo":
+                        status = "OK " + Formas.FormasAutoTest.Run(uiapp, uidoc, task);
                         break;
                     default:
                         status = "ERRO tarefa desconhecida: " + _task;

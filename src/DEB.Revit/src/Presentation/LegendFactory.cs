@@ -76,8 +76,10 @@ namespace DEB.Revit.Presentation
             try { view.Scale = scale; } catch { scale = view.Scale; }
 
             int made = 0, failed = 0;
+            var ignorar = (ls.IgnorarLayers ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
             foreach (DxfDetail.Prim p in dxf.Items)
             {
+                if (ignorar.Any(x => (p.Layer ?? "").StartsWith(x.Trim(), StringComparison.OrdinalIgnoreCase))) continue;
                 try { if (Draw(view, p, scale)) made++; }
                 catch (Exception ex) { failed++; if (failed == 1) _log.Trace($"Legenda {ls.Nome}", ex); }
             }
@@ -403,6 +405,8 @@ namespace DEB.Revit.Presentation
                 t.get_Parameter(BuiltInParameter.TEXT_BOX_VISIBILITY)?.Set(0);
                 try { t.get_Parameter(BuiltInParameter.LEADER_OFFSET_SHEET)?.Set(0.0); } catch { /* opcional */ }
             }
+            // preto sempre (o tipo de texto padrão do projeto pode ser colorido e a cópia herdava a cor)
+            try { if (t.get_Parameter(BuiltInParameter.LINE_COLOR)?.AsInteger() != 0) t.get_Parameter(BuiltInParameter.LINE_COLOR)?.Set(0); } catch { }
             _textTypes[name] = t;
             return t;
         }

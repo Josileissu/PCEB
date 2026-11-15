@@ -148,6 +148,66 @@ Revit do usuário aberto segura a DLL: renomeie `DEB.Revit.dll`/`DEB.Core.dll` p
 o Revit dele segue com a carregada; os abertos depois pegam a nova. Próximo (etapa 3): marca editável gravada no Revit, função dos
 trechos, aceitar/ignorar, Extensible Storage, exportar pela janela, "Selecionar no modelo".
 
+## Paginar laje alveolar (12/11/2026, decisão D24 — `src/LajeAlveolar`)
+Botão no painel Pré-moldados (`PaginarLajeAlveolarCommand`, base `ToolCommand`). Motor puro em **`DEB.Core/Lajes`** (`MotorPaginacao` =
+port fiel do protótipo; `PaginacaoObra` = planta → sistema do pano (u = vão, v = transversal; `SistemaPano`), numeração, marcas, relatório;
+`ConfigPaginacao` = medidas em metros, JSON em `%AppData%\PCEB\DEB.Revit\LajeAlveolar\config_paginacao.json`). Fluxo: pisos selecionados →
+`ExtracaoLajeAlveolar` (croqui do piso, SpanDirectionAngle, topo; vigas: linhas horizontais × sólido no meio da viga nas cotas de
+`leitura_viga`, RELATIVAS à base do painel; pilares: varredura a 80% da altura do painel) → `ConfigPaginacaoWindow` (família/tipo de quadro
+estrutural do projeto, estratégia, medidas, catálogo de fornecedor fora do Git, fase 3, "Restaurar padrão") → `PreviaPaginacaoWindow` (planta
++ relatório + avisos) → uma transação: `InsercaoLajeAlveolar` (painel = quadro estrutural na cota do topo do painel, folgas zeradas, offsets
+y/z corrigidos pela caixa medida, ajuste por recorte lateral ou tipo por largura, recortes por `NewOpening(CenterZ)`, faixa maciça = piso
+"FAIXA MACIÇA h…") + complementos `IComplementoLajeAlveolar` em subtransação (`Fase3LajeAlveolar`: capa = tipo "CAPA …" com o mesmo topo,
+chaves = DirectShape com o perfil medido entre os painéis, tirantes = DirectShape barra + chapas + porcas). Barra que não cabe na parte
+estreita da junta: **furo em obra** (padrão, Ø = barra + folga) anotado no comentário do tirante e listado por painel no relatório.
+Controle: comentário `LAJE ALVEOLAR <marca> (…, piso <id>)` — o que existe não é refeito; "Completar" mantém a numeração do piso.
+Etapa pelo NOME do parâmetro (configurável). Relatório em `logs/laje_alveolar_*.txt`.
+**Testado no Revit 2026 (12/11/2026)** numa CÓPIA desanexada de um modelo real (15 pisos, sem as janelas: extração → motor → inserção →
+fase 3 chamados por reflexão de uma DLL de teste carregada num AssemblyLoadContext próprio): 89 peças, 1 faixa maciça, 76 chaves
+(2,716 m³), 270 tirantes com furo em obra, 15 capas, 121 recortes, 0 interferências; igual ao protótipo (desvio ≤ 0,1 mm). 2ª execução
+("Completar") não duplica; apagar peças e rodar de novo refaz só elas. Achados: (1) ruído de 1e-9 nas coordenadas tirava o corpo de panos
+em L (limites arredondados como a grade em `ClassificarPano`); (2) recortes de pilar com borda a frações de 0,1 mm não cortavam →
+coordenadas da extração arredondadas a 0,1 mm (`M4`, como o protótipo) e nova tentativa com 1 mm a mais; (3) "Completar" reconhece
+também o comentário do protótipo (`pano <id>`). Falta testar as janelas WPF com o usuário.
+
+## Formas (13/11/2026, decisão D25 — `src/Formas`, plano em `docs/04_arquitetura/pranchas_de_formas.md`, etapas 1–4)
+Painel "Formas": Atualizar dados, Cargas (CSV), Planta de locação, Planta de montagem (base `ToolCommand`; fluxo em `ExecucaoFormas`: uma
+transação por etapa — dados → tabela → vista → anotações → folha —, a que falha é desfeita e vai para `logs/formas_*.txt`).
+- **Parâmetros** (`ParametrosFormas`): compartilhados de instância, GUIDs FIXOS `8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN` (nunca mudar),
+  criados por arquivo temporário (o do usuário é restaurado). `SD_Ordem` (inteiro) = posição da marca na ordem natural (núcleo:
+  `Numeracao/ComparadorNatural`): as tabelas ordenam e filtram (&gt; 0) por ele, escondido. Textos (`DEB.Core/Formas/TextosFormas`) e CSV
+  das cargas (`CsvCargas`) no núcleo, com testes (`FormasTests`).
+- **Marca do comando**: Extensible Storage `DEB_Formas` (`MarcaFormas`, campo Papel: `vista-locacao:<nível>`, `tabela-cargas`,
+  `id-PilarMontagem`, `cota-eixos`, `folha-…`). Rodar de novo: refaz as cotas, mantém/atualiza os identificadores, sem duplicar.
+  Folha com o número pedido que já existe = adotada e atualizada (decisão do usuário, 13/11): só acrescenta o que é do comando.
+- **Configuração**: seção `Formas` do padrão `PCEB-FORMAS-A0` (`%AppData%\PCEB\DEB.Revit\Padroes`; no Git só valores genéricos/vazios;
+  famílias do escritório e caminhos só na cópia local). Filtros de pilar/viga (material, prefixo da marca, família): sem nenhuma peça do
+  material pedido, o critério de material é ignorado com aviso.
+- AutoRun: `formasdados`, `formaslocacao`, `formasmontagem` (rodam duas vezes; PNG da vista e da folha; `SD_NIVEL`, `SD_FORMAS_MARCAR=1`)
+  e `formassonda` (`SD_FAMILIAS_PASTA`, `SD_SONDA_PULAR`): qual parâmetro cada rótulo das famílias de identificador lê; grava linha a
+  linha (uma sondagem igual já derrubou o Revit — só em instância de teste: ler `TagText` do tipo "NV" de uma família de pilar do
+  escritório causa queda nativa; a sondagem pula os tipos com " NV "). `APPDATA` trocado NÃO isola a instância de teste (o Revit usa
+  a pasta conhecida do Windows): o teste usa a DLL instalada.
+- Depois (13/11, pedido do usuário): paginação das lajes alveolares, cortes do comando + 4 elevações (fachada: 3 m de estrutura),
+  "Seções consideradas" (tabelas por tipo), fundações esquemáticas, notas fixas em bloco, detalhes típicos = legendas criadas de DXF
+  (`LegendFactory`, etapa própria com resolução de falhas). AutoRun: `formaslevantar` (inventário), `formaspaginacao`, `formascortes`,
+  `formassecoes`, `formastudo`; `SD_MODELO` abre o arquivo pela API destacado do central; `SD_FORMAS_MARCAR_LAJES=1` usa o
+  renumerar lajes. **Testado no Revit 2026 numa cópia destacada de um modelo real** (todas as folhas saem; ver os relatórios).
+- **Anotar corte** (14/11, `Formas/CorteAnotacao.cs`, botão "Anotar corte"): cotas verticais, identificadores e cotas de nível no
+  corte ativo ou nos escolhidos, tipo automático (escada se corta lances, caixa de elevador se corta paredes, senão geral) ou
+  escolhido na janela. Só o cortado ou visível (amostragem da caixa projetada contra as peças mais à frente; fase posterior à da
+  vista fora). Peças pela caixa do recorte (`BoundingBoxIntersectsFilter`); plano de corte = `CropBox.Max.Z`; faces de família pela
+  geometria do símbolo + referência estável da instância; cota de nível em ponto dentro da face. Marcas `corte-cota`, `corte-nivel`,
+  `id-corte-*`; uma transação por corte. Configuração `Formas.AnotarCorte` (tipos de cota, famílias, folgas). AutoRun
+  `formascorteanotar` cria os cortes de teste A-A…G-G na cópia, anota duas vezes e lista os valores CRUS das cotas (cm, uma casa),
+  as cotas de nível (m do térreo) e um diagnóstico das peças cortadas, lances e portas (`CorteAnotacao.Diagnostico`).
+  Regras (14/11): fase da lista `FasesIgnorar` ("FUTURA") fica de fora; caixa: cadeia do pilar como a da fachada, base/topo da porta
+  pela soleira/altura da instância (sem referência "Bottom" = face de baixo da geometria), só níveis dentro da caixa, cadeia por piso
+  com as faces EXTERNAS das paredes; escada: apoio = viga cortada na ponta do lance, cadeia por lado térreo → topo de cada viga da
+  faixa, início do lance = patamar (face de cima mais comprida da metade de baixo, não abaixo do topo do apoio), espelhos/pisos a
+  partir da ponta do patamar, vão/espelhos/pisos só nos lances cortados. Sem os tipos do escritório: "PCEB - Cota corte (cm)" (0,1)
+  e "PCEB - Cota de nível (m)" (+0,00).
+
 ## Ferramentas (painel "Ferramentas", `src/Tools`) — ex-scripts Revit_Suelio
 Os scripts originais (`auxiliar_scripts/`) foram apagados a pedido do usuário em 04/11/2026; a lógica deles está aqui.
 - `ToolCommand`: base de todos — barreira de exceções (mensagem + log `logs/ferramentas_AAAAMMDD.log`), `ToolCancelled`.

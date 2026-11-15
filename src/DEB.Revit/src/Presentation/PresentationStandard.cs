@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -44,6 +44,10 @@ namespace DEB.Revit.Presentation
 
         /// <summary>Valores de produção usados nos textos (resistências, densidade do concreto...).</summary>
         public Dictionary<string, string> Producao { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Pranchas de formas (locação e montagem, D25): identificadores, filtros, tabelas e folhas. Padrões que não
+        /// têm esta seção (JSONs antigos) recebem os valores de fábrica.</summary>
+        public FormasSettings Formas { get; set; } = new FormasSettings();
 
         // ------------------------------------------------------------------
 
@@ -303,8 +307,239 @@ namespace DEB.Revit.Presentation
         public string Arquivo { get; set; } = "";
         /// <summary>Escala da legenda criada do DXF (0 = a da legenda duplicada).</summary>
         public int Escala { get; set; }
+        /// <summary>Layers do DXF que não são desenhados (começo do nome; ex.: "PDF_PREENCH" = preenchimentos vindos de PDF).</summary>
+        public List<string> IgnorarLayers { get; set; } = new List<string>();
         /// <summary>Tipo de vista (ex.: "AlcaIcamento") que ocupa este lugar no lugar da legenda: a vista da peça vai para a
         /// posição da legenda na região, e a legenda não entra.</summary>
         public string Vista { get; set; } = "";
+    }
+
+    // ----------------------------------------------------------------------
+    // Pranchas de formas (D25, docs/04_arquitetura/pranchas_de_formas.md)
+
+    /// <summary>
+    /// Pranchas de formas: os papéis dos identificadores (família/tipo/arquivo), os filtros das peças, os nomes das tabelas, vistas e
+    /// folhas e os valores usados nos parâmetros calculados. Caminhos de arquivo (famílias, carimbo) ficam só na cópia do usuário em
+    /// %AppData% (padrões do escritório não vão para o Git). Campos de texto aceitam {Nivel} (nome do nível).
+    /// </summary>
+    public sealed class FormasSettings
+    {
+        /// <summary>Papéis dos identificadores: PilarLocacao, PilarMontagem, Viga, Laje, Fundacao.</summary>
+        public Dictionary<string, TagRoleSpec> Identificadores { get; set; } = new Dictionary<string, TagRoleSpec>
+        {
+            ["PilarLocacao"] = new TagRoleSpec(),
+            ["PilarMontagem"] = new TagRoleSpec(),
+            ["Viga"] = new TagRoleSpec(),
+            ["Laje"] = new TagRoleSpec(),
+            ["Fundacao"] = new TagRoleSpec(),
+            ["Painel"] = new TagRoleSpec(),
+        };
+        /// <summary>Símbolo de sentido do vão nas lajes da montagem ("Família" ou "Família : Tipo"; vazio = o 1º carregado; sem
+        /// nenhum carregado, não coloca).</summary>
+        public string SentidoDoVao { get; set; } = "";
+        public bool ColocarSentidoDoVao { get; set; } = true;
+
+        /// <summary>Pilares que recebem dados, identificador e entram na tabela de cargas.</summary>
+        public PieceFilterSpec FiltroPilares { get; set; } = new PieceFilterSpec();
+        /// <summary>Vigas que recebem dados e identificador (as metálicas e os painéis alveolares modelados como viga ficam de fora).</summary>
+        public PieceFilterSpec FiltroVigas { get; set; } = new PieceFilterSpec { PrefixoMarca = "V" };
+        /// <summary>Painéis de laje alveolar modelados como quadro estrutural (paginação): identificador do papel "Painel".</summary>
+        public PieceFilterSpec FiltroPaineis { get; set; } = new PieceFilterSpec { PrefixoMarca = "L" };
+
+        /// <summary>Nomes dos parâmetros de TIPO (ou de instância) com a largura e a altura da seção, na ordem de procura.</summary>
+        public List<string> ParametrosLargura { get; set; } = new List<string> { "b", "B", "bw", "Largura" };
+        public List<string> ParametrosAltura { get; set; } = new List<string> { "h", "H", "Altura" };
+
+        /// <summary>Nível que é o zero dos níveis relativos (nome exato); vazio = ponto base do projeto. A cota absoluta vem sempre
+        /// do ponto de levantamento (coordenadas compartilhadas).</summary>
+        public string NivelZero { get; set; } = "";
+        /// <summary>Peso próprio da laje = espessura × densidade (kgf/m³), só quando o parâmetro está vazio.</summary>
+        public double DensidadeConcretoKgfM3 { get; set; } = 2500;
+        /// <summary>Peso próprio (kgf/m²) por nome de tipo de piso (laje alveolar, nervurada...), no lugar da conta pela espessura.</summary>
+        public Dictionary<string, double> PesoProprioPorTipo { get; set; } = new Dictionary<string, double>();
+
+        /// <summary>Escala das plantas de formas.</summary>
+        public int Escala { get; set; } = 50;
+        /// <summary>Quanto (m) as vistas criadas pelo comando enxergam abaixo do nível (vigas penduradas, blocos); 0 = a da vista copiada.</summary>
+        public double ProfundidadeVistaM { get; set; } = 2.0;
+        /// <summary>Quanto (m) os eixos passam da estrutura nas vistas do comando (extensão 2D, para o recorte ficar justo).</summary>
+        public double EixoAlemM { get; set; } = 1.0;
+        /// <summary>Folga (m) do recorte das vistas criadas pelo comando em volta dos eixos e das peças.</summary>
+        public double FolgaRecorteM { get; set; } = 0.7;
+        /// <summary>Distância (mm de papel) da linha de cotas dos eixos à estrutura.</summary>
+        public double AfastamentoCotasMm { get; set; } = 15;
+        /// <summary>Altura (mm de papel) do texto do tipo de cota que o comando cria para os eixos.</summary>
+        public double AlturaTextoCotaMm { get; set; } = 2.5;
+        /// <summary>"Esquematicas" (padrão: fundações ainda não dimensionadas — nota na locação e identificador de bloco só com o nome)
+        /// ou "Dimensionadas".</summary>
+        public string Fundacoes { get; set; } = "Esquematicas";
+        [JsonIgnore]
+        public bool FundacoesEsquematicas => !string.Equals(Fundacoes?.Trim(), "Dimensionadas", StringComparison.OrdinalIgnoreCase);
+        /// <summary>Parâmetros Sim/Não do tipo do identificador de bloco que ficam ligados nas fundações esquemáticas.</summary>
+        public List<string> VisiveisEsquematica { get; set; } = new List<string> { "N" };
+        /// <summary>Nota da locação com fundações esquemáticas.</summary>
+        public string NotaFundacoesEsquematicas { get; set; } = "AS FUNDAÇÕES SÃO ESQUEMÁTICAS: DIMENSÕES E NÍVEIS DOS BLOCOS A CONFIRMAR NO PROJETO DE FUNDAÇÕES.";
+        /// <summary>Sufixo do número quando a folha com o número pedido já tem vistas que não são do comando.</summary>
+        public string SufixoFolhaOcupada { get; set; } = "-F";
+        /// <summary>Tipo de texto das notas fixas (nome; vazio = o padrão do projeto).</summary>
+        public string TipoTextoNotas { get; set; } = "";
+        /// <summary>Distância (mm de papel) do identificador à peça.</summary>
+        public double AfastamentoIdentificadorMm { get; set; } = 2;
+        /// <summary>Tipo de cota das cotas de eixos (nome exato; vazio ou inexistente = o 1º tipo linear, com aviso).</summary>
+        public string TipoDeCota { get; set; } = "";
+        /// <summary>Tipos de texto das tabelas (nome exato; vazio = o do Revit).</summary>
+        public string TextoTabelaCorpo { get; set; } = "";
+        public string TextoTabelaCabecalho { get; set; } = "";
+        public string TextoTabelaTitulo { get; set; } = "";
+
+        public string NomeTabelaCargas { get; set; } = "PCEB - CARGAS NA FUNDAÇÃO";
+        public string TituloTabelaCargas { get; set; } = "CARGAS NA FUNDAÇÃO";
+        public string NomeTabelaLajes { get; set; } = "PCEB - LAJES - {Nivel}";
+        public string TituloTabelaLajes { get; set; } = "LAJES - {Nivel}";
+
+        public FormasSheetSpec Locacao { get; set; } = new FormasSheetSpec
+        {
+            NomeVista = "PCEB - LOCAÇÃO - {Nivel}",
+            VistaBase = "Locação",
+            NumeroFolha = "FOR-LOC",
+            NomeFolha = "PLANTA DE LOCAÇÃO E CARGAS NA FUNDAÇÃO",
+        };
+        public FormasSheetSpec Montagem { get; set; } = new FormasSheetSpec
+        {
+            NomeVista = "PCEB - MONTAGEM - {Nivel}",
+            VistaBase = "montagem",
+            Notas = new List<string> { "FUROS NAS LAJES ALVEOLARES: PASSAR SOMENTE PELOS ALVÉOLOS, COM DIÂMETRO/LARGURA MÁXIMA IGUAL À LARGURA DO ALVÉOLO." },
+            NumeroFolha = "FOR-{Nivel}",
+            NomeFolha = "PLANTA DE MONTAGEM - {Nivel}",
+        };
+
+        /// <summary>Paginação das lajes alveolares por pavimento: planta com os painéis identificados, tabela dos painéis e notas.</summary>
+        public FormasSheetSpec Paginacao { get; set; } = new FormasSheetSpec
+        {
+            NomeVista = "PCEB - PAGINAÇÃO - {Nivel}",
+            VistaBase = "montagem",
+            Notas = new List<string> { "FUROS NAS LAJES ALVEOLARES: PASSAR SOMENTE PELOS ALVÉOLOS, COM DIÂMETRO/LARGURA MÁXIMA IGUAL À LARGURA DO ALVÉOLO." },
+            NumeroFolha = "FOR-PAG-{Nivel}",
+            NomeFolha = "PAGINAÇÃO DAS LAJES ALVEOLARES - {Nivel}",
+        };
+        public string NomeTabelaPaineis { get; set; } = "PCEB - PAINÉIS - {Nivel}";
+        public string TituloTabelaPaineis { get; set; } = "PAINÉIS ALVEOLARES - {Nivel}";
+        /// <summary>Cortes (um por direção, nos eixos centrais) — usa os cortes do comando; não mexe nos que já existem no modelo.</summary>
+        public FormasSheetSpec Cortes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - CORTE {Letra}-{Letra}", NumeroFolha = "FOR-CORTES", NomeFolha = "CORTES", RegiaoPlanta = "Folha" };
+        /// <summary>Elevações (as quatro fachadas da estrutura), como cortes por fora olhando para dentro.</summary>
+        public FormasSheetSpec Elevacoes { get; set; } = new FormasSheetSpec { NomeVista = "PCEB - ELEVAÇÃO {Lado}", NumeroFolha = "FOR-ELEV", NomeFolha = "ELEVAÇÕES", RegiaoPlanta = "Folha" };
+        public int EscalaCortes { get; set; } = 50;
+        /// <summary>
+        /// Linhas ocultas na montagem e na paginação (pedido do usuário, 13/11/2026: vigas sob as lajes tracejadas, lajes alveolares não).
+        /// Viga e painel alveolar são os dois "Quadro estrutural": o V/G por categoria não separa. <see cref="MostrarLinhasOcultas"/> =
+        /// "Todas", "PorDisciplina", "Nenhuma" ou vazio (não mexe na vista).
+        /// </summary>
+        public string MostrarLinhasOcultas { get; set; } = "PorDisciplina";
+        /// <summary>Vista do comando na disciplina Estrutural: com "Por disciplina" só aparecem as arestas dos membros escondidas
+        /// por OUTROS membros (vigas sob os painéis); "Todas" desenhava os alvéolos de todos os painéis (teste no modelo real, 13/11).</summary>
+        public bool VistaEstrutural { get; set; } = true;
+        /// <summary>Pisos cujo nome do tipo contém um destes trechos (capa sobre os painéis) ficam transparentes na vista do comando
+        /// (sobreposição por elemento), para não esconderem as juntas dos painéis. Vazio = não mexe.</summary>
+        public List<string> PisosTransparentes { get; set; } = new List<string> { "CAPA" };
+        /// <summary>Muda na FAMÍLIA dos painéis (filtro de painéis) o "Exibir em vistas ocultas" para não mostrar arestas ocultas.
+        /// Altera a família no projeto (vale para todas as vistas): desligado por padrão.</summary>
+        public bool PaineisSemLinhasOcultas { get; set; }
+        /// <summary>Valor gravado no "Exibir em vistas ocultas" da família dos painéis (inteiro do Revit; ver a comparação formaslinhas).</summary>
+        public int ValorPaineisVistasOcultas { get; set; }
+        /// <summary>Faixa (m) de estrutura que cada elevação mostra a partir da fachada.</summary>
+        public double ProfundidadeElevacaoM { get; set; } = 3.0;
+        /// <summary>Seções consideradas: tabelas por tipo de viga e de pilar (seção, quantidade, material).</summary>
+        public FormasSheetSpec Secoes { get; set; } = new FormasSheetSpec { NumeroFolha = "FOR-SEC", NomeFolha = "SEÇÕES CONSIDERADAS", RegiaoTabelas = "Planta" };
+        /// <summary>"Anotar corte": cotas, nomes e cotas de nível nos cortes (padrão lido dos cortes cotados à mão pelo usuário).</summary>
+        public CorteAnotacaoSpec AnotarCorte { get; set; } = new CorteAnotacaoSpec();
+
+        /// <summary>Papel pelo nome; papel ausente no JSON = vazio (usa o identificador que houver).</summary>
+        public TagRoleSpec Role(string name) =>
+            Identificadores != null && Identificadores.TryGetValue(name, out TagRoleSpec r) && r != null ? r : new TagRoleSpec();
+    }
+
+    /// <summary>Família de identificador de um papel. As famílias são feitas à mão (a API não cria rótulos) lendo os parâmetros SD_.</summary>
+    public sealed class TagRoleSpec
+    {
+        /// <summary>Nome da família no projeto (vazio = qualquer identificador da categoria).</summary>
+        public string Familia { get; set; } = "";
+        /// <summary>Nome do tipo (vazio = o 1º da família).</summary>
+        public string Tipo { get; set; } = "";
+        /// <summary>.rfa carregado quando a família não está no projeto (caminho local, fora do Git).</summary>
+        public string Arquivo { get; set; } = "";
+        /// <summary>Ajuste fino (mm de papel, direita/para cima) depois do posicionamento automático — a caixa de algumas famílias
+        /// inclui rótulos escondidos.</summary>
+        public double DeslocamentoXMm { get; set; }
+        public double DeslocamentoYMm { get; set; }
+    }
+
+    /// <summary>Quais peças da categoria entram (dados, identificador, tabela).</summary>
+    public sealed class PieceFilterSpec
+    {
+        /// <summary>Material estrutural da família (Concrete, PrecastConcrete, Steel...); vazio = todos.</summary>
+        public List<string> Materiais { get; set; } = new List<string> { "Concrete", "PrecastConcrete" };
+        /// <summary>Começo da marca (sem diferenciar maiúsculas); vazio = qualquer.</summary>
+        public string PrefixoMarca { get; set; } = "";
+        /// <summary>Trechos do nome da família; vazio = qualquer família.</summary>
+        public List<string> Familias { get; set; } = new List<string>();
+    }
+
+    /// <summary>Tipos, famílias e folgas do comando "Anotar corte" (padrão no código; ajuste na cópia local do padrão).</summary>
+    public sealed class CorteAnotacaoSpec
+    {
+        public string TipoCota { get; set; } = "2.0 - Arial - Preto - Tr";
+        public string TipoCotaNivel { get; set; } = "Alvo (Projeto) m";
+        /// <summary>Níveis que não entram na cadeia de níveis (trecho do nome; ex.: níveis de forro).</summary>
+        public List<string> NiveisIgnorar { get; set; } = new List<string> { "FORRO" };
+        public string FamiliaPilar { get; set; } = "Identificador de Pilar";
+        public string FamiliaViga { get; set; } = "Nome de Viga.0002";
+        public string FamiliaLaje { get; set; } = "Identificador de Piso-Laje";
+        public string FamiliaParede { get; set; } = "Identificador de Parede";
+        public string FamiliaEscada { get; set; } = "Identificador de escada";
+        /// <summary>Pasta da biblioteca de identificadores (configuração local): família que falta no projeto é carregada de lá.</summary>
+        public string PastaFamilias { get; set; } = "";
+        /// <summary>Tipo dos identificadores (só o nome).</summary>
+        public string TipoNome { get; set; } = "N";
+        /// <summary>Distância (m) do identificador do pilar à face, na altura do 1º pavimento.</summary>
+        public double PilarAfastamentoM { get; set; } = 0.24;
+        /// <summary>Distância (m) do identificador da viga em elevação abaixo da viga.</summary>
+        public double VigaAbaixoM { get; set; } = 0.17;
+        /// <summary>Cadeia da fachada: distância (m) além do último eixo.</summary>
+        public double FachadaAlemM { get; set; } = 0.70;
+        /// <summary>Cadeia dos níveis: distância (m) para fora do início do corte; a total fica mais <see cref="PassoCadeiaM"/> para fora.</summary>
+        public double NiveisForaM { get; set; } = 0.80;
+        public double PassoCadeiaM { get; set; } = 0.60;
+        /// <summary>Cadeia baldrame/térreo/capas: distância (m) do eixo da ponta para dentro do vão.</summary>
+        public double JuntoEixoM { get; set; } = 0.50;
+        /// <summary>Viga de apoio de escada: viga cortada que chega até esta distância (m) da ponta do lance.</summary>
+        public double ApoioEscadaFolgaM { get; set; } = 0.30;
+        /// <summary>Fases cujas peças não são anotadas (trecho do nome; ex.: o que ainda vai ser construído).</summary>
+        public List<string> FasesIgnorar { get; set; } = new List<string> { "FUTURA" };
+    }
+
+    public sealed class FolhaNome
+    {
+        public string Numero { get; set; } = "";
+        public string Nome { get; set; } = "";
+    }
+
+    /// <summary>Vista e folha de um tipo de planta de formas.</summary>
+    public sealed class FormasSheetSpec
+    {
+        public string NomeVista { get; set; } = "";
+        /// <summary>Trecho do nome da planta do nível que serve de base (copiada) quando o comando cria a vista.</summary>
+        public string VistaBase { get; set; } = "";
+        /// <summary>Notas fixas da folha (texto do comando, um bloco por item), na região "Notas" (ou "Legendas").</summary>
+        public List<string> Notas { get; set; } = new List<string>();
+        public string NumeroFolha { get; set; } = "";
+        public string NomeFolha { get; set; } = "";
+        /// <summary>Número e nome por nível (nome exato do nível), quando a numeração da obra não segue um modelo: prevalecem sobre
+        /// <see cref="NumeroFolha"/>/<see cref="NomeFolha"/>.</summary>
+        public Dictionary<string, FolhaNome> PorNivel { get; set; } = new Dictionary<string, FolhaNome>();
+        /// <summary>Legendas fixas do projeto (detalhes, convenções, notas), pelo nome; as que não existem são avisadas.</summary>
+        public List<LegendSpec> Legendas { get; set; } = new List<LegendSpec>();
+        /// <summary>Regiões da folha (padrão: "Planta", "Tabelas", "Legendas" de <see cref="PresentationStandard.Regioes"/>).</summary>
+        public string RegiaoPlanta { get; set; } = "Planta";
+        public string RegiaoTabelas { get; set; } = "Tabelas";
     }
 }

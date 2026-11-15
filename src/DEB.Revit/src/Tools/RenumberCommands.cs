@@ -40,7 +40,9 @@ namespace DEB.Revit.Tools
             string prefix = form.Get("prefixo");
             int n = int.Parse(form.Get("inicio"));
 
-            TaskDialog.Show(Title, Apply(doc, items, prefix, n));
+            items = Excluir(doc, items, prefix, out string pulados);
+            if (items.Count == 0) throw new ToolCancelled($"Nenhum elemento a renumerar.{pulados}");
+            TaskDialog.Show(Title, Apply(doc, items, prefix, n) + pulados);
             return Result.Succeeded;
         }
 
@@ -62,6 +64,14 @@ namespace DEB.Revit.Tools
                 t.Commit();
             }
             return $"Renumerados {done} {Plural}{summary}.";
+        }
+
+        /// <summary>Elementos que ficam fora da renumeração (padrão: nenhum). Devolve os que ficam e, em <paramref name="motivo"/>,
+        /// o texto para a mensagem final ("" se nenhum foi pulado).</summary>
+        protected virtual List<Element> Excluir(Document doc, List<Element> items, string prefix, out string motivo)
+        {
+            motivo = "";
+            return items;
         }
 
         /// <summary>Pilares, fundações e peças: canto superior esquerdo do croqui, linhas por proximidade em Y.</summary>
@@ -127,6 +137,33 @@ namespace DEB.Revit.Tools
         protected override string Plural => "lajes";
         protected override string DefaultPrefix => "L";
         protected override bool Accept(Element el) => ElementTools.IsCategory(el, BuiltInCategory.OST_Floors);
+
+        /// <summary>
+        /// Lajes que não entram na numeração (decisão do usuário, 13/11/2026): faixas maciças (tipo com "FAIXA") e lajes com marca
+        /// especial — não vazia e fora do padrão prefixo + número (ex.: a laje do elevador "L.ELV1", "M29-01").
+        /// </summary>
+        public static string ForaDaNumeracao(Document doc, Element el, string prefix)
+        {
+            string tipo = doc.GetElement(el.GetTypeId())?.Name ?? "";
+            if (tipo.IndexOf("FAIXA", System.StringComparison.OrdinalIgnoreCase) >= 0) return "faixa maciça";
+            string marca = (ElementTools.Mark(el)?.AsString() ?? "").Trim();
+            if (marca != "" && !System.Text.RegularExpressions.Regex.IsMatch(marca, "^" + System.Text.RegularExpressions.Regex.Escape(prefix ?? "") + @"\d+$",
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                return "marca especial";
+            return null;
+        }
+
+        protected override List<Element> Excluir(Document doc, List<Element> items, string prefix, out string motivo)
+        {
+            var fora = items.Select(el => (El: el, Motivo: ForaDaNumeracao(doc, el, prefix))).Where(x => x.Motivo != null).ToList();
+            motivo = fora.Count == 0 ? "" : "\nFora da numeração: " + string.Join(", ", fora.GroupBy(x => x.Motivo)
+                .Select(g => $"{g.Count()} {g.Key}{(g.Key == "marca especial" ? " (" + string.Join(", ", g.Select(x => ElementTools.Mark(x.El)?.AsString())) + ")" : "")}")) + ".";
+            var ids = new HashSet<ElementId>(fora.Select(x => x.El.Id));
+            return items.Where(el => !ids.Contains(el.Id)).ToList();
+        }
+
+        /// <summary>A ordem que o comando daria (sem gravar), para conferência.</summary>
+        internal List<Element> Ordem(List<Element> items) => Order(items).Item1;
 
         protected override (List<Element>, string) Order(List<Element> items)
         {

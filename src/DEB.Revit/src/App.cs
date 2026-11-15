@@ -94,7 +94,22 @@ namespace DEB.Revit
             };
             precast.AddItem(exportar);
 
+            var lajeAlveolar = new PushButtonData("DEB_PaginarLajeAlveolar", "Paginar laje\nalveolar", dll, typeof(LajeAlveolar.PaginarLajeAlveolarCommand).FullName)
+            {
+                ToolTip = "Pagina os pisos selecionados em painéis alveolares (módulo, ajustes, aberturas, pilares, faixas maciças) e insere os painéis no modelo.",
+                LongDescription =
+                    "Lê o contorno e os furos do croqui de cada piso, o sentido do vão, as vigas em volta (alma e aba medidas na geometria) e os " +
+                    "pilares; distribui os painéis pela estratégia escolhida (aberturas primeiro, melhor distribuição ou de um lado), mostra a prévia " +
+                    "com os avisos e, ao confirmar, insere os painéis (família de quadro estrutural escolhida), as faixas maciças e, se ligados, a capa, " +
+                    "as chaves de cisalhamento e os tirantes dos suportes de instalações. Marca, etapa de concretagem e relatório no fim.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "LA"),
+                Image = IconFactory.Create(16, "L")
+            };
+            precast.AddItem(lajeAlveolar);
+
             AddToolsPanel(application, dll);
+            AddFormasPanel(application, dll);
 
             AutoRun.Register(application);
             return Result.Succeeded;
@@ -142,6 +157,51 @@ namespace DEB.Revit
             });
             copy.AddPushButton(Btn("DEB_CopFundacoes", "Fundações", typeof(CopyFoundationsCommand), "Fundações, sapatas corridas e montagens com fundações de outro arquivo.", "F"));
             copy.AddPushButton(Btn("DEB_CopMontagens", "Montagens com vistas", typeof(CopyAssembliesCommand), "Montagens com membros, vistas da montagem e folhas de outro arquivo.", "A"));
+        }
+
+        /// <summary>Painel "Formas" (D25): pranchas de locação e de montagem — dados SD_, cargas por CSV, plantas anotadas, tabelas e folhas.</summary>
+        private static void AddFormasPanel(UIControlledApplication application, string dll)
+        {
+            RibbonPanel formas = application.CreateRibbonPanel(TabName, "Formas");
+            string projectOnly = typeof(ProjectOnlyAvailability).FullName;
+            PushButtonData Btn(string id, string text, System.Type cmd, string tip, string longTip, string icon) => new PushButtonData(id, text, dll, cmd.FullName)
+            {
+                ToolTip = tip,
+                LongDescription = longTip,
+                AvailabilityClassName = projectOnly,
+                LargeImage = IconFactory.Create(32, icon),
+                Image = IconFactory.Create(16, icon.Substring(0, 1))
+            };
+            formas.AddItem(Btn("DEB_FormasDados", "Atualizar\ndados", typeof(Formas.AtualizarDadosFormasCommand),
+                "Cria os parâmetros SD_ das pranchas de formas e grava os textos calculados (seção, níveis, comprimento, elevação, dados das lajes).",
+                "Pilares: SD_Secao, SD_NivelTopo, SD_NivelTopoBloco, SD_NivelBase (\"12,00 m (907,80)\") e SD_ComprimentoTotal. Vigas: SD_Secao e " +
+                "SD_Elevacao (\"e=-29.5\"). Lajes com marca: altura, elevação, nível, tipo e peso próprio (estes dois só se vazios). Esforços, " +
+                "sobrecargas e observações digitados nunca são alterados. Rode de novo depois de mexer no modelo.", "D"));
+            formas.AddItem(Btn("DEB_FormasCargas", "Cargas\n(CSV)", typeof(Formas.CargasCsvFormasCommand),
+                "Importa ou exporta os esforços na fundação dos pilares (Marca;Fz_Max;Fz_Min;Mx_Pos;…;Fy_Neg).",
+                "Importar grava os valores nos pilares com a mesma marca (vírgula ou ponto decimal; célula vazia não altera) e lista as marcas " +
+                "que não existem no modelo. Exportar grava os valores do modelo no mesmo formato.", "CSV"));
+            formas.AddItem(Btn("DEB_FormasLocacao", "Planta de\nlocação", typeof(Formas.PlantaLocacaoCommand),
+                "Planta de locação do nível em 1:50: cotas de eixos, identificadores de pilares e fundações, tabela de cargas na fundação e folha.",
+                "As famílias de identificador e os nomes vêm da seção \"Formas\" do padrão PCEB-FORMAS-A0 (Configurar). Rodar de novo atualiza o " +
+                "que o comando criou, sem duplicar.", "LO"));
+            formas.AddItem(Btn("DEB_FormasMontagem", "Planta de\nmontagem", typeof(Formas.PlantaMontagemCommand),
+                "Planta de montagem do pavimento em 1:50: cotas de eixos, identificadores de pilares, vigas e lajes, sentido do vão, tabela de lajes e folha.",
+                "As famílias de identificador e os nomes vêm da seção \"Formas\" do padrão PCEB-FORMAS-A0. Rodar de novo atualiza o que o comando " +
+                "criou, sem duplicar.", "MO"));
+            formas.AddItem(Btn("DEB_FormasPaginacao", "Paginação\ndas lajes", typeof(Formas.PlantaPaginacaoCommand),
+                "Planta de paginação das lajes alveolares do pavimento: painéis identificados, tabela dos painéis, nota dos furos e folha.",
+                "Painéis = quadro estrutural com a marca do filtro de painéis (padrão: começa com L). Rodar de novo atualiza sem duplicar.", "PG"));
+            formas.AddItem(Btn("DEB_FormasCortes", "Cortes e\nelevações", typeof(Formas.CortesFormasCommand),
+                "Cria (ou atualiza) um corte por direção entre os eixos centrais e as quatro elevações da estrutura, com identificadores e folhas.",
+                "Os cortes que já existem no modelo não são alterados; os do comando são reaproveitados ao rodar de novo.", "CT"));
+            formas.AddItem(Btn("DEB_FormasSecoes", "Seções\nconsideradas", typeof(Formas.SecoesFormasCommand),
+                "Folha com as seções de vigas e pilares usadas no modelo (tabela por tipo: seção, quantidade, material).",
+                "Usa SD_Secao gravado pelo \"Atualizar dados\".", "SC"));
+            formas.AddItem(Btn("DEB_FormasAnotarCorte", "Anotar\ncorte", typeof(Formas.AnotarCorteCommand),
+                "Cota, nomeia e põe cotas de nível no corte ativo (ou nos cortes escolhidos), no padrão do escritório: geral, caixa de elevador ou escada.",
+                "Só o que está cortado ou visível é anotado (peça escondida atrás de outra ou de fase posterior fica de fora). Rodar de novo refaz " +
+                "as cotas do comando; o que foi feito à mão não é tocado.", "AC"));
         }
 
         public Result OnShutdown(UIControlledApplication application) => Result.Succeeded;
