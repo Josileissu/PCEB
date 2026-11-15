@@ -13,7 +13,7 @@
 As frentes não mexem nos mesmos arquivos: o PC1 trabalha em `src/` e `tests/`, e o PC2 em `docs/01_catalogo/` e
 `docs/04_arquitetura/regras_detalhamento/`.
 
-## Ponto de encontro: o GitHub (`Josileissu/PCEB`, privado)
+## Ponto de encontro: o GitHub (`Josileissu/PCEB`, público desde 10/11/2026)
 - **Uma branch por computador**: `pc1/...` e `pc2/...` (ex.: `pc2/estudo-tekla`). Ninguém faz commit direto na `main`.
 - **Início de cada sessão**: `git pull` da `main` + rebase da própria branch.
 - **Fim de cada sessão**: commit e push **da própria branch** (com aprovação do usuário).
