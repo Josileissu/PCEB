@@ -10,6 +10,7 @@ using DEB.Core.Documentacao;
 using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 using Xunit;
+using DEB.Core.Elementos.Consolo;
 
 namespace DEB.Core.Tests;
 

@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 
-namespace DEB.Core.Elementos.Pilar.PreMoldado;
+namespace DEB.Core.Elementos.Consolo;
 
 /// <summary>
 /// Consolo padrão do escritório (pedido do usuário, 2026-10-29): tipo nomeado com forma, dimensões e armadura

@@ -7,6 +7,7 @@ using DEB.Core.Persistencia;
 using DEB.Core.Motor;
 using DEB.Core.Elementos.Pilar.PreMoldado;
 using Xunit;
+using DEB.Core.Elementos.Consolo;
 
 namespace DEB.Core.Tests;
 

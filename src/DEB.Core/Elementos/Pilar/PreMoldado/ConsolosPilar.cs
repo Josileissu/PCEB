@@ -7,6 +7,7 @@ using DEB.Core.Estribos;
 using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
+using DEB.Core.Elementos.Consolo;
 
 namespace DEB.Core.Elementos.Pilar.PreMoldado;
 

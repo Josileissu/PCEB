@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows.Forms;
 using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Viga.PreMoldada;
+using DEB.Core.Elementos.Consolo;
 
 namespace DEB.Cad.Paleta;
 

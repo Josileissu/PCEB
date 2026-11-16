@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Viga.PreMoldada;
 using DEB.Core.Documentacao;
+using DEB.Core.Elementos.Consolo;
 
 namespace DEB.Core.Intercambio;
 

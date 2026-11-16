@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Documentacao;
+using DEB.Core.Elementos.Consolo;
 
 namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 {
