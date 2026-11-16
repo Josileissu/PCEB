@@ -70,7 +70,13 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         // Alças como as do CAD (D30, item 5, 16/11/2026): simétricas ao CG ao longo do eixo, a ~LiftEndPercent % das pontas
         // (TemplatePilarPreMoldado.PosicaoAlcas), pernas entrando no pilar até por dentro das longitudinais da face oposta
         // (TemplatePilarPreMoldado.EmbutimentoAlca), com o pé dobrado lá.
-        public int LiftLoops { get; set; } = 1;
+        /// <summary>Cordoalhas por ponto de içamento (2 = o "AlcaPernas" padrão do CAD; D30, leitura do coordenador).</summary>
+        public int LiftLoops { get; set; } = 2;
+        /// <summary>
+        /// Face das alças, na numeração apresentada do CAD (1 = oeste/−x, 2 = sul/−y, 3 = leste/+x, 4 = norte/+y), escolhida pelo
+        /// usuário como o "AlcaFace" do CAD (padrão 2). 0 = a regra automática antiga (face com consolos para cima, LiftFace).
+        /// </summary>
+        public int LiftFaceNumber { get; set; } = 2;
         /// <summary>Diâmetro da cordoalha CP-190 da alça (o CAD usa 12,7).</summary>
         public double LiftDiameterMm { get; set; } = 12.7;
         /// <summary>Embutimento das pernas, da face da alça até o lado de fora do pé; limitado ao lado de dentro das longitudinais da

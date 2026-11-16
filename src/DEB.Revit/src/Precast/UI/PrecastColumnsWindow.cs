@@ -247,14 +247,15 @@ namespace DEB.Revit.Precast.UI
             Num("Pinos: pé (mm)", () => s.CorbelPinFootMm, v => s.CorbelPinFootMm = v);
 
             Section("Içamento / insertos");
-            Int("Alças por ponto de içamento (0, 1 ou 2; pontos simétricos ao CG)", () => s.LiftLoops, v => s.LiftLoops = Math.Max(0, Math.Min(2, v)));
+            Int("Cordoalhas por ponto de içamento (0, 1 ou 2; pontos simétricos ao CG)", () => s.LiftLoops, v => s.LiftLoops = Math.Max(0, Math.Min(2, v)));
+            Int("Alça: face (1 = oeste, 2 = sul, 3 = leste, 4 = norte; 0 = automática)", () => s.LiftFaceNumber, v => s.LiftFaceNumber = Math.Max(0, Math.Min(4, v)));
             Num("Alça: distância às pontas (% do comprimento, a partir do CG)", () => s.LiftEndPercent, v => s.LiftEndPercent = Math.Max(5, Math.Min(45, v)));
             Dia("Alça: cordoalha CP-190, diâmetro (mm)", () => s.LiftDiameterMm, v => s.LiftDiameterMm = v);
             Num("Alça: embutimento das pernas (mm; limitado por dentro das longitudinais da face oposta)", () => s.LiftEmbedMm, v => s.LiftEmbedMm = v);
             Num("Alça: altura acima da face (mm)", () => s.LiftProtrusionMm, v => s.LiftProtrusionMm = v);
             Num("Alça: distância entre as pernas (mm)", () => s.LiftWidthMm, v => s.LiftWidthMm = v);
             Num("Alça: pé no fim das pernas (mm)", () => s.LiftFootMm, v => s.LiftFootMm = v);
-            Num("Distância entre alças (mm)", () => s.LiftSpacingMm, v => s.LiftSpacingMm = v);
+            Num("Distância entre as cordoalhas do mesmo ponto (mm)", () => s.LiftSpacingMm, v => s.LiftSpacingMm = v);
             Str("Família de inserto no topo (\"Família : Tipo\")", () => s.InsertFamily, v => s.InsertFamily = v);
 
             Section("Modelo");

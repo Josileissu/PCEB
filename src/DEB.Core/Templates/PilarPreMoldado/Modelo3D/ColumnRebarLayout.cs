@@ -115,7 +115,23 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         }
 
         /// <summary>
-        /// Face das alças. Com consolos em até 3 faces: a face com mais consolos (desempate: consolos maiores, depois a
+        /// Face das alças: a escolhida pelo usuário (LiftFaceNumber, numeração apresentada do CAD, padrão 2 = sul/−y, como o
+        /// "AlcaFace" do CAD — D30, leitura do coordenador a confirmar pelo dono); 0 = <see cref="LiftFace"/>.
+        /// </summary>
+        public static ColumnFace LiftFaceOf(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s) => s.LiftFaceNumber switch
+        {
+            1 => ColumnFace.NX,
+            2 => ColumnFace.NY,
+            3 => ColumnFace.PX,
+            4 => ColumnFace.PY,
+            _ => LiftFace(f, corbels),
+        };
+
+        /// <summary>Numeração apresentada do CAD (1 = oeste/−x, 2 = sul/−y, 3 = leste/+x, 4 = norte/+y) de uma face.</summary>
+        public static int FaceNumber(ColumnFace fc) => fc == ColumnFace.NX ? 1 : fc == ColumnFace.NY ? 2 : fc == ColumnFace.PX ? 3 : 4;
+
+        /// <summary>
+        /// Face das alças pela regra automática antiga (LiftFaceNumber = 0). Com consolos em até 3 faces: a face com mais consolos (desempate: consolos maiores, depois a
         /// face mais estreita), para os consolos ficarem para cima no transporte. Com consolos nas 4 faces: a face oposta
         /// ao consolo mais armado (maior), e no empate a face mais estreita. "Alça no maior lado" = alça na face menor:
         /// o pilar deitado fica com o lado maior na vertical (maior inércia no sentido do maior momento do transporte).
@@ -169,7 +185,7 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         /// </summary>
         private static IEnumerable<BarDef> LiftLoops(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s, double dl, double dt)
         {
-            ColumnFace face = LiftFace(f, corbels);
+            ColumnFace face = LiftFaceOf(f, corbels, s);
             var g = new Corbel { Face = face };            // só para os eixos da face (U, T, At)
             double width = face == ColumnFace.PX || face == ColumnFace.NX ? f.By : f.Bx;
             double depth = g.ColumnDepth(f);
@@ -248,7 +264,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         public static List<(int A, int B)> CorbelPairs(IList<Corbel> corbels)
         {
             double Cm(double ft) => U_.ToMm(ft) / 10;
-            int Face(ColumnFace fc) => fc == ColumnFace.PX ? 1 : fc == ColumnFace.PY ? 2 : fc == ColumnFace.NX ? 3 : 4;
+            // numeração interna do CAD (1 = +x, 2 = −y, 3 = −x, 4 = +y; opostas 1↔3, 2↔4)
+            int Face(ColumnFace fc) => fc == ColumnFace.PX ? 1 : fc == ColumnFace.NY ? 2 : fc == ColumnFace.NX ? 3 : 4;
             return BarrasConsolo.ParesEmNivel(corbels.Select(k => new ConsoloNoNivel(Face(k.Face), Cm(k.ZTop), Cm(k.HeightAtFace),
                 Cm((k.S0 + k.S1) / 2), Cm(k.Width), Cm(k.Projection), Cm(k.TipHeight))).ToList());
         }

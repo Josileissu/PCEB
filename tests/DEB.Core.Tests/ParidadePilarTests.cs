@@ -189,7 +189,7 @@ public class ParidadePilarTests
         // Revit: o meio do topo de cada alça; embutimento = profundidade do lado de fora do pé, medida da face da alça
         var lifts = bars.Where(b => b.Role == BarRole.LiftLoop).ToList();
         var zRev = lifts.Select(b => Math.Round((b.Points[2].C + b.Points[3].C) / 2 * CmPorPe, 6)).Distinct().OrderBy(z => z).ToList();
-        ColumnFace fl = ColumnRebarLayout.LiftFace(f, k);
+        ColumnFace fl = ColumnRebarLayout.LiftFaceOf(f, k, s);
         double Prof(Loc p) => (fl == ColumnFace.PX ? f.Bx - p.A : fl == ColumnFace.NX ? p.A : fl == ColumnFace.PY ? f.By - p.B : p.B) * CmPorPe;
         double embRev = lifts.Max(b => Prof(b.Points[0])) + s.LiftDiameterMm / 20;
         m.Add(new Medida("alças: altura da de baixo (cm)", zRev.First(), zCad.First()));
@@ -197,6 +197,9 @@ public class ParidadePilarTests
         m.Add(new Medida("alças: embutimento das pernas (cm)", Math.Round(embRev, 6), Math.Round(embCad, 6)));
         m.Add(new Medida("alças: comprimento", ComprimentoRevit(lifts[0]), Un("alca")));
         m.Add(new Medida("alças: aço", lifts[0].Steel == Barra("alca").Aco ? 1 : 0, 1));
+        // face (numeração apresentada; CAD: o parâmetro AlcaFace) e cordoalhas por ponto (CAD: AlcaPernas, a quantidade da barra)
+        m.Add(new Medida("alças: face", ColumnRebarLayout.FaceNumber(fl), Valores(c, s).Inteiro("AlcaFace")));
+        m.Add(new Medida("alças: cordoalhas por ponto", lifts.Count / Math.Max(1, zRev.Count), Barra("alca").Quantidade));
 
         if (c.Consolos == 0) return m;
         // ---- consolo ----
@@ -268,31 +271,43 @@ public class ParidadePilarTests
         ("40x40-sem-12.5", "alças: embutimento das pernas (cm)", 35.75, 35.75, Igual),
         ("40x40-sem-12.5", "alças: comprimento", 147, 147, Igual),
         ("40x40-sem-12.5", "alças: aço", 1, 1, Igual),
+        ("40x40-sem-12.5", "alças: face", 2, 2, Igual),
+        ("40x40-sem-12.5", "alças: cordoalhas por ponto", 2, 2, Igual),
         ("40x40-um-12.5", "alças: altura da de baixo (cm)", 122.6, 122.6, Igual),
         ("40x40-um-12.5", "alças: altura da de cima (cm)", 482.6, 482.6, Igual),
         ("40x40-um-12.5", "alças: embutimento das pernas (cm)", 35.75, 35.75, Igual),
         ("40x40-um-12.5", "alças: comprimento", 147, 147, Igual),
         ("40x40-um-12.5", "alças: aço", 1, 1, Igual),
+        ("40x40-um-12.5", "alças: face", 2, 2, Igual),
+        ("40x40-um-12.5", "alças: cordoalhas por ponto", 2, 2, Igual),
         ("40x40-opostos-16", "alças: altura da de baixo (cm)", 125, 125, Igual),
         ("40x40-opostos-16", "alças: altura da de cima (cm)", 485, 485, Igual),
         ("40x40-opostos-16", "alças: embutimento das pernas (cm)", 35.4, 35.4, Igual),
         ("40x40-opostos-16", "alças: comprimento", 147, 147, Igual),
         ("40x40-opostos-16", "alças: aço", 1, 1, Igual),
+        ("40x40-opostos-16", "alças: face", 2, 2, Igual),
+        ("40x40-opostos-16", "alças: cordoalhas por ponto", 2, 2, Igual),
         ("50x50-sem-16", "alças: altura da de baixo (cm)", 120, 120, Igual),
         ("50x50-sem-16", "alças: altura da de cima (cm)", 480, 480, Igual),
         ("50x50-sem-16", "alças: embutimento das pernas (cm)", 45.4, 45.4, Igual),
         ("50x50-sem-16", "alças: comprimento", 167, 167, Igual),
         ("50x50-sem-16", "alças: aço", 1, 1, Igual),
+        ("50x50-sem-16", "alças: face", 2, 2, Igual),
+        ("50x50-sem-16", "alças: cordoalhas por ponto", 2, 2, Igual),
         ("50x50-um-16", "alças: altura da de baixo (cm)", 121.7, 121.7, Igual),
         ("50x50-um-16", "alças: altura da de cima (cm)", 481.7, 481.7, Igual),
         ("50x50-um-16", "alças: embutimento das pernas (cm)", 45.4, 45.4, Igual),
         ("50x50-um-16", "alças: comprimento", 167, 167, Igual),
         ("50x50-um-16", "alças: aço", 1, 1, Igual),
+        ("50x50-um-16", "alças: face", 2, 2, Igual),
+        ("50x50-um-16", "alças: cordoalhas por ponto", 2, 2, Igual),
         ("50x50-opostos-12.5", "alças: altura da de baixo (cm)", 123.3, 123.3, Igual),
         ("50x50-opostos-12.5", "alças: altura da de cima (cm)", 483.3, 483.3, Igual),
         ("50x50-opostos-12.5", "alças: embutimento das pernas (cm)", 45.75, 45.75, Igual),
         ("50x50-opostos-12.5", "alças: comprimento", 167, 167, Igual),
         ("50x50-opostos-12.5", "alças: aço", 1, 1, Igual),
+        ("50x50-opostos-12.5", "alças: face", 2, 2, Igual),
+        ("50x50-opostos-12.5", "alças: cordoalhas por ponto", 2, 2, Igual),
         ("40x40-opostos-16", "armadura inferior do consolo: comprimento", 91, 79, USUARIO),
         ("40x40-opostos-16", "barra soldada: comprimento", 35, 35, Igual),
         ("40x40-opostos-16", "costura: comprimento", 252, 252, Igual),
