@@ -7,7 +7,7 @@ using Xunit;
 
 namespace DEB.Core.Tests;
 
-/// <summary>Blocos sobre estacas no padrão escritório A (exemplos do usuário em info_auxiliar/templates/blocos, 2026-11-06).</summary>
+/// <summary>Blocos sobre estacas no padrão do escritório A (exemplos do usuário em info_auxiliar/templates/blocos, 2026-11-06).</summary>
 [Collection("Pilar")]   // usa os detalhes padrão do pilar (catálogos estáticos)
 public class BlocoEstacasTests
 {

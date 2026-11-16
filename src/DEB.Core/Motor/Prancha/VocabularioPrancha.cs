@@ -33,7 +33,7 @@ public static class VocabularioPrancha
         ["notas"] = "NOTAS:|NOTES:",
         ["escala"] = "ESC 1:{escala}|SCALE 1:{escala}",
         ["barras_restantes"] = "BARRAS|BARS",
-        // bloco sobre estacas (folhas escritório A)
+        // bloco sobre estacas (folhas do escritório A)
         [ElementoBloco.TipoId + ":nivel.topo"] = "(TOPO DO BLOCO)|(TOP OF PILE CAP)",
         [ElementoBloco.TipoId + ":peca"] = "BLOCO|PILE CAP",
         [ElementoBloco.TipoId + ":grupo"] = "Fundações",

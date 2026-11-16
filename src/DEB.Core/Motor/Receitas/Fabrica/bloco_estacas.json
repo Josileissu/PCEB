@@ -1,7 +1,7 @@
 {
   "versao": 1,
   "tipoElemento": "bloco_estacas",
-  "descricao": "Bloco sobre estacas (grade nx × ny ou triangular de 3), com cálice (colarinho ou embutido) ou arranque do pilar. Padrão escritório A; exemplos B3, B4, B15, B28, B31.",
+  "descricao": "Bloco sobre estacas (grade nx × ny ou triangular de 3), com cálice (colarinho ou embutido) ou arranque do pilar. Padrão do escritório A; exemplos B3, B4, B15, B28, B31.",
   "variaveis": [
     { "nome": "c", "formula": "padrao('cobrimento.solo', 4)" },
     { "nome": "cc", "formula": "padrao('cobrimento.calice', 2)" },

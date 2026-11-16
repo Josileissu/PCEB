@@ -64,7 +64,7 @@ public class IntegracaoMotorTests
     }
 }
 
-/// <summary>Ponta a ponta até a prancha: planilha → motor → prancha (perfil de fábrica escritório A), comparado com o template atual.</summary>
+/// <summary>Ponta a ponta até a prancha: planilha → motor → prancha (perfil de fábrica do bloco), comparado com o template atual.</summary>
 [Collection("Pilar")]
 public class IntegracaoPranchaTests
 {

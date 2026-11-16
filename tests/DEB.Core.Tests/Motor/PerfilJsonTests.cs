@@ -13,7 +13,7 @@ using TextoJson = DEB.Core.Persistencia.Json;
 
 namespace DEB.Core.Tests.Motor;
 
-/// <summary>Frente A do motor: JSON próprio, serialização dos contratos, perfil de fábrica escritório A e repositório de perfis.</summary>
+/// <summary>Frente A do motor: JSON próprio, serialização dos contratos, perfil de fábrica do bloco e repositório de perfis.</summary>
 public class PerfilJsonTests
 {
     // ================================================================= JSON
@@ -486,13 +486,13 @@ public class PerfilJsonTests
         var pasta = PastaTemp();
         try
         {
-            Escrever(pasta, "bloco_padrao.json", "{\n \"versao\": 1,\n \"nome\": \"escritório A do escritório\",\n" +
+            Escrever(pasta, "bloco_padrao.json", "{\n \"versao\": 1,\n \"nome\": \"Padrão do escritório\",\n" +
                 " \"padroes\": {\"secundaria.perna\": 25, \"novo.valor\": 3.5},\n \"regras\": {\"arranque.pe_sentido\": \"dentro\"},\n \"extra\": 1\n}");
             var r = new RepositorioPerfis(pasta).Obter("bloco_padrao");
             Assert.Empty(r.Avisos);
             Assert.EndsWith("bloco_padrao.json", r.Arquivo);
             var p = r.Perfil;
-            Assert.Equal("escritório A do escritório", p.Nome);
+            Assert.Equal("Padrão do escritório", p.Nome);
             Assert.Equal(25, p.Padrao("secundaria.perna", 0));
             Assert.Equal(3.5, p.Padrao("novo.valor", 0));
             Assert.Equal(4, p.Padrao("cobrimento.solo", 0));          // da fábrica
@@ -623,10 +623,10 @@ public class PerfilJsonTests
             Escrever(repo.Pasta, "meu.json", "{\"nome\": \"Meu perfil\", \"tipoElemento\": \"bloco_estacas\"}");
             Escrever(repo.Pasta, "quebrado.json", "{");
             var lista = repo.Listar();
-            var padrao = lista.Single(i => i.Id == "bloco_padrao");
-            Assert.True(padrao.DeFabrica);
-            Assert.Equal(arq, padrao.Arquivo);
-            Assert.Null(padrao.Aviso);
+            var fab = lista.Single(i => i.Id == "bloco_padrao");
+            Assert.True(fab.DeFabrica);
+            Assert.Equal(arq, fab.Arquivo);
+            Assert.Null(fab.Aviso);
             var meu = lista.Single(i => i.Id == "meu");
             Assert.False(meu.DeFabrica);
             Assert.Equal("Meu perfil", meu.Nome);

@@ -102,7 +102,7 @@ public static class KitDesenho
         t.Linhas.Add(new[] { R("VOLUME DE CONCRETO:", "CONCRETE VOLUME:"), $"{N(volume, "0.000")} m³" });
         t.Linhas.Add(new[] { R("PESO:", "WEIGHT:"), $"{N(peso, "0.000")} ton." });
         t.Linhas.Add(new[] { R("QUANTIDADE:", "QUANTITY:"), $"{quantidade} un." });
-        // viga protendida (escritório A 1071): taxas de armadura passiva e ativa por m³ de concreto
+        // viga protendida (escritório A, folha 1071): taxas de armadura passiva e ativa por m³ de concreto
         if (taxaPassiva > 0) t.Linhas.Add(new[] { R("TAXA DE ARM. PASSIVA:", "PASSIVE REINF. RATIO:"), $"{N(taxaPassiva, "0.0")} kg/m³" });
         if (taxaAtiva > 0) t.Linhas.Add(new[] { R("TAXA DE ARM. ATIVA:", "ACTIVE REINF. RATIO:"), $"{N(taxaAtiva, "0.0")} kg/m³" });
         return t;

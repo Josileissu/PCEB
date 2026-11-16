@@ -428,7 +428,7 @@ public sealed partial class GeradorPrancha
         return r;
     }
 
-    /// <summary>Comprimento do trecho variável de cada barra VAR escrito na ponta dele ("L" das folhas escritório A).</summary>
+    /// <summary>Comprimento do trecho variável de cada barra VAR escrito na ponta dele ("L" das folhas do escritório A).</summary>
     private static void TextosVar(Ctx c, ResultadoTemplate r, Info i, Func<P3, (double X, double Y)> proj)
     {
         double ht = c.ht;

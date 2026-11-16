@@ -15,7 +15,7 @@ namespace DEB.Core.Templates.Blocos;
 /// <summary>
 /// Bloco de fundação sobre estacas (pedidos do usuário, 2026-11-06): retangular com estacas em grade (1, 2, 3 em linha,
 /// 4, 6…) ou triangular de 3 estacas; ligação do pilar por cálice com colarinho, cálice embutido ou arranque.
-/// Apresentação no padrão das folhas escritório A (decisão do usuário: "escritório A para todos") — ver
+/// Apresentação no padrão das folhas do escritório A (decisão do usuário: o mesmo padrão para todos) — ver
 /// <c>src/DEB.Cad/docs/BLOCOS_REQUISITOS.md</c>:
 /// <list type="bullet">
 /// <item>FORMA: "BLOCO B15 - 24x - 3 ø 50" + pilares, PLANTA cotada (estacas com quadrantes hachurados, colarinho,
@@ -47,7 +47,7 @@ public sealed class TemplateBlocoEstacas : ITemplateArmadura
     public string Nome => _uma ? "Bloco de 1 estaca" : "Bloco sobre estacas (grade ou triangular)";
     public CategoriaElemento Categoria => _uma ? CategoriaElemento.Bloco1Estaca : CategoriaElemento.Bloco2Estacas;
     public string Descricao => "Bloco retangular (estacas em grade) ou triangular (3 estacas), com cálice (colarinho ou embutido) ou " +
-                               "arranque do pilar, no padrão das folhas escritório A: forma, vistas das armaduras, cálice, cortes, produção e detalhes.";
+                               "arranque do pilar, no padrão das folhas do escritório A: forma, vistas das armaduras, cálice, cortes, produção e detalhes.";
     public IReadOnlyList<ParametroTemplate> Parametros { get; }
 
     private static ParametroTemplate P(string grupo, string nome, string rotulo, string padrao, string unidade = "",

@@ -24,7 +24,7 @@ public sealed class VistaGerada
 
 /// <summary>
 /// Gerador de prancha comum a todos os elementos (frente C, 2026-11-07): projeta o <see cref="ModeloArmadura"/> (3D) nas
-/// vistas pedidas pelo perfil e monta a folha como o <c>TemplateBlocoEstacas</c> monta a do bloco (padrão escritório A):
+/// vistas pedidas pelo perfil e monta a folha como o <c>TemplateBlocoEstacas</c> monta a do bloco (padrão do escritório A):
 /// <list type="bullet">
 /// <item>FormaPlanta: contornos dos corpos vistos de cima, cilindros como círculos (estacas com quadrantes hachurados),
 /// cadeias de cotas (faces, estacas, corpos internos) e as marcas dos cortes da forma;</item>
