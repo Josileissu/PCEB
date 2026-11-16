@@ -47,8 +47,8 @@ Armadilhas achadas no export:
 - Paleta usada (tons claros e distintos, na ordem dos grupos): 230,97,92 · 244,196,48 · 102,187,106 · 77,182,172 ·
   92,142,214 · 186,104,200 · 255,138,101 · 255,183,77 · 220,231,117 · 129,199,132 · 77,208,225 · 100,181,246 · 149,117,205 ·
   240,98,146 · 161,136,127 · 144,164,174 (e mais 16 tons ainda mais claros, se precisar).
-- No CAD o preenchimento ficou num layer próprio, atrás das linhas, com 50% de transparência. **A transparência faz o PDF
-  do GstarCAD virar imagem**, então no Revit é melhor usar a cor já clareada e sem transparência (pergunta em aberto, seção 6).
+- **Cor clara sólida, sem transparência** (resposta do usuário, seção 6): a transparência faz o PDF do GstarCAD virar imagem.
+  No CAD o preenchimento fica num layer próprio, atrás das linhas.
 
 ### 2.3 Numeração (marca de cada peça)
 `L<pavimento><laje>-<peça>`, por exemplo `L104-07` (pavimento 1, laje 04, peça 07). O cobertura usa o 3.
@@ -65,7 +65,7 @@ Título: `QUADRO DE PAGINAÇÃO DAS LAJES ALVEOLARES - <pavimento>`. Uma **colun
 | Linha da coluna | Conteúdo |
 |---|---|
 | nome | as marcas do grupo em forma compacta (3.2) |
-| dados | `h=15+5` (painel + capa) e a quantidade `Nx` |
+| dados | altura do painel lida da família (`h16` → `h=16`; a capa ainda sem fonte) e a quantidade `Nx` |
 | sobrecarga | `S/C= 300 Kgf/m2` |
 | desenho | a peça em 1:1 (a folha imprime em 1:50), **comprimento na vertical**, com as cotas (3.3) e a cor do grupo |
 
@@ -140,11 +140,11 @@ Entrada: lista de peças `{marca, contorno em planta (polígono), laje, nível}`
 - **Folha**: só as vistas prontas; o arranjo da seção 4 é aplicado se o usuário quiser (D29).
 - AutoRun para teste: `formaspaginacao` + uma tarefa nova que grava o modelo do quadro em JSON para comparar com o CAD.
 
-## 6. Em aberto (perguntar ao usuário)
-1. `h=15+5` e `S/C= 300 Kgf/m2` vieram de um quadro antigo; as famílias dizem "h16". De onde tirar altura, capa e
-   sobrecarga (tipo do painel, parâmetro da laje, configuração)?
-2. Cor com transparência (como no CAD) ou cor clara sólida (melhor para PDF)?
-3. Quadro como vista de desenho (proposta) ou tabela do Revit com imagem do tipo?
-4. Nome do último pavimento: "3º pavimento" (nome do arquivo) ou "cobertura" (nome da vista no Revit)?
-5. A descrição no carimbo da folha do 1º pavimento estava como "PLANTA DE MONTAGEM (PLN) - 3º PAVIMENTO"; nas outras foi
-   corrigida para "PAGINAÇÃO DAS LAJES ALVEOLARES (PLN) - <pavimento>".
+## 6. Respostas do usuário (16/11/2026)
+1. **Altura do painel vem da família** (tipo "h16" → `h=16`), não do quadro antigo. A capa e a sobrecarga do texto
+   `h=15+5` / `S/C= 300 Kgf/m2` ainda não têm fonte definida (configuração do comando até o usuário dizer).
+2. **Cor clara sólida**, sem transparência (o PDF sai vetorial). Nos DWG de referência a cor foi trocada pela mistura 50% com
+   o branco: `(c + 255) / 2` em cada canal da paleta da seção 2.2.
+3. **Quadro como vista de desenho / legenda** gerada pelo comando (seção 5.3).
+4. Último pavimento: **"3º pavimento"** (não "cobertura").
+5. Carimbo: **"PAGINAÇÃO DAS LAJES ALVEOLARES (PLN) - <pavimento>"** em todas as folhas (o "PLANTA DE MONTAGEM" era engano).
