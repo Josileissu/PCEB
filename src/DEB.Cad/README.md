@@ -128,7 +128,7 @@ No dia a dia, use `ARMPALETA` para abrir a paleta, `ARMCOMANDOS` para a paleta d
 
 GNU General Public License v3.0 — veja [LICENSE](LICENSE).
 
-O arquivo [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md) concede a permissão adicional da seção 7
+O arquivo [LICENSE-EXCEPTION.md](../../LICENSE-EXCEPTION.md) concede a permissão adicional da seção 7
 da GPL-3 para combinar o programa com APIs proprietárias de CAD (AutoCAD/ObjectARX, GstarCAD/GRX,
 ZWCAD/ZRX, Revit, Robot, SAP2000/ETABS e TQS). As bibliotecas dessas APIs não são redistribuídas
 pelo projeto e devem ser obtidas sob as licenças dos respectivos fabricantes.
