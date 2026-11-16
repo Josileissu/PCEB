@@ -7,7 +7,7 @@ using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>Extremidade da viga (ponta E = x 0, ponta D = x L).</summary>
 public sealed class ExtremidadeViga

@@ -7,7 +7,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>
 /// Aba da viga (apoio de laje ou de escada): saliência lateral ao longo de um trecho, de um lado (seção L) ou dos dois (T

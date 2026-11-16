@@ -5,7 +5,7 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using DEB.Core.Templates.PilarPreMoldado;
-using DEB.Core.Templates.VigaPreMoldada;
+using DEB.Core.Elementos.Viga.PreMoldada;
 
 namespace DEB.Cad.Paleta;
 

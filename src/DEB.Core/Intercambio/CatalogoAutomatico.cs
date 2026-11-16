@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Templates.PilarPreMoldado;
-using DEB.Core.Templates.VigaPreMoldada;
+using DEB.Core.Elementos.Viga.PreMoldada;
 using DEB.Core.Documentacao;
 
 namespace DEB.Core.Intercambio;

@@ -36,7 +36,7 @@ public sealed class Plugin : Rt.IExtensionApplication
             foreach (var bv in Core.Motor.Fundacoes.TemplateBlocoVariante.Todas(
                          Core.Motor.Perfis.RepositorioPerfis.PastaPadrao(), Core.Motor.Receitas.RepositorioReceitas.PastaPadrao()))
                 Core.Motor.CatalogoTemplates.Registrar(bv);
-            Core.Motor.CatalogoTemplates.Registrar(new Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada());
+            Core.Motor.CatalogoTemplates.Registrar(new Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada());
             // modelos dos templates (PADRÃO + elementos salvos): carregados a cada abertura do GstarCAD
             try { ModelosTemplates.Carregar(); } catch (Exception ex) { Log.Erro("Modelos dos templates", ex); }
             DesenhoArmadura.Registrar();
@@ -101,7 +101,7 @@ public sealed class Plugin : Rt.IExtensionApplication
         // catálogo de consolos padrão do template do pilar pré-moldado (ARMCONSOLOS)
         Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Config.Consolos;
         Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.CatalogoInsertos = Config.Insertos;
-        Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Config.Dentes; // ARMDENTES
+        Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Config.Dentes; // ARMDENTES
     }
 
     public static void SalvarConfig()

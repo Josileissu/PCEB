@@ -4,7 +4,7 @@ using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>
 /// Ligação por cantoneira para solda nas pontas (etapa 4, 2026-11-08), no padrão da prancha 1071 (VT-1, CAN-03): uma

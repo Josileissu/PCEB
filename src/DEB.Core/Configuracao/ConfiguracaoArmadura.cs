@@ -136,7 +136,7 @@ public sealed class ConfiguracaoArmadura
     /// <summary>Insertos metálicos padrão (template do pilar pré-moldado; ARMINSERTOS).</summary>
     [DataMember(Order = 69)] public List<Templates.PilarPreMoldado.TipoInserto> Insertos { get; set; } = Templates.PilarPreMoldado.TipoInserto.Padrao();
     /// <summary>Dentes Gerber padrão (template da viga pré-moldada; ARMDENTES).</summary>
-    [DataMember(Order = 70)] public List<Templates.VigaPreMoldada.TipoDente> Dentes { get; set; } = Templates.VigaPreMoldada.TipoDente.Padrao();
+    [DataMember(Order = 70)] public List<Elementos.Viga.PreMoldada.TipoDente> Dentes { get; set; } = Elementos.Viga.PreMoldada.TipoDente.Padrao();
 
     /// <summary>Versão do formato da configuração (migrações automáticas).</summary>
     /// <summary>Coluna do detalhamento (ELEMENTO) das tabelas da relação do aço NOVAS (pedido do usuário, 2026-11-10: "Nunca").</summary>
@@ -189,7 +189,7 @@ public sealed class ConfiguracaoArmadura
         if (Telas == null || Telas.Count == 0) Telas = Catalogos.TelasPadrao();
         if (Consolos == null || Consolos.Count == 0) Consolos = Templates.PilarPreMoldado.TipoConsolo.Padrao();
         if (Insertos == null || Insertos.Count == 0) Insertos = Templates.PilarPreMoldado.TipoInserto.Padrao();
-        if (Dentes == null || Dentes.Count == 0) Dentes = Templates.VigaPreMoldada.TipoDente.Padrao();
+        if (Dentes == null || Dentes.Count == 0) Dentes = Elementos.Viga.PreMoldada.TipoDente.Padrao();
         if (EscalasUsuais == null || EscalasUsuais.Count == 0) EscalasUsuais = EscalasPadrao();
         if (VersaoConfig < 2)
         {

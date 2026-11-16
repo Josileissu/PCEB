@@ -236,7 +236,7 @@ public sealed class ComandosTemplate
         if (CadApp.ShowModalDialog(f) != DialogResult.OK) return;
         Plugin.Config.Dentes = f.Resultado;
         Plugin.SalvarConfig();
-        Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Plugin.Config.Dentes;
+        Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Plugin.Config.Dentes;
         ed.WriteMessage($"\n{f.Resultado.Count} dente(s) padrão salvos: " + string.Join(", ", f.Resultado.Select(t => t.Nome)) + ".");
     }, suspender: false);
 

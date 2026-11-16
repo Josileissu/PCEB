@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>
 /// Dente Gerber do catálogo do escritório (pedido do usuário, 2026-11-07): a armadura do dente muda a cada projeto (vem do

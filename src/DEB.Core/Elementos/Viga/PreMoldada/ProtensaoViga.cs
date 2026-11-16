@@ -6,7 +6,7 @@ using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>Um grupo de cordoalhas (uma linha da tabela): mesma fiada, bitola, isolamento e força.</summary>
 public sealed class GrupoCordoalhas

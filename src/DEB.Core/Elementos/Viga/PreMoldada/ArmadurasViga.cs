@@ -9,7 +9,7 @@ using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>Uma linha da lista de longitudinais da viga (cm a partir da ponta esquerda).</summary>
 public sealed class LinhaLongViga

@@ -6,7 +6,7 @@ using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>
 /// Etapa 4 da viga (2026-11-08): alça de içamento na relação do aço (cordoalha CP-190, ancorada no fundo, como o usuário

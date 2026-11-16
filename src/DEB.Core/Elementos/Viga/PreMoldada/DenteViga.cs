@@ -7,7 +7,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>
 /// Etapa 3 da viga (2026-11-08): armadura do dente Gerber do catálogo (NBR 9062 7.4; padrão das pranchas 316-6208/6219):

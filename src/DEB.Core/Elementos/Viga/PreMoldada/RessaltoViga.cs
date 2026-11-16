@@ -7,7 +7,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>
 /// Ressalto sobre a alma (2026-11-10): faixa estreita acima do topo da viga, rente a uma das faces, em todo o comprimento — a capa

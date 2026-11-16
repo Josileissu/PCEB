@@ -2440,31 +2440,31 @@ public sealed class AutoTeste
     public void Viga() => Comandos.Executar("ARMTESTEVIGA", (doc, ed, db, cfg) =>
     {
         Rel.Clear(); _ok = _falhas = 0;
-        var t = new Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
+        var t = new Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada();
         var v144 = new Core.Motor.ValoresTemplate(t.Parametros);
         v144["Nome"] = "V144"; v144["L"] = "308"; v144["CantE"] = "Sim"; v144["CantD"] = "Sim";
         var vReta = new Core.Motor.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V149"), ("Quantidade", "17"), ("B", "40"), ("H", "95"), ("L", "1150"),
-                     ("ExtE", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta),
-                     ("FurosModo", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.FurosDigitados), ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
+                     ("ExtE", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.Reta),
+                     ("FurosModo", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.FurosDigitados), ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
                      // VP-3: protendida como a V148 da GRU 710 (11 ø15,2, isolamento em grupos)
                      ("Protendida", "Sim"), ("Longitudinais", "Superior|2|12.5|1|0|0||;Pele|3|10|1|0|0||"), ("Cordoalhas", "1|5|15.2|0|0|20.5;1|2|15.2|250|250|20.5;2|2|15.2|0|0|20.5;2|2|15.2|120|120|20.5;18|2|12.7|0|0|10") })
             vReta[k] = val;
         // VP-4 (2026-11-09): viga com aba — como a V121 do modelo real (abas dos dois lados rentes ao topo, fundo inclinado, passando
         // pelos dentes) e como a 19×65 (aba elevada de um lado só, o de trás da elevação)
         var vT = new Core.Motor.ValoresTemplate(t.Parametros);
-        foreach (var (k, val) in new[] { ("Nome", "V121"), ("B", "30"), ("H", "70"), ("L", "457"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaDois),
+        foreach (var (k, val) in new[] { ("Nome", "V121"), ("B", "30"), ("H", "70"), ("L", "457"), ("Aba", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.AbaDois),
                      ("AbaLargura", "15"), ("AbaAltura", "15"), ("AbaAlturaPonta", "12"), ("AbaBase", "55") })
             vT[k] = val;
         var vL = new Core.Motor.ValoresTemplate(t.Parametros);
-        foreach (var (k, val) in new[] { ("Nome", "V4"), ("B", "19"), ("H", "70"), ("L", "295.5"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaEsq),
+        foreach (var (k, val) in new[] { ("Nome", "V4"), ("B", "19"), ("H", "70"), ("L", "295.5"), ("Aba", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.AbaEsq),
                      ("AbaLargura", "20"), ("AbaAltura", "15"), ("AbaAlturaPonta", "12"), ("AbaBase", "37.5") })
             vL[k] = val;
         // ressalto sobre a alma + aba no topo ("aba laje + aba superior" de um modelo real), com a ligação com a capa (2026-11-10)
         var vR = new Core.Motor.ValoresTemplate(t.Parametros);
-        foreach (var (k, val) in new[] { ("Nome", "V119"), ("B", "30"), ("H", "50"), ("L", "457"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaEsq),
+        foreach (var (k, val) in new[] { ("Nome", "V119"), ("B", "30"), ("H", "50"), ("L", "457"), ("Aba", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.AbaEsq),
                      ("AbaLargura", "15"), ("AbaAltura", "15"), ("AbaAlturaPonta", "12"), ("AbaBase", "35"),
-                     ("Ressalto", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.RessaltoDir), ("RessaltoLargura", "13"), ("RessaltoAltura", "27.5") })
+                     ("Ressalto", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.RessaltoDir), ("RessaltoLargura", "13"), ("RessaltoAltura", "27.5") })
             vR[k] = val;
         var casos = new[] { ("V144", v144, new Point3d(12000, -5000, 0)), ("V149", vReta, new Point3d(12000, -12000, 0)),
                             ("V121", vT, new Point3d(12000, -19000, 0)), ("V4", vL, new Point3d(12000, -26000, 0)), ("V119", vR, new Point3d(12000, -33000, 0)) };
@@ -2475,7 +2475,7 @@ public sealed class AutoTeste
             // a viga com aba sempre avisa da suspensão (e do içamento, com aba de um lado só): esses não contam
             var avisos = r.Avisos.Where(a => !a.StartsWith("Aba") && !a.StartsWith("Ressalto e ligação")).ToList();
             Checar(avisos.Count == 0, $"{nome}: sem avisos ({string.Join(" | ", avisos)})");
-            if (v["Aba"] != Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaSem)
+            if (v["Aba"] != Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.AbaSem)
             {
                 Checar(r.Barras.Any(bb => bb.Nome == "abaestribo") && r.Barras.Any(bb => bb.Nome == "abalong"), $"{nome}: estribo e longitudinais da aba");
                 Checar(r.Faixas.Count(f => f.Barra == "abaestribo") == 1 + r.Textos.Count(q => q.Texto.StartsWith("SEÇÃO") && q.Texto.EndsWith("ARMADURA")),
@@ -2605,7 +2605,7 @@ public sealed class AutoTeste
         }
         // template desenhado no desenho em metros: as cotas do CAD medem em m e escrevem em mm (DIMLFAC = 1000)
         {
-            var t = new Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
+            var t = new Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada();
             var v = new Core.Motor.ValoresTemplate(t.Parametros);
             v["Nome"] = "VUN"; v["L"] = "308";
             var r = t.Gerar(v, cfg);
@@ -2731,7 +2731,7 @@ public sealed class AutoTeste
         {
             Plugin.Config.Dentes = dentesAntes;
             Plugin.Config.Consolos = consolosAntes;
-            Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Plugin.Config.Dentes;
+            Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Plugin.Config.Dentes;
             Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
         }
         foreach (var l in rel.Linhas) Rel.AppendLine("        " + l);

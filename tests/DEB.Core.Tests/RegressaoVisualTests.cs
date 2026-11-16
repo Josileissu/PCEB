@@ -11,7 +11,7 @@ using DEB.Core.Motor;
 using DEB.Core.Templates.BaseReservatorio;
 using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Templates.Reservatorio;
-using DEB.Core.Templates.VigaPreMoldada;
+using DEB.Core.Elementos.Viga.PreMoldada;
 using Xunit;
 
 namespace DEB.Core.Tests;

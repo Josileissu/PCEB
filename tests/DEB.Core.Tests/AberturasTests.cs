@@ -84,8 +84,8 @@ public class AberturasTests
         Assert.Equal(5, lido.Vigas[0].Aberturas.Count);
         Assert.Equal(652.5, lido.Vigas[0].Aberturas[4].X0);
         // no template: "Retangular|115|25|55|20" (centro, largura, fundo, altura)
-        var vt = ConversorVigaPeca.Valores(lido.Vigas[0], new Core.Motor.ValoresTemplate(new Templates.VigaPreMoldada.TemplateVigaPreMoldada().Parametros),
-            Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes.Concat(CatalogoAutomatico.Dentes(lido.Vigas, Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes)).ToList(),
+        var vt = ConversorVigaPeca.Valores(lido.Vigas[0], new Core.Motor.ValoresTemplate(new Elementos.Viga.PreMoldada.TemplateVigaPreMoldada().Parametros),
+            Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes.Concat(CatalogoAutomatico.Dentes(lido.Vigas, Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes)).ToList(),
             new List<string>());
         Assert.StartsWith("Retangular|115|25|55|20;", vt["Aberturas"]);
         // nicho (de um lado só): continua de fora, com o motivo

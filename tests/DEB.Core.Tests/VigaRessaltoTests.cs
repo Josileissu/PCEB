@@ -6,7 +6,7 @@ using DEB.Core.Intercambio;
 using DEB.Core.Pecas;
 using DEB.Core.Persistencia;
 using DEB.Core.Motor;
-using DEB.Core.Templates.VigaPreMoldada;
+using DEB.Core.Elementos.Viga.PreMoldada;
 using Xunit;
 
 namespace DEB.Core.Tests;

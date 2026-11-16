@@ -7,7 +7,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.VigaPreMoldada;
+namespace DEB.Core.Elementos.Viga.PreMoldada;
 
 /// <summary>Abertura na alma da viga (furo horizontal atravessando a largura b), em cm.</summary>
 public sealed class AberturaViga
