@@ -1,10 +1,10 @@
 # Matriz de detalhamento — 15 elementos da D19 × programas
 
 Etapa C do plano de ataque (escopo, 05/11/2026). Só **detalhamento** (armadura desenhada, vistas, cortes, quadro de
-aço, padrão configurável); análise e dimensionamento ficam nas fichas.
+aço, padrão configurável); análise e dimensionamento ficam em `programas.md`.
 
 ● faz (gera o detalhamento) · ○ parcial (calcula, verifica ou desenha só parte) · — não faz · ? a confirmar ·
-**PC2** = coluna a preencher no outro computador. Evidências nas fichas de cada programa (✓ = conferido nos arquivos).
+**PC2** = coluna a preencher no outro computador. Evidências na tabela `programas.md` (só o que foi conferido).
 
 | # | Elemento | TQS | Eberick | CYPE 3D | Revit (nativo + Precast) | DEB.Cad | DEB.Revit | Tekla | IDEA |
 |---|---|---|---|---|---|---|---|---|---|
@@ -32,7 +32,7 @@ aço, padrão configurável); análise e dimensionamento ficam nas fichas.
   consolos metálicos detalhados, e tudo isso **no Revit com o padrão do escritório**.
 - **Open source**: nenhum gera o detalhamento desses elementos. O mais perto é o **FreeCAD** (barra paramétrica
   `ArchRebar` + pranchas TechDraw; formas prontas e BBS no complemento Reinforcement, a levantar); o IfcOpenShell só
-  lê e grava a armadura em IFC (`opensource/freecad.md`, `opensource/ifcopenshell.md`).
+  lê e grava a armadura em IFC (`programas.md`).
 - **Nossos plugins hoje**: pilar pré-moldado com consolo (CAD e Revit) e base de reservatório (CAD); o resto está
   previsto. A ordem do `motor_detalhamento.md` continua válida.
 

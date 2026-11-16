@@ -27,7 +27,7 @@ As frentes não mexem nos mesmos arquivos: o PC1 trabalha em `src/` e `tests/`, 
   consolida no próximo merge.
 
 ## Quadro de coordenação
-`docs/00_escopo/coordenacao.md`: uma tabela **tarefa | computador | situação | branch**. Cada Claude lê no início
+`docs/00_escopo/coordenacao.md`: uma linha por tarefa (**# · tarefa · situação · branch · atualizado em · por**), com o que ainda serve em `tarefas/<#>.md`. Cada Claude lê no início
 e atualiza no fim da sessão. É o que permite um continuar de onde o outro parou.
 
 ## O que fica fora do Git e como chega ao PC2
@@ -35,7 +35,7 @@ e atualiza no fim da sessão. É o que permite um continuar de onde o outro paro
 |---|---|---|
 | Normas | `S:\Meu Drive\Normas` (Google Drive) | mesma conta do Drive → mesmo caminho |
 | Padrões do escritório, pranchas-modelo (PP127), `Projeto1.rvt` | PC1, fora do Git | copiar para uma pasta do Drive (ex.: `S:\Meu Drive\PCEB_privado`) |
-| Downloads de programas (`programas/*/download`) | PC1 | baixar de novo pelo link do `NOTAS.md` (só o que for usar) |
+| Downloads de programas (`programas/*/download`) | PC1 | baixar de novo do site de cada programa (lista em `docs/01_catalogo/programas.md`; só o que for usar) |
 | Memória do Claude (`~/.claude/.../memory`) | **local de cada computador** | não sincroniza. O conhecimento durável vai para os `CLAUDE.md` e `docs/` do repositório |
 
 ## Preparar o PC2 (uma vez)

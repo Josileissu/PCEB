@@ -1,6 +1,6 @@
 # Vento em estruturas — programas e similares
 
-Do mais simples ao mais pesado. Fichas completas: `opensource/openfoam.md`, `comerciais/aerosim.md`.
+Do mais simples ao mais pesado. Linhas do OpenFOAM e do AeroSim em `programas.md`.
 
 | Programa | Tipo | Licença | Método | Para quê | Observação |
 |---|---|---|---|---|---|

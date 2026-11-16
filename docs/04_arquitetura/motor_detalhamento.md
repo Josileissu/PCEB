@@ -18,7 +18,7 @@ primeiro; análise e dimensionamento entram depois, alimentando o mesmo motor.
 4. **Saídas**: DEB.Revit (Rebar/Assembly/Sheets) e DEB.Cad.
 
 ## Modelo de armadura: três camadas (diretriz de 05/11/2026)
-Inspirado nos "ferros inteligentes" do TQS (`01_catalogo/comerciais/tqs.md`):
+Inspirado nos "ferros inteligentes" do TQS (`01_catalogo/programas.md`):
 1. **Intenção (atributos)** — tipo (reto, genérico, estribo de viga, estribo de pilar, grampo), posição, bitola,
    ganchos 90/135/180°, dobras, faixa de distribuição, cobrimento. É o que se edita e se grava.
 2. **Geometria calculada** — pontos, comprimentos, descontos de dobra, gerados pelas regras (NBR + perfil); nunca digitada.

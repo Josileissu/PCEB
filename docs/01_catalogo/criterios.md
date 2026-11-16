@@ -1,21 +1,8 @@
 # Critérios do catálogo
 
-## Ficha de cada programa (mesmos títulos em todas)
-1. Identificação: fabricante, licença, plataforma, instalado aqui?
-2. Modelagem
-3. Análise
-4. Dimensionamento (normas)
-5. Detalhamento
-6. Fabricação / CAM
-7. Documentação e desenho
-8. Importa / exporta
-9. API / automação
-10. Pré-moldados
-11. O que aproveitar para o nosso programa
-12. A confirmar
-
-**Confiança da informação**: ✓ = conferido neste computador; sem marca = conhecimento geral, ainda
-não conferido (pode estar desatualizado). Ao lapidar, cada item vira ✓ ou é corrigido.
+## Tabela de programas
+Cada programa estudado é uma linha de `programas.md`: tipo e licença, onde está e, na observação, só o que foi
+**conferido** num dos computadores (API, normas atendidas, o que serve ao PCEB). Conhecimento geral não conferido não entra.
 
 ## Avaliação dos open source (nota 1 a 5, provisória)
 | Critério | Pergunta |

@@ -12,7 +12,7 @@ o programa PCEB próprio (web + Windows, um núcleo só), que também poderá op
 | Pasta | Conteúdo |
 |---|---|
 | `docs/00_escopo/` | requisitos originais, escopo organizado (decisões e perguntas em aberto), robustez |
-| `docs/01_catalogo/` | fichas de programas comerciais, open source e próprios; matriz; interfaces e desempenho; vento/CFD |
+| `docs/01_catalogo/` | tabela dos programas estudados (`programas.md`); matrizes; interfaces e desempenho; vento/CFD |
 | `docs/02_biblioteca/` | referências; normas, livros e padrões ficam **fora do Git** (ver `normas/LEIAME.md`) |
 | `docs/03_casos-teste/` | peças de referência para comparar programas |
 | `docs/04_arquitetura/` | decisões de arquitetura e plano de migração |

@@ -1,1 +1,1 @@
-﻿Um subdiretório por programa: <nome>\download (arquivos baixados, não confiáveis), <nome>\scripts (nossos) e <nome>\NOTAS.md.
+﻿Um subdiretório por programa: <nome>\download (arquivos baixados, não confiáveis), <nome>\scripts (nossos). Licença e o que foi conferido de cada um: docs\01_catalogo\programas.md.

@@ -8,7 +8,7 @@ docs/02_biblioteca/artigos/*
 docs/02_biblioteca/padroes-escritorio/*
 !docs/02_biblioteca/*/.gitkeep
 
-# Downloads de programas de terceiros (cada um tem a sua licença e origem registradas no NOTAS.md)
+# Downloads de programas de terceiros (licença de cada um em docs/01_catalogo/programas.md)
 programas/*/download/
 
 # Gerais

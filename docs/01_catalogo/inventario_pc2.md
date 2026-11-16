@@ -6,7 +6,7 @@ a API foi identificada pelas DLLs/arquivos, sem abrir os programas.
 ## "Tekla" × "Tekla Structures"
 O usuário citou os dois. No PC2 há **três produtos Tekla diferentes**:
 - **Tekla Structures 2025 SP6** (225.6) + ambiente **Brazil**: modelagem BIM e **detalhamento** (pré-moldados,
-  armaduras, pranchas, numeração). É o que interessa à D19 e à ficha `comerciais/tekla.md`.
+  armaduras, pranchas, numeração). É o que interessa à D19 e à linha do Tekla em `programas.md`.
 - **Tekla Structural Designer 2025** (25.0.1): análise e dimensionamento (não detalha pranchas).
 - **Tekla Tedds** 27.0.1: memórias de cálculo (planilhas de cálculo de engenharia).
 
