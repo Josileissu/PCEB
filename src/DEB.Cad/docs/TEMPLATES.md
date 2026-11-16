@@ -173,7 +173,7 @@ Pedido do usuário: reconhecer a estrutura de um DWG de outro programa e gerar o
   ("vista topo", "inferior à laje") e corte D-D do exemplo.
 ### Blocos sobre estacas (Templates/Blocos/TemplateBlocoEstacas.cs, 2026-11-06, PC2)
 Exemplos e regras medidas: `docs/BLOCOS_REQUISITOS.md` (B3 em imagem; B4, B15, B28, B31 e B3.1 em PDF/DWG). Decisões do
-usuário (2026-11-06): **padrão de folha escritório A para todos**, **todos os tipos de uma vez**, **perna da principal pela altura do
+usuário (2026-11-06): **padrão de folha do escritório A para todos**, **todos os tipos de uma vez**, **perna da principal pela altura do
 bloco** (topo da base − cobrimento; valor digitado manda).
 Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (Bloco2Estacas).
 - Formas: retangular em grade nx × ny (bloco = estacas ± "e", a distância eixo-face) ou triangular de 3 estacas (hexágono
@@ -185,7 +185,7 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
   o hexágono); estribos verticais (retangular); cálice: horizontais fechadas (topo concentrado + restante até a base do
   pilar), grampos U por parede ("2x", perna t − c − c_cálice), verticais em grampo (2 por parede), suspensão (NBR 9062
   7.7.3.7) e barras sob a base do pilar; arranque com pé e estribos do pilar.
-- Desenho (padrão escritório A): FORMA (título "BLOCO B28 - 6x - 2 ø 40", pilares, PLANTA cotada com quadrantes hachurados, CORTE A-A
+- Desenho (padrão do escritório A): FORMA (título "BLOCO B28 - 6x - 2 ø 40", pilares, PLANTA cotada com quadrantes hachurados, CORTE A-A
   com regularização, concreto magro e NÍVEIS por pilar a partir do topo — tabela "Níveis"); ARMADURA (VISTA SUPERIOR da
   inferior principal, inferior secundária e superior com as dobradas embaixo; CÁLICE; ARM. LATERAL HORIZONTAL; CORTES A-A e
   B-B com barras em ponto e chamadas curtas; arranque); relação do aço; INFORMAÇÕES P/ PRODUÇÃO; detalhes padrão do pilar
@@ -198,7 +198,7 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
   `GravarPreviaDoBloco` (ARM_PREVIA).
 - Decidido pelo usuário (2026-11-07): perna da principal = topo da base − c (diferenças como o 68 do B31 se ajustam na
   edição do bloco); principal no triangular reta de face a face; pernas da secundária/superior = valor padrão do template
-  (20); suspensão com perna externa = interna − 6. [VALIDAR no uso] posição das chamadas; o B3 agora sai no padrão escritório A.
+  (20); suspensão com perna externa = interna − 6. [VALIDAR no uso] posição das chamadas; o B3 agora sai no padrão do escritório A.
 - Depois (não são comuns, decisão de 2026-11-07): 5 estacas em quincôncio e outros arranjos não em grade; colarinho excêntrico; chaves desenhadas nas paredes do cálice.
 ### Viga pré-moldada VP-1/VP-2/VP-3 (Templates/VigaPreMoldada/, 2026-11-07/08, PC2) — aguardando a conferência do usuário
 Padrão medido e decisões: `docs/VIGA_PREMOLDADA_REQUISITOS.md` (seção 1 = pranchas do escritório; seção 16 = etapas).

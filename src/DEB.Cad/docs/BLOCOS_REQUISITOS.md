@@ -31,7 +31,7 @@ sem ezdxf). O que está marcado **[CONFIRMAR]** é interpretação minha.
   parede do colarinho ≥ 15 cm, fundo sob o pilar ≥ 20 cm (Fig. 25); chaves ≥ 1 cm a cada ≤ 10 cm; pressões
   horizontais concentradas no topo (Lemb/3, 7.7.4.3); armadura de suspensão para a punção (7.7.3.7).
 
-## 3. Apresentação (folhas escritório A)
+## 3. Apresentação (folhas do escritório A)
 1. **Forma** (quadro à esquerda): "BLOCO B15 - 24x - 3 ø 50", lista dos pilares, PLANTA 1:20 com cadeias de cotas (faces,
    estacas, colarinho, pilar), estacas com quadrantes hachurados, marca A; CORTE A-A com pilar interrompido, colarinho,
    chaves no cálice, REGULARIZAÇÃO DE FUNDO e=5 cm, CONCRETO MAGRO e=5 cm e os níveis.
@@ -61,7 +61,7 @@ Medidas do B28 (cálice 80 × 70, c = 4) e conferidas nos outros:
 | Ancoragem das armaduras das estacas | detalhe padrão (nota) | | não entra na RA |
 
 ## 5. Proposta de etapas
-1. **Cálice com colarinho em bloco retangular** (B28 2 estacas, B31 4 estacas): forma no padrão escritório A, armaduras da tabela,
+1. **Cálice com colarinho em bloco retangular** (B28 2 estacas, B31 4 estacas): forma no padrão do escritório A, armaduras da tabela,
    níveis, informações p/ produção, detalhes padrão. Ajusta o template atual (o arranque continua como opção).
 2. **Bloco triangular de 3 estacas** (B4, B15): hexágono, faixas principais nos 3 lados, malha VAR com "L", lateral
    em polígono fechado.
@@ -69,7 +69,7 @@ Medidas do B28 (cálice 80 × 70, c = 4) e conferidas nos outros:
 4. Depois: 5 estacas, blocos sobre estacas em linha com cálice, bloco de 1 estaca com cálice.
 
 ## 6. Decisões do usuário (2026-11-06)
-- Apresentação: **padrão escritório A para todos** (inclusive o bloco com arranque).
+- Apresentação: **padrão do escritório A para todos** (inclusive o bloco com arranque).
 - Ordem: **todos os tipos de uma vez** (feito: grade, triangular, colarinho, embutido, arranque).
 - Pernas da principal: **regra pela altura do bloco** (topo da base − cobrimento). Diferenças como o B31 (68 com base 110)
   são ajustadas depois, na produção/edição do bloco (2026-11-07).

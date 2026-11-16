@@ -20,7 +20,7 @@ Sobrescrita = a edição "na hora da produção" (ex.: perna 68 do B31): fica ma
 ## Frentes (branches a partir de `pc2/motor-detalhamento`)
 | Frente | Entrega | Testes |
 |---|---|---|
-| A. Perfil e JSON | leitor/gravador JSON próprio (sem dependência: o plugin roda em net48 dentro do CAD), serialização dos contratos, perfil "escritório A" do bloco (fábrica) + arquivo do usuário | ida e volta; perfil escritório A = valores do template atual |
+| A. Perfil e JSON | leitor/gravador JSON próprio (sem dependência: o plugin roda em net48 dentro do CAD), serialização dos contratos, perfil `bloco_padrao` do bloco (fábrica) + arquivo do usuário | ida e volta; perfil `bloco_padrao` = valores do template atual |
 | B. Motor de fundações (bloco) | `MotorBlocoEstacas`: regras do `TemplateBlocoEstacas` portadas para o modelo 3D, corpos de concreto, sobrescritas | paridade com B28, B15, B31 (`BlocoEstacasTests`) |
 | C. Gerador de prancha | projeção 3D → planta/cortes, faixas e chamadas, barras dobradas, título, tabelas, detalhes padrão | modelo de teste feito à mão |
 | D. Entrada de dados | lista de blocos por planilha/CSV → `ElementoBloco` (vários de uma vez) + serviço de regeneração (elemento + perfil + sobrescritas) | CSV de exemplo |

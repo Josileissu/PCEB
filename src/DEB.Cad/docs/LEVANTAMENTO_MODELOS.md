@@ -7,11 +7,11 @@ padrão das anteriores).
 
 ## 1. Padrão comum de apresentação (todas as folhas)
 
-- **Carimbos**: três famílias — escritório A (obra obra real, folhas 104/115/128/131, 1071, 1078: só PT), escritório B
-  (obra industrial, <código do projeto>-…: PT/EN) e obra industrial/escritório (<código do projeto>-…: PT). Tabela de revisões acima do carimbo.
+- **Carimbos**: três famílias — escritório A (obra real, folhas 104/115/128/131, 1071, 1078: só PT), escritório B
+  (obra industrial, <código do projeto>-…: PT/EN) e escritório C (<código do projeto>-…: PT). Tabela de revisões acima do carimbo.
 - **Título do elemento** no alto à esquerda, grande: nome + quantidade + dados-chave. Ex.: "BLOCO B4 - PILAR 40x60 2x / P1=P67 /
   3 ø 50 / 1:20"; "BLOCO B3.1 (x13)" + lista dos pilares + "4xø60"; "BLOCO BPile (x24)"; "VT-1 (VT 40x100)"; "V129 (40 x 50)".
-- **Cada vista** com título em maiúsculas e "ESC 1:xx" abaixo (bilíngue nas folhas escritório B: "ARMADURA EM PLANTA - BASE DO
+- **Cada vista** com título em maiúsculas e "ESC 1:xx" abaixo (bilíngue nas folhas do escritório B: "ARMADURA EM PLANTA - BASE DO
   BLOCO (REINFORCEMENT LAYOUT - PILE CAP BASE)").
 - **Escalas típicas**: blocos 1:20/1:25; pilar: vistas 1:50, seções/cortes/consolos 1:25, espaçamento de barras 1:5; vigas:
   fôrmas/elevação 1:25 ou 1:50, seções 1:15 ou 1:25; detalhes típicos sem escala.
@@ -25,10 +25,10 @@ padrão das anteriores).
 - **Barras variáveis**: "C=VAR" na forma; os comprimentos ficam escritos ao lado de cada barra na planta; quadro "INDICAÇÃO
   BARRA VARIÁVEL — 'L' trecho reto variável indicado nas vistas em planta" (escritório A).
 - **Relação do aço**: AÇO | N | DIAM (mm) | QUANT | C.UNIT (cm) | C.TOTAL (cm) (VAR permitido; escritório B com coluna ELEMENTO;
-  obra industrial "Relação do aço — UNITÁRIA"). **Resumo do aço**: AÇO | DIAM | C.TOTAL (m) | PESO (kg) + PESO TOTAL.
+  escritório C "Relação do aço — UNITÁRIA"). **Resumo do aço**: AÇO | DIAM | C.TOTAL (m) | PESO (kg) + PESO TOTAL.
 - **Informações para produção**: fck (pré-moldado: na desforma/içamento, na montagem, aos 28 dias), volume de concreto
   (m³/un. e total), área de forma (m²/un. e total), peso, taxa (kg/m³; protendida: passiva e ativa), quantidade (un.).
-- **Notas**: dimensões em cm; ver prancha de informações gerais; neoprene 15 mm (escritório B); escritório A lista propriedades do
+- **Notas**: dimensões em cm; ver prancha de informações gerais; neoprene 15 mm (escritório B); o escritório A lista propriedades do
   concreto, classe de agressividade, cobrimentos (elemento em contato com o solo 4,0; interno do cálice 2,0) e normas.
 - **Níveis** nos cortes: marcas de cota com texto ("P1=-3,43 m (TOPO DO BLOCO)", "FUNDO DO PILAR", "COTA DE ARRASAMENTO"),
   concreto magro e=5 cm e regularização de fundo e=5 cm desenhados.
@@ -47,7 +47,7 @@ padrão das anteriores).
 - (O exemplo do usuário de 2026-11-07 — 50×50×50, estaca ø30, arranque 14×30 — segue o mesmo esquema: 3 N1 horizontais
   44×44 C=189 e 2×4 N2 verticais 44×35 C=172, mais as barras de arranque do pilar.)
 
-### Blocos sobre estacas (B4, B28, B3.1; escritório A e escritório B)
+### Blocos sobre estacas (B4, B28, B3.1; escritórios A e B)
 - Forma: planta com cotas em cadeia, estacas, pilar e cálice; cortes A-A/B-B de forma com níveis.
 - Armadura em planta, separada por camada: inferior principal (faixas sobre estacas), inferior secundária (malha, VAR no
   triangular), superior; topo do bloco com o cálice.
@@ -78,4 +78,4 @@ padrão das anteriores).
   tabelas (relação, resumo, produção) → notas → detalhes típicos fixos → carimbo.
 - Os detalhes típicos são desenhos FIXOS do escritório: melhor inserir como bloco do DWG padrão do que desenhar por código
   (o detalhe gerado no pilar ficou feio e foi removido em 2026-11-07).
-- Bilíngue depende do cliente (escritório B sim; escritório A/obra industrial não).
+- Bilíngue depende do cliente (escritório B sim; A e C não).
