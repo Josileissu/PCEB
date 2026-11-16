@@ -16,7 +16,7 @@ namespace DEB.Revit.Precast
 
         private readonly Document _doc;
         private readonly PieceLog _log;
-        private readonly Dictionary<double, RebarBarType> _types = new Dictionary<double, RebarBarType>();
+        private readonly Dictionary<(double, string), RebarBarType> _types = new Dictionary<(double, string), RebarBarType>();
         private RebarHookType _hook135;
         /// <summary>Ganchos de estribo que saíram para fora e foram invertidos (relatório).</summary>
         public int HooksFlipped { get; private set; }
@@ -91,7 +91,7 @@ namespace DEB.Revit.Precast
         {
             const double cmPerFoot = 30.48;
             var axis = b.Points.Select(p => (p.A * cmPerFoot, p.B * cmPerFoot, p.C * cmPerFoot)).ToList();
-            return SharedRules.RealLengthCm(axis, b.Closed, b.DiameterMm, IsTie(b.Role), b.Hooks135);
+            return SharedRules.RealLengthCm(axis, b.Closed, b.DiameterMm, IsTie(b.Role), b.Hooks135, b.Steel);
         }
 
         /// <summary>
@@ -126,7 +126,7 @@ namespace DEB.Revit.Precast
             // Laço anti-horário em torno da normal: o interior fica à esquerda da barra, então o gancho
             // do início aponta para a direita e o do fim para a esquerda (ambos para dentro).
             Rebar r = Rebar.CreateFromCurves(_doc, tie ? RebarStyle.StirrupTie : RebarStyle.Standard,
-                BarType(b.DiameterMm), hook, hook, host, f.DirToWorld(b.Normal), curves,
+                BarType(b.DiameterMm, b.Steel), hook, hook, host, f.DirToWorld(b.Normal), curves,
                 RebarHookOrientation.Right, RebarHookOrientation.Left, true, true);
 
             if (b.Closed && hook != null)
@@ -188,7 +188,7 @@ namespace DEB.Revit.Precast
             var curves = new List<Curve>();
             for (int i = 0; i < first.Points.Count - 1; i++)
                 curves.Add(Line.CreateBound(f.ToWorld(first.Points[i]), f.ToWorld(first.Points[i + 1])));
-            Rebar r = Rebar.CreateFromCurves(_doc, RebarStyle.Standard, BarType(first.DiameterMm), null, null, column, n, curves,
+            Rebar r = Rebar.CreateFromCurves(_doc, RebarStyle.Standard, BarType(first.DiameterMm, first.Steel), null, null, column, n, curves,
                 RebarHookOrientation.Right, RebarHookOrientation.Left, true, true);
             try
             {
@@ -264,14 +264,15 @@ namespace DEB.Revit.Precast
         /// Tipo de barra com a bitola pedida; cria se não existir.
         /// Ø &lt; 6,3 → CA-60; senão CA-50. Dobras pela NBR 6118 (tabelas 9.1 e 9.2).
         /// </summary>
-        public RebarBarType BarType(double diameterMm)
+        public RebarBarType BarType(double diameterMm, string steel = null)
         {
-            if (_types.TryGetValue(diameterMm, out RebarBarType cached)) return cached;
+            steel ??= SharedRules.SteelFor(diameterMm);
+            if (_types.TryGetValue((diameterMm, steel), out RebarBarType cached)) return cached;
 
             double d = U.Mm(diameterMm);
-            // Só aceita tipo do aço certo (nome com CA-50/CA-60): o template do Revit traz tipos "CA25" com pinos de
+            // Só aceita tipo do aço certo (nome com CA-50/CA-60/CP-190): o template do Revit traz tipos "CA25" com pinos de
             // CA25, que davam aço errado na tabela e comprimentos diferentes do núcleo. Sem tipo certo, cria o do PCEB.
-            string want = SharedRules.SteelFor(diameterMm).Replace("-", "");
+            string want = steel.Replace("-", "").ToUpperInvariant();
             RebarBarType found = new FilteredElementCollector(_doc).OfClass(typeof(RebarBarType)).Cast<RebarBarType>()
                 .Where(t => Math.Abs(t.BarNominalDiameter - d) < U.Mm(0.05))
                 .Where(t => RebarDataSteel(t) == want)
@@ -279,15 +280,15 @@ namespace DEB.Revit.Precast
                 .FirstOrDefault();
             if (found == null)
             {
-                bool ca60 = diameterMm < 6.3;
-                // pinos de dobramento do núcleo comum (NBR 6118, tabelas 9.1 e 9.2)
-                string steel = SharedRules.SteelFor(diameterMm);
+                bool strand = SharedRules.IsStrand(steel);
+                // pinos de dobramento do núcleo comum (NBR 6118, tabelas 9.1 e 9.2; a cordoalha usa a regra do CA-50 abaixo de
+                // 20 mm, 5Ø — só para o Revit desenhar a curva: o comprimento da cordoalha não desconta dobra, como no CAD)
                 double bend = SharedRules.BendDiameterMm(diameterMm, steel, false) / diameterMm;
                 double stirrupBend = SharedRules.BendDiameterMm(diameterMm, steel, true) / diameterMm;
 
                 found = RebarBarType.Create(_doc);
                 found.Name = new NameRegistry(new FilteredElementCollector(_doc).OfClass(typeof(RebarBarType)).Select(e => e.Name))
-                    .Unique($"Ø{Fmt(diameterMm)} {(ca60 ? "CA-60" : "CA-50")}");
+                    .Unique(strand ? $"Cordoalha {steel} Ø{Fmt(diameterMm)}" : $"Ø{Fmt(diameterMm)} {steel}");
                 found.SetBarTypeDiameters(new BarTypeDiameterOptions
                 {
                     BarNominalDiameter = d,
@@ -300,15 +301,15 @@ namespace DEB.Revit.Precast
             }
 
             found.SetHookPermission(Hook135().Id, true);
-            _types[diameterMm] = found;
+            _types[(diameterMm, steel)] = found;
             return found;
         }
 
-        /// <summary>Aço indicado no nome do tipo ("CA50", "CA60", "CA25") ou "" se o nome não indica.</summary>
+        /// <summary>Aço indicado no nome do tipo ("CP190", "CA50", "CA60", "CA25") ou "" se o nome não indica.</summary>
         private static string RebarDataSteel(RebarBarType t)
         {
             string n = (t?.Name ?? "").ToUpperInvariant().Replace("-", "").Replace(" ", "");
-            return n.Contains("CA60") ? "CA60" : n.Contains("CA50") ? "CA50" : n.Contains("CA25") ? "CA25" : "";
+            return n.Contains("CP190") ? "CP190" : n.Contains("CA60") ? "CA60" : n.Contains("CA50") ? "CA50" : n.Contains("CA25") ? "CA25" : "";
         }
 
         /// <summary>Gancho de 135° (ponta reta 10 Ø ≥ 5 cm, NBR 6118 9.4.6.1).</summary>

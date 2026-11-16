@@ -69,14 +69,15 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         // (TemplatePilarPreMoldado.PosicaoAlcas), pernas entrando no pilar até por dentro dos estribos da face oposta
         // (TemplatePilarPreMoldado.EmbutimentoAlca), com o pé dobrado lá.
         public int LiftLoops { get; set; } = 1;
-        public double LiftDiameterMm { get; set; } = 16;
+        /// <summary>Diâmetro da cordoalha CP-190 da alça (o CAD usa 12,7).</summary>
+        public double LiftDiameterMm { get; set; } = 12.7;
         /// <summary>Embutimento das pernas, da face da alça até o lado de fora do pé; limitado ao lado de dentro dos estribos da
         /// face oposta (0 ou maior que o pilar = até lá, como o "0 = até o fundo" do CAD).</summary>
         public double LiftEmbedMm { get; set; } = 800;
         /// <summary>Altura da alça acima da face (eixo do topo da alça).</summary>
         public double LiftProtrusionMm { get; set; } = 150;
-        /// <summary>Distância entre as pernas (eixos).</summary>
-        public double LiftWidthMm { get; set; } = 150;
+        /// <summary>Distância entre as pernas (eixos); 100 = o "AlcaEntre" padrão do CAD.</summary>
+        public double LiftWidthMm { get; set; } = 100;
         /// <summary>Pé: dobra no fim de cada perna, junto da face oposta, para fora (o "AlcaPe" do CAD).</summary>
         public double LiftFootMm { get; set; } = 200;
         /// <summary>Distância das alças às pontas, % do comprimento, partindo do CG (o "AlcaPct" do CAD).</summary>
@@ -129,8 +130,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             if (LongBarsAlongX > 1 && LongBarsAlongY > 1 && clear < Math.Max(20, LongDiameterMm))
                 w.Add($"Espaçamento livre entre barras {clear:0} mm < max(20 mm; Ø) (18.4.2.2).");
 
-            // alça: o vão interno (largura − Ø) tem de comportar o pino de dobramento (NBR 6118 tab. 9.1, CA-50: 5Ø se Ø < 20,
-            // 8Ø se Ø ≥ 20); senão o Revit não resolve a forma ("Não é possível solucionar o formato do vergalhão")
+            // alça: o vão interno (largura − Ø) tem de comportar o diâmetro de dobra do tipo de barra (o tipo da cordoalha é criado
+            // com 5Ø, como o CA-50 abaixo de 20 mm); senão o Revit não resolve a forma ("Não é possível solucionar o formato")
             if (LiftLoops > 0)
             {
                 double mandrel = (LiftDiameterMm >= 20 ? 8 : 5) * LiftDiameterMm;

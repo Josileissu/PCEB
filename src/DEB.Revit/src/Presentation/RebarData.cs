@@ -109,8 +109,9 @@ namespace DEB.Revit.Presentation
                     totalM = totalCm / 100;
                     written++;
                 }
-                // massa linear da tabela de bitolas do núcleo (a mesma do plugin de CAD)
-                double kg = totalM * SharedRules.KgPerMeter(dMm, SharedRules.SteelFor(dMm));
+                // massa linear da tabela de bitolas do núcleo (a mesma do plugin de CAD); cordoalha pela tabela de cordoalhas
+                string grade = SteelGrade(type);
+                double kg = totalM * SharedRules.KgPerMeter(dMm, grade == "CP190" ? "CP-190" : SharedRules.SteelFor(dMm));
                 r.LookupParameter(WeightParam)?.Set(Math.Round(kg, 2));
             }
             SyncScheduleMarks(doc, rebarIds);
@@ -133,10 +134,11 @@ namespace DEB.Revit.Presentation
             }
         }
 
-        /// <summary>"CA50"/"CA60": do nome do tipo de barra; sem indicação, Ø &lt; 6,3 mm é CA60.</summary>
+        /// <summary>"CP190"/"CA50"/"CA60": do nome do tipo de barra; sem indicação, Ø &lt; 6,3 mm é CA60.</summary>
         public static string SteelGrade(RebarBarType t)
         {
             string n = (t?.Name ?? "").ToUpperInvariant().Replace("-", "").Replace(" ", "");
+            if (n.Contains("CP190")) return "CP190";
             if (n.Contains("CA60")) return "CA60";
             if (n.Contains("CA50")) return "CA50";
             if (n.Contains("CA25")) return "CA25";

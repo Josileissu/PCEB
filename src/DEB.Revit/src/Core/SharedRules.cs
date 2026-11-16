@@ -31,7 +31,10 @@ namespace DEB.Revit.Core
         /// desconto das dobras, ganchos e passagens pela norma (ver ComprimentoPorEixo no núcleo).
         /// </summary>
         public static double RealLengthCm(IReadOnlyList<(double X, double Y, double Z)> axisCm, bool closed, double diameterMm,
-            bool stirrup, bool hooks135) =>
-            ComprimentoPorEixo.Calcular(axisCm, closed, diameterMm, SteelFor(diameterMm), stirrup, hooks135, Config);
+            bool stirrup, bool hooks135, string steel = null) =>
+            ComprimentoPorEixo.Calcular(axisCm, closed, diameterMm, steel ?? SteelFor(diameterMm), stirrup, hooks135, Config);
+
+        /// <summary>Aço de protensão (cordoalha CP): sem desconto de dobra, peso da tabela de cordoalhas.</summary>
+        public static bool IsStrand(string steel) => TabelaBarras.EhCordoalha(steel);
     }
 }

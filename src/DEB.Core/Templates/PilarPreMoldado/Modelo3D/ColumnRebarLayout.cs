@@ -15,6 +15,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
     {
         public BarRole Role { get; set; }
         public double DiameterMm { get; set; }
+        /// <summary>Aço ("CP-190" na alça de cordoalha); null = pela bitola (CA-60 abaixo de 6,3 mm, senão CA-50).</summary>
+        public string Steel { get; set; }
         public List<Loc> Points { get; set; } = new List<Loc>();
         public bool Closed { get; set; }
         public Loc Normal { get; set; }
@@ -204,10 +206,14 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                     pts.Add(g.At(f, pr, t, z + w / 2));
                     pts.Add(g.At(f, dIn, t, z + w / 2));
                     if (foot > 0) pts.Add(g.At(f, dIn, t, z + w / 2 + foot));
-                    yield return new BarDef { Role = BarRole.LiftLoop, DiameterMm = s.LiftDiameterMm, Points = pts, Normal = g.T };
+                    // cordoalha CP-190, como a alça do CAD (D30, revisão: "cordoalha")
+                    yield return new BarDef { Role = BarRole.LiftLoop, DiameterMm = s.LiftDiameterMm, Steel = LiftSteel, Points = pts, Normal = g.T };
                 }
             }
         }
+
+        /// <summary>Aço da alça de içamento: cordoalha CP-190 (NBR 9062, 5.3.3.5 proíbe CA-25/CA-50/CA-60 na alça).</summary>
+        public const string LiftSteel = "CP-190";
 
         private static BarDef Tie(Loc a, Loc b, ColumnRebarSpec s, int n, double sp) => new BarDef
         {
