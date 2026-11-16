@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DEB.Core.Templates;
 
 namespace DEB.Core.Motor.Prancha;
 

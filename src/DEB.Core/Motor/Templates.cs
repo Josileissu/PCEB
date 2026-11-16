@@ -4,8 +4,9 @@ using System.Globalization;
 using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Modelo;
+using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates;
+namespace DEB.Core.Motor;
 
 /// <summary>
 /// Elementos estruturais com padrão de armação do escritório (pedido do usuário, 2026-10-27). Cada

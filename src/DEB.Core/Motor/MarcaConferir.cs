@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DEB.Core.Templates;
+namespace DEB.Core.Motor;
 
 /// <summary>
 /// Tipos de catálogo (dente Gerber, consolo) criados pela importação do Revit com a GEOMETRIA do modelo e a ARMADURA PADRÃO

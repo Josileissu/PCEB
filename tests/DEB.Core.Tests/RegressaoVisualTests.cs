@@ -7,7 +7,7 @@ using System.Text;
 using DEB.Core.Configuracao;
 using DEB.Core.Motor.Entrada;
 using DEB.Core.Motor.Fundacoes;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
 using DEB.Core.Templates.BaseReservatorio;
 using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Templates.Reservatorio;

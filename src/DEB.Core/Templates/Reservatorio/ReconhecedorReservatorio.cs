@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DEB.Core.Reconhecimento;
+using DEB.Core.Motor;
 
 namespace DEB.Core.Templates.Reservatorio;
 

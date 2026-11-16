@@ -4,7 +4,7 @@ using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Motor;
 using DEB.Core.Motor.Componentes;
-using DEB.Core.Templates;
+using DEB.Core.Documentacao;
 using DEB.Core.Templates.BaseReservatorio;
 using Xunit;
 

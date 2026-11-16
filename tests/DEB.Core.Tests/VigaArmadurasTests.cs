@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Modelo;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 using DEB.Core.Templates.VigaPreMoldada;
 using Xunit;
 

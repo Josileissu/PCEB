@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using DEB.Core.Templates;
 using DEB.Core.Templates.Blocos;
 
 namespace DEB.Core.Motor.Entrada;

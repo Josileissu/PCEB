@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Templates.VigaPreMoldada;
-using DEB.Core.Templates;
+using DEB.Core.Documentacao;
 
 namespace DEB.Core.Intercambio;
 
@@ -15,7 +15,7 @@ namespace DEB.Core.Intercambio;
 /// </summary>
 public static class CatalogoAutomatico
 {
-    public const string Origem = DEB.Core.Templates.MarcaConferir.Origem;
+    public const string Origem = DEB.Core.Motor.MarcaConferir.Origem;
 
     /// <summary>Tipos de dente a acrescentar ao catálogo para que todas as vigas tenham as pontas reconhecidas.</summary>
     public static List<TipoDente> Dentes(IEnumerable<VigaPeca> vigas, IReadOnlyList<TipoDente> catalogo)

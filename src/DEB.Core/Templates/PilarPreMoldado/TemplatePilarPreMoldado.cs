@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using DEB.Core.Configuracao;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 
 namespace DEB.Core.Templates.PilarPreMoldado;
 

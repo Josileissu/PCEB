@@ -6,6 +6,8 @@ using DEB.Core.Configuracao;
 using DEB.Core.Estribos;
 using DEB.Core.Modelo;
 using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 
 namespace DEB.Core.Templates.VigaPreMoldada;
 

@@ -211,7 +211,7 @@ public class ConversorLevantamentoTests
         try
         {
             DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = cat;
-            var val = ConversorVigaPeca.Valores(v, new DEB.Core.Templates.ValoresTemplate(t.Parametros), cat, avisos);
+            var val = ConversorVigaPeca.Valores(v, new DEB.Core.Motor.ValoresTemplate(t.Parametros), cat, avisos);
             Assert.Empty(avisos);
             var r = t.Gerar(val, new DEB.Core.Configuracao.ConfiguracaoArmadura());
             Assert.DoesNotContain(r.Avisos, a => a.Contains("entra no dente"));
@@ -250,7 +250,7 @@ public class ConversorLevantamentoTests
         try
         {
             DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.CatalogoDentes = cat;
-            var r = t.Gerar(ConversorVigaPeca.Valores(v, new DEB.Core.Templates.ValoresTemplate(t.Parametros), cat, new List<string>()), new DEB.Core.Configuracao.ConfiguracaoArmadura());
+            var r = t.Gerar(ConversorVigaPeca.Valores(v, new DEB.Core.Motor.ValoresTemplate(t.Parametros), cat, new List<string>()), new DEB.Core.Configuracao.ConfiguracaoArmadura());
             Assert.Contains(r.Avisos, a => a.Contains("pendurada abaixo do dente"));
             // seções de forma: o vão (8 vértices) e os dois dentes com a aba (8 cada: o canto de baixo da alma e a aba descendo dele)
             Assert.Equal(3, r.Contornos.Count(k => k.Layer == "ARM-PILAR-SECAO" && k.Fechado && k.Vertices.Count == 8));
@@ -264,9 +264,9 @@ public class ConversorLevantamentoTests
         var t = new DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
         var p = new VigaPeca { Marca = "V129", B = 40, H = 50, L = 600, Aba = new AbaPeca { Lado = AbaPeca.DoisLados, Largura = 15, Altura = 20, Inicio = 0, Fim = 600 } };
         var avisos = new List<string>();
-        var v = ConversorVigaPeca.Valores(p, new DEB.Core.Templates.ValoresTemplate(t.Parametros), DEB.Core.Templates.VigaPreMoldada.TipoDente.Padrao(), avisos);
+        var v = ConversorVigaPeca.Valores(p, new DEB.Core.Motor.ValoresTemplate(t.Parametros), DEB.Core.Templates.VigaPreMoldada.TipoDente.Padrao(), avisos);
         Assert.Equal((DEB.Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaDois, "15", "20", "600"), (v["Aba"], v["AbaLargura"], v["AbaAltura"], v["AbaFim"]));
-        Assert.Empty(DEB.Core.Templates.CatalogoTemplates.Validar(t, v));
+        Assert.Empty(DEB.Core.Motor.CatalogoTemplates.Validar(t, v));
         var r = t.Gerar(v, new DEB.Core.Configuracao.ConfiguracaoArmadura());
         Assert.Contains(r.Barras, b => b.Nome == "abaestribo");
     }

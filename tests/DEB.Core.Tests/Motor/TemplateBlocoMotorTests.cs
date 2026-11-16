@@ -8,7 +8,6 @@ using DEB.Core.Motor.Entrada;
 using DEB.Core.Motor.Fundacoes;
 using DEB.Core.Motor.Json;
 using DEB.Core.Persistencia;
-using DEB.Core.Templates;
 using DEB.Core.Templates.Blocos;
 using Xunit;
 

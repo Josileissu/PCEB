@@ -11,7 +11,8 @@ using DEB.Cad.Infra;
 using DEB.Core.Configuracao;
 using DEB.Core.Modelo;
 using DEB.Core.Tabelas;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 
 [assembly: Rt.CommandClass(typeof(DEB.Cad.ComandosTemplate))]
 

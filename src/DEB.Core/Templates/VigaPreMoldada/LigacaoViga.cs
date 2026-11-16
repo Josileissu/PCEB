@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 
 namespace DEB.Core.Templates.VigaPreMoldada;
 

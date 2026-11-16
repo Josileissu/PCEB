@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Intercambio;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
 using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Templates.VigaPreMoldada;
 using Xunit;

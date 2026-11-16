@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using DEB.Core.Motor;
 using DEB.Core.Motor.Entrada;
-using DEB.Core.Templates;
 using DEB.Core.Templates.Blocos;
 using Xunit;
 

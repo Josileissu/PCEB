@@ -4,7 +4,6 @@ using System.Linq;
 using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Motor.Prancha;
-using DEB.Core.Templates;
 using Xunit;
 
 namespace DEB.Core.Tests.Motor;

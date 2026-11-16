@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Motor.Fundacoes;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
 using Xunit;
 
 namespace DEB.Core.Tests.Motor;

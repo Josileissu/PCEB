@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Configuracao;
+using DEB.Core.Motor;
 
-namespace DEB.Core.Templates;
+namespace DEB.Core.Documentacao;
 
 /// <summary>Idioma dos textos do detalhamento (pedido do usuário, 2026-10-29: PT, EN ou bilíngue).</summary>
 public enum IdiomaDesenho { PT, EN, PTEN }

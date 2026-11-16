@@ -5,7 +5,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Numeracao;
 using DEB.Core.Persistencia;
 using DEB.Core.RelacaoAco;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
 using Xunit;
 
 namespace DEB.Core.Tests;

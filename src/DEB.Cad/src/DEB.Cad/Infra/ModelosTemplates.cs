@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 
 namespace DEB.Cad.Infra;
 

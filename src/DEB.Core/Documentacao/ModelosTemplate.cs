@@ -4,8 +4,9 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using DEB.Core.Persistencia;
+using DEB.Core.Motor;
 
-namespace DEB.Core.Templates;
+namespace DEB.Core.Documentacao;
 
 /// <summary>Um modelo salvo de um template (ex.: o pilar "P61" com todos os campos preenchidos).</summary>
 public sealed class ModeloTemplate

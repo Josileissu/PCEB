@@ -875,22 +875,22 @@ public sealed class AutoTeste
     }
 
     /// <summary>Template só do autoteste: uma barra em L com gancho e um contorno.</summary>
-    private sealed class TemplateTeste : Core.Templates.ITemplateArmadura
+    private sealed class TemplateTeste : Core.Motor.ITemplateArmadura
     {
         public string Id => "teste-l";
         public string Nome => "Teste (L)";
-        public Core.Templates.CategoriaElemento Categoria => Core.Templates.CategoriaElemento.Laje;
+        public Core.Motor.CategoriaElemento Categoria => Core.Motor.CategoriaElemento.Laje;
         public string Descricao => "Só para o autoteste.";
-        public IReadOnlyList<Core.Templates.ParametroTemplate> Parametros { get; } = new[]
+        public IReadOnlyList<Core.Motor.ParametroTemplate> Parametros { get; } = new[]
         {
-            new Core.Templates.ParametroTemplate { Nome = "L", Rotulo = "Comprimento", Unidade = "cm", Padrao = "200", Minimo = 10 },
+            new Core.Motor.ParametroTemplate { Nome = "L", Rotulo = "Comprimento", Unidade = "cm", Padrao = "200", Minimo = 10 },
         };
-        public Core.Templates.ResultadoTemplate Gerar(Core.Templates.ValoresTemplate v, Core.Configuracao.ConfiguracaoArmadura cfg)
+        public Core.Motor.ResultadoTemplate Gerar(Core.Motor.ValoresTemplate v, Core.Configuracao.ConfiguracaoArmadura cfg)
         {
-            var r = new Core.Templates.ResultadoTemplate();
+            var r = new Core.Motor.ResultadoTemplate();
             double l = v.Numero("L");
-            r.Contornos.Add(new Core.Templates.ContornoTemplate { Vertices = { (0, 0), (l, 0), (l, 20), (0, 20) }, Fechado = true });
-            r.Barras.Add(new Core.Templates.BarraTemplate
+            r.Contornos.Add(new Core.Motor.ContornoTemplate { Vertices = { (0, 0), (l, 0), (l, 20), (0, 20) }, Fechado = true });
+            r.Barras.Add(new Core.Motor.BarraTemplate
             {
                 Vertices = { (3, 17), (l - 3, 17), (l - 3, 3) }, Formatos = { FormatoSegmento.Linha, FormatoSegmento.Gancho90 },
                 Bitola = 10, Aco = "CA-50", Quantidade = 3,
@@ -910,7 +910,7 @@ public sealed class AutoTeste
         var faltando = asm.GetTypes().Where(t => t.GetMethods().Any(m => m.GetCustomAttributes(typeof(Rt.CommandMethodAttribute), false).Length > 0))
             .Where(t => !listadas.Contains(t)).Select(t => t.Name).ToList();
         Checar(faltando.Count == 0, "todas as classes de comandos registradas" + (faltando.Count > 0 ? ": faltam " + string.Join(", ", faltando) : ""));
-        Checar(Core.Templates.CatalogoTemplates.Obter("base-reservatorio") != null, "template da base de reservatório registrado no ARMTEMPLATE");
+        Checar(Core.Motor.CatalogoTemplates.Obter("base-reservatorio") != null, "template da base de reservatório registrado no ARMTEMPLATE");
         try
         {
             using (Sincronizador.Suspender(doc))
@@ -1004,13 +1004,13 @@ public sealed class AutoTeste
 
                 // template: o CAD desenha o que o template gera
                 var tpl = new TemplateTeste();
-                Core.Templates.CatalogoTemplates.Registrar(tpl);
-                var res = tpl.Gerar(new Core.Templates.ValoresTemplate(tpl.Parametros), cfg);
+                Core.Motor.CatalogoTemplates.Registrar(tpl);
+                var res = tpl.Gerar(new Core.Motor.ValoresTemplate(tpl.Parametros), cfg);
                 var ids = ComandosTemplate.Desenhar(tr, db, cfg, res, new Point3d(13000, Y0, 0));
                 var dt = ids.Count == 1 ? XDataCad.LerBarra(tr.GetObject(ids[0], OpenMode.ForRead)) : null;
                 Checar(dt != null && dt.Quantidade == 3 && dt.Segmentos[1].Formato == FormatoSegmento.Gancho90,
                     "template desenhado: 1 armadura (3 barras) com gancho");
-                Core.Templates.CatalogoTemplates.Remover(tpl.Id);
+                Core.Motor.CatalogoTemplates.Remover(tpl.Id);
                 tr.Commit();
             }
 
@@ -1654,7 +1654,7 @@ public sealed class AutoTeste
         try
         {
             var t = new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado();
-            var v = new Core.Templates.ValoresTemplate(t.Parametros);
+            var v = new Core.Motor.ValoresTemplate(t.Parametros);
             v["Nome"] = "P61 TESTE";
             var r = t.Gerar(v, cfg);
             var origem = new Point3d(30000, -70000, 0);
@@ -1761,7 +1761,7 @@ public sealed class AutoTeste
         // modelos do template (arquivo do usuário: o roteiro do autoteste guarda e devolve a pasta Templates)
         try
         {
-            var t = Core.Templates.CatalogoTemplates.Obter("pilar-premoldado");
+            var t = Core.Motor.CatalogoTemplates.Obter("pilar-premoldado");
             string tmp = Path.Combine(Path.GetTempPath(), "arm_modelos_teste.csv"), tmp2 = Path.Combine(Path.GetTempPath(), "arm_modelos_export.csv");
             File.WriteAllText(tmp, "# template: pilar-premoldado\r\nModelo;Nome;B;H;Consolos\r\nPTESTE;PTESTE;45;55,5;\"CS 20x28,5x25|2|900|5;CS 20x28,5x25|4|900|0\"\r\n", new System.Text.UTF8Encoding(true));
             var msg = ComandosTemplate.Importar(t, tmp, perguntar: false);
@@ -1812,7 +1812,7 @@ public sealed class AutoTeste
         try
         {
             var t = new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado();
-            var v = new Core.Templates.ValoresTemplate(t.Parametros);
+            var v = new Core.Motor.ValoresTemplate(t.Parametros);
             v["Nome"] = "P62 REDUCAO";
             v["Longitudinais"] = "Cantos||25|1||;Ao lado dos cantos||20|1||;Faces 2 e 4|2|20|1||700;Faces 2 e 4|1|16|2|600|";
             v["ZonasEstribos"] = "Topo|Topo|0|100|8|5|Sim;Consolo|Base|540|620|10|5|Sim;Base|Base|0|260|8|10|Sim";
@@ -1918,7 +1918,7 @@ public sealed class AutoTeste
                 (Core.Templates.BaseReservatorio.TemplateBaseReservatorio.Retangular, new Point3d(30000, -45000, 0), "base_retangular"),
             })
             {
-                var v = new Core.Templates.ValoresTemplate(t.Parametros);
+                var v = new Core.Motor.ValoresTemplate(t.Parametros);
                 v["Forma"] = forma;
                 v["Nome"] = "TESTE " + nome.ToUpperInvariant();
                 if (forma == Core.Templates.BaseReservatorio.TemplateBaseReservatorio.Retangular) { v["Arranjo"] = "Grade"; v["CentralLargura"] = "0"; }
@@ -2351,16 +2351,16 @@ public sealed class AutoTeste
         Rel.Clear(); _ok = _falhas = 0;
         var t = new Core.Motor.Fundacoes.TemplateBlocoMotor();
         // B28 (2 estacas, cálice com colarinho: valores padrão) e B15 (triangular), como as folhas do escritório
-        var vB28 = new Core.Templates.ValoresTemplate(t.Parametros);
+        var vB28 = new Core.Motor.ValoresTemplate(t.Parametros);
         vB28["Niveis"] = "P106|-11.43;P118|-11.43";
-        var vB15 = new Core.Templates.ValoresTemplate(t.Parametros);
+        var vB15 = new Core.Motor.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "B15"), ("Arranjo", Core.Templates.Blocos.TemplateBlocoEstacas.Triangulo), ("EspX", "150"), ("DistFace", "40"),
                      ("DiamEstaca", "50"), ("PilarBx", "40"), ("PilarBy", "40"), ("tParede", "25"), ("hBase", "105"), ("hColar", "30"), ("Lemb", "65"),
                      ("PrincBitola", "12.5"), ("PrincEsp", "11"), ("Pilares", "P23/ P24/ P32/ P33/ P35/ P36") })
             vB15[k] = val;
         // bloco de 1 estaca com arranque (exemplo do usuário, 2026-11-08): 50x50x50, estaca ø30, pilar in loco 14x30
         var t1 = new Core.Motor.Fundacoes.TemplateBlocoMotor(umaEstaca: true);
-        var vB1 = new Core.Templates.ValoresTemplate(t1.Parametros);
+        var vB1 = new Core.Motor.ValoresTemplate(t1.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "B1"), ("Pilares", "P1"), ("DiamEstaca", "30"), ("DistFace", "25"), ("hBase", "50"),
                      ("PilarBx", "14"), ("PilarBy", "30"), ("Ligacao", Core.Templates.Blocos.TemplateBlocoEstacas.Arranque), ("Cob", "3"),
                      ("SecBitola", "0"), ("SupBitola", "0"), ("LatBitola", "6.3"), ("LatEsp", "20"), ("EstVBitola", "6.3"), ("EstVEsp", "20"),
@@ -2441,9 +2441,9 @@ public sealed class AutoTeste
     {
         Rel.Clear(); _ok = _falhas = 0;
         var t = new Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
-        var v144 = new Core.Templates.ValoresTemplate(t.Parametros);
+        var v144 = new Core.Motor.ValoresTemplate(t.Parametros);
         v144["Nome"] = "V144"; v144["L"] = "308"; v144["CantE"] = "Sim"; v144["CantD"] = "Sim";
-        var vReta = new Core.Templates.ValoresTemplate(t.Parametros);
+        var vReta = new Core.Motor.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V149"), ("Quantidade", "17"), ("B", "40"), ("H", "95"), ("L", "1150"),
                      ("ExtE", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.Reta),
                      ("FurosModo", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.FurosDigitados), ("FurosE", "2"), ("FurosD", "2"), ("FuroDiam", "40"), ("FuroDistE", "20"), ("FuroDistD", "20"),
@@ -2452,16 +2452,16 @@ public sealed class AutoTeste
             vReta[k] = val;
         // VP-4 (2026-11-09): viga com aba — como a V121 do modelo real (abas dos dois lados rentes ao topo, fundo inclinado, passando
         // pelos dentes) e como a 19×65 (aba elevada de um lado só, o de trás da elevação)
-        var vT = new Core.Templates.ValoresTemplate(t.Parametros);
+        var vT = new Core.Motor.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V121"), ("B", "30"), ("H", "70"), ("L", "457"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaDois),
                      ("AbaLargura", "15"), ("AbaAltura", "15"), ("AbaAlturaPonta", "12"), ("AbaBase", "55") })
             vT[k] = val;
-        var vL = new Core.Templates.ValoresTemplate(t.Parametros);
+        var vL = new Core.Motor.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V4"), ("B", "19"), ("H", "70"), ("L", "295.5"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaEsq),
                      ("AbaLargura", "20"), ("AbaAltura", "15"), ("AbaAlturaPonta", "12"), ("AbaBase", "37.5") })
             vL[k] = val;
         // ressalto sobre a alma + aba no topo ("aba laje + aba superior" de um modelo real), com a ligação com a capa (2026-11-10)
-        var vR = new Core.Templates.ValoresTemplate(t.Parametros);
+        var vR = new Core.Motor.ValoresTemplate(t.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "V119"), ("B", "30"), ("H", "50"), ("L", "457"), ("Aba", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.AbaEsq),
                      ("AbaLargura", "15"), ("AbaAltura", "15"), ("AbaAlturaPonta", "12"), ("AbaBase", "35"),
                      ("Ressalto", Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada.RessaltoDir), ("RessaltoLargura", "13"), ("RessaltoAltura", "27.5") })
@@ -2606,7 +2606,7 @@ public sealed class AutoTeste
         // template desenhado no desenho em metros: as cotas do CAD medem em m e escrevem em mm (DIMLFAC = 1000)
         {
             var t = new Core.Templates.VigaPreMoldada.TemplateVigaPreMoldada();
-            var v = new Core.Templates.ValoresTemplate(t.Parametros);
+            var v = new Core.Motor.ValoresTemplate(t.Parametros);
             v["Nome"] = "VUN"; v["L"] = "308";
             var r = t.Gerar(v, cfg);
             using (var tr = db.TransactionManager.StartTransaction())

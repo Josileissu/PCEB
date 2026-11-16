@@ -7,7 +7,7 @@ using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
 using System.Windows.Forms.Design;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
 
 namespace DEB.Cad.Paleta;
 

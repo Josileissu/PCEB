@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Templates.VigaPreMoldada;
 

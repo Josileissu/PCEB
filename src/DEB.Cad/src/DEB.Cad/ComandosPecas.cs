@@ -5,7 +5,8 @@ using DEB.Cad.Infra;
 using DEB.Core.Configuracao;
 using DEB.Core.Intercambio;
 using DEB.Core.Modelo;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Templates.VigaPreMoldada;
 

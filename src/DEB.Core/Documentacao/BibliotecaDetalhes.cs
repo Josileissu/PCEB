@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using DEB.Core.Motor;
 
-namespace DEB.Core.Templates;
+namespace DEB.Core.Documentacao;
 
 /// <summary>
 /// Biblioteca de detalhes típicos do escritório (decisão do usuário, 2026-11-08): um DWG por detalhe numa pasta; os

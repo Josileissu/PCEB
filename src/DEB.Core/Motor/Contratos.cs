@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using DEB.Core.Templates;
 
 namespace DEB.Core.Motor;
 

@@ -5,7 +5,7 @@ using DEB.Core.Configuracao;
 using DEB.Core.Modelo;
 using DEB.Core.Persistencia;
 using DEB.Core.RelacaoAco;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
 using DEB.Core.Templates.BaseReservatorio;
 using Xunit;
 

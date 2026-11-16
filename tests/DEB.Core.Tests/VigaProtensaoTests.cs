@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using DEB.Core.Configuracao;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
 using DEB.Core.Templates.VigaPreMoldada;
 using Xunit;
 

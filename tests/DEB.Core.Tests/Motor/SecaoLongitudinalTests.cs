@@ -147,7 +147,7 @@ public class SecaoLongitudinalTests
         Assert.DoesNotContain(r.Avisos, x => x.Contains("erro"));
         foreach (var p in m.Posicoes)
             Assert.Contains(r.Barras, b => b.Nome == p.Chave);
-        double aco = r.Barras.Sum(b => DEB.Core.Templates.MedidaBarra.Peso(b, cfg));
+        double aco = r.Barras.Sum(b => DEB.Core.Motor.MedidaBarra.Peso(b, cfg));
         Assert.True(aco > 0);
     }
 

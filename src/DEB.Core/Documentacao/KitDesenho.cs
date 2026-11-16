@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using DEB.Core.Motor;
 
-namespace DEB.Core.Templates;
+namespace DEB.Core.Documentacao;
 
 // =====================================================================================================================
 // Kit de desenho comum dos templates (2026-11-10, reuso): o contexto de desenho (textos, linhas, cotas, marcas de corte) e as

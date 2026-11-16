@@ -9,6 +9,8 @@ using DEB.Core.Modelo;
 using DEB.Core.Normas;
 using DEB.Core.Tabelas;
 using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Motor;
+using DEB.Core.Documentacao;
 
 namespace DEB.Core.Templates.Blocos;
 

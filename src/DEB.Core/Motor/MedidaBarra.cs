@@ -6,7 +6,7 @@ using DEB.Core.Configuracao;
 using DEB.Core.Estribos;
 using DEB.Core.Modelo;
 
-namespace DEB.Core.Templates;
+namespace DEB.Core.Motor;
 
 /// <summary>
 /// Comprimento e peso de uma <see cref="BarraTemplate"/> pelas MESMAS regras que o CAD usa na barra desenhada

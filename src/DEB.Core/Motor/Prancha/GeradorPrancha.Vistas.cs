@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DEB.Core.Modelo;
-using DEB.Core.Templates;
+using DEB.Core.Documentacao;
 
 namespace DEB.Core.Motor.Prancha;
 

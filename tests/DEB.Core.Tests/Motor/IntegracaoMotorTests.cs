@@ -85,7 +85,7 @@ public class IntegracaoPranchaTests
 
         // mesmas bitolas do template atual (as quantidades mudaram com a divisão igual de 2026-11-08)
         var t0 = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
-        var v = new DEB.Core.Templates.ValoresTemplate(t0.Parametros);
+        var v = new DEB.Core.Motor.ValoresTemplate(t0.Parametros);
         DEB.Core.Motor.Entrada.ConversorBloco.ParaValores(b28, v);
         var antigo = t0.Gerar(v, new DEB.Core.Configuracao.ConfiguracaoArmadura());
         Assert.Equal(antigo.Barras.Select(b => b.Bitola).Distinct().OrderBy(x => x), r.Barras.Select(b => b.Bitola).Distinct().OrderBy(x => x));
@@ -99,15 +99,15 @@ public class IntegracaoPranchaTests
         var perfil = DEB.Core.Motor.Perfis.PerfisFabrica.Obter("bloco_padrao");
         var modelo = new DEB.Core.Motor.Fundacoes.MotorBlocoEstacas().Gerar(b28, perfil, new System.Collections.Generic.List<Sobrescrita>());
         var r = new DEB.Core.Motor.Prancha.GeradorPrancha(cfg).Gerar(b28, modelo, perfil);
-        double esperado = r.Barras.Sum(b => DEB.Core.Templates.MedidaBarra.Peso(b, cfg));
+        double esperado = r.Barras.Sum(b => DEB.Core.Motor.MedidaBarra.Peso(b, cfg));
         Assert.Contains(r.Tabelas.SelectMany(t => t.Linhas), l => l.Length > 1 && l[1] == FormatoMotor_NumV(Math.Round(esperado, 1)) + " kg");
 
         // o template antigo mostra o mesmo peso (mesmas barras, mesmas regras)
         var t0 = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
-        var v = new DEB.Core.Templates.ValoresTemplate(t0.Parametros);
+        var v = new DEB.Core.Motor.ValoresTemplate(t0.Parametros);
         DEB.Core.Motor.Entrada.ConversorBloco.ParaValores(b28, v);
         var antigo = t0.Gerar(v, cfg);
-        double pesoAntigo = antigo.Barras.Sum(b => DEB.Core.Templates.MedidaBarra.Peso(b, cfg));
+        double pesoAntigo = antigo.Barras.Sum(b => DEB.Core.Motor.MedidaBarra.Peso(b, cfg));
         Assert.Contains(antigo.Tabelas.SelectMany(t => t.Linhas), l => l.Length > 1 && l[1] == FormatoMotor_NumV(Math.Round(pesoAntigo, 1)) + " kg");
     }
 

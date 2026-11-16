@@ -8,7 +8,7 @@ using DEB.Core.Calculo;
 using DEB.Core.Configuracao;
 using DEB.Core.Estribos;
 using DEB.Core.Modelo;
-using DEB.Core.Templates;
+using DEB.Core.Documentacao;
 
 namespace DEB.Core.Motor.Prancha;
 
@@ -592,7 +592,7 @@ public sealed partial class GeradorPrancha : IGeradorPrancha
         {
             try
             {
-                x = DEB.Core.Templates.DetalhesTipicos.Desenhar(c.R, c.Idioma, c.esc, c.Cfg.AlturaTextoMm, x, yTopo, chaves,
+                x = DEB.Core.Documentacao.DetalhesTipicos.Desenhar(c.R, c.Idioma, c.esc, c.Cfg.AlturaTextoMm, x, yTopo, chaves,
                     c.P.Padrao("chaves.passo", 5), c.P.Padrao("chaves.dente", 4), c.P.Padrao("chaves.profundidade", 1), out _);
                 x += 6 * ht;
             }

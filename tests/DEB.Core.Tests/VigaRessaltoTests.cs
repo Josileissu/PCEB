@@ -5,7 +5,7 @@ using DEB.Core.Configuracao;
 using DEB.Core.Intercambio;
 using DEB.Core.Pecas;
 using DEB.Core.Persistencia;
-using DEB.Core.Templates;
+using DEB.Core.Motor;
 using DEB.Core.Templates.VigaPreMoldada;
 using Xunit;
 

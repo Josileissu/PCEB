@@ -7,6 +7,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Normas;
 using DEB.Core.Tabelas;
+using DEB.Core.Documentacao;
 
 namespace DEB.Core.Templates.PilarPreMoldado;
 
