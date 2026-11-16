@@ -2,16 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DEB.Revit.Precast
+namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
 {
-    internal enum BarRole { Longitudinal, Stirrup, CrossTie, CorbelTie, CorbelSew, LiftLoop,
+    public enum BarRole { Longitudinal, Stirrup, CrossTie, CorbelTie, CorbelSew, LiftLoop,
                             CorbelAnchor, CorbelStirrup, CorbelBottom, CorbelPin }
 
     /// <summary>
     /// Uma barra (ou conjunto de barras iguais) em coordenadas locais do pilar.
     /// O conjunto se repete Count vezes, com passo Spacing, na direção de Normal.
     /// </summary>
-    internal sealed class BarDef
+    public sealed class BarDef
     {
         public BarRole Role { get; set; }
         public double DiameterMm { get; set; }
@@ -35,9 +35,9 @@ namespace DEB.Revit.Precast
     }
 
     /// <summary>Calcula todas as barras de um pilar a partir da especificação (mesmo código da pré-visualização).</summary>
-    internal static class ColumnRebarLayout
+    public static class ColumnRebarLayout
     {
-        public static List<BarDef> Compute(ColumnFrame f, IList<Corbel> corbels, ColumnRebarSpec s)
+        public static List<BarDef> Compute(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s)
         {
             var bars = new List<BarDef>();
             double cover = U_.Mm(s.CoverMm);
@@ -108,7 +108,7 @@ namespace DEB.Revit.Precast
         /// o pilar deitado fica com o lado maior na vertical (maior inércia no sentido do maior momento do transporte).
         /// Regra combinada com o usuário em 06/11/2026 (ver docs/notas/pendencias_escopo.md).
         /// </summary>
-        public static ColumnFace LiftFace(ColumnFrame f, IList<Corbel> corbels)
+        public static ColumnFace LiftFace(ColumnBox f, IList<Corbel> corbels)
         {
             var faces = new[] { ColumnFace.PX, ColumnFace.NX, ColumnFace.PY, ColumnFace.NY };
             double Width(ColumnFace fc) => fc == ColumnFace.PX || fc == ColumnFace.NX ? f.By : f.Bx;
@@ -137,7 +137,7 @@ namespace DEB.Revit.Precast
         /// Alças em U saindo da face (plano U × Z, no meio da face): as pernas atravessam o cobrimento, dobram por dentro
         /// das longitudinais e seguem ao longo do pilar até completar o comprimento embutido. Fogem dos consolos da face.
         /// </summary>
-        private static IEnumerable<BarDef> LiftLoops(ColumnFrame f, IList<Corbel> corbels, ColumnRebarSpec s, double dl, double dt)
+        private static IEnumerable<BarDef> LiftLoops(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s, double dl, double dt)
         {
             ColumnFace face = LiftFace(f, corbels);
             var g = new Corbel { Face = face };            // só para os eixos da face (U, T, At)
@@ -201,7 +201,7 @@ namespace DEB.Revit.Precast
         /// na ponta, barra soldada ou perna para baixo), estribos horizontais de costura em 2/3 d abaixo do tirante,
         /// estribos verticais, armadura inferior em U e pinos em L.
         /// </summary>
-        private static IEnumerable<BarDef> CorbelBars(ColumnFrame f, Corbel k, ColumnRebarSpec s)
+        private static IEnumerable<BarDef> CorbelBars(ColumnBox f, Corbel k, ColumnRebarSpec s)
         {
             double cover = U_.Mm(s.CoverMm);
             double dTie = U_.Mm(s.TieDiameterMm), dSew = U_.Mm(s.SewDiameterMm);
@@ -360,7 +360,7 @@ namespace DEB.Revit.Precast
         /// Divide a altura em trechos de espaçamento constante (o menor espaçamento vale onde as zonas se sobrepõem).
         /// Devolve (cota do primeiro estribo, quantidade, passo). Estribos não se repetem nas divisas.
         /// </summary>
-        public static List<(double Z, int Count, double Spacing)> StirrupRuns(ColumnFrame f, IList<Corbel> corbels, ColumnRebarSpec s)
+        public static List<(double Z, int Count, double Spacing)> StirrupRuns(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s)
         {
             double z0 = U_.Mm(s.StirrupEndOffsetMm), z1 = f.H - U_.Mm(s.StirrupEndOffsetMm);
             var zones = new List<(double A, double B, double S)>();
@@ -386,7 +386,7 @@ namespace DEB.Revit.Precast
                 double mid = (c[i] + c[i + 1]) / 2;
                 double sp = zones.Where(zn => mid > zn.A && mid < zn.B).Select(zn => zn.S).DefaultIfEmpty(sDefault).Min();
                 sp = Math.Min(sp, sDefault);
-                if (spans.Count > 0 && Math.Abs(spans[^1].S - sp) < 1e-9) spans[^1] = (spans[^1].A, c[i + 1], sp);
+                if (spans.Count > 0 && Math.Abs(spans[spans.Count - 1].S - sp) < 1e-9) spans[spans.Count - 1] = (spans[spans.Count - 1].A, c[i + 1], sp);
                 else spans.Add((c[i], c[i + 1], sp));
             }
 

@@ -5,6 +5,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using DEB.Revit.Core;
 using DEB.Revit.Presentation;
+using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast
 {
@@ -75,10 +76,10 @@ namespace DEB.Revit.Precast
             var members = new List<ElementId> { m.Instance.Id };
             foreach (Corbel k in m.Corbels)
             {
-                if (k.Instance.AssemblyInstanceId != ElementId.InvalidElementId)
-                    log.Warn($"Consolo {k.Instance.Id.Value} já pertence a outro assembly e não foi incluído no pilar.");
+                if (k.Instance().AssemblyInstanceId != ElementId.InvalidElementId)
+                    log.Warn($"Consolo {k.Instance().Id.Value} já pertence a outro assembly e não foi incluído no pilar.");
                 else
-                    members.Add(k.Instance.Id);
+                    members.Add(k.Instance().Id);
             }
 
             if (opt.CreateRebar)
@@ -109,7 +110,7 @@ namespace DEB.Revit.Precast
             if (!opt.Detail) { log.Info("Armado (sem detalhamento)."); return; }
 
             PieceInfo p = m.Frame.ToPieceInfo(m.Info, g.Mark);
-            p.Attached = m.Corbels.Where(k => members.Contains(k.Instance.Id)).Select(k => k.Instance).ToList();
+            p.Attached = m.Corbels.Where(k => members.Contains(k.Instance().Id)).Select(k => k.Instance()).ToList();
             Dictionary<CutPosition, List<double>> cuts = CutHeights(m, g.Spec);
             p.SectionHeights = cuts[CutPosition.Corrente].Concat(cuts[CutPosition.Consolos]).ToList();
 
@@ -159,7 +160,7 @@ namespace DEB.Revit.Precast
         {
             var br = new System.Globalization.CultureInfo("pt-BR");
             double vol = 0;
-            foreach (Element e in new Element[] { m.Instance }.Concat(m.Corbels.Select(k => (Element)k.Instance)))
+            foreach (Element e in new Element[] { m.Instance }.Concat(m.Corbels.Select(k => (Element)k.Instance())))
                 vol += e.get_Parameter(BuiltInParameter.HOST_VOLUME_COMPUTED)?.AsDouble() ?? 0;
             double m3 = UnitUtils.ConvertFromInternalUnits(vol, UnitTypeId.CubicMeters);
             double density = double.TryParse(_standard.Producao.TryGetValue("DensidadeConcreto_t_m3", out string d) ? d : "2.5",
@@ -198,7 +199,7 @@ namespace DEB.Revit.Precast
 
             string tag = RebarFactory.Tag + "|";
             var hosts = new List<Element> { m.Instance };
-            hosts.AddRange(m.Corbels.Select(k => (Element)k.Instance));
+            hosts.AddRange(m.Corbels.Select(k => (Element)k.Instance()));
             var old = new List<ElementId>();
             foreach (Element h in hosts)
             {

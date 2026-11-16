@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text.Encodings.Web;
-using System.Text.Json;
 
-namespace DEB.Revit.Precast
+namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
 {
     /// <summary>
     /// Armadura escolhida para um grupo de pilares. Todas as medidas em mm.
@@ -81,25 +78,25 @@ namespace DEB.Revit.Precast
         public ColumnRebarSpec Clone() => (ColumnRebarSpec)MemberwiseClone();
 
         /// <summary>Padrão para o pilar: zona de base = embutimento; espaçamentos dentro dos limites da NBR 6118.</summary>
-        internal static ColumnRebarSpec Default(PrecastColumn rep)
+        public static ColumnRebarSpec Default(ColumnBox frame, double embedmentMm, IList<Corbel> corbels)
         {
             var s = new ColumnRebarSpec { Name = "Padrão" };
-            double bMin = Math.Min(U_.ToMm(rep.Frame.Bx), U_.ToMm(rep.Frame.By));
-            s.LongBarsAlongX = Math.Max(2, (int)Math.Ceiling((U_.ToMm(rep.Frame.Bx) - 2 * 40) / 300.0) + 1);
-            s.LongBarsAlongY = Math.Max(2, (int)Math.Ceiling((U_.ToMm(rep.Frame.By) - 2 * 40) / 300.0) + 1);
+            double bMin = Math.Min(U_.ToMm(frame.Bx), U_.ToMm(frame.By));
+            s.LongBarsAlongX = Math.Max(2, (int)Math.Ceiling((U_.ToMm(frame.Bx) - 2 * 40) / 300.0) + 1);
+            s.LongBarsAlongY = Math.Max(2, (int)Math.Ceiling((U_.ToMm(frame.By) - 2 * 40) / 300.0) + 1);
             s.StirrupSpacingMm = Math.Floor(Math.Min(Math.Min(200, bMin), 12 * s.LongDiameterMm) / 5) * 5;
-            s.BaseZoneLengthMm = rep.EmbedmentMm;
-            s.CorbelRebar = rep.Corbels.Count > 0;
+            s.BaseZoneLengthMm = embedmentMm;
+            s.CorbelRebar = corbels.Count > 0;
             return s;
         }
 
         // ------------------------------------------------------------------
         // Verificações (NBR 6118 / NBR 9062). Retornam mensagens; não bloqueiam a geração.
 
-        internal List<string> Check(PrecastColumn rep)
+        public List<string> Check(ColumnBox frame, IList<Corbel> corbels)
         {
             var w = new List<string>();
-            double bx = U_.ToMm(rep.Frame.Bx), by = U_.ToMm(rep.Frame.By);
+            double bx = U_.ToMm(frame.Bx), by = U_.ToMm(frame.By);
             double bMin = Math.Min(bx, by);
 
             if (LongDiameterMm < 10) w.Add("Ø longitudinal < 10 mm (NBR 6118 18.4.2.1).");
@@ -137,9 +134,9 @@ namespace DEB.Revit.Precast
             if (rho < 0.4) w.Add($"Taxa geométrica ρ = {rho:0.00}% < 0,40% (As,mín, 17.3.5.3.1).");
             if (rho > 4.0) w.Add($"Taxa geométrica ρ = {rho:0.00}% > 4% (máximo incluindo traspasse, 17.3.5.3.2).");
 
-            if (CorbelRebar && rep.Corbels.Count > 0)
+            if (CorbelRebar && corbels.Count > 0)
             {
-                Corbel k = rep.Corbels[0];
+                Corbel k = corbels[0];
                 double width = U_.ToMm(k.Width);
                 double tieGap = (width - 2 * CoverMm - TieDiameterMm) / Math.Max(1, TieCount - 1) - TieDiameterMm;
                 if (TieCount > 1 && tieGap < 20) w.Add($"Tirante do consolo: espaçamento livre {tieGap:0} mm < 20 mm.");
@@ -150,46 +147,13 @@ namespace DEB.Revit.Precast
                 if (asSew < 0.4 * asTie) w.Add($"Costura {asSew:0} mm² < 0,4 × tirante ({0.4 * asTie:0} mm²) (NBR 9062).");
             }
 
-            if (LiftLoops > 0 && LiftEmbedMm > U_.ToMm(rep.Frame.H) / 2)
+            if (LiftLoops > 0 && LiftEmbedMm > U_.ToMm(frame.H) / 2)
                 w.Add("Comprimento embutido da alça de içamento maior que metade do pilar.");
             return w;
         }
 
         public int LongBarCount => 2 * LongBarsAlongX + 2 * Math.Max(0, LongBarsAlongY - 2);
 
-        // ------------------------------------------------------------------
-        // Modelos salvos
-
-        private static readonly JsonSerializerOptions Json = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            AllowTrailingCommas = true,
-            ReadCommentHandling = JsonCommentHandling.Skip
-        };
-
-        public static string PresetsPath => Path.Combine(DEB.Revit.Core.UserFolders.Root, "ModelosArmaduraPilar.json");
-
-        public static List<ColumnRebarSpec> LoadPresets()
-        {
-            try
-            {
-                if (!File.Exists(PresetsPath)) return new List<ColumnRebarSpec>();
-                return JsonSerializer.Deserialize<List<ColumnRebarSpec>>(File.ReadAllText(PresetsPath), Json)
-                       ?? new List<ColumnRebarSpec>();
-            }
-            catch
-            {
-                return new List<ColumnRebarSpec>();
-            }
-        }
-
-        public static void SavePreset(ColumnRebarSpec spec)
-        {
-            List<ColumnRebarSpec> all = LoadPresets().Where(p => !string.Equals(p.Name, spec.Name, StringComparison.OrdinalIgnoreCase)).ToList();
-            all.Add(spec.Clone());
-            Directory.CreateDirectory(Path.GetDirectoryName(PresetsPath));
-            File.WriteAllText(PresetsPath, JsonSerializer.Serialize(all.OrderBy(p => p.Name).ToList(), Json));
-        }
+        // Modelos salvos (arquivo do usuário): DEB.Revit/src/Precast/ColumnRebarPresets.cs.
     }
 }

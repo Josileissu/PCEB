@@ -8,6 +8,7 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
 using DEB.Revit.Core;
 using DEB.Revit.Precast;
+using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
 
 namespace DEB.Revit
 {

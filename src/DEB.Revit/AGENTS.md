@@ -81,8 +81,8 @@ src/
   Core/          PieceAnalyzer (sistema local), PieceDetailer (assembly → vistas → cotas → folha),
                  ViewFactory, DimensionService, SheetBuilder, GeometryHelper, DetailingConfig/Report
   Precast/       PrecastColumn (ColumnFrame, Corbel, PrecastSurvey: levantamento e grupos),
-                 ColumnRebarSpec (armadura escolhida + verificações NBR 6118/9062 + modelos salvos),
-                 ColumnRebarLayout (geometria das barras em coordenadas locais — usada pela prévia E pelo Revit),
+                 ColumnRebarPresets (modelos salvos); ColumnRebarSpec, ColumnRebarLayout, Loc/Corbel/ColumnBox no núcleo
+                 (DEB.Core/Templates/PilarPreMoldado/Modelo3D: geometria das barras — usada pela prévia E pelo Revit),
                  RebarFactory, PrecastColumnPipeline, UI/ (janela WPF em código, sem XAML)
   Presentation/  PresentationStandard (JSON por elemento em %AppData%\PCEB\DEB.Revit\Padroes),
                  Defaults (padrão de fábrica = PP127), StandardDetailer, SheetComposer (regiões),

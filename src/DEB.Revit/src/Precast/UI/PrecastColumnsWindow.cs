@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast.UI
 {
@@ -370,7 +371,7 @@ namespace DEB.Revit.Precast.UI
         private void ReloadPresets()
         {
             _presets.Items.Clear();
-            foreach (ColumnRebarSpec p in ColumnRebarSpec.LoadPresets()) _presets.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
+            foreach (ColumnRebarSpec p in ColumnRebarPresets.LoadPresets()) _presets.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
             if (_presets.Items.Count > 0) _presets.SelectedIndex = 0;
         }
 
@@ -393,9 +394,9 @@ namespace DEB.Revit.Precast.UI
                 MessageBox.Show(this, "Preencha \"Nome para salvar como modelo\" (seção Modelo) antes de salvar.", Title);
                 return;
             }
-            ColumnRebarSpec.SavePreset(Current.Spec);
+            ColumnRebarPresets.SavePreset(Current.Spec);
             ReloadPresets();
-            MessageBox.Show(this, $"Modelo \"{Current.Spec.Name}\" salvo em\n{ColumnRebarSpec.PresetsPath}", Title);
+            MessageBox.Show(this, $"Modelo \"{Current.Spec.Name}\" salvo em\n{ColumnRebarPresets.PresetsPath}", Title);
         }
 
         private void CopyToAll()

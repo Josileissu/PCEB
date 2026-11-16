@@ -5,6 +5,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using DEB.Revit.Core;
+using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast
 {
@@ -104,7 +105,7 @@ namespace DEB.Revit.Precast
 
             bool tie = IsTie(b.Role);
             RebarHookType hook = b.Hooks135 ? Hook135() : null;
-            Element host = (Element)b.HostCorbel?.Instance ?? column;
+            Element host = (Element)b.HostCorbel?.Instance() ?? column;
 
             // Laço anti-horário em torno da normal: o interior fica à esquerda da barra, então o gancho
             // do início aponta para a direita e o do fim para a esquerda (ambos para dentro).

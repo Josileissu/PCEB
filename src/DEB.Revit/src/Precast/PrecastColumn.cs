@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Autodesk.Revit.DB;
+using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
 using DEB.Revit.Core;
 
 namespace DEB.Revit.Precast
@@ -11,19 +12,16 @@ namespace DEB.Revit.Precast
     /// Sistema local de um pilar: origem no canto mínimo, X/Y = seção, Z = eixo.
     /// Coordenadas locais (a, b, c) em unidades internas (pés).
     /// </summary>
-    internal sealed class ColumnFrame
+    internal sealed class ColumnFrame : ColumnBox
     {
         public XYZ O { get; }
         public XYZ X { get; }
         public XYZ Y { get; }
         public XYZ Z { get; }
-        public double Bx { get; }
-        public double By { get; }
-        public double H { get; }
 
-        public ColumnFrame(XYZ o, XYZ x, XYZ y, XYZ z, double bx, double by, double h)
+        public ColumnFrame(XYZ o, XYZ x, XYZ y, XYZ z, double bx, double by, double h) : base(bx, by, h)
         {
-            O = o; X = x; Y = y; Z = z; Bx = bx; By = by; H = h;
+            O = o; X = x; Y = y; Z = z;
         }
 
         public static ColumnFrame From(PieceInfo p) =>
@@ -64,79 +62,18 @@ namespace DEB.Revit.Precast
         };
     }
 
-    /// <summary>Ponto ou direção em coordenadas locais do pilar (pés).</summary>
-    internal readonly struct Loc
-    {
-        public readonly double A, B, C;
-        public Loc(double a, double b, double c) { A = a; B = b; C = c; }
-        public static Loc operator +(Loc p, Loc q) => new Loc(p.A + q.A, p.B + q.B, p.C + q.C);
-        public static Loc operator -(Loc p, Loc q) => new Loc(p.A - q.A, p.B - q.B, p.C - q.C);
-        public static Loc operator *(Loc p, double s) => new Loc(p.A * s, p.B * s, p.C * s);
-        public static Loc operator -(Loc p) => new Loc(-p.A, -p.B, -p.C);
-        public Loc Cross(Loc o) => new Loc(B * o.C - C * o.B, C * o.A - A * o.C, A * o.B - B * o.A);
-        public double Dot(Loc o) => A * o.A + B * o.B + C * o.C;
-        public static readonly Loc UnitA = new Loc(1, 0, 0), UnitB = new Loc(0, 1, 0), UnitC = new Loc(0, 0, 1);
-    }
+    // Loc, ColumnFace, Corbel (parte pura), ColumnBox e U_ estão no núcleo: DEB.Core/Templates/PilarPreMoldado/Modelo3D.
 
-    internal enum ColumnFace { PX, NX, PY, NY }
-
-    /// <summary>
-    /// Consolo descrito no sistema local do pilar.
-    /// d = distância para fora da face (0 na face), s = coordenada ao longo da face (local A ou B), c = altura.
-    /// </summary>
-    internal sealed class Corbel
+    /// <summary>Consolo levantado no modelo: a parte pura (<see cref="Corbel"/>) mais a instância da família no Revit.</summary>
+    internal sealed class RevitCorbel : Corbel
     {
         public FamilyInstance Instance { get; set; }
-        public ColumnFace Face { get; set; }
-        public double S0 { get; set; }          // início ao longo da face
-        public double S1 { get; set; }          // fim ao longo da face
-        public double ZBottom { get; set; }     // base do consolo junto à face
-        public double ZTop { get; set; }        // topo do consolo
-        public double Projection { get; set; }  // balanço (c)
-        public double TipHeight { get; set; }   // altura na ponta (h)
-
-        public double Width => S1 - S0;
-        public double HeightAtFace => ZTop - ZBottom;
-
-        /// <summary>Direção para fora da face, em coordenadas locais.</summary>
-        public Loc U => Face switch
-        {
-            ColumnFace.PX => Loc.UnitA,
-            ColumnFace.NX => -Loc.UnitA,
-            ColumnFace.PY => Loc.UnitB,
-            _ => -Loc.UnitB
-        };
-
-        /// <summary>Direção ao longo da face (eixo de S).</summary>
-        public Loc T => Face == ColumnFace.PX || Face == ColumnFace.NX ? Loc.UnitB : Loc.UnitA;
-
-        /// <summary>Profundidade do pilar na direção U (lado da seção perpendicular à face).</summary>
-        public double ColumnDepth(ColumnFrame f) => Face == ColumnFace.PX || Face == ColumnFace.NX ? f.Bx : f.By;
-
-        /// <summary>Ponto local a partir de (d, s, c).</summary>
-        public Loc At(ColumnFrame f, double d, double s, double c)
-        {
-            Loc basePt = Face switch
-            {
-                ColumnFace.PX => new Loc(f.Bx, 0, 0),
-                ColumnFace.PY => new Loc(0, f.By, 0),
-                _ => new Loc(0, 0, 0)
-            };
-            return basePt + U * d + T * s + new Loc(0, 0, c);
-        }
-
-        public string Signature() => string.Format(CultureInfo.InvariantCulture,
-            "{0}:{1:0}-{2:0}:{3:0}-{4:0}:c{5:0}:h{6:0}",
-            Face, Mm(S0), Mm(S1), Mm(ZBottom), Mm(ZTop), Mm(Projection), Mm(TipHeight));
-
-        private static double Mm(double ft) => Math.Round(U_.ToMm(ft));
     }
 
-    /// <summary>Atalho para conversões (evita conflito de nome com a propriedade U do consolo).</summary>
-    internal static class U_
+    internal static class CorbelExtensions
     {
-        public static double ToMm(double ft) => Core.U.ToMm(ft);
-        public static double Mm(double mm) => Core.U.Mm(mm);
+        /// <summary>Instância da família do consolo no modelo (null se o consolo não veio do levantamento).</summary>
+        public static FamilyInstance Instance(this Corbel k) => (k as RevitCorbel)?.Instance;
     }
 
     /// <summary>Pilar pré-moldado com seus consolos, já no sistema canônico do grupo.</summary>
@@ -272,7 +209,7 @@ namespace DEB.Revit.Precast
             foreach (ColumnGroup g in groups)
             {
                 g.Mark = "P" + n++;
-                g.Spec = ColumnRebarSpec.Default(g.Representative);
+                g.Spec = ColumnRebarSpec.Default(g.Representative.Frame, g.Representative.EmbedmentMm, g.Representative.Corbels);
             }
             return groups;
         }
@@ -314,7 +251,7 @@ namespace DEB.Revit.Precast
             // (antes: vértices da ponta → 23,5 com chanfro de 2 virava "ponta 21,5"; relato do usuário, 09/11/2026)
             var med = DEB.Core.Pecas.PerfilConsolo.Medir(l.Select(p => (U_.ToMm(d(p)) / 10, U_.ToMm(p.C) / 10)));
 
-            return new Corbel
+            return new RevitCorbel
             {
                 Instance = fi,
                 Face = face,

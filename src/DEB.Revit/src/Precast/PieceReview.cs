@@ -4,6 +4,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using DEB.Core.Pecas;
 using DEB.Revit.Core;
+using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast
 {
@@ -24,7 +25,7 @@ namespace DEB.Revit.Precast
             {
                 foreach (ColumnGroup g in PrecastSurvey.Run(doc, out List<string> _))
                     foreach (PrecastColumn m in g.Members)
-                        consolos[m.Instance.Id.Value] = m.Corbels.Select(c => c.Instance).Where(c => c != null).ToList();
+                        consolos[m.Instance.Id.Value] = m.Corbels.Select(c => c.Instance()).Where(c => c != null).ToList();
             }
             catch (Exception ex) { notes.Add("consolos dos pilares não reconhecidos: " + ex.Message); }
             try { BeamCorbels(doc, consolos); }
