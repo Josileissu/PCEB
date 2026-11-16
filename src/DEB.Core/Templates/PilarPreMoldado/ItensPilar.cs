@@ -86,9 +86,17 @@ public sealed partial class TemplatePilarPreMoldado
         int face = FaceExibida(Math.Max(1, Math.Min(4, v.Inteiro("AlcaFace"))));   // apresentada → interna
         int oposta = (face + 1) % 4 + 1;                  // 1↔3, 2↔4
         double prof = face == 1 || face == 3 ? b : h;
-        double max = Math.Max(10, prof - Cobrimentos(v)[oposta - 1]);
+        return EmbutimentoAlca(prof, Cobrimentos(v)[oposta - 1], v.Numero("AlcaEmb"));
+    }
+
+    /// <summary>
+    /// Embutimento das pernas da alça (cm, da face da alça até o lado de fora do pé): <paramref name="dado"/> &gt; 0 limitado à
+    /// face oposta menos o cobrimento dela; 0 = até lá ("pernas no cobrimento"). Regra única do CAD e do modelo 3D do Revit (D30).
+    /// </summary>
+    public static double EmbutimentoAlca(double profundidade, double cobOposta, double dado)
+    {
+        double max = Math.Max(10, profundidade - cobOposta);
         // o digitado nunca passa da face oposta (relato do usuário, 2026-11-11: as pernas e o pé saíam do pilar)
-        double dado = v.Numero("AlcaEmb");
         return dado > 0 ? Math.Min(dado, max) : max;
     }
 

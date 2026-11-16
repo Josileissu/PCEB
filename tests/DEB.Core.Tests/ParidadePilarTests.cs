@@ -176,6 +176,22 @@ public class ParidadePilarTests
         m.Add(new Medida("grampo: comprimento", ComprimentoRevit(Um(BarRole.CrossTie)), Un("grampo0")));
         m.Add(new Medida("grampo: quantidade", RevQtd(BarRole.CrossTie), FaixasQtd("grampo0")));
 
+        // ---- alças de içamento (D30, item 5): alturas pela regra do CG e embutimento das pernas ----
+        // CAD: o laço desenhado de lado nas vistas (ARM-ALCA, 6 vértices: pé, perna, topo, topo, perna, pé); centro = meio das
+        // pernas; embutimento = do fundo da perna à face = trecho de perna − (altura acima da face − raio do laço), padrões 15 e 10/2
+        var lacos = r.Contornos.Where(k => k.Layer == "ARM-ALCA" && k.Vertices.Count == 6).ToList();
+        var zCad = lacos.Select(k => Math.Round((k.Vertices[1].Y + k.Vertices[4].Y) / 2, 6)).Distinct().OrderBy(z => z).ToList();
+        double embCad = lacos.Select(k => Math.Abs(k.Vertices[2].X - k.Vertices[1].X) - (15 - 10 / 2.0)).Max();
+        // Revit: o meio do topo de cada alça; embutimento = profundidade do lado de fora do pé, medida da face da alça
+        var lifts = bars.Where(b => b.Role == BarRole.LiftLoop).ToList();
+        var zRev = lifts.Select(b => Math.Round((b.Points[2].C + b.Points[3].C) / 2 * CmPorPe, 6)).Distinct().OrderBy(z => z).ToList();
+        ColumnFace fl = ColumnRebarLayout.LiftFace(f, k);
+        double Prof(Loc p) => (fl == ColumnFace.PX ? f.Bx - p.A : fl == ColumnFace.NX ? p.A : fl == ColumnFace.PY ? f.By - p.B : p.B) * CmPorPe;
+        double embRev = lifts.Max(b => Prof(b.Points[0])) + s.LiftDiameterMm / 20;
+        m.Add(new Medida("alças: altura da de baixo (cm)", zRev.First(), zCad.First()));
+        m.Add(new Medida("alças: altura da de cima (cm)", zRev.Last(), zCad.Last()));
+        m.Add(new Medida("alças: embutimento das pernas (cm)", Math.Round(embRev, 6), Math.Round(embCad, 6)));
+
         if (c.Consolos == 0) return m;
         // ---- consolo ----
         bool duplo = c.Consolos == 2;
@@ -224,6 +240,24 @@ public class ParidadePilarTests
     /// <summary>(caso, medida, Revit, CAD, causa). Comprimentos em cm (arredondados como na relação do aço); Igual = sem divergência.</summary>
     private static readonly (string Caso, string Item, double Revit, double Cad, string Causa)[] Esperado =
     {
+        ("40x40-sem-12.5", "alças: altura da de baixo (cm)", 120, 120, Igual),
+        ("40x40-sem-12.5", "alças: altura da de cima (cm)", 480, 480, Igual),
+        ("40x40-sem-12.5", "alças: embutimento das pernas (cm)", 37.5, 37.5, Igual),
+        ("40x40-um-12.5", "alças: altura da de baixo (cm)", 122.6, 122.6, Igual),
+        ("40x40-um-12.5", "alças: altura da de cima (cm)", 482.6, 482.6, Igual),
+        ("40x40-um-12.5", "alças: embutimento das pernas (cm)", 37.5, 37.5, Igual),
+        ("40x40-opostos-16", "alças: altura da de baixo (cm)", 125, 125, Igual),
+        ("40x40-opostos-16", "alças: altura da de cima (cm)", 485, 485, Igual),
+        ("40x40-opostos-16", "alças: embutimento das pernas (cm)", 37.5, 37.5, Igual),
+        ("50x50-sem-16", "alças: altura da de baixo (cm)", 120, 120, Igual),
+        ("50x50-sem-16", "alças: altura da de cima (cm)", 480, 480, Igual),
+        ("50x50-sem-16", "alças: embutimento das pernas (cm)", 47.5, 47.5, Igual),
+        ("50x50-um-16", "alças: altura da de baixo (cm)", 121.7, 121.7, Igual),
+        ("50x50-um-16", "alças: altura da de cima (cm)", 481.7, 481.7, Igual),
+        ("50x50-um-16", "alças: embutimento das pernas (cm)", 47.5, 47.5, Igual),
+        ("50x50-opostos-12.5", "alças: altura da de baixo (cm)", 123.3, 123.3, Igual),
+        ("50x50-opostos-12.5", "alças: altura da de cima (cm)", 483.3, 483.3, Igual),
+        ("50x50-opostos-12.5", "alças: embutimento das pernas (cm)", 47.5, 47.5, Igual),
         ("40x40-opostos-16", "armadura inferior do consolo: comprimento", 91, 79, INF),
         ("40x40-opostos-16", "barra soldada: comprimento", 35, 35, Igual),
         ("40x40-opostos-16", "costura: comprimento", 200, 197, COST),

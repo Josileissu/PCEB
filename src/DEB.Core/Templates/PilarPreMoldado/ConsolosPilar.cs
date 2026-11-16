@@ -213,15 +213,17 @@ public sealed partial class TemplatePilarPreMoldado
         Volume(b, h, l, chanfro) + consolos.Sum(c => c.Volume);
 
     /// <summary>Altura do CG (cm, a partir da base): pilar no meio do comprimento, consolos no seu centro.</summary>
-    public static double AlturaCG(double b, double h, double l, double chanfro, IEnumerable<ConsoloPilar> consolos)
+    public static double AlturaCG(double b, double h, double l, double chanfro, IEnumerable<ConsoloPilar> consolos) =>
+        AlturaCG(Volume(b, h, l, chanfro), l, consolos.Select(c => (c.Volume, c.ZTopo - c.H / 2)));
+
+    /// <summary>
+    /// Altura do CG ao longo do eixo (unidade de <paramref name="l"/>): o pilar (volume <paramref name="volPilar"/>) no meio do
+    /// comprimento e cada consolo (volume, altura do centro) somado. Regra única do CAD e do modelo 3D do Revit (alças, D30).
+    /// </summary>
+    public static double AlturaCG(double volPilar, double l, IEnumerable<(double Volume, double Z)> consolos)
     {
-        double v0 = Volume(b, h, l, chanfro), m = v0 * l / 2, vt = v0;
-        foreach (var c in consolos)
-        {
-            double z = c.ZTopo - c.H / 2;
-            m += c.Volume * z;
-            vt += c.Volume;
-        }
+        double m = volPilar * l / 2, vt = volPilar;
+        foreach (var (vol, z) in consolos) { m += vol * z; vt += vol; }
         return vt > 0 ? m / vt : l / 2;
     }
 

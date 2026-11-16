@@ -94,8 +94,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                     bars.AddRange(CorbelBars(f, k, s));
 
             // ---------------- Alças de içamento ----------------
-            // Numa face, nos dois pontos da regra dos 20% (0,2 H e 0,8 H): o pilar é içado e transportado deitado, com a
-            // face das alças para cima. A face é escolhida em LiftFace (consolos para cima).
+            // Numa face, simétricas ao CG ao longo do eixo e perto de 20 % das pontas, pela mesma função do CAD (D30): o pilar
+            // é içado e transportado deitado, com a face das alças para cima. A face é escolhida em LiftFace (consolos para cima).
             if (s.LiftLoops > 0)
                 bars.AddRange(LiftLoops(f, corbels, s, dl, dt));
             return bars;
@@ -134,21 +134,40 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         }
 
         /// <summary>
-        /// Alças em U saindo da face (plano U × Z, no meio da face): as pernas atravessam o cobrimento, dobram por dentro
-        /// das longitudinais e seguem ao longo do pilar até completar o comprimento embutido. Fogem dos consolos da face.
+        /// Alturas das alças (pés, da base): simétricas ao CG do pilar com os consolos, a (50 − LiftEndPercent) % do comprimento
+        /// dele — TemplatePilarPreMoldado.PosicaoAlcas sobre TemplatePilarPreMoldado.AlturaCG, as funções do CAD (D30, item 5).
+        /// </summary>
+        public static (double Z1, double Z2) LiftHeights(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s)
+        {
+            double Cm(double ft) => U_.ToMm(ft) / 10;
+            double l = Cm(f.H);
+            // consolo: volume largura × balanço × média das alturas, centro na metade da altura junto à face (como o CAD)
+            var cons = corbels.Select(k => (Cm(k.Width) * Cm(k.Projection) * (Cm(k.HeightAtFace) + Cm(k.TipHeight)) / 2,
+                                            Cm(k.ZTop) - Cm(k.HeightAtFace) / 2));
+            double cg = TemplatePilarPreMoldado.AlturaCG(Cm(f.Bx) * Cm(f.By) * l, l, cons);
+            var (z1, z2) = TemplatePilarPreMoldado.PosicaoAlcas(l, cg, s.LiftEndPercent);
+            return (U_.Mm(10 * z1), U_.Mm(10 * z2));
+        }
+
+        /// <summary>
+        /// Alças como as do CAD (D30, item 5): no meio da face, no plano U × Z; as pernas entram no pilar até a face oposta menos
+        /// o cobrimento (TemplatePilarPreMoldado.EmbutimentoAlca) e dobram lá no pé, para fora; o topo fica LiftProtrusionMm
+        /// acima da face. Se cair num consolo da face, a alça é deslocada o mínimo (o CAD só avisa).
         /// </summary>
         private static IEnumerable<BarDef> LiftLoops(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s, double dl, double dt)
         {
             ColumnFace face = LiftFace(f, corbels);
             var g = new Corbel { Face = face };            // só para os eixos da face (U, T, At)
             double width = face == ColumnFace.PX || face == ColumnFace.NX ? f.By : f.Bx;
+            double depth = g.ColumnDepth(f);
             double dLift = U_.Mm(s.LiftDiameterMm), w = U_.Mm(s.LiftWidthMm), pr = U_.Mm(s.LiftProtrusionMm);
-            double dIn = -(U_.Mm(s.CoverMm) + dt + dl + dLift / 2);
-            double leg = Math.Max(10 * dLift, U_.Mm(s.LiftEmbedMm) - (pr - dIn));
+            double foot = Math.Max(0, U_.Mm(s.LiftFootMm));
+            double emb = U_.Mm(10 * TemplatePilarPreMoldado.EmbutimentoAlca(U_.ToMm(depth) / 10, s.CoverMm / 10, s.LiftEmbedMm / 10));
+            double dIn = -(emb - dLift / 2);               // eixo do pé (o lado de fora dele no cobrimento da face oposta)
             double margin = U_.Mm(100);
             var busy = corbels.Where(k => k.Face == face)
                 .Select(k => (A: k.ZBottom - margin, B: k.ZTop + U_.Mm(s.CorbelPinAboveMm) + margin)).ToList();
-            double half = w / 2 + leg;
+            double half = w / 2 + foot;
             double Free(double z)
             {
                 // desloca para longe do consolo, o mínimo necessário (para cima ou para baixo)
@@ -163,25 +182,21 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             }
             double sp = U_.Mm(s.LiftSpacingMm);
             IEnumerable<double> ss = s.LiftLoops == 1 ? new[] { width / 2 } : new[] { width / 2 - sp / 2, width / 2 + sp / 2 };
-            foreach (double z0 in new[] { 0.2 * f.H, 0.8 * f.H })
+            var (h1, h2) = LiftHeights(f, corbels, s);
+            foreach (double z0 in new[] { h1, h2 })
             {
                 double z = Free(z0);
                 foreach (double t in ss)
-                    yield return new BarDef
-                    {
-                        Role = BarRole.LiftLoop,
-                        DiameterMm = s.LiftDiameterMm,
-                        Points =
-                        {
-                            g.At(f, dIn, t, z - w / 2 - leg),
-                            g.At(f, dIn, t, z - w / 2),
-                            g.At(f, pr, t, z - w / 2),
-                            g.At(f, pr, t, z + w / 2),
-                            g.At(f, dIn, t, z + w / 2),
-                            g.At(f, dIn, t, z + w / 2 + leg)
-                        },
-                        Normal = g.T
-                    };
+                {
+                    var pts = new List<Loc>();
+                    if (foot > 0) pts.Add(g.At(f, dIn, t, z - w / 2 - foot));
+                    pts.Add(g.At(f, dIn, t, z - w / 2));
+                    pts.Add(g.At(f, pr, t, z - w / 2));
+                    pts.Add(g.At(f, pr, t, z + w / 2));
+                    pts.Add(g.At(f, dIn, t, z + w / 2));
+                    if (foot > 0) pts.Add(g.At(f, dIn, t, z + w / 2 + foot));
+                    yield return new BarDef { Role = BarRole.LiftLoop, DiameterMm = s.LiftDiameterMm, Points = pts, Normal = g.T };
+                }
             }
         }
 

@@ -65,11 +65,22 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         public double CorbelPinFootMm { get; set; } = 200;
 
         // ---- Içamento / insertos ----
+        // Alças como as do CAD (D30, item 5, 16/11/2026): simétricas ao CG ao longo do eixo, a ~LiftEndPercent % das pontas
+        // (TemplatePilarPreMoldado.PosicaoAlcas), pernas entrando no pilar até a face oposta menos o cobrimento
+        // (TemplatePilarPreMoldado.EmbutimentoAlca), com o pé dobrado lá.
         public int LiftLoops { get; set; } = 1;
         public double LiftDiameterMm { get; set; } = 16;
+        /// <summary>Embutimento das pernas, da face da alça até o lado de fora do pé; limitado à face oposta menos o cobrimento
+        /// (0 ou maior que o pilar = até lá, como o "0 = até o fundo" do CAD).</summary>
         public double LiftEmbedMm { get; set; } = 800;
+        /// <summary>Altura da alça acima da face (eixo do topo da alça).</summary>
         public double LiftProtrusionMm { get; set; } = 150;
+        /// <summary>Distância entre as pernas (eixos).</summary>
         public double LiftWidthMm { get; set; } = 150;
+        /// <summary>Pé: dobra no fim de cada perna, junto da face oposta, para fora (o "AlcaPe" do CAD).</summary>
+        public double LiftFootMm { get; set; } = 200;
+        /// <summary>Distância das alças às pontas, % do comprimento, partindo do CG (o "AlcaPct" do CAD).</summary>
+        public double LiftEndPercent { get; set; } = 20;
         /// <summary>Distância entre alças, quando há duas.</summary>
         public double LiftSpacingMm { get; set; } = 200;
         /// <summary>Família de inserto a posicionar no topo (vazio = nenhum). Formato "Família" ou "Família : Tipo".</summary>
@@ -147,8 +158,6 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                 if (asSew < 0.4 * asTie) w.Add($"Costura {asSew:0} mm² < 0,4 × tirante ({0.4 * asTie:0} mm²) (NBR 9062).");
             }
 
-            if (LiftLoops > 0 && LiftEmbedMm > U_.ToMm(frame.H) / 2)
-                w.Add("Comprimento embutido da alça de içamento maior que metade do pilar.");
             return w;
         }
 
