@@ -113,17 +113,18 @@ public class PilarItensTests
     [Fact]
     public void AlcaAncoraNoFundoDoPilar()
     {
-        // decisão do usuário (2026-11-08): com embutimento 0 as pernas vão até a face oposta menos o cobrimento dela
+        // decisões do usuário (2026-11-08 e D30): com embutimento 0 as pernas vão até a face oposta, por dentro dos estribos dela
+        // (maior estribo da lista padrão: ø8 → 0,8 cm)
         var t = new TemplatePilarPreMoldado();
         var v = new ValoresTemplate(t.Parametros);
         v["AlcaFace"] = "2"; v["CobFace4"] = "3";
-        Assert.Equal(60 - 3, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        Assert.Equal(60 - 3 - 0.8, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60), 6);
         v["AlcaFace"] = "1"; v["CobFace3"] = "2.5";
-        Assert.Equal(40 - 2.5, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        Assert.Equal(40 - 2.5 - 0.8, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60), 6);
         v["AlcaEmb"] = "30";
         Assert.Equal(30, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
         v["AlcaEmb"] = "45";   // passa da face oposta: limitado (2026-11-11)
-        Assert.Equal(40 - 2.5, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60));
+        Assert.Equal(40 - 2.5 - 0.8, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 60), 6);
     }
 
     [Fact]
@@ -133,7 +134,7 @@ public class PilarItensTests
         var t = new TemplatePilarPreMoldado();
         var v = new ValoresTemplate(t.Parametros);
         v["B"] = "40"; v["H"] = "40"; v["AlcaEmb"] = "60";
-        double max = 40 - v.Numero("CobFace4");   // alça na face 2 (sul): a oposta é a 4
+        double max = 40 - v.Numero("CobFace4") - 0.8;   // alça na face 2 (sul): a oposta é a 4; por dentro do estribo ø8
         Assert.Equal(max, TemplatePilarPreMoldado.EmbutimentoAlca(v, 40, 40), 6);
         Assert.True(TemplatePilarPreMoldado.EmbutimentoAlcaLimitado(v, 40, 40));
         var r = t.Gerar(v, new ConfiguracaoArmadura());

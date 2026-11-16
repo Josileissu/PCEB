@@ -251,7 +251,7 @@ namespace DEB.Revit.Precast.UI
             Int("Alças por ponto de içamento (0, 1 ou 2; pontos simétricos ao CG)", () => s.LiftLoops, v => s.LiftLoops = Math.Max(0, Math.Min(2, v)));
             Num("Alça: distância às pontas (% do comprimento, a partir do CG)", () => s.LiftEndPercent, v => s.LiftEndPercent = Math.Max(5, Math.Min(45, v)));
             Dia("Alça: bitola", () => s.LiftDiameterMm, v => s.LiftDiameterMm = v);
-            Num("Alça: embutimento das pernas (mm; limitado à face oposta − cobrimento)", () => s.LiftEmbedMm, v => s.LiftEmbedMm = v);
+            Num("Alça: embutimento das pernas (mm; limitado por dentro dos estribos da face oposta)", () => s.LiftEmbedMm, v => s.LiftEmbedMm = v);
             Num("Alça: altura acima da face (mm)", () => s.LiftProtrusionMm, v => s.LiftProtrusionMm = v);
             Num("Alça: distância entre as pernas (mm)", () => s.LiftWidthMm, v => s.LiftWidthMm = v);
             Num("Alça: pé no fim das pernas (mm)", () => s.LiftFootMm, v => s.LiftFootMm = v);

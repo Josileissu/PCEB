@@ -52,7 +52,7 @@ public sealed partial class TemplatePilarPreMoldado
         P(G17, "AlcaBitola", "Cordoalha", "12.7", "mm", TipoParametro.Bitola, 9.5, 15.2),
         P(G17, "AlcaPernas", "Cordoalhas por alça", "2", tipo: TipoParametro.Inteiro, min: 1, max: 4),
         P(G17, "AlcaEmb", "Embutimento (0 = até o fundo)", "0", "cm", min: 0,
-          descricao: "0 = as pernas vão até a face oposta à da alça (o fundo do pilar), menos o cobrimento dela, com o pé lá (decisão do usuário, 2026-11-08)."),
+          descricao: "0 = as pernas vão até a face oposta à da alça (o fundo do pilar), por dentro dos estribos dela, com o pé lá (decisões do usuário, 2026-11-08 e D30)."),
         P(G17, "AlcaAcima", "Altura acima da face", "15", "cm", min: 5),
         P(G17, "AlcaEntre", "Distância entre as pernas", "10", "cm", min: 4),
         P(G17, "AlcaPe", "Pé (dobra no fim de cada perna)", "20", "cm", min: 0),
@@ -78,24 +78,27 @@ public sealed partial class TemplatePilarPreMoldado
     public static double RaioGrampoFuro(double furoMm) => furoMm / 20 + 3;
 
     /// <summary>
-    /// Embutimento das pernas da alça: o digitado, ou (0) até o fundo — a face oposta à da alça menos o cobrimento dela
-    /// (faces 1/3 atravessam b; 2/4, h). Decisão do usuário, 2026-11-08: a alça ancora no fundo do pilar, não perto da face.
+    /// Embutimento das pernas da alça: o digitado, ou (0) até o fundo — por dentro dos estribos da face oposta à da alça
+    /// (faces 1/3 atravessam b; 2/4, h). Decisões do usuário: 2026-11-08 (a alça ancora no fundo do pilar) e D30 (para por
+    /// dentro dos estribos).
     /// </summary>
     public static double EmbutimentoAlca(ValoresTemplate v, double b, double h)
     {
         int face = FaceExibida(Math.Max(1, Math.Min(4, v.Inteiro("AlcaFace"))));   // apresentada → interna
         int oposta = (face + 1) % 4 + 1;                  // 1↔3, 2↔4
         double prof = face == 1 || face == 3 ? b : h;
-        return EmbutimentoAlca(prof, Cobrimentos(v)[oposta - 1], v.Numero("AlcaEmb"));
+        return EmbutimentoAlca(prof, Cobrimentos(v)[oposta - 1], BitolaMaxEstribo(v), v.Numero("AlcaEmb"));
     }
 
     /// <summary>
-    /// Embutimento das pernas da alça (cm, da face da alça até o lado de fora do pé): <paramref name="dado"/> &gt; 0 limitado à
-    /// face oposta menos o cobrimento dela; 0 = até lá ("pernas no cobrimento"). Regra única do CAD e do modelo 3D do Revit (D30).
+    /// Embutimento das pernas da alça (cm, da face da alça até o lado de fora do pé): <paramref name="dado"/> &gt; 0 limitado ao
+    /// lado de dentro dos estribos da face oposta (face oposta − cobrimento − φ do estribo); 0 = até lá. Decisão do dono (D30,
+    /// revisão de 16/11/2026: "pode parar dentro dos estribos" — o pé não cruza o estribo). Regra única do CAD e do modelo 3D
+    /// do Revit.
     /// </summary>
-    public static double EmbutimentoAlca(double profundidade, double cobOposta, double dado)
+    public static double EmbutimentoAlca(double profundidade, double cobOposta, double phiEstriboMm, double dado)
     {
-        double max = Math.Max(10, profundidade - cobOposta);
+        double max = Math.Max(10, profundidade - cobOposta - phiEstriboMm / 10);
         // o digitado nunca passa da face oposta (relato do usuário, 2026-11-11: as pernas e o pé saíam do pilar)
         return dado > 0 ? Math.Min(dado, max) : max;
     }
@@ -124,7 +127,7 @@ public sealed partial class TemplatePilarPreMoldado
         double acima = v.Numero("AlcaAcima"), entre = v.Numero("AlcaEntre");
         double emb = it.EmbAlca = EmbutimentoAlca(v, b, h);
         if (it.Alcas && EmbutimentoAlcaLimitado(v, b, h))
-            r.Avisos.Add($"Alça: embutimento de {Num(v.Numero("AlcaEmb"), "0.#")} cm passa da face oposta do pilar; limitado a {Num(emb, "0.#")} cm (até o cobrimento).");
+            r.Avisos.Add($"Alça: embutimento de {Num(v.Numero("AlcaEmb"), "0.#")} cm passa da face oposta do pilar; limitado a {Num(emb, "0.#")} cm (por dentro dos estribos).");
 
         // laço da alça na vista de lado (pernas dentro, laço fora da face) e o traço na vista de frente
         double peAlca = v.Numero("AlcaPe");

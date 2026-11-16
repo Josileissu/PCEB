@@ -66,12 +66,12 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
 
         // ---- Içamento / insertos ----
         // Alças como as do CAD (D30, item 5, 16/11/2026): simétricas ao CG ao longo do eixo, a ~LiftEndPercent % das pontas
-        // (TemplatePilarPreMoldado.PosicaoAlcas), pernas entrando no pilar até a face oposta menos o cobrimento
+        // (TemplatePilarPreMoldado.PosicaoAlcas), pernas entrando no pilar até por dentro dos estribos da face oposta
         // (TemplatePilarPreMoldado.EmbutimentoAlca), com o pé dobrado lá.
         public int LiftLoops { get; set; } = 1;
         public double LiftDiameterMm { get; set; } = 16;
-        /// <summary>Embutimento das pernas, da face da alça até o lado de fora do pé; limitado à face oposta menos o cobrimento
-        /// (0 ou maior que o pilar = até lá, como o "0 = até o fundo" do CAD).</summary>
+        /// <summary>Embutimento das pernas, da face da alça até o lado de fora do pé; limitado ao lado de dentro dos estribos da
+        /// face oposta (0 ou maior que o pilar = até lá, como o "0 = até o fundo" do CAD).</summary>
         public double LiftEmbedMm { get; set; } = 800;
         /// <summary>Altura da alça acima da face (eixo do topo da alça).</summary>
         public double LiftProtrusionMm { get; set; } = 150;
