@@ -871,7 +871,7 @@ public sealed partial class TemplatePilarPreMoldado
         {
             // comprimento: passante no duplo; no simples até por dentro das longitudinais da outra face (D30); largura por
             // dentro dos estribos verticais
-            double w = duplo ? compPar : compSoz, prof = Math.Max(2 * co.CostPhi / 10, co.B - 2 * cc - 2 * co.VertPhi / 10);
+            double w = duplo ? compPar : compSoz, prof = BarrasConsolo.LarguraCostura(co.B, cc, co.VertPhi, co.CostPhi);
             var bc = Estribo(cfg, id + "cost", xCur, topAA - prof, w, prof, co.CostPhi, acoEst, c.escC);
             bc.Quantidade = co.CostN;
             bc.Repeticoes = duplo ? Math.Max(1, nPares) : rep;   // duplo: uma em volta dos dois consolos de cada par

@@ -88,6 +88,14 @@ public static class BarrasConsolo
     /// </summary>
     public static double Horizontal(double balanco, double cobPonta, double fimNoPilar) => balanco - cobPonta + fimNoPilar;
 
+    /// <summary>
+    /// Largura da costura (medida externa, cm): por dentro dos estribos verticais do consolo — largura − 2 cobrimentos − 2 φ do
+    /// estribo vertical, no mínimo 2 φ da costura (regra do CAD, D7; D30 revisão: a do Revit, largura − 2c, punha a costura no
+    /// mesmo lugar dos estribos verticais).
+    /// </summary>
+    public static double LarguraCostura(double largura, double cob, double phiEstriboVerticalMm, double phiCosturaMm) =>
+        Math.Max(2 * phiCosturaMm / 10, largura - 2 * cob - 2 * phiEstriboVerticalMm / 10);
+
     /// <summary>Tirante e costura passantes do duplo (medida externa): de ponta a ponta, menos os cobrimentos das pontas.</summary>
     public static double Passante(double balanco1, double balanco2, double profundidade, double cobPonta1, double cobPonta2) =>
         balanco1 - cobPonta1 + profundidade + balanco2 - cobPonta2;

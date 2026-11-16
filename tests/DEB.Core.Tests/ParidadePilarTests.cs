@@ -230,9 +230,8 @@ public class ParidadePilarTests
     // (ver EstribosSemRepetirNaDivisa e paridade_pilar.md)
     // tirante e costura (D30): consolo sozinho, por dentro das longitudinais da face oposta (BarrasConsolo.FimNoPilar); opostos
     // em nível (BarrasConsolo.ParesEmNivel), passantes de ponta a ponta; perna do tirante medida por fora nos dois (D7).
-    // Sobra só a largura da costura:
-    private const string COST = "largura da costura: o Revit usa b − 2c (no mesmo lugar dos estribos verticais do consolo); o CAD " +
-                                "b − 2c − 2φvert (por dentro deles). A decisão do dono tratou do fim dentro do pilar, não da largura";
+    // Largura da costura (D30, revisão): por dentro dos estribos verticais nos dois (BarrasConsolo.LarguraCostura). A diferença
+    // de −3 cm não vinha da entrada (cobrimento 2,5 e pinos de dobra iguais nos dois caminhos — ver LarguraDaCosturaEraRegra).
     private const string VERT = "estribo vertical do consolo: o Revit fica abaixo do tirante (altura h − 2c − φtir); o CAD " +
                                 "usa h − 2c (ganchos de 135° nos dois; a posição não foi decidida pelo dono)";
     private const string INF = "formas diferentes: Revit em U com as pernas para cima entrando até as longitudinais; CAD com a perna na " +
@@ -261,7 +260,7 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "alças: embutimento das pernas (cm)", 47, 47, Igual),
         ("40x40-opostos-16", "armadura inferior do consolo: comprimento", 91, 79, INF),
         ("40x40-opostos-16", "barra soldada: comprimento", 35, 35, Igual),
-        ("40x40-opostos-16", "costura: comprimento", 254, 252, COST),
+        ("40x40-opostos-16", "costura: comprimento", 252, 252, Igual),
         ("40x40-opostos-16", "costura: quantidade", 3, 3, Igual),
         ("40x40-opostos-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("40x40-opostos-16", "estribo: comprimento", 153, 153, Igual),
@@ -283,7 +282,7 @@ public class ParidadePilarTests
         ("40x40-sem-12.5", "longitudinais: quantidade", 8, 8, Igual),
         ("40x40-um-12.5", "armadura inferior do consolo: comprimento", 92, 98, INF),
         ("40x40-um-12.5", "barra soldada: comprimento", 35, 35, Igual),
-        ("40x40-um-12.5", "costura: comprimento", 201, 198, COST),
+        ("40x40-um-12.5", "costura: comprimento", 198, 198, Igual),
         ("40x40-um-12.5", "costura: quantidade", 3, 3, Igual),
         ("40x40-um-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("40x40-um-12.5", "estribo: comprimento", 153, 153, Igual),
@@ -298,7 +297,7 @@ public class ParidadePilarTests
         ("40x40-um-12.5", "tirante: quantidade", 3, 3, Igual),
         ("50x50-opostos-12.5", "armadura inferior do consolo: comprimento", 102, 79, INF),
         ("50x50-opostos-12.5", "barra soldada: comprimento", 35, 35, Igual),
-        ("50x50-opostos-12.5", "costura: comprimento", 274, 272, COST),
+        ("50x50-opostos-12.5", "costura: comprimento", 272, 272, Igual),
         ("50x50-opostos-12.5", "costura: quantidade", 3, 3, Igual),
         ("50x50-opostos-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("50x50-opostos-12.5", "estribo: comprimento", 193, 193, Igual),
@@ -320,7 +319,7 @@ public class ParidadePilarTests
         ("50x50-sem-16", "longitudinais: quantidade", 8, 8, Igual),
         ("50x50-um-16", "armadura inferior do consolo: comprimento", 101, 98, INF),
         ("50x50-um-16", "barra soldada: comprimento", 35, 35, Igual),
-        ("50x50-um-16", "costura: comprimento", 220, 217, COST),
+        ("50x50-um-16", "costura: comprimento", 217, 217, Igual),
         ("50x50-um-16", "costura: quantidade", 3, 3, Igual),
         ("50x50-um-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("50x50-um-16", "estribo: comprimento", 193, 193, Igual),
@@ -379,6 +378,24 @@ public class ParidadePilarTests
         var ls = ColumnRebarLayout.Compute(f, k, s).Where(b => b.Role == BarRole.CorbelTie).ToList();
         Assert.Equal(2, ls.Count);
         Assert.All(ls, b => Assert.Equal(95, ComprimentoRevit(b), 6));
+    }
+
+    /// <summary>
+    /// A diferença de largura da costura (−3 cm no CAD antes da D30) era de regra, não de entrada: os dois caminhos recebem o
+    /// mesmo cobrimento (2,5 cm) e usam os mesmos pinos de dobra (configuração padrão do núcleo: estribo ≤ 10 mm → 3φ); a
+    /// largura do Revit era b − 2c = 35 e a do CAD b − 2c − 2φvert = 35 − 2 × 0,63 = 33,74.
+    /// </summary>
+    [Fact]
+    public void LarguraDaCosturaEraRegra()
+    {
+        var c = Casos.First(x => x.Nome == "40x40-um-12.5");
+        var (_, _, s) = Revit(c);
+        var cfgCad = new ConfiguracaoArmadura { AlturaTextoMm = 2 };
+        var cfgRevit = new ConfiguracaoArmadura();   // SharedRules do DEB.Revit
+        Assert.Equal(cfgRevit.Dobramento.DiametroPino(s.SewDiameterMm, "CA-50", true), cfgCad.Dobramento.DiametroPino(s.SewDiameterMm, "CA-50", true));
+        Assert.Equal(cfgRevit.Dobramento.ComprimentoGancho(FormatoSegmento.Gancho45, s.SewDiameterMm, "CA-50", true),
+                     cfgCad.Dobramento.ComprimentoGancho(FormatoSegmento.Gancho45, s.SewDiameterMm, "CA-50", true));
+        Assert.Equal(33.74, BarrasConsolo.LarguraCostura(CB, s.CoverMm / 10, s.CorbelStirrupDiameterMm, s.SewDiameterMm), 6);
     }
 
     /// <summary>

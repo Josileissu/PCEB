@@ -380,7 +380,9 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             double zone = 2.0 / 3.0 * d;
             double sp = zone / m;
             double zFirst = zTie - dTie / 2 - dSew / 2 - sp;
-            double sa = k.S0 + cover + dSew / 2, sb = k.S1 - cover - dSew / 2;
+            // largura por dentro dos estribos verticais, regra do núcleo comum ao CAD (BarrasConsolo.LarguraCostura, D30)
+            double wSew = U_.Mm(10 * BarrasConsolo.LarguraCostura(U_.ToMm(k.Width) / 10, s.CoverMm / 10, s.CorbelStirrupDiameterMm, s.SewDiameterMm));
+            double sMid = (k.S0 + k.S1) / 2, sa = sMid - (wSew - dSew) / 2, sb = sMid + (wSew - dSew) / 2;
             double dInSew = par == null ? -(fim - dSew / 2) : dOutro + dSew / 2;
             double dTipSew = k.Projection - cover - dSew / 2;
 
