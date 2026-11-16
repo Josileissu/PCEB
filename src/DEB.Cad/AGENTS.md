@@ -1,6 +1,6 @@
 # DEB.Cad — Detalhador Estrutural Brasileiro para CAD (ex-Armadura BR)
 
-> Parte do repositório **PCEB** (`src/DEB.Cad`): GstarCAD, AutoCAD e ZWCAD. Regras gerais do projeto: `CLAUDE.md` da raiz.
+> Parte do repositório **PCEB** (`src/DEB.Cad`): GstarCAD, AutoCAD e ZWCAD. Regras gerais do projeto: `AGENTS.md` da raiz.
 > Aqui fica só o que vale em toda sessão (compilar, testar, instalar, armadilhas). Detalhe de cada funcionalidade
 > (XData, partes vinculadas, faixas, estribos, JOIN, EXPLODE, peças do Revit…): `docs/CONVENCOES.md`.
 

@@ -5,7 +5,7 @@ Plugin para Revit 2025/2026 (C#, .NET 8): detalhamento de peças estruturais, co
 `DEB.Revit.addin`; dados em `%AppData%\PCEB\DEB.Revit` (copiados de `%AppData%\StructuralDetailer` na 1ª execução, `Core/UserFolders.cs`).
 Mantidos por estarem gravados nos modelos: `Tag = "StructuralDetailer"` das barras, grupo de parâmetros compartilhados
 `StructuralDetailer`, parâmetros `SD_*`; também os IDs de botão `SD_*` e as variáveis `SD_AUTORUN`/`SD_AUTOEXIT`/`SD_SAVEAS`.
-Regras gerais do PCEB: `CLAUDE.md` da raiz.
+Regras gerais do PCEB: `AGENTS.md` da raiz.
 
 Arquivos do escritório (fora do Git — padrões não são públicos), na pasta-mãe do PCEB (`desenvolvedor\`; no PC2, ver
 `docs/04_arquitetura/trabalho_em_paralelo.md`): **modelo-base dos testes `Teste_PM.rvt`** (gerado pelo AutoRun `criarmodelo`:

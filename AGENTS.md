@@ -10,8 +10,8 @@ docs/          estudo: 00_escopo (decisões D1… e perguntas em aberto), 01_cat
                03_casos-teste, 04_arquitetura (plano de migração), notas
 src/DEB.Core/  núcleo comum sem plataforma (netstandard2.0): normas, comprimentos, numeração, catálogos
 tests/         testes do núcleo (xUnit)
-src/DEB.Cad/   Detalhador Estrutural Brasileiro para CAD (ex-Armadura BR): GstarCAD, AutoCAD, ZWCAD — ver o CLAUDE.md de lá
-src/DEB.Revit/ Detalhador Estrutural Brasileiro para Revit (ex-StructuralDetailer) — ver o CLAUDE.md de lá
+src/DEB.Cad/   Detalhador Estrutural Brasileiro para CAD (ex-Armadura BR): GstarCAD, AutoCAD, ZWCAD — ver o AGENTS.md de lá
+src/DEB.Revit/ Detalhador Estrutural Brasileiro para Revit (ex-StructuralDetailer) — ver o AGENTS.md de lá
 programas/     downloads de terceiros (fora do Git)
 PCEB.sln       compila tudo
 ```
@@ -23,7 +23,7 @@ cd <raiz do PCEB>   # no PC1: C:\Users\<usuário>\Documents\desenvolvedor\PCEB
 & "C:\Program Files\dotnet\dotnet.exe" test tests\DEB.Core.Tests -c Release
 ```
 Versões padrão: GstarCAD 2021, AutoCAD 2026, Revit 2025. Outras versões: compile o projeto com o parâmetro
-próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
+próprio (ver o AGENTS.md de cada plugin). `dotnet` não está no PATH.
 
 ## Regras do projeto
 - **Devagar e organizado**: passos pequenos; registrar pedidos e decisões em `docs/00_escopo/escopo_organizado.md`;
@@ -51,6 +51,13 @@ próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
   formatação de números em `DEB.Core/Fmt.cs` (`N` invariante, `Virgula` para a prancha, `Mm` para chaves). Não criar cópias novas.
 - **Prioridade (D19)**: o motor de detalhamento vem antes das análises estruturais
   (`docs/04_arquitetura/motor_detalhamento.md`). Lembre o usuário disso se o assunto for começar análise.
+- **Núcleo único e prévia (D26)**: regra de engenharia, número e texto de prancha moram no `DEB.Core`; o DEB.Cad e o DEB.Revit
+  só leem do hospedeiro, chamam o núcleo e escrevem o resultado. Toda operação que cria ou altera geometria segue modelo no
+  núcleo → prévia → aceite → aplicação, com a prévia e o resultado saídos do mesmo modelo (referência: laje alveolar, D24).
+- **Folhas no Revit (D29)**: não monte nem ajuste arranjo de folha. Se a tarefa pedir folha, entregue as vistas prontas e pare;
+  o usuário organiza e depois o arranjo dele é lido (posição, escala e ordem das vistas).
+- **`.md` não utilizado é `.md` apagado** (decisão do usuário): nada de arquivo morto; o Git guarda o que saiu.
+- Onde mexer e como testar cada área: `docs/mapa/` (`README.md`, `areas.md`, `comandos.md`).
 
 ## Dois computadores (ver `docs/04_arquitetura/trabalho_em_paralelo.md`)
 - **Os dois computadores implementam e testam** (decisão do usuário, 10/11/2026: "podemos remover a restrição de que no PC2 não
@@ -62,6 +69,8 @@ próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
   sessões usam a pasta `PCEB` e trocam a branch dela. A `main` só recebe o que o usuário aprovar.
 - `escopo_organizado.md` e `matriz_funcionalidades.md` só o PC1 edita; o PC2 anota em `docs/notas/pc2_pendencias.md`.
 - A memória do Claude é local de cada computador: regra que precisa valer nos dois vai para este arquivo.
+- As instruções moram nos `AGENTS.md` (raiz, `src/DEB.Cad`, `src/DEB.Revit`; lidos pelo OpenCode); cada `CLAUDE.md` só tem
+  `@AGENTS.md` (o Claude Code importa). Edite sempre o `AGENTS.md`.
 - Arquivos privados (Teste_PM.rvt = modelo-base dos testes desde 09/11/2026, Projeto1.rvt, prancha PP127, padrões do
   escritório): no PC1 ficam em `desenvolvedor\` (pasta-mãe
   do PCEB); no PC2, numa pasta privada do Google Drive (a combinar). Normas: `S:\Meu Drive\Normas` nos dois.

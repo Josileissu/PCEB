@@ -1,7 +1,7 @@
 # DEB.Cad — convenções e detalhes das funcionalidades
 
 Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compilar, testar, instalar, armadilhas) está no
-`CLAUDE.md` do DEB.Cad.
+`AGENTS.md` do DEB.Cad.
 
 ## Convenções
 - **Unidades** (pedido de 2026-11-10): o desenho pode ser feito em cm, m ou mm (`UnidadeDesenho`; 1 unidade do CAD = 1 cm/1 m/1 mm) e as medidas
