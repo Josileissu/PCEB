@@ -104,9 +104,10 @@ public class PilarArmadurasTests
         Assert.Equal(12 * 3 + 3, r.Circulos.Count(cc => cc.Layer == "ARM-BARRA-SECAO"));
         Assert.Equal(2 * 3 * 2 * 2, r.Circulos.Count(cc => cc.Layer == "ARM-BARRA-2")); // pernas dos U, em azul como no P56
         Assert.NotNull(r.PosicaoRA);
-        // estribo com ganchos de 90° (passagem pelo canto)
+        // estribo com ganchos de 135° (decisão D30, 16/11/2026: padrão do pilar, igual ao Revit) e passagem pelo canto
         var est = r.Barras.First(b => b.Nome.StartsWith("estribo"));
-        Assert.Contains(FormatoSegmento.Gancho90, est.Formatos);
+        Assert.Contains(FormatoSegmento.Gancho45, est.Formatos);
+        Assert.DoesNotContain(FormatoSegmento.Gancho90, est.Formatos);
         Assert.NotEmpty(est.Sobrepostos);
     }
 

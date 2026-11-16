@@ -206,18 +206,19 @@ public class ParidadePilarTests
 
     private const string Igual = "";
     // causas das divergências conhecidas (tabela completa em docs/04_arquitetura/paridade_pilar.md)
-    private const string GANCHO = "estribo com ganchos de 135° no Revit (ponta 5φ ≥ 5 cm) × 90° no CAD (ponta 10φ ≥ 7 cm)";
+    // ganchos: 135° nos dois desde a decisão D30 (16/11/2026); estribo, costura e estribo vertical do CAD saem de
+    // GeradorEstribo.FechadoPadrao com gancho de 45° (ponta 5φt ≥ 5 cm), a mesma função do comprimento por eixo do Revit
     private const string DIVISA = "o CAD conta cada zona com piso(L/s) + 1 e repete o estribo na divisa corrente/topo quando o trecho é " +
                                   "múltiplo do espaçamento; o Revit começa a 5 cm das pontas e não repete na divisa";
     private const string TIR = "o Revit para o tirante por dentro das longitudinais da face oposta e mede a perna interna no eixo; " +
                                "o CAD vai até o cobrimento da face oposta e mede a perna por fora";
     private const string TIR_DUPLO = "consolos opostos: o Revit faz um tirante em L ancorado no pilar para cada consolo; o CAD faz um " +
                                      "tirante reto passante para o par (2a + b − 2c)";
-    private const string COST = "costura: o Revit vai até as longitudinais da face oposta, largura b − 2c, ganchos de 135°; o CAD vai até o " +
-                                "cobrimento, largura b − 2c − 2φvert, ganchos de 90°";
+    private const string COST = "costura: o Revit vai até as longitudinais da face oposta, largura b − 2c; o CAD vai até o " +
+                                "cobrimento, largura b − 2c − 2φvert (ganchos de 135° nos dois)";
     private const string COST_DUPLO = "consolos opostos: o Revit faz uma costura por consolo; o CAD faz uma passante para o par";
-    private const string VERT = "estribo vertical do consolo: o Revit fica abaixo do tirante (altura h − 2c − φtir), ganchos de 135°; o CAD " +
-                                "usa h − 2c, ganchos de 90°";
+    private const string VERT = "estribo vertical do consolo: o Revit fica abaixo do tirante (altura h − 2c − φtir); o CAD " +
+                                "usa h − 2c (ganchos de 135° nos dois; a posição não foi decidida pelo dono)";
     private const string INF = "formas diferentes: Revit em U com as pernas para cima entrando até as longitudinais; CAD com a perna na " +
                                "ponta, o trecho para dentro do pilar (ancoragem do tipo) e o retorno";
 
@@ -226,10 +227,10 @@ public class ParidadePilarTests
     {
         ("40x40-opostos-16", "armadura inferior do consolo: comprimento", 91, 79, INF),
         ("40x40-opostos-16", "barra soldada: comprimento", 35, 35, Igual),
-        ("40x40-opostos-16", "costura: comprimento", 200, 255, COST_DUPLO),
+        ("40x40-opostos-16", "costura: comprimento", 200, 252, COST_DUPLO),
         ("40x40-opostos-16", "costura: quantidade", 6, 3, COST_DUPLO),
-        ("40x40-opostos-16", "estribo vertical do consolo: comprimento", 131, 135, VERT),
-        ("40x40-opostos-16", "estribo: comprimento", 153, 155, GANCHO),
+        ("40x40-opostos-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
+        ("40x40-opostos-16", "estribo: comprimento", 153, 153, Igual),
         ("40x40-opostos-16", "estribo: quantidade", 51, 51, Igual),
         ("40x40-opostos-16", "grampo: comprimento", 47, 47, Igual),
         ("40x40-opostos-16", "grampo: quantidade", 102, 102, Igual),
@@ -239,7 +240,7 @@ public class ParidadePilarTests
         ("40x40-opostos-16", "pino: comprimento", 74, 74, Igual),
         ("40x40-opostos-16", "tirante: comprimento", 95, 85, TIR_DUPLO),
         ("40x40-opostos-16", "tirante: quantidade", 6, 3, TIR_DUPLO),
-        ("40x40-sem-12.5", "estribo: comprimento", 153, 155, GANCHO),
+        ("40x40-sem-12.5", "estribo: comprimento", 153, 153, Igual),
         ("40x40-sem-12.5", "estribo: quantidade", 45, 46, DIVISA),
         ("40x40-sem-12.5", "grampo: comprimento", 47, 47, Igual),
         ("40x40-sem-12.5", "grampo: quantidade", 90, 92, DIVISA),
@@ -248,10 +249,10 @@ public class ParidadePilarTests
         ("40x40-sem-12.5", "longitudinais: quantidade", 8, 8, Igual),
         ("40x40-um-12.5", "armadura inferior do consolo: comprimento", 92, 98, INF),
         ("40x40-um-12.5", "barra soldada: comprimento", 35, 35, Igual),
-        ("40x40-um-12.5", "costura: comprimento", 201, 205, COST),
+        ("40x40-um-12.5", "costura: comprimento", 201, 202, COST),
         ("40x40-um-12.5", "costura: quantidade", 3, 3, Igual),
-        ("40x40-um-12.5", "estribo vertical do consolo: comprimento", 131, 135, VERT),
-        ("40x40-um-12.5", "estribo: comprimento", 153, 155, GANCHO),
+        ("40x40-um-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
+        ("40x40-um-12.5", "estribo: comprimento", 153, 153, Igual),
         ("40x40-um-12.5", "estribo: quantidade", 51, 51, Igual),
         ("40x40-um-12.5", "grampo: comprimento", 47, 47, Igual),
         ("40x40-um-12.5", "grampo: quantidade", 102, 102, Igual),
@@ -263,10 +264,10 @@ public class ParidadePilarTests
         ("40x40-um-12.5", "tirante: quantidade", 3, 3, Igual),
         ("50x50-opostos-12.5", "armadura inferior do consolo: comprimento", 102, 79, INF),
         ("50x50-opostos-12.5", "barra soldada: comprimento", 35, 35, Igual),
-        ("50x50-opostos-12.5", "costura: comprimento", 221, 275, COST_DUPLO),
+        ("50x50-opostos-12.5", "costura: comprimento", 221, 272, COST_DUPLO),
         ("50x50-opostos-12.5", "costura: quantidade", 6, 3, COST_DUPLO),
-        ("50x50-opostos-12.5", "estribo vertical do consolo: comprimento", 131, 135, VERT),
-        ("50x50-opostos-12.5", "estribo: comprimento", 193, 195, GANCHO),
+        ("50x50-opostos-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
+        ("50x50-opostos-12.5", "estribo: comprimento", 193, 193, Igual),
         ("50x50-opostos-12.5", "estribo: quantidade", 51, 51, Igual),
         ("50x50-opostos-12.5", "grampo: comprimento", 57, 57, Igual),
         ("50x50-opostos-12.5", "grampo: quantidade", 102, 102, Igual),
@@ -276,7 +277,7 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "pino: comprimento", 74, 74, Igual),
         ("50x50-opostos-12.5", "tirante: comprimento", 105, 95, TIR_DUPLO),
         ("50x50-opostos-12.5", "tirante: quantidade", 6, 3, TIR_DUPLO),
-        ("50x50-sem-16", "estribo: comprimento", 193, 195, GANCHO),
+        ("50x50-sem-16", "estribo: comprimento", 193, 193, Igual),
         ("50x50-sem-16", "estribo: quantidade", 45, 46, DIVISA),
         ("50x50-sem-16", "grampo: comprimento", 57, 57, Igual),
         ("50x50-sem-16", "grampo: quantidade", 90, 92, DIVISA),
@@ -285,10 +286,10 @@ public class ParidadePilarTests
         ("50x50-sem-16", "longitudinais: quantidade", 8, 8, Igual),
         ("50x50-um-16", "armadura inferior do consolo: comprimento", 101, 98, INF),
         ("50x50-um-16", "barra soldada: comprimento", 35, 35, Igual),
-        ("50x50-um-16", "costura: comprimento", 220, 225, COST),
+        ("50x50-um-16", "costura: comprimento", 220, 222, COST),
         ("50x50-um-16", "costura: quantidade", 3, 3, Igual),
-        ("50x50-um-16", "estribo vertical do consolo: comprimento", 131, 135, VERT),
-        ("50x50-um-16", "estribo: comprimento", 193, 195, GANCHO),
+        ("50x50-um-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
+        ("50x50-um-16", "estribo: comprimento", 193, 193, Igual),
         ("50x50-um-16", "estribo: quantidade", 51, 51, Igual),
         ("50x50-um-16", "grampo: comprimento", 57, 57, Igual),
         ("50x50-um-16", "grampo: quantidade", 102, 102, Igual),
@@ -308,16 +309,19 @@ public class ParidadePilarTests
         var esperadas = Esperado.Where(e => e.Caso == c.Nome).ToList();
         Assert.Equal(esperadas.Select(e => e.Item).OrderBy(x => x, StringComparer.Ordinal),
                      medidas.Select(x => x.Item).OrderBy(x => x, StringComparer.Ordinal));
+        // todas as diferenças de uma vez (mais fácil de conferir quando uma regra muda de propósito)
+        var erros = new List<string>();
         foreach (var x in medidas)
         {
             var e = esperadas.Single(q => q.Item == x.Item);
             string onde = $"{c.Nome} · {x.Item}";
-            Assert.True(Math.Abs(e.Revit - x.Revit) < 1e-6, $"{onde}: Revit {N(x.Revit)} (travado {N(e.Revit)})");
-            Assert.True(Math.Abs(e.Cad - x.Cad) < 1e-6, $"{onde}: CAD {N(x.Cad)} (travado {N(e.Cad)})");
+            if (Math.Abs(e.Revit - x.Revit) > 1e-6) erros.Add($"{onde}: Revit {N(x.Revit)} (travado {N(e.Revit)})");
+            if (Math.Abs(e.Cad - x.Cad) > 1e-6) erros.Add($"{onde}: CAD {N(x.Cad)} (travado {N(e.Cad)})");
             // divergência conhecida tem causa escrita; sem causa, os dois têm de ser iguais
-            if (e.Causa == Igual) Assert.True(Math.Abs(x.Revit - x.Cad) < 1e-6, $"{onde}: Revit {N(x.Revit)} × CAD {N(x.Cad)}");
-            else Assert.True(Math.Abs(x.Revit - x.Cad) > 1e-6, $"{onde}: ficou igual — tire a divergência da tabela");
+            if (e.Causa == Igual && Math.Abs(x.Revit - x.Cad) > 1e-6) erros.Add($"{onde}: Revit {N(x.Revit)} × CAD {N(x.Cad)}");
+            if (e.Causa != Igual && Math.Abs(x.Revit - x.Cad) < 1e-6) erros.Add($"{onde}: ficou igual — tire a divergência da tabela");
         }
+        Assert.True(erros.Count == 0, string.Join(Environment.NewLine, erros));
     }
 
     /// <summary>

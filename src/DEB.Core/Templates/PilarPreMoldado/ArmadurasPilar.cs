@@ -382,11 +382,16 @@ public sealed partial class TemplatePilarPreMoldado
         return r;
     }
 
-    /// <summary>Estribo fechado (medidas externas w × h) com ganchos de 90° no canto superior esquerdo (padrão do escritório).</summary>
+    /// <summary>
+    /// Estribo fechado (medidas externas w × h) com ganchos de 135° no canto superior esquerdo. Vale para o estribo do pilar, a
+    /// costura e o estribo vertical do consolo. Decisão do dono (D30, 16/11/2026): 135° é o padrão do pilar, como no modelo 3D
+    /// do Revit — o comprimento sai da mesma função (<see cref="GeradorEstribo.FechadoPadrao"/> com gancho de 45°, ponta reta
+    /// 5φt ≥ 5 cm, NBR 6118 9.4.6.1) que <see cref="Calculo.ComprimentoPorEixo"/> usa para as barras do Revit.
+    /// </summary>
     private static BarraTemplate Estribo(ConfiguracaoArmadura cfg, string nome, double x, double y, double w, double h, double phi, string aco, double escala)
     {
         var poligono = new List<(double X, double Y)> { (x, y), (x + w, y), (x + w, y + h), (x, y + h) };
-        var f = GeradorEstribo.FechadoPadrao(poligono, phi, aco, cfg.Dobramento);
+        var f = GeradorEstribo.FechadoPadrao(poligono, phi, aco, cfg.Dobramento, FormatoSegmento.Gancho45);
         var bt = new BarraTemplate { Nome = nome, Bitola = phi, Aco = aco, Estribo = true, Escala = escala, Quantidade = 1 };
         bt.Vertices.AddRange(f.Vertices.Select(p => (p.X, p.Y)));
         bt.Formatos.AddRange(f.Formatos);
