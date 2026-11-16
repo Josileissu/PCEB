@@ -65,7 +65,7 @@ alturas. Iguais também: longitudinais (quantidade, posições, 595), grampo (47
 | Divergência | Causa | Recomendação |
 |---|---|---|
 | Alças: perto de consolo | CAD avisa; Revit desloca a alça o mínimo | — |
-| Alças: distância entre as 2 cordoalhas do ponto | só o Revit posiciona (LiftSpacingMm, 20 cm); o CAD só dá a quantidade | — |
+| Alças: as 2 cordoalhas do ponto | coladas uma na outra (decisão do usuário): no Revit, eixos a uma bitola; o CAD só dá a quantidade | — |
 | Pino: posição ao longo do balanço | meio do balanço × centro da almofada | — |
 | Etiqueta da alça no Revit | a família de etiqueta do usuário lê o comprimento do Revit | mudar a família para ler `SD_Comprimento (núcleo)` |
 | Duplo do CAD com deslocamento | o template espelha o par pelo centro (face 3 em −desl): com desl ≠ 0 os dois consolos não ficam alinhados e não viram duplo automático | — |

@@ -90,7 +90,7 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         public double LiftFootMm { get; set; } = 200;
         /// <summary>Distância das alças às pontas, % do comprimento, partindo do CG (o "AlcaPct" do CAD).</summary>
         public double LiftEndPercent { get; set; } = 20;
-        /// <summary>Distância entre alças, quando há duas.</summary>
+        /// <summary>Sem uso desde 16/11/2026 (as 2 cordoalhas do ponto ficam coladas); mantido para ler modelos salvos.</summary>
         public double LiftSpacingMm { get; set; } = 200;
         /// <summary>Família de inserto a posicionar no topo (vazio = nenhum). Formato "Família" ou "Família : Tipo".</summary>
         public string InsertFamily { get; set; } = "";

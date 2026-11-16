@@ -255,7 +255,6 @@ namespace DEB.Revit.Precast.UI
             Num("Alça: altura acima da face (mm)", () => s.LiftProtrusionMm, v => s.LiftProtrusionMm = v);
             Num("Alça: distância entre as pernas (mm)", () => s.LiftWidthMm, v => s.LiftWidthMm = v);
             Num("Alça: pé no fim das pernas (mm)", () => s.LiftFootMm, v => s.LiftFootMm = v);
-            Num("Distância entre as cordoalhas do mesmo ponto (mm)", () => s.LiftSpacingMm, v => s.LiftSpacingMm = v);
             Str("Família de inserto no topo (\"Família : Tipo\")", () => s.InsertFamily, v => s.InsertFamily = v);
 
             Section("Modelo");

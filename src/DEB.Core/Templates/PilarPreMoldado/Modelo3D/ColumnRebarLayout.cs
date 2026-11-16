@@ -209,7 +209,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                 }
                 return Math.Min(Math.Max(z, half + U_.Mm(50)), f.H - half - U_.Mm(50));
             }
-            double sp = U_.Mm(s.LiftSpacingMm);
+            // as 2 cordoalhas do mesmo ponto ficam coladas (decisão do usuário, 16/11/2026): eixos a uma bitola
+            double sp = U_.Mm(s.LiftDiameterMm);
             IEnumerable<double> ss = s.LiftLoops == 1 ? new[] { width / 2 } : new[] { width / 2 - sp / 2, width / 2 + sp / 2 };
             var (h1, h2) = LiftHeights(f, corbels, s);
             foreach (double z0 in new[] { h1, h2 })
