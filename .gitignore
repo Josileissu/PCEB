@@ -19,3 +19,13 @@ Thumbs.db
 # Saídas de compilação (todos os projetos)
 bin/
 obj/
+
+# Arquivos privados e de trabalho local (modelos reais, desenhos, famílias): ficam fora do Git
+info_auxiliar/
+auxiliar_cad/
+auxiliar_revit/
+*.rvt
+*.rfa
+*.dwg
+*.bak
+*.log
