@@ -392,16 +392,17 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                 else spans.Add((c[i], c[i + 1], sp));
             }
 
-            // Espaçamento nominal exato (c/10, c/15...): a sobra fica no fim de cada trecho.
+            // Espaçamento nominal exato (c/10, c/15...): a sobra fica no fim de cada trecho. Quantidade pela regra do núcleo,
+            // a mesma das faixas do CAD (TemplatePilarPreMoldado.EstribosNaZona, ⌊L/s⌋ + 1 da configuração padrão): trecho
+            // intermediário não repete o estribo da divisa (ela pertence ao trecho seguinte); o último inclui a ponta.
+            var cfg = new Configuracao.ConfiguracaoArmadura();
             var runs = new List<(double, int, double)>();
             for (int i = 0; i < spans.Count; i++)
             {
                 var (a, b, sp) = spans[i];
                 if (sp <= 0) continue;
                 bool last = i == spans.Count - 1;
-                int n = (int)Math.Floor((b - a) / sp + 1e-6);
-                // Trecho intermediário: a divisa (b) pertence ao trecho seguinte. Último: inclui a ponta.
-                int count = last ? n + 1 : Math.Max(1, (b - a) - n * sp < 1e-6 ? n : n + 1);
+                int count = Math.Max(1, TemplatePilarPreMoldado.EstribosNaZona(U_.ToMm(b - a) / 10, U_.ToMm(sp) / 10, last, cfg));
                 runs.Add((a, count, sp));
             }
             return runs;

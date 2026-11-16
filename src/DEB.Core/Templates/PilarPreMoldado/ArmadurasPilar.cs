@@ -250,20 +250,24 @@ public sealed partial class TemplatePilarPreMoldado
                 formas.Add((fx, fy) => r.Barras.Add(Grampo(cfg, nome, fx, fy, comp, phiGr, acoEst, c.escC)));
             }
         }
-        foreach (var z in zonas)
+        var comFaixa = zonas.Where(z => z.Y2 - z.Y1 >= 1e-6).ToList();
+        for (int iz = 0; iz < comFaixa.Count; iz++)
         {
-            if (z.Y2 - z.Y1 < 1e-6) continue;
+            var z = comFaixa[iz];
+            // sem estribo repetido na divisa (D30): a faixa de uma zona que não é a última termina no seu último estribo
+            bool ultima = iz == comFaixa.Count - 1 || Math.Abs(comFaixa[iz + 1].Y1 - z.Y2) > 1e-6;
+            double y2 = FimDaFaixa(z, ultima, cfg);
             r.Faixas.Add(new FaixaTemplate
             {
-                Barra = estribosPorBitola[z.Bitola], Tipo = TipoFaixa.Ortogonal, P1 = (xFx, z.Y1), P2 = (xFx, z.Y2),
-                Posicao = (xFx + 2 * hv, (z.Y1 + z.Y2) / 2), Espacamento = z.Esp, Escala = c.escV, MostrarDiametro = false,
+                Barra = estribosPorBitola[z.Bitola], Tipo = TipoFaixa.Ortogonal, P1 = (xFx, z.Y1), P2 = (xFx, y2),
+                Posicao = (xFx + 2 * hv, (z.Y1 + y2) / 2), Espacamento = z.Esp, Escala = c.escV, MostrarDiametro = false,
             });
             if (!z.Grampos) continue;
             for (int d = 0; d < grampos.Count; d++)
                 r.Faixas.Add(new FaixaTemplate
                 {
-                    Barra = grampos[d], Tipo = TipoFaixa.Ortogonal, P1 = (xFx + (3 + 2 * d) * hv, z.Y1), P2 = (xFx + (3 + 2 * d) * hv, z.Y2),
-                    Posicao = (xFx + (5 + 2 * d) * hv, (z.Y1 + z.Y2) / 2), Espacamento = z.Esp, Escala = c.escV, MostrarDiametro = false,
+                    Barra = grampos[d], Tipo = TipoFaixa.Ortogonal, P1 = (xFx + (3 + 2 * d) * hv, z.Y1), P2 = (xFx + (3 + 2 * d) * hv, y2),
+                    Posicao = (xFx + (5 + 2 * d) * hv, (z.Y1 + y2) / 2), Espacamento = z.Esp, Escala = c.escV, MostrarDiametro = false,
                     MostrarComprimento = false, // o comprimento já está na faixa do estribo, ao lado
                     Repeticoes = quadrado ? dirsGr : 1,
                 });

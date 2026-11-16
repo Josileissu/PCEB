@@ -208,8 +208,10 @@ public class ParidadePilarTests
     // causas das divergências conhecidas (tabela completa em docs/04_arquitetura/paridade_pilar.md)
     // ganchos: 135° nos dois desde a decisão D30 (16/11/2026); estribo, costura e estribo vertical do CAD saem de
     // GeradorEstribo.FechadoPadrao com gancho de 45° (ponta 5φt ≥ 5 cm), a mesma função do comprimento por eixo do Revit
-    private const string DIVISA = "o CAD conta cada zona com piso(L/s) + 1 e repete o estribo na divisa corrente/topo quando o trecho é " +
-                                  "múltiplo do espaçamento; o Revit começa a 5 cm das pontas e não repete na divisa";
+    // divisa entre zonas: nenhum dos dois repete o estribo desde a D30 (TemplatePilarPreMoldado.EstribosNaZona nos dois). As
+    // zonas em si continuam diferentes (o Revit começa a 5 cm das pontas, o CAD no cobrimento das longitudinais; zonas
+    // sobrepostas: o Revit usa o menor espaçamento, o CAD a primeira): as quantidades coincidem nestes casos, as alturas não
+    // (ver EstribosSemRepetirNaDivisa e paridade_pilar.md)
     private const string TIR = "o Revit para o tirante por dentro das longitudinais da face oposta e mede a perna interna no eixo; " +
                                "o CAD vai até o cobrimento da face oposta e mede a perna por fora";
     private const string TIR_DUPLO = "consolos opostos: o Revit faz um tirante em L ancorado no pilar para cada consolo; o CAD faz um " +
@@ -241,9 +243,9 @@ public class ParidadePilarTests
         ("40x40-opostos-16", "tirante: comprimento", 95, 85, TIR_DUPLO),
         ("40x40-opostos-16", "tirante: quantidade", 6, 3, TIR_DUPLO),
         ("40x40-sem-12.5", "estribo: comprimento", 153, 153, Igual),
-        ("40x40-sem-12.5", "estribo: quantidade", 45, 46, DIVISA),
+        ("40x40-sem-12.5", "estribo: quantidade", 45, 45, Igual),
         ("40x40-sem-12.5", "grampo: comprimento", 47, 47, Igual),
-        ("40x40-sem-12.5", "grampo: quantidade", 90, 92, DIVISA),
+        ("40x40-sem-12.5", "grampo: quantidade", 90, 90, Igual),
         ("40x40-sem-12.5", "longitudinais: comprimento", 595, 595, Igual),
         ("40x40-sem-12.5", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("40x40-sem-12.5", "longitudinais: quantidade", 8, 8, Igual),
@@ -278,9 +280,9 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "tirante: comprimento", 105, 95, TIR_DUPLO),
         ("50x50-opostos-12.5", "tirante: quantidade", 6, 3, TIR_DUPLO),
         ("50x50-sem-16", "estribo: comprimento", 193, 193, Igual),
-        ("50x50-sem-16", "estribo: quantidade", 45, 46, DIVISA),
+        ("50x50-sem-16", "estribo: quantidade", 45, 45, Igual),
         ("50x50-sem-16", "grampo: comprimento", 57, 57, Igual),
-        ("50x50-sem-16", "grampo: quantidade", 90, 92, DIVISA),
+        ("50x50-sem-16", "grampo: quantidade", 90, 90, Igual),
         ("50x50-sem-16", "longitudinais: comprimento", 595, 595, Igual),
         ("50x50-sem-16", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("50x50-sem-16", "longitudinais: quantidade", 8, 8, Igual),
@@ -322,6 +324,36 @@ public class ParidadePilarTests
             if (e.Causa != Igual && Math.Abs(x.Revit - x.Cad) < 1e-6) erros.Add($"{onde}: ficou igual — tire a divergência da tabela");
         }
         Assert.True(erros.Count == 0, string.Join(Environment.NewLine, erros));
+    }
+
+    /// <summary>
+    /// Divisa entre zonas (D30, item 2): a zona que não é a última perde o estribo que cairia na divisa. Contas do caso sem
+    /// consolo (L = 600, cobrimento das pontas 2,5): CAD base 2,5–100 c/10 → ⌊97,5/10⌋ + 1 = 10; corrente 100–550 c/15 → 450 é
+    /// múltiplo de 15: 30 (antes 31, o 31º caía em 550 junto com o 1º do topo); topo 550–597,5 c/10 → 5. Total 45, como o
+    /// Revit (5–95: 10; 100–535: 30; 550–590: 5).
+    /// </summary>
+    [Fact]
+    public void EstribosSemRepetirNaDivisa()
+    {
+        var cfg = new ConfiguracaoArmadura();
+        Assert.True(TemplatePilarPreMoldado.RepeteNaDivisa(450, 15, cfg));
+        Assert.False(TemplatePilarPreMoldado.RepeteNaDivisa(97.5, 10, cfg));
+        Assert.Equal(30, TemplatePilarPreMoldado.EstribosNaZona(450, 15, false, cfg));
+        Assert.Equal(31, TemplatePilarPreMoldado.EstribosNaZona(450, 15, true, cfg));   // a última zona inclui a ponta
+        Assert.Equal(10, TemplatePilarPreMoldado.EstribosNaZona(97.5, 10, false, cfg));
+        // ⌈L/s⌉ + 1 põe estribo nas duas pontas sempre: a zona intermediária perde um (100 c/15: 8 → 7)
+        var teto = new ConfiguracaoArmadura { ModoQuantidadeFaixa = ModoQuantidadeFaixa.TetoMaisUm };
+        Assert.Equal(7, TemplatePilarPreMoldado.EstribosNaZona(100, 15, false, teto));
+        // espaçamento inicial: as pontas ficam livres, nada se repete
+        Assert.False(TemplatePilarPreMoldado.RepeteNaDivisa(450, 15, new ConfiguracaoArmadura { EspacamentoInicialFaixa = 0.5 }));
+
+        // no desenho do CAD: a faixa do trecho corrente termina no último estribo dele (535), a do topo começa em 550
+        var c = Casos.First(x => x.Nome == "40x40-sem-12.5");
+        var (_, _, s) = Revit(c);
+        var r = Cad(c, s, new ConfiguracaoArmadura { AlturaTextoMm = 2 });
+        var faixas = r.Faixas.Where(x => x.Barra == "estribo0" && x.Tipo == TipoFaixa.Ortogonal).OrderBy(x => x.P1.Y).ToList();
+        Assert.Equal(new[] { (2.5, 100.0), (100.0, 535.0), (550.0, 597.5) }.Select(p => $"{N(p.Item1)}-{N(p.Item2)}"),
+                     faixas.Select(x => $"{N(x.P1.Y)}-{N(x.P2.Y)}"));
     }
 
     /// <summary>

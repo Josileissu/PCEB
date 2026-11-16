@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using DEB.Core.Modelo;
 using DEB.Core.Motor;
 
 namespace DEB.Core.Templates.PilarPreMoldado;
@@ -184,6 +185,39 @@ public sealed partial class TemplatePilarPreMoldado
         if (yFim - y > 1e-6) r.Add(Corrente(y, yFim));
         return r;
     }
+
+    /// <summary>
+    /// O último estribo de uma zona (posições de <see cref="CalculoFaixa"/>) cai exatamente na divisa com a zona seguinte, onde a
+    /// seguinte também põe o seu primeiro: o estribo sairia repetido. Acontece sem espaçamento inicial quando o trecho é múltiplo
+    /// do espaçamento (⌊L/s⌋ + 1) ou sempre no modo ⌈L/s⌉ + 1. Unidade livre (a mesma em comprimento e espaçamento).
+    /// </summary>
+    public static bool RepeteNaDivisa(double comprimento, double esp, Configuracao.ConfiguracaoArmadura cfg)
+    {
+        double tol = 1e-6 * Math.Max(1, comprimento);
+        int n = CalculoFaixa.Quantidade(comprimento, esp, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
+        if (n < 2) return false;
+        var p = CalculoFaixa.Posicoes(comprimento, n, esp, cfg.EspacamentoInicialFaixa);
+        return p[0] < tol && comprimento - p[n - 1] < tol;
+    }
+
+    /// <summary>
+    /// Estribos de uma zona sem repetir na divisa (decisão do dono, D30 item 2, 16/11/2026): a divisa pertence à zona seguinte,
+    /// então uma zona que não é a última perde o estribo que cairia nela. Usado pelo template do CAD (encurta a faixa da zona em
+    /// um espaçamento, <see cref="FimDaFaixa"/>) e pelo modelo 3D do Revit (<see cref="Modelo3D.ColumnRebarLayout.StirrupRuns"/>).
+    /// </summary>
+    public static int EstribosNaZona(double comprimento, double esp, bool ultima, Configuracao.ConfiguracaoArmadura cfg)
+    {
+        int n = CalculoFaixa.Quantidade(comprimento, esp, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
+        return !ultima && RepeteNaDivisa(comprimento, esp, cfg) ? n - 1 : n;
+    }
+
+    /// <summary>
+    /// Fim da faixa de estribos de uma zona no desenho do CAD: o fim da zona, ou um espaçamento antes quando o último estribo
+    /// repetiria o primeiro da zona seguinte (<see cref="RepeteNaDivisa"/>). A faixa do CAD conta os estribos pelo comprimento
+    /// desenhado; com ela encurtada, conta <see cref="EstribosNaZona"/>.
+    /// </summary>
+    public static double FimDaFaixa(ZonaEstribo z, bool ultima, Configuracao.ConfiguracaoArmadura cfg) =>
+        !ultima && RepeteNaDivisa(z.Y2 - z.Y1, z.Esp, cfg) ? z.Y2 - z.Esp : z.Y2;
 
     /// <summary>Maior bitola de estribo (corrente e zonas): define a posição das longitudinais.</summary>
     public static double BitolaMaxEstribo(ValoresTemplate v) =>
