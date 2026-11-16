@@ -223,6 +223,14 @@ public sealed partial class TemplatePilarPreMoldado
     public static double BitolaMaxEstribo(ValoresTemplate v) =>
         v.Tabela("ZonasEstribos").Select(l => ValoresTemplate.NumeroCelula(l, 4)).Concat(new[] { v.Numero("EstBitola") }).Max();
 
+    /// <summary>
+    /// Maior bitola longitudinal da lista, em mm (feixe: o diâmetro do envoltório; 10 sem lista): com o maior estribo, define
+    /// onde o tirante e a costura do consolo param dentro do pilar (<see cref="BarrasConsolo.FimNoPilar"/>; a maior, a favor
+    /// da segurança contra a colisão).
+    /// </summary>
+    public static double BitolaMaxLongitudinal(ValoresTemplate v) =>
+        LerLongitudinais(v, 0, 1e9, new List<string>()).Select(l => 20 * RaioFeixe(l.Bitola, l.Feixe)).DefaultIfEmpty(10).Max();
+
     /// <summary>Bitolas do detalhe do canto: a maior dos cantos, a maior "ao lado" e se há o "L".</summary>
     public static (double canto, double vizinha, bool emL) BitolasDoCanto(ValoresTemplate v)
     {

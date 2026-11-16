@@ -208,12 +208,15 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             double dl = U_.Mm(s.LongDiameterMm), dt = U_.Mm(s.StirrupDiameterMm);
             double depth = k.ColumnDepth(f);
 
-            // Dentro do pilar: a barra vai até junto das longitudinais da face oposta.
-            double dIn = -(depth - cover - dt - dl - dTie / 2);
+            // Dentro do pilar: a barra para por dentro das longitudinais da face oposta — regra do núcleo, a mesma do desenho do
+            // CAD (BarrasConsolo, D30 item 3). fim = face externa da barra, medida da face do consolo.
+            double fim = U_.Mm(10 * BarrasConsolo.FimNoPilar(U_.ToMm(depth) / 10, s.CoverMm / 10, s.StirrupDiameterMm, s.LongDiameterMm));
+            double dIn = -(fim - dTie / 2);
             double dTip = k.Projection - cover - dTie / 2;
             double zTie = k.ZTop - cover - dTie / 2;
             double tipLeg = Math.Max(k.TipHeight - 2 * cover, 10 * dTie);
-            double innerLeg = U_.Mm(s.TieInnerLegMm);
+            // perna de ancoragem: medida EXTERNA (do topo do tirante à ponta), como no CAD (D7) — o eixo da dobra fica φ/2 abaixo
+            double innerLeg = U_.Mm(s.TieInnerLegMm) - dTie / 2;
 
             int n = Math.Max(1, s.TieCount);
             double s0 = k.S0 + cover + dTie / 2, s1 = k.S1 - cover - dTie / 2;
@@ -228,7 +231,9 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                 {
                     k.At(f, dIn, sStart, zTie - innerLeg),
                     k.At(f, dIn, sStart, zTie),
-                    k.At(f, dTip, sStart, zTie)
+                    // com a barra soldada a ponta é livre e vai até o cobrimento, como no CAD; com a perna na ponta, o eixo da
+                    // perna fica a cobrimento + φ/2
+                    k.At(f, s.TieWeldedBar ? k.Projection - cover : dTip, sStart, zTie)
                 },
                 Normal = k.T,
                 Count = n,
@@ -336,7 +341,7 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             double sp = zone / m;
             double zFirst = zTie - dTie / 2 - dSew / 2 - sp;
             double sa = k.S0 + cover + dSew / 2, sb = k.S1 - cover - dSew / 2;
-            double dInSew = -(depth - cover - dt - dl - dSew / 2);
+            double dInSew = -(fim - dSew / 2);
             double dTipSew = k.Projection - cover - dSew / 2;
 
             yield return new BarDef

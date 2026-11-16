@@ -369,7 +369,8 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         {
             var rep = grupo.First();
             int pares = grupo.Sum(co => co.Pares.Count), soz = grupo.Sum(co => co.Sozinhas.Count);
-            yDet = DetalheConsolo(c, cfg, rep, pares, soz, $"cons{++nDet}", b, h, cob0, 0, yDet, v["LongAco"], v["EstAco"]);
+            yDet = DetalheConsolo(c, cfg, rep, pares, soz, $"cons{++nDet}", b, h, cob0, 0, yDet, v["LongAco"], v["EstAco"],
+                BitolaMaxEstribo(v), BitolaMaxLongitudinal(v));
         }
         // detalhes padrão (alça, reforço do furo, chaves, canto, raio de curvatura, emendas, SPDA): ao lado dos detalhes dos
         // consolos, na mesma faixa (antes ficavam numa fileira abaixo, com tudo à direita vazio — checagem de 2026-10-30)

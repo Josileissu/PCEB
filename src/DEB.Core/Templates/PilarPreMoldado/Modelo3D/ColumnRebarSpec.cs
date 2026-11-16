@@ -43,7 +43,7 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         public bool CorbelRebar { get; set; } = true;
         public double TieDiameterMm { get; set; } = 12.5;
         public int TieCount { get; set; } = 3;
-        /// <summary>Perna vertical da ponta do tirante dentro do pilar (ancoragem).</summary>
+        /// <summary>Perna vertical do tirante dentro do pilar (ancoragem), medida externa como no CAD (D30/D7, desde 16/11/2026).</summary>
         public double TieInnerLegMm { get; set; } = 400;
         public double SewDiameterMm { get; set; } = 8;
         /// <summary>Estribos horizontais de costura, distribuídos em 2/3 d abaixo do tirante.</summary>
