@@ -18,7 +18,7 @@ namespace DEB.Core.Elementos.Fundacao.Bloco;
 /// Bloco de fundação sobre estacas (pedidos do usuário, 2026-11-06): retangular com estacas em grade (1, 2, 3 em linha,
 /// 4, 6…) ou triangular de 3 estacas; ligação do pilar por cálice com colarinho, cálice embutido ou arranque.
 /// Apresentação no padrão das folhas do escritório A (decisão do usuário: o mesmo padrão para todos) — ver
-/// <c>src/DEB.Cad/docs/BLOCOS_REQUISITOS.md</c>:
+/// <c>src/DEB.Core/Elementos/Fundacao/Bloco/REQUISITOS.md</c>:
 /// <list type="bullet">
 /// <item>FORMA: "BLOCO B15 - 24x - 3 ø 50" + pilares, PLANTA cotada (estacas com quadrantes hachurados, colarinho,
 /// pilar) e CORTE A-A com regularização, concreto magro e os níveis por pilar;</item>

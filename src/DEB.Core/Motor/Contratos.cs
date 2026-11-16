@@ -75,7 +75,7 @@ public enum ArranjoEstacas { Grade, Triangulo, Cinco }
 public enum LigacaoPilar { CaliceColarinho, CaliceEmbutido, Arranque, Nenhuma }
 public enum InterfaceCalice { Lisa, Rugosa, Chaves }
 
-/// <summary>Bloco sobre estacas (B3, B4, B15, B28, B31, B3.1 — src/DEB.Cad/docs/BLOCOS_REQUISITOS.md).</summary>
+/// <summary>Bloco sobre estacas (B3, B4, B15, B28, B31, B3.1 — src/DEB.Core/Elementos/Fundacao/Bloco/REQUISITOS.md).</summary>
 public sealed class ElementoBloco : ElementoEstrutural
 {
     public const string TipoId = "bloco_estacas";

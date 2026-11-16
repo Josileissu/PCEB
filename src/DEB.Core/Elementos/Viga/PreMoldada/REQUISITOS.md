@@ -1,7 +1,7 @@
 # Viga pré-moldada — levantamento de requisitos para o template (2026-11-06)
 
 Objetivo (pedido do usuário, PC2): **desenhar** a viga e as armaduras já definidas pelo engenheiro, no padrão do
-escritório; **não dimensionar**. Como no pilar (`PILAR_PREMOLDADO_REQUISITOS.md`), a norma entra como **valores
+escritório; **não dimensionar**. Como no pilar (`src/DEB.Core/Elementos/Pilar/PreMoldado/REQUISITOS.md`), a norma entra como **valores
 padrão** e **verificações de detalhamento** (avisos que não bloqueiam).
 
 Fontes deste levantamento:
@@ -404,5 +404,5 @@ Estado em 2026-11-08 (branch `pc2/viga-premoldada-detalhamento`): etapas 2, 3 (c
 nas pontas como a CAN-03 da 1071, parâmetros por ponta). **VP-3 feito** (`ProtensaoViga.cs`): grupos de cordoalhas na grade de 5 cm,
 isolamento cotado, NOMENCLATURA 1:15, RA em CP-190, "RESISTÊNCIA ATO DA PROT."; cordoalhas superiores numa linha acima das passivas
 (feito); fretagem pelos estribos das pontas até ℓbpt e taxas no quadro
-(feitos). Resumo em `TEMPLATES.md`. Tudo aguarda a conferência do usuário.
+(feitos). Resumo em `src/DEB.Cad/docs/TEMPLATES.md`. Tudo aguarda a conferência do usuário.
 Depois: VP-4 (L, T invertido, I, capa), VP-5.

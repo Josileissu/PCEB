@@ -10,8 +10,8 @@ de cada um começa quando ele enviar os PDFs/DWGs (pastas em `info_auxiliar/temp
 | Base retangular de reservatório | fundação |
 | Bloco de 1 estaca | com/sem colarinho ou cálice; embutimento para pilar pré-moldado |
 | Bloco de 2 estacas | idem |
-| Pilar pré-moldado | levantamento em `docs/PILAR_PREMOLDADO_REQUISITOS.md` (2026-10-29): categorias PP-1…PP-5, normas, padrão P61/PP127 |
-| Viga pré-moldada | protendida ou não; levantamento em `docs/VIGA_PREMOLDADA_REQUISITOS.md` (2026-11-06, PC2): categorias VP-1…VP-5, NBR 6118 18.3 e NBR 9062 (dente Gerber, apoio sem recorte, protensão) |
+| Pilar pré-moldado | levantamento em `src/DEB.Core/Elementos/Pilar/PreMoldado/REQUISITOS.md` (2026-10-29): categorias PP-1…PP-5, normas, padrão P61/PP127 |
+| Viga pré-moldada | protendida ou não; levantamento em `src/DEB.Core/Elementos/Viga/PreMoldada/REQUISITOS.md` (2026-11-06, PC2): categorias VP-1…VP-5, NBR 6118 18.3 e NBR 9062 (dente Gerber, apoio sem recorte, protensão) |
 | Pilar moldado in loco | |
 | Viga moldada in loco | |
 | Laje | |
@@ -55,7 +55,7 @@ Padrão dos projetos Assaí SPA/SRP/ASC (2024–2025). Circular ou retangular, n
 [VALIDAR com o usuário no uso: posição das faixas, tamanhos de texto, valores padrão das dobras.]
 
 ### Pilar pré-moldado PP-1 (`Templates/PilarPreMoldado/TemplatePilarPreMoldado.cs`) — em construção
-Requisitos e regras de norma: `docs/PILAR_PREMOLDADO_REQUISITOS.md`. Verdadeira grandeza (cm); a escala de cada
+Requisitos e regras de norma: `src/DEB.Core/Elementos/Pilar/PreMoldado/REQUISITOS.md`. Verdadeira grandeza (cm); a escala de cada
 região só dá a altura dos textos/cotas (a folha é montada com viewports, como no DWG do P61). Seção b (x) × h (y);
 face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram h, 2 e 4 mostram b).
 - **Etapa 1 (2026-10-29, feita)**: 4 vistas lado a lado (passo = maior lado + 20 alturas de texto), níveis (topo e base
@@ -176,7 +176,7 @@ Pedido do usuário: reconhecer a estrutura de um DWG de outro programa e gerar o
 - Fora da v1 (avisos): furos/aberturas, mísulas, planta em L, paredes de espessuras diferentes, vistas por nível
   ("vista topo", "inferior à laje") e corte D-D do exemplo.
 ### Blocos sobre estacas (Templates/Blocos/TemplateBlocoEstacas.cs, 2026-11-06, PC2)
-Exemplos e regras medidas: `docs/BLOCOS_REQUISITOS.md` (B3 em imagem; B4, B15, B28, B31 e B3.1 em PDF/DWG). Decisões do
+Exemplos e regras medidas: `src/DEB.Core/Elementos/Fundacao/Bloco/REQUISITOS.md` (B3 em imagem; B4, B15, B28, B31 e B3.1 em PDF/DWG). Decisões do
 usuário (2026-11-06): **padrão de folha do escritório A para todos**, **todos os tipos de uma vez**, **perna da principal pela altura do
 bloco** (topo da base − cobrimento; valor digitado manda).
 Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (Bloco2Estacas).
@@ -205,7 +205,7 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
   (20); suspensão com perna externa = interna − 6. [VALIDAR no uso] posição das chamadas; o B3 agora sai no padrão do escritório A.
 - Depois (não são comuns, decisão de 2026-11-07): 5 estacas em quincôncio e outros arranjos não em grade; colarinho excêntrico; chaves desenhadas nas paredes do cálice.
 ### Viga pré-moldada VP-1/VP-2/VP-3 (Templates/VigaPreMoldada/, 2026-11-07/08, PC2) — aguardando a conferência do usuário
-Padrão medido e decisões: `docs/VIGA_PREMOLDADA_REQUISITOS.md` (seção 1 = pranchas do escritório; seção 16 = etapas).
+Padrão medido e decisões: `src/DEB.Core/Elementos/Viga/PreMoldada/REQUISITOS.md` (seção 1 = pranchas do escritório; seção 16 = etapas).
 Usa o contexto de desenho do pilar (`TemplatePilarPreMoldado.Ctx`, agora `internal`), o quadro de produção e a regra das alças.
 - **Etapa 1 (forma, feita)**: planta e elevação com dentes Gerber do catálogo (`TipoDente`), furos de pino, alças, cotas,
   seções de forma, notas e produção. Autoteste: `tools\autoteste_autocad.ps1 -Comando ARMTESTEVIGA`.

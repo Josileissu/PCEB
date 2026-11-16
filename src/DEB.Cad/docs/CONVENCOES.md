@@ -149,7 +149,7 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   terminam num ponto ao lado do texto e um trecho horizontal liga ao texto (índice da linha = 1000). Templates: `FaixaTemplate.Patamar`.
 - Cotas dos templates no estilo do escritório: `Infra/EstilosCota` cria ESTRUT{escala} (9/9/9/5/3, tique oblíquo, DIMZIN 8,
   DIMSCALE = escala/50) se o desenho não tiver; se tiver, usa o dele.
-- Pilar pré-moldado: requisitos e regras conferidas na norma em `docs/PILAR_PREMOLDADO_REQUISITOS.md`; template e
+- Pilar pré-moldado: requisitos e regras conferidas na norma em `src/DEB.Core/Elementos/Pilar/PreMoldado/REQUISITOS.md`; template e
   etapas em `docs/TEMPLATES.md`.
 
 ## Port para AutoCAD e ZWCAD: comportamentos

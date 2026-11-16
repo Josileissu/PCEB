@@ -26,7 +26,7 @@ public sealed class ExtremidadeViga
 
 /// <summary>
 /// Viga pré-moldada (VP-1/VP-2) no padrão do escritório (pranchas 316-6208/6219, GRU 702; requisitos em
-/// docs/VIGA_PREMOLDADA_REQUISITOS.md). Etapa 1 (2026-11-07): forma — FÔRMAS EM PLANTA e FÔRMAS EM ELEVAÇÃO com dentes
+/// Elementos/Viga/PreMoldada/REQUISITOS.md). Etapa 1 (2026-11-07): forma — FÔRMAS EM PLANTA e FÔRMAS EM ELEVAÇÃO com dentes
 /// Gerber (catálogo), furos de pino e alças, cotas, seções de forma (A-A, B-B…), notas e informações para produção.
 /// Verdadeira grandeza (cm), como o pilar: a escala só dá a altura dos textos e cotas. x ao longo da viga (ponta E em 0),
 /// y para cima; na planta, y = largura b.

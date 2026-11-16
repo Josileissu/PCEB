@@ -18,7 +18,7 @@ public sealed class NivelPilar
 }
 
 /// <summary>
-/// Pilar pré-moldado PP-1 no padrão do escritório (P61/PP127; requisitos em docs/PILAR_PREMOLDADO_REQUISITOS.md).
+/// Pilar pré-moldado PP-1 no padrão do escritório (P61/PP127; requisitos em Elementos/Pilar/PreMoldado/REQUISITOS.md).
 /// Etapa 1 (2026-10-29): forma — 4 vistas com níveis, cotas e embutimento (chaves de cisalhamento), corte A-A,
 /// notas (cobrimentos por face, tolerâncias da NBR 9062) e informações para produção (volume e peso).
 /// Tudo em verdadeira grandeza (cm); a escala de cada região só define a altura dos textos e das cotas, como no
