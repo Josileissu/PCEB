@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
-using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using Xunit;
 
 namespace DEB.Core.Tests;

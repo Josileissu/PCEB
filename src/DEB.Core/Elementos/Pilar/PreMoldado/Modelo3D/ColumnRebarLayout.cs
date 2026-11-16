@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
+namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 {
     public enum BarRole { Longitudinal, Stirrup, CrossTie, CorbelTie, CorbelSew, LiftLoop,
                             CorbelAnchor, CorbelStirrup, CorbelBottom, CorbelPin }

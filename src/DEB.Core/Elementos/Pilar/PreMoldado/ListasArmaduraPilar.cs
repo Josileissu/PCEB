@@ -6,7 +6,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.PilarPreMoldado;
+namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
 /// <summary>Uma linha da lista de longitudinais: arranjo na seção, bitola, feixe e o trecho do pilar que ela ocupa.</summary>
 public sealed class LinhaLongitudinal

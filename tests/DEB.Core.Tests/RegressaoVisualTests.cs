@@ -9,7 +9,7 @@ using DEB.Core.Motor.Entrada;
 using DEB.Core.Motor.Fundacoes;
 using DEB.Core.Motor;
 using DEB.Core.Elementos.Fundacao.BaseReservatorio;
-using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Reservatorio;
 using DEB.Core.Elementos.Viga.PreMoldada;
 using Xunit;

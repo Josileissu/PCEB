@@ -251,7 +251,7 @@ namespace DEB.Revit.Precast.UI
         }
 
         /// <summary>Face interna ↔ número da prancha (troca 1 e 3; a mesma regra do template do pilar no CAD).</summary>
-        private static int Exibida(int f) => DEB.Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.FaceExibida(f);
+        private static int Exibida(int f) => DEB.Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.FaceExibida(f);
 
         /// <summary>
         /// Coordenada horizontal, na vista da face <paramref name="k"/>, de um ponto da face <paramref name="j"/> a

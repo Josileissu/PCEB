@@ -6,7 +6,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.PilarPreMoldado;
+namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
 /// <summary>
 /// Etapa 4 do pilar (2026-10-29): içamento (alças de cordoalha simétricas ao CG, a ~20 % das pontas — regra do

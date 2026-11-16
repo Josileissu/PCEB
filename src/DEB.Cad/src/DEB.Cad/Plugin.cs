@@ -28,7 +28,7 @@ public sealed class Plugin : Rt.IExtensionApplication
             RecarregarConfig();
             // templates de elementos (docs/TEMPLATES.md)
             Core.Motor.CatalogoTemplates.Registrar(new Core.Elementos.Fundacao.BaseReservatorio.TemplateBaseReservatorio());
-            Core.Motor.CatalogoTemplates.Registrar(new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado());
+            Core.Motor.CatalogoTemplates.Registrar(new Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado());
             Core.Motor.CatalogoTemplates.Registrar(new Core.Elementos.Reservatorio.TemplateReservatorio());
             // blocos pelo motor de detalhamento (2026-11-07): mesma janela e modelos do template antigo; perfil e receita do
             // usuário em %AppData%\PCEB\Perfis e \Receitas (sem arquivo = fábrica); origem gravada no detalhamento
@@ -99,8 +99,8 @@ public sealed class Plugin : Rt.IExtensionApplication
         });
         ConfigDesenho.EsquecerTodos(); // relê as configurações dos desenhos com os correntes novos
         // catálogo de consolos padrão do template do pilar pré-moldado (ARMCONSOLOS)
-        Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Config.Consolos;
-        Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.CatalogoInsertos = Config.Insertos;
+        Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.Catalogo = Config.Consolos;
+        Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.CatalogoInsertos = Config.Insertos;
         Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Config.Dentes; // ARMDENTES
     }
 

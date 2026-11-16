@@ -6,7 +6,7 @@ using DEB.Core.Configuracao;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.PilarPreMoldado;
+namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
 
 /// <summary>Nível marcado nas vistas (cota em metros).</summary>

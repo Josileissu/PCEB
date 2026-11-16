@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
+using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast
 {

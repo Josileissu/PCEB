@@ -4,7 +4,7 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using DEB.Core.Pecas;
 using DEB.Revit.Core;
-using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
+using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast
 {

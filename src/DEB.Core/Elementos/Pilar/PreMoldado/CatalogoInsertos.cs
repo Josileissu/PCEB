@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
 
-namespace DEB.Core.Templates.PilarPreMoldado;
+namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
 /// <summary>
 /// Inserto metálico padrão (pedido do usuário, 2026-10-29): como os consolos, um catálogo nomeado na configuração do

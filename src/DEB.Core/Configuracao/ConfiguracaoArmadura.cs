@@ -132,9 +132,9 @@ public sealed class ConfiguracaoArmadura
     [DataMember(Order = 65)] public string TrelicaCorrente { get; set; } = "TR 8644";
     [DataMember(Order = 66)] public string TelaCorrente { get; set; } = "Q-138";
     /// <summary>Consolos padrão do escritório (template do pilar pré-moldado; ARMCONSOLOS).</summary>
-    [DataMember(Order = 68)] public List<Templates.PilarPreMoldado.TipoConsolo> Consolos { get; set; } = Templates.PilarPreMoldado.TipoConsolo.Padrao();
+    [DataMember(Order = 68)] public List<Elementos.Pilar.PreMoldado.TipoConsolo> Consolos { get; set; } = Elementos.Pilar.PreMoldado.TipoConsolo.Padrao();
     /// <summary>Insertos metálicos padrão (template do pilar pré-moldado; ARMINSERTOS).</summary>
-    [DataMember(Order = 69)] public List<Templates.PilarPreMoldado.TipoInserto> Insertos { get; set; } = Templates.PilarPreMoldado.TipoInserto.Padrao();
+    [DataMember(Order = 69)] public List<Elementos.Pilar.PreMoldado.TipoInserto> Insertos { get; set; } = Elementos.Pilar.PreMoldado.TipoInserto.Padrao();
     /// <summary>Dentes Gerber padrão (template da viga pré-moldada; ARMDENTES).</summary>
     [DataMember(Order = 70)] public List<Elementos.Viga.PreMoldada.TipoDente> Dentes { get; set; } = Elementos.Viga.PreMoldada.TipoDente.Padrao();
 
@@ -187,8 +187,8 @@ public sealed class ConfiguracaoArmadura
         Traspasse ??= new RegrasTraspasse();
         if (Trelicas == null || Trelicas.Count == 0) Trelicas = Catalogos.TrelicasPadrao();
         if (Telas == null || Telas.Count == 0) Telas = Catalogos.TelasPadrao();
-        if (Consolos == null || Consolos.Count == 0) Consolos = Templates.PilarPreMoldado.TipoConsolo.Padrao();
-        if (Insertos == null || Insertos.Count == 0) Insertos = Templates.PilarPreMoldado.TipoInserto.Padrao();
+        if (Consolos == null || Consolos.Count == 0) Consolos = Elementos.Pilar.PreMoldado.TipoConsolo.Padrao();
+        if (Insertos == null || Insertos.Count == 0) Insertos = Elementos.Pilar.PreMoldado.TipoInserto.Padrao();
         if (Dentes == null || Dentes.Count == 0) Dentes = Elementos.Viga.PreMoldada.TipoDente.Padrao();
         if (EscalasUsuais == null || EscalasUsuais.Count == 0) EscalasUsuais = EscalasPadrao();
         if (VersaoConfig < 2)

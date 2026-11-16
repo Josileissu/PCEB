@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
+namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 {
     /// <summary>
     /// Armadura escolhida para um grupo de pilares. Todas as medidas em mm.

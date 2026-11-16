@@ -5,7 +5,7 @@ using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Persistencia;
 using DEB.Core.Motor;
-using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using Xunit;
 
 namespace DEB.Core.Tests;
@@ -83,12 +83,12 @@ public class PreviaTemplateTests
         if (string.IsNullOrEmpty(pasta) || string.IsNullOrEmpty(arquivo) || !System.IO.File.Exists(arquivo)) return;
         var arq = Intercambio.ArquivoPecas.Ler(arquivo);
         var catD = Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes.Concat(Intercambio.CatalogoAutomatico.Dentes(arq.Vigas, Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes)).ToList();
-        var catC = Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo.Concat(Intercambio.CatalogoAutomatico.Consolos(arq.Pilares, Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo)).ToList();
-        var antesD = Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes; var antesC = Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo;
+        var catC = Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.Catalogo.Concat(Intercambio.CatalogoAutomatico.Consolos(arq.Pilares, Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.Catalogo)).ToList();
+        var antesD = Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes; var antesC = Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.Catalogo;
         try
         {
-            Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = catD; Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = catC;
-            var tp = new Templates.PilarPreMoldado.TemplatePilarPreMoldado();
+            Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = catD; Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.Catalogo = catC;
+            var tp = new Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado();
             foreach (var p in arq.Pilares)
             {
                 var v = Intercambio.ConversorPilarPeca.Valores(p, new ValoresTemplate(tp.Parametros), catC, new List<string>());
@@ -101,6 +101,6 @@ public class PreviaTemplateTests
                 if (v != null) Gravar(pasta, $"previa_peca_{p.Marca}.json", tv.Gerar(v, new ConfiguracaoArmadura()));
             }
         }
-        finally { Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = antesD; Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = antesC; }
+        finally { Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = antesD; Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.Catalogo = antesC; }
     }
 }

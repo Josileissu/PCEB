@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
-using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Viga.PreMoldada;
 
 namespace DEB.Core.Intercambio;

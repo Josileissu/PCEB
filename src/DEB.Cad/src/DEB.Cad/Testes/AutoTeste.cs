@@ -1653,7 +1653,7 @@ public sealed class AutoTeste
     {
         try
         {
-            var t = new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado();
+            var t = new Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado();
             var v = new Core.Motor.ValoresTemplate(t.Parametros);
             v["Nome"] = "P61 TESTE";
             var r = t.Gerar(v, cfg);
@@ -1811,7 +1811,7 @@ public sealed class AutoTeste
         // etapa 5: longitudinais e zonas em lista — redução com a altura (emenda entre linhas), feixe e zona do consolo
         try
         {
-            var t = new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado();
+            var t = new Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado();
             var v = new Core.Motor.ValoresTemplate(t.Parametros);
             v["Nome"] = "P62 REDUCAO";
             v["Longitudinais"] = "Cantos||25|1||;Ao lado dos cantos||20|1||;Faces 2 e 4|2|20|1||700;Faces 2 e 4|1|16|2|600|";
@@ -1870,7 +1870,7 @@ public sealed class AutoTeste
         try
         {
             var saidaF = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
-            var par = new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado().Parametros.First(x => x.Nome == "Consolos");
+            var par = new Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado().Parametros.First(x => x.Nome == "Consolos");
             using var f = new Paleta.FormTabela(par, "CD 40x23,5x25|1,3|592.5|0;CS 20x28,5x25|2|900|5");
             f.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             f.Location = new System.Drawing.Point(-3000, -3000); // fora da tela
@@ -2732,7 +2732,7 @@ public sealed class AutoTeste
             Plugin.Config.Dentes = dentesAntes;
             Plugin.Config.Consolos = consolosAntes;
             Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = Plugin.Config.Dentes;
-            Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
+            Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
         }
         foreach (var l in rel.Linhas) Rel.AppendLine("        " + l);
         foreach (var a in rel.Avisos) Rel.AppendLine("        aviso: " + a);

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
-using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
+using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast.UI
 {

@@ -8,7 +8,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.PilarPreMoldado;
+namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
 /// <summary>Consolo de um nível (uma ou mais faces), com a armadura padrão do escritório (P61/PP127).</summary>
 public sealed class ConsoloPilar

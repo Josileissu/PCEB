@@ -5,7 +5,7 @@ using System.Globalization;
 // DEB.Revit/src/Precast/PrecastColumn.cs sem mudar o cálculo. O que lê o Revit (origem e eixos do pilar em XYZ, a
 // instância da família do consolo, o levantamento) continua no plugin: ColumnFrame herda de ColumnBox e RevitCorbel de Corbel.
 // Unidades: pés (unidade interna do Revit), como antes.
-namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
+namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 {
     /// <summary>Medidas do pilar no sistema local: origem no canto mínimo, Bx/By = seção, H = comprimento (pés).</summary>
     public class ColumnBox

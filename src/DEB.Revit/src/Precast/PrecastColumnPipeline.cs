@@ -5,7 +5,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Structure;
 using DEB.Revit.Core;
 using DEB.Revit.Presentation;
-using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
+using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast
 {

@@ -7,7 +7,7 @@ using DEB.Core.Intercambio;
 using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
-using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Viga.PreMoldada;
 
 [assembly: Rt.CommandClass(typeof(DEB.Cad.ComandosPecas))]

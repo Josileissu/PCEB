@@ -9,7 +9,7 @@ using DEB.Core.Normas;
 using DEB.Core.Tabelas;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.PilarPreMoldado;
+namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
 /// <summary>
 /// Etapa 2 do pilar (2026-10-29): armaduras — longitudinais (lista: cantos, "L", faces, feixes, redução com a altura), emendas

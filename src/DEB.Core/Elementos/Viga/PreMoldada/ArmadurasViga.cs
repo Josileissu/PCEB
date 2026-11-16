@@ -5,7 +5,7 @@ using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Estribos;
 using DEB.Core.Modelo;
-using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 

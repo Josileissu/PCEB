@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 

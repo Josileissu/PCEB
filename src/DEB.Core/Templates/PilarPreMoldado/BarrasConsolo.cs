@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DEB.Core.Templates.PilarPreMoldado;
+namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
 /// <summary>Um consolo para casar pares em nível: face (1 a 4; 1↔3 e 2↔4 opostas) e medidas em cm.</summary>
 public readonly struct ConsoloNoNivel

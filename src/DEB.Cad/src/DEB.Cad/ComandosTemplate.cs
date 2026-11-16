@@ -224,7 +224,7 @@ public sealed class ComandosTemplate
         if (CadApp.ShowModalDialog(f) != DialogResult.OK) return;
         Plugin.Config.Consolos = f.Resultado;
         Plugin.SalvarConfig();
-        Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
+        Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.Catalogo = Plugin.Config.Consolos;
         ed.WriteMessage($"\n{f.Resultado.Count} consolo(s) padrão salvos: " + string.Join(", ", f.Resultado.Select(t => t.Nome)) + ".");
     }, suspender: false);
 
@@ -248,7 +248,7 @@ public sealed class ComandosTemplate
         if (CadApp.ShowModalDialog(f) != DialogResult.OK) return;
         Plugin.Config.Insertos = f.Resultado;
         Plugin.SalvarConfig();
-        Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado.CatalogoInsertos = Plugin.Config.Insertos;
+        Core.Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.CatalogoInsertos = Plugin.Config.Insertos;
         ed.WriteMessage($"\n{f.Resultado.Count} inserto(s) padrão salvos: " + string.Join(", ", f.Resultado.Select(t => t.Nome)) + ".");
     }, suspender: false);
 

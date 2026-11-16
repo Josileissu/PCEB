@@ -7,8 +7,8 @@ using DEB.Core.Configuracao;
 using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
-using DEB.Core.Templates.PilarPreMoldado;
-using DEB.Core.Templates.PilarPreMoldado.Modelo3D;
+using DEB.Core.Elementos.Pilar.PreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 using Xunit;
 
 namespace DEB.Core.Tests;

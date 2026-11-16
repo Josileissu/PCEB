@@ -5,7 +5,7 @@ using DEB.Core.Configuracao;
 using DEB.Core.Intercambio;
 using DEB.Core.Persistencia;
 using DEB.Core.Motor;
-using DEB.Core.Templates.PilarPreMoldado;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using Xunit;
 
 namespace DEB.Core.Tests;

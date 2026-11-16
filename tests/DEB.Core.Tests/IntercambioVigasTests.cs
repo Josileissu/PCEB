@@ -99,7 +99,7 @@ public class IntercambioVigasTests
         // Teste_PM P2: consolos 20 × 23,5 (ponta 21,5) × 25 nas faces 1, 2 e 3 → 1 e 3 = par (duplo); 2 = um só, trapezoidal
         ConsoloPeca C(int f) => new ConsoloPeca { Face = f, Inicio = 15, Fim = 35, Base = 550, Topo = 573.5, Balanco = 25, AlturaPonta = 21.5 };
         var p = new PilarPeca { Marca = "P2", B = 50, H = 50, L = 600, Consolos = { C(3), C(2), C(1) } };
-        var cat = Templates.PilarPreMoldado.TipoConsolo.Padrao();
+        var cat = Elementos.Pilar.PreMoldado.TipoConsolo.Padrao();
         var novos = CatalogoAutomatico.Consolos(new[] { p }, cat);
         Assert.Equal(new[] { "CD 20x23,5-21,5x25", "CT 20x23,5-21,5x25" }, novos.Select(t => t.Nome).OrderBy(x => x));
         Assert.True(novos.Single(t => t.Nome.StartsWith("CD")).Duplo);
