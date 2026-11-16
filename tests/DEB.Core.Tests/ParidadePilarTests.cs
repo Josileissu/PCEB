@@ -220,7 +220,6 @@ public class ParidadePilarTests
                                 "usa h − 2c, ganchos de 90°";
     private const string INF = "formas diferentes: Revit em U com as pernas para cima entrando até as longitudinais; CAD com a perna na " +
                                "ponta, o trecho para dentro do pilar (ancoragem do tipo) e o retorno";
-    private const string PINO = "o Revit lê acima/embutido/pé do pino no eixo da barra; o CAD como medidas externas (convenção do CAD)";
 
     /// <summary>(caso, medida, Revit, CAD, causa). Comprimentos em cm (arredondados como na relação do aço); Igual = sem divergência.</summary>
     private static readonly (string Caso, string Item, double Revit, double Cad, string Causa)[] Esperado =
@@ -237,7 +236,7 @@ public class ParidadePilarTests
         ("40x40-opostos-16", "longitudinais: comprimento", 595, 595, Igual),
         ("40x40-opostos-16", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("40x40-opostos-16", "longitudinais: quantidade", 8, 8, Igual),
-        ("40x40-opostos-16", "pino: comprimento", 76, 74, PINO),
+        ("40x40-opostos-16", "pino: comprimento", 74, 74, Igual),
         ("40x40-opostos-16", "tirante: comprimento", 95, 85, TIR_DUPLO),
         ("40x40-opostos-16", "tirante: quantidade", 6, 3, TIR_DUPLO),
         ("40x40-sem-12.5", "estribo: comprimento", 153, 155, GANCHO),
@@ -259,7 +258,7 @@ public class ParidadePilarTests
         ("40x40-um-12.5", "longitudinais: comprimento", 595, 595, Igual),
         ("40x40-um-12.5", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("40x40-um-12.5", "longitudinais: quantidade", 8, 8, Igual),
-        ("40x40-um-12.5", "pino: comprimento", 76, 74, PINO),
+        ("40x40-um-12.5", "pino: comprimento", 74, 74, Igual),
         ("40x40-um-12.5", "tirante: comprimento", 95, 97, TIR),
         ("40x40-um-12.5", "tirante: quantidade", 3, 3, Igual),
         ("50x50-opostos-12.5", "armadura inferior do consolo: comprimento", 102, 79, INF),
@@ -274,7 +273,7 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "longitudinais: comprimento", 595, 595, Igual),
         ("50x50-opostos-12.5", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("50x50-opostos-12.5", "longitudinais: quantidade", 8, 8, Igual),
-        ("50x50-opostos-12.5", "pino: comprimento", 76, 74, PINO),
+        ("50x50-opostos-12.5", "pino: comprimento", 74, 74, Igual),
         ("50x50-opostos-12.5", "tirante: comprimento", 105, 95, TIR_DUPLO),
         ("50x50-opostos-12.5", "tirante: quantidade", 6, 3, TIR_DUPLO),
         ("50x50-sem-16", "estribo: comprimento", 193, 195, GANCHO),
@@ -296,7 +295,7 @@ public class ParidadePilarTests
         ("50x50-um-16", "longitudinais: comprimento", 595, 595, Igual),
         ("50x50-um-16", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("50x50-um-16", "longitudinais: quantidade", 8, 8, Igual),
-        ("50x50-um-16", "pino: comprimento", 76, 74, PINO),
+        ("50x50-um-16", "pino: comprimento", 74, 74, Igual),
         ("50x50-um-16", "tirante: comprimento", 105, 107, TIR),
         ("50x50-um-16", "tirante: quantidade", 3, 3, Igual),
     };

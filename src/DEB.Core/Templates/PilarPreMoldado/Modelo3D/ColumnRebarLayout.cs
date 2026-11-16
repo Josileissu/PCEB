@@ -308,6 +308,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                 int np = s.CorbelPinCount;
                 double dPin = k.Projection / 2;
                 double above = U_.Mm(s.CorbelPinAboveMm), emb = U_.Mm(s.CorbelPinEmbedMm), foot = U_.Mm(s.CorbelPinFootMm);
+                // embutido e pé são medidas EXTERNAS, como no CAD (convenção do DEB.Cad, D7): o eixo da dobra fica φ/2 para dentro
+                double r = foot > 0 ? U_.Mm(s.CorbelPinDiameterMm) / 2 : 0;
                 double pa = np > 1 ? k.S0 + k.Width / 4 : (k.S0 + k.S1) / 2;
                 double pb = np > 1 ? k.S1 - k.Width / 4 : pa;
                 yield return new BarDef
@@ -317,8 +319,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                     Points =
                     {
                         k.At(f, dPin, pa, k.ZTop + above),
-                        k.At(f, dPin, pa, k.ZTop - emb),
-                        k.At(f, dPin - foot, pa, k.ZTop - emb)
+                        k.At(f, dPin, pa, k.ZTop - emb + r),
+                        k.At(f, dPin + r - foot, pa, k.ZTop - emb + r)
                     },
                     Normal = k.T,
                     Count = np,

@@ -25,7 +25,7 @@ Revit em `src/DEB.Revit/src/Precast/RebarFactory.cs`); CAD = `src/DEB.Core/Templ
 | Costura | `Lay:333` (2/3 d, d = h − c; até as longitudinais; b − 2c; 135°) | `Cons:607`, `Cons:822` (2/3 d, d = h − c − φtir/2; até o cobrimento; b − 2c − 2φvert; 90°) | não |
 | Estribo vertical do consolo | `Lay:254` (abaixo do tirante; 135°) | `Cons:808` (h − 2c; 90°) | não (−4 cm no Revit) |
 | Armadura inferior do consolo | `Lay:285` (U, pernas para cima) | `Cons:529` (perna na ponta + ancoragem + retorno) | não |
-| Pino do consolo | `Lay:309` (medidas no eixo, no meio do balanço) | `Cons:844` (medidas externas, no centro da almofada) | não (+2 cm no Revit) |
+| Pino do consolo | `Lay:309` (medidas externas desde 16/11, no meio do balanço) | `Cons:844` (medidas externas, no centro da almofada) | comprimento sim (unificado); posição ao longo do balanço não |
 | Alças de içamento | `Lay:166` (barra ø16 em U, 0,2 H e 0,8 H, pernas ao longo do pilar) | `ItensPilar.cs:75` (cordoalha, simétrica ao CG, pernas até a face oposta) | não comparável (fora do teste) |
 | Comprimento real (dobras, ganchos, arredondamento) | `ComprimentoPorEixo` sobre o eixo | `MedidaBarra.Unitario` sobre a barra desenhada | mesma regra do núcleo |
 
@@ -41,10 +41,9 @@ Revit em `src/DEB.Revit/src/Precast/RebarFactory.cs`); CAD = `src/DEB.Core/Templ
 | Costura: quantidade | 3 / 3 | 6 / 3 | 3 / 3 | 6 / 3 | opostos |
 | Estribo vertical do consolo | 131 / 135 | 131 / 135 | 131 / 135 | 131 / 135 | abaixo do tirante e 135° × h − 2c e 90° |
 | Armadura inferior do consolo | 92 / 98 | 91 / 79 | 101 / 98 | 102 / 79 | formas diferentes |
-| Pino do consolo | 76 / 74 | 76 / 74 | 76 / 74 | 76 / 74 | medidas no eixo × externas |
 
 Iguais em todos os casos: longitudinais (quantidade, posições, 595), grampo (47 e 57), quantidade de estribos e grampos com
-consolo, barra soldada (35).
+consolo, barra soldada (35), pino (74, unificado em 16/11: antes o Revit lia as medidas no eixo e dava 76).
 
 ## Revit × núcleo na mesma barra (fora do teste)
 `RebarFactory.LogLengthComparison` registra o comprimento que a API do Revit mede (`REBAR_ELEM_LENGTH`) ao lado do comprimento do
