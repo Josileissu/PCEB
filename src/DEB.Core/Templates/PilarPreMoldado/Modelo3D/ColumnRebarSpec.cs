@@ -27,6 +27,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         // ---- Estribos ----
         public double StirrupDiameterMm { get; set; } = 5;
         public double StirrupSpacingMm { get; set; } = 150;
+        /// <summary>Sem uso desde a D30 (os estribos começam no cobrimento das pontas, LongEndCoverMm, como no CAD); fica para ler
+        /// os modelos salvos.</summary>
         public double StirrupEndOffsetMm { get; set; } = 50;
         public bool CrossTies { get; set; } = true;
 

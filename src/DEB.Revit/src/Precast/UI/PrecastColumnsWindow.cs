@@ -218,7 +218,6 @@ namespace DEB.Revit.Precast.UI
             Section("Estribos");
             Dia("Bitola", () => s.StirrupDiameterMm, v => s.StirrupDiameterMm = v);
             Num("Espaçamento corrente (mm)", () => s.StirrupSpacingMm, v => s.StirrupSpacingMm = v);
-            Num("1º estribo a partir das pontas (mm)", () => s.StirrupEndOffsetMm, v => s.StirrupEndOffsetMm = v);
             Bool("Grampos nas barras intermediárias", () => s.CrossTies, v => s.CrossTies = v);
 
             Section("Zonas de estribos");

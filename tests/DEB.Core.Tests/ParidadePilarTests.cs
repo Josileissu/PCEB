@@ -173,6 +173,16 @@ public class ParidadePilarTests
         // ---- estribos e grampos ----
         m.Add(new Medida("estribo: comprimento", ComprimentoRevit(Um(BarRole.Stirrup)), Un("estribo0")));
         m.Add(new Medida("estribo: quantidade", RevQtd(BarRole.Stirrup), FaixasQtd("estribo0")));
+        // alturas de todos os estribos (cm): Revit pelos conjuntos; CAD pelas faixas (posições da regra de faixas da configuração)
+        var zR = bars.Where(b => b.Role == BarRole.Stirrup).SelectMany(b => Enumerable.Range(0, b.Count).Select(i => (b.Points[0].C + i * b.Spacing) * CmPorPe)).ToList();
+        var zC = r.Faixas.Where(x => x.Barra.StartsWith("estribo") && x.Tipo == TipoFaixa.Ortogonal).SelectMany(x =>
+        {
+            double comp = Math.Abs(x.P2.Y - x.P1.Y), y0 = Math.Min(x.P1.Y, x.P2.Y);
+            int q = CalculoFaixa.Quantidade(comp, x.Espacamento, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
+            return CalculoFaixa.Posicoes(comp, q, x.Espacamento, cfg.EspacamentoInicialFaixa).Select(p => y0 + p);
+        }).ToList();
+        double Afast(List<double> a, List<double> b) => a.Max(z => b.Min(w => Math.Abs(w - z)));
+        m.Add(new Medida("estribo: maior afastamento entre alturas (cm)", Math.Round(Afast(zR, zC), 6), Math.Round(Afast(zC, zR), 6)));
         m.Add(new Medida("grampo: comprimento", ComprimentoRevit(Um(BarRole.CrossTie)), Un("grampo0")));
         m.Add(new Medida("grampo: quantidade", RevQtd(BarRole.CrossTie), FaixasQtd("grampo0")));
 
@@ -226,10 +236,9 @@ public class ParidadePilarTests
     // causas das divergências conhecidas (tabela completa em docs/04_arquitetura/paridade_pilar.md)
     // ganchos: 135° nos dois desde a decisão D30 (16/11/2026); estribo, costura e estribo vertical do CAD saem de
     // GeradorEstribo.FechadoPadrao com gancho de 45° (ponta 5φt ≥ 5 cm), a mesma função do comprimento por eixo do Revit
-    // divisa entre zonas: nenhum dos dois repete o estribo desde a D30 (TemplatePilarPreMoldado.EstribosNaZona nos dois). As
-    // zonas em si continuam diferentes (o Revit começa a 5 cm das pontas, o CAD no cobrimento das longitudinais; zonas
-    // sobrepostas: o Revit usa o menor espaçamento, o CAD a primeira): as quantidades coincidem nestes casos, as alturas não
-    // (ver EstribosSemRepetirNaDivisa e paridade_pilar.md)
+    // divisa entre zonas: nenhum dos dois repete o estribo (EstribosNaZona). Desde a D30 (revisão) o Revit começa no cobrimento
+    // das pontas, como o CAD: as alturas de todos os estribos são as mesmas nestes casos. Sobra a regra de zonas sobrepostas
+    // (Revit: o menor espaçamento; CAD: a zona de baixo) — ver ZonasSobrepostas e paridade_pilar.md
     // tirante e costura (D30): consolo sozinho, por dentro das longitudinais da face oposta (BarrasConsolo.FimNoPilar); opostos
     // em nível (BarrasConsolo.ParesEmNivel), passantes de ponta a ponta; perna do tirante medida por fora nos dois (D7).
     // Largura da costura (D30, revisão): por dentro dos estribos verticais nos dois (BarrasConsolo.LarguraCostura). A diferença
@@ -280,6 +289,7 @@ public class ParidadePilarTests
         ("40x40-opostos-16", "costura: quantidade", 3, 3, Igual),
         ("40x40-opostos-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("40x40-opostos-16", "estribo: comprimento", 153, 153, Igual),
+        ("40x40-opostos-16", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("40x40-opostos-16", "estribo: quantidade", 51, 51, Igual),
         ("40x40-opostos-16", "grampo: comprimento", 47, 47, Igual),
         ("40x40-opostos-16", "grampo: quantidade", 102, 102, Igual),
@@ -290,6 +300,7 @@ public class ParidadePilarTests
         ("40x40-opostos-16", "tirante: comprimento", 85, 85, Igual),
         ("40x40-opostos-16", "tirante: quantidade", 3, 3, Igual),
         ("40x40-sem-12.5", "estribo: comprimento", 153, 153, Igual),
+        ("40x40-sem-12.5", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("40x40-sem-12.5", "estribo: quantidade", 45, 45, Igual),
         ("40x40-sem-12.5", "grampo: comprimento", 47, 47, Igual),
         ("40x40-sem-12.5", "grampo: quantidade", 90, 90, Igual),
@@ -302,6 +313,7 @@ public class ParidadePilarTests
         ("40x40-um-12.5", "costura: quantidade", 3, 3, Igual),
         ("40x40-um-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("40x40-um-12.5", "estribo: comprimento", 153, 153, Igual),
+        ("40x40-um-12.5", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("40x40-um-12.5", "estribo: quantidade", 51, 51, Igual),
         ("40x40-um-12.5", "grampo: comprimento", 47, 47, Igual),
         ("40x40-um-12.5", "grampo: quantidade", 102, 102, Igual),
@@ -317,6 +329,7 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "costura: quantidade", 3, 3, Igual),
         ("50x50-opostos-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("50x50-opostos-12.5", "estribo: comprimento", 193, 193, Igual),
+        ("50x50-opostos-12.5", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("50x50-opostos-12.5", "estribo: quantidade", 51, 51, Igual),
         ("50x50-opostos-12.5", "grampo: comprimento", 57, 57, Igual),
         ("50x50-opostos-12.5", "grampo: quantidade", 102, 102, Igual),
@@ -327,6 +340,7 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "tirante: comprimento", 95, 95, Igual),
         ("50x50-opostos-12.5", "tirante: quantidade", 3, 3, Igual),
         ("50x50-sem-16", "estribo: comprimento", 193, 193, Igual),
+        ("50x50-sem-16", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("50x50-sem-16", "estribo: quantidade", 45, 45, Igual),
         ("50x50-sem-16", "grampo: comprimento", 57, 57, Igual),
         ("50x50-sem-16", "grampo: quantidade", 90, 90, Igual),
@@ -339,6 +353,7 @@ public class ParidadePilarTests
         ("50x50-um-16", "costura: quantidade", 3, 3, Igual),
         ("50x50-um-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("50x50-um-16", "estribo: comprimento", 193, 193, Igual),
+        ("50x50-um-16", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("50x50-um-16", "estribo: quantidade", 51, 51, Igual),
         ("50x50-um-16", "grampo: comprimento", 57, 57, Igual),
         ("50x50-um-16", "grampo: quantidade", 102, 102, Igual),
@@ -371,6 +386,29 @@ public class ParidadePilarTests
             if (e.Causa != Igual && Math.Abs(x.Revit - x.Cad) < 1e-6) erros.Add($"{onde}: ficou igual — tire a divergência da tabela");
         }
         Assert.True(erros.Count == 0, string.Join(Environment.NewLine, erros));
+    }
+
+    /// <summary>
+    /// Divergência que fica (D30, revisão, relatada ao dono): zonas que se sobrepõem. Base de 4 m c/10 e consolo de 3,5 a 4,2 m
+    /// c/7,5: o Revit usa o menor espaçamento na sobreposição (c/7,5 de 3,5 a 4 m); o CAD fica com a zona de baixo (c/10), mais
+    /// aberto junto do consolo. Por isso o Revit não passou a usar LerZonas.
+    /// </summary>
+    [Fact]
+    public void ZonasSobrepostas()
+    {
+        var c = Casos.First(x => x.Nome == "40x40-um-12.5");
+        var (f, k, s) = Revit(c);
+        s.BaseZoneLengthMm = 4000;
+        double EspRevit(double zCm) => ColumnRebarLayout.StirrupRuns(f, k, s)
+            .Where(r => r.Z * CmPorPe <= zCm + 1e-6).OrderBy(r => r.Z).Last().Spacing * CmPorPe;
+        Assert.Equal(7.5, EspRevit(375), 6);
+        var v = new ValoresTemplate(T.Parametros);
+        v["EstBitola"] = "5"; v["EstEsp"] = "15"; v["GramposCorrente"] = "Sim";
+        v["ZonasEstribos"] = "Base|Base|0|400|5|10|Sim;Consolo|Base|350|420|5|7.5|Sim";
+        var avisos = new List<string>();
+        var zonas = TemplatePilarPreMoldado.LerZonas(v, 2.5, 597.5, 600, avisos);
+        Assert.Equal(10, zonas.First(z => z.Y1 <= 375 && z.Y2 >= 375).Esp, 6);
+        Assert.Contains(avisos, a => a.Contains("se sobrepõem"));
     }
 
     /// <summary>

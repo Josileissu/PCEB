@@ -417,7 +417,9 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         /// </summary>
         public static List<(double Z, int Count, double Spacing)> StirrupRuns(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s)
         {
-            double z0 = U_.Mm(s.StirrupEndOffsetMm), z1 = f.H - U_.Mm(s.StirrupEndOffsetMm);
+            // começa onde o CAD começa: no cobrimento das pontas das longitudinais (D30, revisão: "igual ao do CAD, respeitando o
+            // cobrimento"; antes, StirrupEndOffsetMm = 5 cm)
+            double z0 = U_.Mm(s.LongEndCoverMm), z1 = f.H - U_.Mm(s.LongEndCoverMm);
             var zones = new List<(double A, double B, double S)>();
             if (s.BaseZoneLengthMm > 0) zones.Add((0, U_.Mm(s.BaseZoneLengthMm), U_.Mm(s.BaseZoneSpacingMm)));
             if (s.TopZoneLengthMm > 0) zones.Add((f.H - U_.Mm(s.TopZoneLengthMm), f.H, U_.Mm(s.TopZoneSpacingMm)));
