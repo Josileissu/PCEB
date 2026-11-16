@@ -196,7 +196,7 @@ o agente leu, repetiu nos outros cortes e registrou o que funcionou. Base para o
 5. **Identificadores**: o usuário adapta a biblioteca do escritório; as famílias prontas foram indexadas (índice privado, fora do Git) e o padrão JSON aponta para elas.
 
 ## Primeira emissão (pedido de 13/11/2026, tarde)
-- Sai primeiro: pranchas de **montagem**, **paginação das lajes**, **cortes**, **elevações** e uma folha de **seções consideradas**.
+- Sai primeiro: pranchas de **montagem**, **paginação das lajes**, **cortes**, **elevações** e uma folha de **seções consideradas**. Padrão da folha de paginação das lajes alveolares (D31): `folha_paginacao_alveolar.md`.
 - **Detalhes típicos** das pranchas de referência: catalogar (títulos, textos, cotas, recortes) para replicar no Revit.
 - **Nota de furos**: furos nas lajes alveolares passam pelos alvéolos, com no máximo a largura do alvéolo (nota fixa configurável).
 - **Fundações**: opção do padrão "esquemáticas" (padrão; nota na prancha de locação) ou "dimensionadas".
