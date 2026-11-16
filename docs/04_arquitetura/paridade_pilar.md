@@ -13,7 +13,7 @@ Revit em `src/DEB.Revit/src/Precast/RebarFactory.cs`); CAD = `src/DEB.Core/Templ
 
 | Regra | Revit | CAD / núcleo | Mesmo número? |
 |---|---|---|---|
-| Posição das longitudinais na seção | `Lay:50` (cobrimento + φt + φ/2, faces divididas por igual) | `SecaoBarras.Posicoes` / `Lis:214` | sim |
+| Posição das longitudinais na seção | `ColumnRebarLayout.LongitudinalPositions` chama `SecaoBarras.Posicoes` (unificado) | `SecaoBarras.Posicoes` / `Lis:214` | sim |
 | Cobrimento das pontas das longitudinais | `Lay:56` | `Arm:121` (`CobTopo`/`CobBase`) | sim |
 | Estribo: medidas | `Lay:45` (eixo a c + φt/2) → externas b − 2c | `Arm:193` (externas b − 2c) | sim |
 | Estribo: ganchos | 135° (`Lay:78`; tipo de gancho do Revit `RebarFactory.cs:299`) | 90° (`Arm:386`, `GeradorEstribo.FechadoPadrao`) | não (+2 cm no CAD) |

@@ -47,11 +47,11 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             if (f.Bx <= 2 * oL || f.By <= 2 * oL) return bars;
 
             // ---------------- Longitudinais ----------------
+            // posições na seção pela regra do núcleo, a mesma do template do CAD (SecaoBarras.Posicoes); xs/ys = filas das
+            // barras, usadas pelos grampos
             List<double> xs = Linspace(oL, f.Bx - oL, Math.Max(2, s.LongBarsAlongX));
             List<double> ys = Linspace(oL, f.By - oL, Math.Max(2, s.LongBarsAlongY));
-            var pos = new List<(double A, double B)>();
-            foreach (double x in xs) { pos.Add((x, ys.First())); pos.Add((x, ys.Last())); }
-            foreach (double y in ys.Skip(1).Take(ys.Count - 2)) { pos.Add((xs.First(), y)); pos.Add((xs.Last(), y)); }
+            List<(double A, double B)> pos = LongitudinalPositions(f, s);
 
             double c0 = U_.Mm(s.LongEndCoverMm), c1 = f.H - U_.Mm(s.LongEndCoverMm);
             foreach (var (a, b) in pos)
@@ -403,6 +403,22 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                 runs.Add((a, count, sp));
             }
             return runs;
+        }
+
+        /// <summary>
+        /// Centros das longitudinais na seção (pés), por <see cref="Motor.SecaoBarras.Posicoes"/>: cantos e barras das faces
+        /// divididas por igual, a cobrimento + φt + φ/2 das faces. Na mesma ordem de antes da troca (o conjunto do Revit nasce
+        /// das duas primeiras): faces paralelas a X por x e de baixo para cima; depois as das faces paralelas a Y.
+        /// </summary>
+        public static List<(double A, double B)> LongitudinalPositions(ColumnBox f, ColumnRebarSpec s)
+        {
+            int nx = Math.Max(2, s.LongBarsAlongX), ny = Math.Max(2, s.LongBarsAlongY);
+            double[] cob = Enumerable.Repeat(s.CoverMm / 10, 4).ToArray();
+            var sec = Motor.SecaoBarras.Posicoes(U_.ToMm(f.Bx) / 10, U_.ToMm(f.By) / 10, cob, s.StirrupDiameterMm,
+                s.LongDiameterMm, 1, 0, s.LongDiameterMm, nx - 2, ny - 2, s.LongDiameterMm);
+            var faceX = sec.Where(b => b.Grupo == "canto" || b.Grupo == "faceB").OrderBy(b => b.X).ThenBy(b => b.Y);
+            var faceY = sec.Where(b => b.Grupo == "faceH").OrderBy(b => b.Y).ThenBy(b => b.X);
+            return faceX.Concat(faceY).Select(b => (U_.Mm(b.X * 10), U_.Mm(b.Y * 10))).ToList();
         }
 
         private static List<double> Linspace(double a, double b, int n) =>

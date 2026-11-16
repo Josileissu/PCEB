@@ -320,4 +320,29 @@ public class ParidadePilarTests
             else Assert.True(Math.Abs(x.Revit - x.Cad) > 1e-6, $"{onde}: ficou igual — tire a divergência da tabela");
         }
     }
+
+    /// <summary>
+    /// As longitudinais do Revit saem de SecaoBarras.Posicoes (16/11/2026) na mesma ordem e posição da conta antiga do plugin
+    /// (filas a cobrimento + φt + φ/2, divididas por igual): o conjunto de barras do Revit nasce das duas primeiras.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(TodosOsCasos))]
+    public void LongitudinaisNaOrdemDeAntes(Caso c)
+    {
+        var (f, _, s) = Revit(c);
+        double oL = U_.Mm(s.CoverMm + s.StirrupDiameterMm + s.LongDiameterMm / 2);
+        List<double> Fila(double a, double b, int n) => Enumerable.Range(0, n).Select(i => a + (b - a) * i / (n - 1)).ToList();
+        var xs = Fila(oL, f.Bx - oL, s.LongBarsAlongX);
+        var ys = Fila(oL, f.By - oL, s.LongBarsAlongY);
+        var antes = new List<(double A, double B)>();
+        foreach (double x in xs) { antes.Add((x, ys[0])); antes.Add((x, ys[ys.Count - 1])); }
+        foreach (double y in ys.Skip(1).Take(ys.Count - 2)) { antes.Add((xs[0], y)); antes.Add((xs[xs.Count - 1], y)); }
+        var agora = ColumnRebarLayout.LongitudinalPositions(f, s);
+        Assert.Equal(antes.Count, agora.Count);
+        for (int i = 0; i < antes.Count; i++)
+        {
+            Assert.Equal(antes[i].A, agora[i].A, 9);
+            Assert.Equal(antes[i].B, agora[i].B, 9);
+        }
+    }
 }
