@@ -161,8 +161,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         }
 
         /// <summary>
-        /// Alças como as do CAD (D30, item 5): no meio da face, no plano U × Z; as pernas entram no pilar até por dentro dos
-        /// estribos da face oposta (TemplatePilarPreMoldado.EmbutimentoAlca) e dobram lá no pé, para fora; o topo fica LiftProtrusionMm
+        /// Alças como as do CAD (D30, item 5): no meio da face, no plano U × Z; as pernas entram no pilar até por dentro das
+        /// longitudinais da face oposta (TemplatePilarPreMoldado.EmbutimentoAlca) e dobram lá no pé, para fora; o topo fica LiftProtrusionMm
         /// acima da face. Se cair num consolo da face, a alça é deslocada o mínimo (o CAD só avisa).
         /// </summary>
         private static IEnumerable<BarDef> LiftLoops(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s, double dl, double dt)
@@ -173,8 +173,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             double depth = g.ColumnDepth(f);
             double dLift = U_.Mm(s.LiftDiameterMm), w = U_.Mm(s.LiftWidthMm), pr = U_.Mm(s.LiftProtrusionMm);
             double foot = Math.Max(0, U_.Mm(s.LiftFootMm));
-            double emb = U_.Mm(10 * TemplatePilarPreMoldado.EmbutimentoAlca(U_.ToMm(depth) / 10, s.CoverMm / 10, s.StirrupDiameterMm, s.LiftEmbedMm / 10));
-            double dIn = -(emb - dLift / 2);               // eixo do pé (o lado de fora dele por dentro dos estribos da face oposta)
+            double emb = U_.Mm(10 * TemplatePilarPreMoldado.EmbutimentoAlca(U_.ToMm(depth) / 10, s.CoverMm / 10, s.StirrupDiameterMm, s.LongDiameterMm, s.LiftEmbedMm / 10));
+            double dIn = -(emb - dLift / 2);               // eixo do pé (o lado de fora dele por dentro das longitudinais da face oposta)
             double margin = U_.Mm(100);
             var busy = corbels.Where(k => k.Face == face)
                 .Select(k => (A: k.ZBottom - margin, B: k.ZTop + U_.Mm(s.CorbelPinAboveMm) + margin)).ToList();
