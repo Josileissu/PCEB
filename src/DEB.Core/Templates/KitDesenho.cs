@@ -121,6 +121,38 @@ public static class KitDesenho
         return (Math.Round(a, 1), Math.Round(b, 1));
     }
 
+    /// <summary>
+    /// O último estribo de uma zona (posições de <see cref="Modelo.CalculoFaixa"/>) cai exatamente na divisa com a zona seguinte,
+    /// onde a seguinte também põe o seu primeiro: o estribo sairia repetido. Acontece sem espaçamento inicial quando o trecho é
+    /// múltiplo do espaçamento (⌊L/s⌋ + 1) ou sempre no modo ⌈L/s⌉ + 1. Unidade livre (a mesma em comprimento e espaçamento).
+    /// </summary>
+    public static bool RepeteNaDivisa(double comprimento, double esp, Configuracao.ConfiguracaoArmadura cfg)
+    {
+        double tol = 1e-6 * Math.Max(1, comprimento);
+        int n = Modelo.CalculoFaixa.Quantidade(comprimento, esp, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
+        if (n < 2) return false;
+        var p = Modelo.CalculoFaixa.Posicoes(comprimento, n, esp, cfg.EspacamentoInicialFaixa);
+        return p[0] < tol && comprimento - p[n - 1] < tol;
+    }
+
+    /// <summary>
+    /// Estribos de uma zona sem repetir na divisa (decisão do dono, D30, 16/11/2026): a divisa pertence à zona seguinte, então uma
+    /// zona que não é a última perde o estribo que cairia nela. Usado pelo pilar (template do CAD e modelo 3D do Revit) e pela
+    /// viga pré-moldada.
+    /// </summary>
+    public static int EstribosNaZona(double comprimento, double esp, bool ultima, Configuracao.ConfiguracaoArmadura cfg)
+    {
+        int n = Modelo.CalculoFaixa.Quantidade(comprimento, esp, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
+        return !ultima && RepeteNaDivisa(comprimento, esp, cfg) ? n - 1 : n;
+    }
+
+    /// <summary>
+    /// Fim da faixa de uma zona [a, b] no desenho: b, ou um espaçamento antes quando o último estribo repetiria o primeiro da zona
+    /// seguinte. A faixa do CAD conta os estribos pelo comprimento desenhado; com ela encurtada, conta <see cref="EstribosNaZona"/>.
+    /// </summary>
+    public static double FimSemRepetir(double a, double b, double esp, bool ultima, Configuracao.ConfiguracaoArmadura cfg) =>
+        !ultima && RepeteNaDivisa(b - a, esp, cfg) ? b - esp : b;
+
     /// <summary>"12,5" → "12.5", "8.0" → "8" (a lista de bitolas aceita o que vem do Excel).</summary>
     public static string NormalizarBitola(string s)
     {

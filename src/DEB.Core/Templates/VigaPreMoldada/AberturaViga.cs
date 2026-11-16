@@ -123,8 +123,9 @@ public sealed partial class TemplateVigaPreMoldada
             foreach (var (a0, b0) in pedacos.Where(p => p.B - p.A >= 1))
             {
                 var nz = new ZonaEstriboViga { Nome = z.Nome, X1 = a0, X2 = b0, Esp = z.Esp };
-                int q = CalculoFaixa.Quantidade(b0 - a0, z.Esp, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
-                nz.Posicoes = CalculoFaixa.Posicoes(b0 - a0, q, z.Esp, cfg.EspacamentoInicialFaixa).Select(s => a0 + s).ToList();
+                // o pedaço que termina no fim da zona segue a regra da divisa (D30); os que terminam numa abertura incluem a ponta
+                bool seguida = Math.Abs(b0 - z.X2) < 1e-6 && zonas.Any(o => o != z && Math.Abs(o.X1 - z.X2) < 1e-6);
+                nz.Posicionar(!seguida, cfg);
                 r.Add(nz);
             }
         }
@@ -241,7 +242,7 @@ public sealed partial class TemplateVigaPreMoldada
             {
                 zz.Contada > 0
                     ? FaixaContada("estribo", zz.X1, zz.X2, y, zz.Contada, y + 0.8 * hv, esc, cfg)
-                    : new FaixaTemplate { Barra = "estribo", Tipo = TipoFaixa.Ortogonal, P1 = (zz.X1, y), P2 = (zz.X2, y), Posicao = ((zz.X1 + zz.X2) / 2, y + 0.8 * hv), Espacamento = zz.Esp, Escala = esc },
+                    : new FaixaTemplate { Barra = "estribo", Tipo = TipoFaixa.Ortogonal, P1 = (zz.X1, y), P2 = (zz.FimFaixa ?? zz.X2, y), Posicao = ((zz.X1 + zz.X2) / 2, y + 0.8 * hv), Espacamento = zz.Esp, Escala = esc },
             }));
         }
         double esp = Math.Max(2, v.Numero("AbertCurtoEsp"));

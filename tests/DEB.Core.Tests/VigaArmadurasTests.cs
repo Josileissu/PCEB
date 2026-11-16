@@ -62,7 +62,14 @@ public class VigaArmadurasTests
         Assert.Equal(25 + 2.5 + 0.315 + 5 * 5, zonas[0].X1, 6);  // depois da suspensão do dente (5 c/5 a partir da face, a cobrimento)
         Assert.Equal(100, zonas[0].X2 - zonas[0].X1, 6);
         Assert.Equal(zonas[0].X2, zonas[1].X1, 6);
-        Assert.All(zonas, z => Assert.Equal(CalculoFaixa.Quantidade(z.X2 - z.X1, z.Esp, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa), z.Posicoes.Count));
+        // sem estribo repetido na divisa (D30, a regra do pilar): a ponta E tem 100 c/10 = ⌊10⌋ + 1 = 11 posições, mas a 11ª cairia
+        // no 1º estribo do vão — fica com 10 e a faixa termina 10 cm antes
+        Assert.Equal(10, zonas[0].Posicoes.Count);
+        Assert.Equal(zonas[0].X2 - 10, zonas[0].FimFaixa.Value, 6);
+        for (int i = 0; i < zonas.Count; i++)
+            Assert.Equal(KitDesenho.EstribosNaZona(zonas[i].X2 - zonas[i].X1, zonas[i].Esp, i == zonas.Count - 1, cfg), zonas[i].Posicoes.Count);
+        var todas = zonas.SelectMany(z => z.Posicoes).OrderBy(x => x).ToList();
+        Assert.True(todas.Zip(todas.Skip(1), (a, b) => b - a).All(dx => dx > 1e-6), "estribo repetido na divisa");
         var faixas = r.Faixas.Where(f => f.Barra == "estribo" && f.Tipo == TipoFaixa.Ortogonal).ToList();
         Assert.Equal(3, faixas.Count);
         Assert.Equal(new[] { 10.0, 15.0, 10.0 }, faixas.Select(f => f.Espacamento));

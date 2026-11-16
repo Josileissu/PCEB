@@ -463,16 +463,16 @@ public class ParidadePilarTests
     public void EstribosSemRepetirNaDivisa()
     {
         var cfg = new ConfiguracaoArmadura();
-        Assert.True(TemplatePilarPreMoldado.RepeteNaDivisa(450, 15, cfg));
-        Assert.False(TemplatePilarPreMoldado.RepeteNaDivisa(97.5, 10, cfg));
-        Assert.Equal(30, TemplatePilarPreMoldado.EstribosNaZona(450, 15, false, cfg));
-        Assert.Equal(31, TemplatePilarPreMoldado.EstribosNaZona(450, 15, true, cfg));   // a última zona inclui a ponta
-        Assert.Equal(10, TemplatePilarPreMoldado.EstribosNaZona(97.5, 10, false, cfg));
+        Assert.True(KitDesenho.RepeteNaDivisa(450, 15, cfg));
+        Assert.False(KitDesenho.RepeteNaDivisa(97.5, 10, cfg));
+        Assert.Equal(30, KitDesenho.EstribosNaZona(450, 15, false, cfg));
+        Assert.Equal(31, KitDesenho.EstribosNaZona(450, 15, true, cfg));   // a última zona inclui a ponta
+        Assert.Equal(10, KitDesenho.EstribosNaZona(97.5, 10, false, cfg));
         // ⌈L/s⌉ + 1 põe estribo nas duas pontas sempre: a zona intermediária perde um (100 c/15: 8 → 7)
         var teto = new ConfiguracaoArmadura { ModoQuantidadeFaixa = ModoQuantidadeFaixa.TetoMaisUm };
-        Assert.Equal(7, TemplatePilarPreMoldado.EstribosNaZona(100, 15, false, teto));
+        Assert.Equal(7, KitDesenho.EstribosNaZona(100, 15, false, teto));
         // espaçamento inicial: as pontas ficam livres, nada se repete
-        Assert.False(TemplatePilarPreMoldado.RepeteNaDivisa(450, 15, new ConfiguracaoArmadura { EspacamentoInicialFaixa = 0.5 }));
+        Assert.False(KitDesenho.RepeteNaDivisa(450, 15, new ConfiguracaoArmadura { EspacamentoInicialFaixa = 0.5 }));
 
         // no desenho do CAD: a faixa do trecho corrente termina no último estribo dele (535), a do topo começa em 550
         var c = Casos.First(x => x.Nome == "40x40-sem-12.5");

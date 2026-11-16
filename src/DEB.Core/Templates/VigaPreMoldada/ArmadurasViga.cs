@@ -38,6 +38,20 @@ public sealed class ZonaEstriboViga
     public List<double> Posicoes { get; set; } = new List<double>();
     /// <summary>Quantidade fixa (reforço de abertura): a faixa é contada (<c>FaixaContada</c>); 0 = pelo espaçamento.</summary>
     public int Contada { get; set; }
+    /// <summary>
+    /// Fim da faixa no desenho (null = <see cref="X2"/>): um espaçamento antes de X2 quando o último estribo repetiria o primeiro da
+    /// zona seguinte (D30, <see cref="KitDesenho.FimSemRepetir"/>).
+    /// </summary>
+    public double? FimFaixa { get; set; }
+
+    /// <summary>Posições pela regra de faixas, sem repetir o estribo na divisa com a zona seguinte (quando não é a última).</summary>
+    public void Posicionar(bool ultima, ConfiguracaoArmadura cfg)
+    {
+        double fim = KitDesenho.FimSemRepetir(X1, X2, Esp, ultima, cfg);
+        FimFaixa = fim;
+        int n = KitDesenho.EstribosNaZona(X2 - X1, Esp, ultima, cfg);
+        Posicoes = CalculoFaixa.Posicoes(fim - X1, n, Esp, cfg.EspacamentoInicialFaixa).Select(s => X1 + s).ToList();
+    }
 }
 
 /// <summary>
@@ -172,11 +186,8 @@ public sealed partial class TemplateVigaPreMoldada
             r.Add(new ZonaEstriboViga { Nome = "vão", X1 = x0 + Math.Max(0, lzE), X2 = x1 - Math.Max(0, lzD), Esp = espV });
             if (lzD > 0) r.Add(new ZonaEstriboViga { Nome = "ponta D", X1 = x1 - lzD, X2 = x1, Esp = espP });
         }
-        foreach (var z in r)
-        {
-            int n = CalculoFaixa.Quantidade(z.X2 - z.X1, z.Esp, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
-            z.Posicoes = CalculoFaixa.Posicoes(z.X2 - z.X1, n, z.Esp, cfg.EspacamentoInicialFaixa).Select(s => z.X1 + s).ToList();
-        }
+        // sem estribo repetido na divisa entre as zonas (D30, mesma regra do pilar): a divisa fica com a zona seguinte
+        for (int i = 0; i < r.Count; i++) r[i].Posicionar(i == r.Count - 1, cfg);
         return r;
     }
 
