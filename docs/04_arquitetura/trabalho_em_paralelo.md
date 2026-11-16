@@ -14,7 +14,9 @@ As frentes não mexem nos mesmos arquivos: o PC1 trabalha em `src/` e `tests/`, 
 `docs/04_arquitetura/regras_detalhamento/`.
 
 ## Ponto de encontro: o GitHub (`Josileissu/PCEB`, público desde 10/11/2026)
-- **Uma branch por computador**: `pc1/...` e `pc2/...` (ex.: `pc2/estudo-tekla`). Ninguém faz commit direto na `main`.
+- **Branch por assunto** (decisão do usuário, 15/11/2026): `feat/`, `fix/`, `ref/`, `docs/`, `chore/` (ex.:
+  `chore/limpeza-publica`), cada uma num worktree próprio (`git worktree add ..\PCEB_<assunto>`). As branches antigas
+  `pc1/...` e `pc2/...` seguem até acabarem. Ninguém faz commit direto na `main`.
 - **Início de cada sessão**: `git pull` da `main` + rebase da própria branch.
 - **Fim de cada sessão**: commit e push **da própria branch** (com aprovação do usuário).
 - **Entrar na `main`**: só com aprovação do usuário (pull request ou merge pedido a um dos Claudes).

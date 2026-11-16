@@ -57,7 +57,9 @@ próprio (ver o CLAUDE.md de cada plugin). `dotnet` não está no PATH.
   pode ser feito testes e implementações"). Antes: PC1 = código, PC2 = estudo. O PC2 também tem os programas de estudo (Tekla, IDEA
   StatiCa) e o Revit 2025 e 2026, os dois liberados para teste.
 - Leia `docs/00_escopo/coordenacao.md` no início da sessão e atualize no fim.
-- Cada computador trabalha na sua branch (`pc1/...`, `pc2/...`); a `main` só recebe o que o usuário aprovar.
+- **Branch por assunto** (decisão do usuário, 15/11/2026): `feat/`, `fix/`, `ref/`, `docs/`, `chore/` (não mais `pc1/` e
+  `pc2/`; as antigas seguem até acabarem). Trabalhe num worktree próprio (`git worktree add ..\PCEB_<assunto>`): outras
+  sessões usam a pasta `PCEB` e trocam a branch dela. A `main` só recebe o que o usuário aprovar.
 - `escopo_organizado.md` e `matriz_funcionalidades.md` só o PC1 edita; o PC2 anota em `docs/notas/pc2_pendencias.md`.
 - A memória do Claude é local de cada computador: regra que precisa valer nos dois vai para este arquivo.
 - Arquivos privados (Teste_PM.rvt = modelo-base dos testes desde 09/11/2026, Projeto1.rvt, prancha PP127, padrões do
