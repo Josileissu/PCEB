@@ -98,9 +98,10 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   inferior em L, pinos em L; almofada "NEOPRENE a x b x e mm"); a2 da NBR 9062 7.3.3.4 posiciona a almofada e os pinos
   (no centro dela); volume com os consolos (P61 = 3,523 m³ / 8,808 t, igual à prancha) e `AlturaCG` (para as alças).
   Avisos 7.3.2.2, 7.3.3.1, 7.3.3.4, 7.3.3.6/7, 7.3.3.12, 7.3.6.
-  **D30 (16/11/2026)**: estribos, costura e estribo vertical com ganchos de 135°; tirante e costura param por dentro das
-  longitudinais da face oposta (`BarrasConsolo`), um por consolo também no duplo (o passante saiu); o estribo não se repete
-  na divisa entre zonas (`EstribosNaZona`).
+  **D30 (16/11/2026)**: estribos, costura e estribo vertical com ganchos de 135°; tirante e costura do consolo sozinho param
+  por dentro das longitudinais da face oposta; consolos opostos em nível (0,6 cm, mesmo tipo) viram duplo com tirante e costura
+  passantes, mesmo com tipo simples (`BarrasConsolo`); costura por dentro dos estribos verticais; o estribo não se repete na
+  divisa entre zonas (`KitDesenho.EstribosNaZona`, também na viga); pernas da alça por dentro dos estribos da face oposta.
 - **Catálogo de consolos padrão (2026-10-29, pedido do usuário)**: `TipoConsolo` (nome, descrição, duplo, b, a, h, h1,
   armaduras padronizadas) na configuração do usuário (`ConfiguracaoArmadura.Consolos`, DataMember 68; padrão = P61 duplo,
   PP127 simples e trapezoidal); comando **ARMCONSOLOS** (`Paleta/FormConsolos.cs`: lista + PropertyGrid, novo/duplicar/
