@@ -51,3 +51,18 @@ núcleo para a mesma geometria. Teste real de 05/11 (P2-6): estribo +6,8, grampo
 Revit). Vem de como o Revit mede a barra (eixo, extensão do tipo de gancho do projeto) × a regra do CAD (medidas externas,
 ganchos e passagens da NBR, arredondamento): é próprio do Revit e só se mede com o Revit aberto. As tabelas e o peso do Revit
 continuam pelo comprimento do Revit; trocar para o do núcleo é decisão do dono.
+
+## O que foi feito e o que fica para o dono (16/11/2026)
+
+| Divergência | Feito | Recomendação |
+|---|---|---|
+| Posição das longitudinais | unificado (o Revit chama `SecaoBarras.Posicoes`; já era igual) | — |
+| Pino: medidas no eixo × externas | unificado (o Revit usa medidas externas, como o CAD): 76 → 74 cm | — |
+| Ganchos do estribo, da costura e do estribo vertical: 135° × 90° | mantido | Escolher um padrão. Os dois atendem a NBR 6118 (9.4.6.1) em barra nervurada; em pilar o de 135° segura melhor as longitudinais. Se ficar o de 90° do escritório, o Revit troca o tipo de gancho (precisa de teste no Revit) |
+| Estribos: início a 5 cm × no cobrimento; CAD repete o estribo na divisa | mantido | Conferir no CAD: a faixa de cada zona com piso(L/s) + 1 põe dois estribos na mesma altura quando o trecho é múltiplo do espaçamento. Depois disso, unificar as zonas do Revit com `LerZonas` |
+| Tirante do consolo simples: para nas longitudinais × vai ao cobrimento | mantido | O do Revit não bate no estribo nem nas longitudinais (vale para o 3D); sugiro o CAD descontar φt + φl no fim do tirante e da costura, e as pernas serem lidas por fora nos dois |
+| Consolos opostos: tirante e costura em L por consolo × passante | mantido | Adotar no Revit o passante do CAD (padrão do escritório, P61), que gasta menos aço; muda a armadura no modelo — fazer com teste no Revit |
+| Estribo vertical do consolo: abaixo do tirante × h − 2c | mantido | O do Revit cabe entre o tirante e o fundo; sugiro o CAD usar h − 2c − φtir |
+| Armadura inferior do consolo: formas diferentes | mantido | Definir a forma do escritório (a do CAD é a dos prints) e passar o Revit para ela |
+| Alças: barra em U a 20 %/80 % × cordoalha simétrica ao CG | mantido, fora do teste | Decidir se o Revit passa a usar a regra do CAD (`PosicaoAlcas`, cordoalha) |
+| Comprimento da API do Revit × núcleo (P2-6) | mantido | Tabelas e pesos do Revit pelo comprimento do núcleo (`SharedRules.RealLengthCm`), como no CAD |
