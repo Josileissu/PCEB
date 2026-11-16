@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using DEB.Core.Elementos.Pilar.PreMoldado;
 
 namespace DEB.Core.Elementos.Consolo;
 
@@ -56,8 +55,8 @@ public sealed class TipoConsolo
     public bool Trapezoidal => H1 < H - 1e-6;
 
     /// <summary>Texto curto do tipo ("40x23,5x25 duplo, trapezoidal").</summary>
-    public string Resumo => $"{TemplatePilarPreMoldado.Num(B, "0.#")}x{TemplatePilarPreMoldado.Num(H, "0.#")}" +
-                            (Trapezoidal ? $"/{TemplatePilarPreMoldado.Num(H1, "0.#")}" : "") + $"x{TemplatePilarPreMoldado.Num(A, "0.#")}" +
+    public string Resumo => $"{Fmt.Virgula(B, "0.#")}x{Fmt.Virgula(H, "0.#")}" +
+                            (Trapezoidal ? $"/{Fmt.Virgula(H1, "0.#")}" : "") + $"x{Fmt.Virgula(A, "0.#")}" +
                             (Duplo ? " duplo" : "") + (Trapezoidal ? ", trapezoidal" : "");
 
     public TipoConsolo Clonar() => (TipoConsolo)MemberwiseClone();

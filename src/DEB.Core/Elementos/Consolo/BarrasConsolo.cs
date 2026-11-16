@@ -24,8 +24,8 @@ public readonly struct ConsoloNoNivel
 }
 
 /// <summary>
-/// Tirante e costura do consolo — regra única do desenho do CAD (<see cref="Pilar.PreMoldado.TemplatePilarPreMoldado"/>, detalhe "ARMADURAS
-/// console") e do modelo 3D do Revit (<see cref="Pilar.PreMoldado.Modelo3D.ColumnRebarLayout"/>). Decisões do dono (D30, 16/11/2026):
+/// Tirante e costura do consolo — regra única do desenho do CAD (detalhe "ARMADURAS console") e do
+/// modelo 3D do Revit (quem usa o consolo chama estas funções). Decisões do dono (D30, 16/11/2026):
 /// <list type="bullet">
 /// <item>consolo sozinho: a barra vai da ponta (menos o cobrimento) até por dentro das longitudinais da face oposta (face
 /// oposta − cobrimento − φ do estribo − φ da longitudinal), sem colidir com elas;</item>
