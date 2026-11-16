@@ -99,11 +99,22 @@ public class PilarConsolosTests
         v["Consolos"] = "CD 40x23,5x25|1|592.5|0";
         Assert.Empty(TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1390.5, avisos));
         Assert.Contains(avisos, a => a.Contains("duas faces opostas"));
-        // tipo simples em faces opostas: dois consolos ancorados (sem tirante passante)
+        // tipo simples em faces opostas, em nível e no centro: vira duplo (D30, "se tornam um tipo, com tirante igual, desde
+        // que em nível"), com tirante passante
         v["Consolos"] = "CS 20x28,5x25|1,3|592.5|0";
         var dois = Assert.Single(TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1390.5, avisos));
-        Assert.False(dois.Duplo);
-        Assert.Equal(2, dois.Sozinhas.Count);
+        Assert.True(dois.Duplo);
+        Assert.Empty(dois.Sozinhas);
+        // em linhas separadas, no mesmo nível: juntam numa linha só
+        v["Consolos"] = "CS 20x28,5x25|1|592.5|0;CS 20x28,5x25|3|592.5|0";
+        var junto = Assert.Single(TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1390.5, avisos));
+        Assert.True(junto.Duplo);
+        Assert.Equal(new[] { 1, 3 }, junto.Faces);
+        // níveis diferentes (1 cm > 0,6 cm de tolerância) ou fora do centro (deslocamento): continuam um por consolo
+        v["Consolos"] = "CS 20x28,5x25|1|592.5|0;CS 20x28,5x25|3|591.5|0";
+        Assert.All(TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1390.5, avisos), co => Assert.False(co.Duplo));
+        v["Consolos"] = "CS 20x28,5x25|1,3|592.5|5";
+        Assert.False(Assert.Single(TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1390.5, avisos)).Duplo);
     }
 
     [Theory]
@@ -119,19 +130,18 @@ public class PilarConsolosTests
         var r = Gerar();
         double Comp(BarraTemplate b) => Enumerable.Range(0, b.Vertices.Count - 1)
             .Sum(i => Math.Sqrt(Math.Pow(b.Vertices[i + 1].X - b.Vertices[i].X, 2) + Math.Pow(b.Vertices[i + 1].Y - b.Vertices[i].Y, 2)));
-        // D30 item 3 (16/11/2026): um tirante em L por consolo, parando por dentro das longitudinais da face oposta (antes, P61:
-        // um reto passante 25 + 50 + 25 − 2 × 3,5 = 93). Horizontal = 25 − 3,5 + (50 − 3,5 − φt 0,8 − φl 2,5) = 64,7; perna 40
-        Assert.DoesNotContain(r.Barras, b => b.Nome == "cons1tir");
-        var tir = r.Barras.Single(b => b.Nome == "cons1tirs");
-        Assert.Equal(64.7 + 40, Comp(tir), 6);
-        Assert.Equal((5, 2), (tir.Quantidade, tir.Repeticoes));   // 2x5: um conjunto por consolo
+        // duplo em nível: tirante reto passante (D30, como o P61: 5 N13 ø16 C=93 = 25 + 50 + 25 − 2 × 3,5)
+        Assert.DoesNotContain(r.Barras, b => b.Nome == "cons1tirs");
+        var tir = r.Barras.Single(b => b.Nome == "cons1tir");
+        Assert.Equal(93, Comp(tir), 6);
+        Assert.Equal((5, 1), (tir.Quantidade, tir.Repeticoes));
         var tr = r.Barras.Single(b => b.Nome == "cons1tr");
         Assert.Equal((1, 2), (tr.Quantidade, tr.Repeticoes)); // uma barra soldada em cada ponta: "2x1 N22" (print duplo)
         Assert.Equal(33, Comp(tr), 6);
         var cost = r.Barras.Single(b => b.Nome == "cons1cost");
         Assert.True(cost.Estribo);
-        Assert.Equal((4, 2), (cost.Quantidade, cost.Repeticoes));   // 2x4: uma costura por consolo (D30; o P61 tinha 4 em volta dos dois)
-        Assert.Equal(64.7, cost.Vertices.Max(q => q.X) - cost.Vertices.Min(q => q.X), 6);   // mesmo trecho do tirante
+        Assert.Equal((4, 1), (cost.Quantidade, cost.Repeticoes));   // P61: 4 N5 em volta dos dois consolos
+        Assert.Equal(93, cost.Vertices.Max(q => q.X) - cost.Vertices.Min(q => q.X), 6);   // mesmo trecho do tirante
         var vert = r.Barras.Single(b => b.Nome == "cons1vert");
         Assert.Equal((5, 2), (vert.Quantidade, vert.Repeticoes));   // 2x5 N7
         // armadura inferior: uma forma de cada lado (espelhadas), com o gancho 3 + 5 em cima
@@ -144,7 +154,7 @@ public class PilarConsolosTests
         Assert.Contains(r.Textos, t => t.Texto == "CORTE B-B");
         Assert.Equal(2, r.Textos.Count(t => t.Texto == "B" && t.Layer == "ARM-CORTE"));
         Assert.Contains(r.Textos, t => t.Texto == "ARMADURAS consoles 40x23.5x25 - duplo (x2)");
-        Assert.Contains(r.Faixas, f => f.Tipo == TipoFaixa.Indicacao && f.Barra == "cons1tirs");
+        Assert.Contains(r.Faixas, f => f.Tipo == TipoFaixa.Indicacao && f.Barra == "cons1tir");
         Assert.DoesNotContain(r.Avisos, a => a.StartsWith("Consolo"));
     }
 
@@ -153,8 +163,8 @@ public class PilarConsolosTests
     {
         var r = Gerar(("Consolos", "CD 40x23,5x25|1,3|592.5|0;CD 40x23,5x25|2,4|1000|0"));
         Assert.Single(r.Textos, t => t.Texto.StartsWith("ARMADURAS consoles 40x23.5x25 - duplo (x4)"));
-        var tir = r.Barras.Single(b => b.Nome == "cons1tirs");
-        Assert.Equal((5, 4), (tir.Quantidade, tir.Repeticoes)); // 5 por consolo × 4 consolos (D30: um por consolo)
+        var tir = r.Barras.Single(b => b.Nome == "cons1tir");
+        Assert.Equal((5, 2), (tir.Quantidade, tir.Repeticoes)); // 5 por par × 2 pares
         Assert.Contains(r.Textos, t => t.Texto == "CORTE C-C");
     }
 
@@ -209,7 +219,8 @@ public class PilarConsolosTests
         v["Consolos"] = string.Join(";", linhas);
         var cs = TemplatePilarPreMoldado.LerConsolos(v, TemplatePilarPreMoldado.Catalogo, 1320, new List<string>());
         Assert.Equal(4, cs.Select(co => co.GrupoCorte).Distinct().Count());
-        Assert.Equal(3, cs.Count(co => co.CorteDesenhado && co.Letra == "B"));
+        // faces 1 e 3 do mesmo nível viram um duplo (D30): o nível de cima tem a linha "1 e 3" e a da face 4
+        Assert.Equal(2, cs.Count(co => co.CorteDesenhado && co.Letra == "B"));
         Assert.Equal(2, cs.Where(co => co.CorteDesenhado).Select(co => co.GrupoCorte).Distinct().Count());
         Assert.Equal(new[] { "B", "C" }, cs.Select(co => co.Letra).Distinct().OrderBy(x => x));
     }

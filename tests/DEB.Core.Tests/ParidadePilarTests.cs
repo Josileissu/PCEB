@@ -195,7 +195,7 @@ public class ParidadePilarTests
         if (c.Consolos == 0) return m;
         // ---- consolo ----
         bool duplo = c.Consolos == 2;
-        string tir = "cons1tirs";   // um tirante em L por consolo também nos opostos (D30 item 3)
+        string tir = duplo ? "cons1tir" : "cons1tirs";   // opostos em nível: tirante passante (D30)
         m.Add(new Medida("tirante: comprimento", ComprimentoRevit(Um(BarRole.CorbelTie)), Un(tir)));
         m.Add(new Medida("tirante: quantidade", RevQtd(BarRole.CorbelTie), Qtd(tir)));
         m.Add(new Medida("costura: comprimento", ComprimentoRevit(Um(BarRole.CorbelSew)), Un("cons1cost")));
@@ -228,8 +228,9 @@ public class ParidadePilarTests
     // zonas em si continuam diferentes (o Revit começa a 5 cm das pontas, o CAD no cobrimento das longitudinais; zonas
     // sobrepostas: o Revit usa o menor espaçamento, o CAD a primeira): as quantidades coincidem nestes casos, as alturas não
     // (ver EstribosSemRepetirNaDivisa e paridade_pilar.md)
-    // tirante e costura (D30 item 3): os dois param por dentro das longitudinais da face oposta (BarrasConsolo.FimNoPilar), um
-    // por consolo também nos opostos; perna do tirante medida por fora nos dois (D7). Sobra só a largura da costura:
+    // tirante e costura (D30): consolo sozinho, por dentro das longitudinais da face oposta (BarrasConsolo.FimNoPilar); opostos
+    // em nível (BarrasConsolo.ParesEmNivel), passantes de ponta a ponta; perna do tirante medida por fora nos dois (D7).
+    // Sobra só a largura da costura:
     private const string COST = "largura da costura: o Revit usa b − 2c (no mesmo lugar dos estribos verticais do consolo); o CAD " +
                                 "b − 2c − 2φvert (por dentro deles). A decisão do dono tratou do fim dentro do pilar, não da largura";
     private const string VERT = "estribo vertical do consolo: o Revit fica abaixo do tirante (altura h − 2c − φtir); o CAD " +
@@ -260,8 +261,8 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "alças: embutimento das pernas (cm)", 47.5, 47.5, Igual),
         ("40x40-opostos-16", "armadura inferior do consolo: comprimento", 91, 79, INF),
         ("40x40-opostos-16", "barra soldada: comprimento", 35, 35, Igual),
-        ("40x40-opostos-16", "costura: comprimento", 200, 197, COST),
-        ("40x40-opostos-16", "costura: quantidade", 6, 6, Igual),
+        ("40x40-opostos-16", "costura: comprimento", 254, 252, COST),
+        ("40x40-opostos-16", "costura: quantidade", 3, 3, Igual),
         ("40x40-opostos-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("40x40-opostos-16", "estribo: comprimento", 153, 153, Igual),
         ("40x40-opostos-16", "estribo: quantidade", 51, 51, Igual),
@@ -271,8 +272,8 @@ public class ParidadePilarTests
         ("40x40-opostos-16", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("40x40-opostos-16", "longitudinais: quantidade", 8, 8, Igual),
         ("40x40-opostos-16", "pino: comprimento", 74, 74, Igual),
-        ("40x40-opostos-16", "tirante: comprimento", 95, 95, Igual),
-        ("40x40-opostos-16", "tirante: quantidade", 6, 6, Igual),
+        ("40x40-opostos-16", "tirante: comprimento", 85, 85, Igual),
+        ("40x40-opostos-16", "tirante: quantidade", 3, 3, Igual),
         ("40x40-sem-12.5", "estribo: comprimento", 153, 153, Igual),
         ("40x40-sem-12.5", "estribo: quantidade", 45, 45, Igual),
         ("40x40-sem-12.5", "grampo: comprimento", 47, 47, Igual),
@@ -297,8 +298,8 @@ public class ParidadePilarTests
         ("40x40-um-12.5", "tirante: quantidade", 3, 3, Igual),
         ("50x50-opostos-12.5", "armadura inferior do consolo: comprimento", 102, 79, INF),
         ("50x50-opostos-12.5", "barra soldada: comprimento", 35, 35, Igual),
-        ("50x50-opostos-12.5", "costura: comprimento", 221, 218, COST),
-        ("50x50-opostos-12.5", "costura: quantidade", 6, 6, Igual),
+        ("50x50-opostos-12.5", "costura: comprimento", 274, 272, COST),
+        ("50x50-opostos-12.5", "costura: quantidade", 3, 3, Igual),
         ("50x50-opostos-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
         ("50x50-opostos-12.5", "estribo: comprimento", 193, 193, Igual),
         ("50x50-opostos-12.5", "estribo: quantidade", 51, 51, Igual),
@@ -308,8 +309,8 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("50x50-opostos-12.5", "longitudinais: quantidade", 8, 8, Igual),
         ("50x50-opostos-12.5", "pino: comprimento", 74, 74, Igual),
-        ("50x50-opostos-12.5", "tirante: comprimento", 105, 105, Igual),
-        ("50x50-opostos-12.5", "tirante: quantidade", 6, 6, Igual),
+        ("50x50-opostos-12.5", "tirante: comprimento", 95, 95, Igual),
+        ("50x50-opostos-12.5", "tirante: quantidade", 3, 3, Igual),
         ("50x50-sem-16", "estribo: comprimento", 193, 193, Igual),
         ("50x50-sem-16", "estribo: quantidade", 45, 45, Igual),
         ("50x50-sem-16", "grampo: comprimento", 57, 57, Igual),
@@ -355,6 +356,29 @@ public class ParidadePilarTests
             if (e.Causa != Igual && Math.Abs(x.Revit - x.Cad) < 1e-6) erros.Add($"{onde}: ficou igual — tire a divergência da tabela");
         }
         Assert.True(erros.Count == 0, string.Join(Environment.NewLine, erros));
+    }
+
+    /// <summary>
+    /// Consolos opostos (D30, revisão): em nível (0,6 cm) viram duplo com tirante e costura passantes; 1 cm de diferença no
+    /// topo e cada um tem o seu, em L, até por dentro das longitudinais. Mesma função (BarrasConsolo.ParesEmNivel) no Revit.
+    /// </summary>
+    [Fact]
+    public void OpostosSoViramDuploEmNivel()
+    {
+        var c = Casos.First(x => x.Nome == "40x40-opostos-16");
+        var (f, k, s) = Revit(c);
+        Assert.Single(ColumnRebarLayout.CorbelPairs(k));
+        var passante = ColumnRebarLayout.Compute(f, k, s).Where(b => b.Role == BarRole.CorbelTie).ToList();
+        Assert.Single(passante);
+        Assert.Equal(85, ComprimentoRevit(passante[0]), 6);   // 2 × (25 − 2,5) + 40
+        k[1].ZTop += U_.Mm(4); k[1].ZBottom += U_.Mm(4);
+        k[0].ZTop += U_.Mm(4.5); k[0].ZBottom += U_.Mm(4.5);   // 0,5 mm: ainda em nível
+        Assert.Single(ColumnRebarLayout.CorbelPairs(k));
+        k[0].ZTop += U_.Mm(10); k[0].ZBottom += U_.Mm(10);     // 1 cm: níveis diferentes
+        Assert.Empty(ColumnRebarLayout.CorbelPairs(k));
+        var ls = ColumnRebarLayout.Compute(f, k, s).Where(b => b.Role == BarRole.CorbelTie).ToList();
+        Assert.Equal(2, ls.Count);
+        Assert.All(ls, b => Assert.Equal(95, ComprimentoRevit(b), 6));
     }
 
     /// <summary>

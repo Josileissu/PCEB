@@ -89,9 +89,18 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             }
 
             // ---------------- Consolos (NBR 9062) ----------------
+            // consolos opostos em nível formam um duplo (D30): tirante e costura passantes, gerados pelo primeiro do par
             if (s.CorbelRebar)
+            {
+                var par = new Dictionary<Corbel, (Corbel Outro, bool Primeiro)>();
+                foreach (var (a, b) in CorbelPairs(corbels))
+                {
+                    par[corbels[a]] = (corbels[b], true);
+                    par[corbels[b]] = (corbels[a], false);
+                }
                 foreach (Corbel k in corbels)
-                    bars.AddRange(CorbelBars(f, k, s));
+                    bars.AddRange(par.TryGetValue(k, out var p) ? CorbelBars(f, k, s, p.Outro, p.Primeiro) : CorbelBars(f, k, s, null, true));
+            }
 
             // ---------------- Alças de içamento ----------------
             // Numa face, simétricas ao CG ao longo do eixo e perto de 20 % das pontas, pela mesma função do CAD (D30): o pilar
@@ -216,7 +225,21 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         /// na ponta, barra soldada ou perna para baixo), estribos horizontais de costura em 2/3 d abaixo do tirante,
         /// estribos verticais, armadura inferior em U e pinos em L.
         /// </summary>
-        private static IEnumerable<BarDef> CorbelBars(ColumnBox f, Corbel k, ColumnRebarSpec s)
+        /// <summary>
+        /// Pares de consolos opostos em nível (índices em <paramref name="corbels"/>), pela regra do núcleo comum ao CAD
+        /// (<see cref="BarrasConsolo.ParesEmNivel"/>, tolerância de 0,6 cm). A armadura é a mesma (uma especificação por pilar).
+        /// </summary>
+        public static List<(int A, int B)> CorbelPairs(IList<Corbel> corbels)
+        {
+            double Cm(double ft) => U_.ToMm(ft) / 10;
+            int Face(ColumnFace fc) => fc == ColumnFace.PX ? 1 : fc == ColumnFace.PY ? 2 : fc == ColumnFace.NX ? 3 : 4;
+            return BarrasConsolo.ParesEmNivel(corbels.Select(k => new ConsoloNoNivel(Face(k.Face), Cm(k.ZTop), Cm(k.HeightAtFace),
+                Cm((k.S0 + k.S1) / 2), Cm(k.Width), Cm(k.Projection), Cm(k.TipHeight))).ToList());
+        }
+
+        /// <param name="par">consolo oposto em nível (duplo) ou null</param>
+        /// <param name="primeiro">no duplo, este consolo gera o tirante e a costura passantes; o outro não gera os dele</param>
+        private static IEnumerable<BarDef> CorbelBars(ColumnBox f, Corbel k, ColumnRebarSpec s, Corbel par, bool primeiro)
         {
             double cover = U_.Mm(s.CoverMm);
             double dTie = U_.Mm(s.TieDiameterMm), dSew = U_.Mm(s.SewDiameterMm);
@@ -238,24 +261,26 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             double step = n > 1 ? (s1 - s0) / (n - 1) : 0;
             double sStart = n > 1 ? s0 : (k.S0 + k.S1) / 2;
 
-            var tie = new BarDef
+            // duplo: a outra ponta é a do consolo oposto (d negativo = atravessando o pilar)
+            double dOutro = par == null ? 0 : -(depth + par.Projection - cover);
+            var tie = new BarDef { Role = BarRole.CorbelTie, DiameterMm = s.TieDiameterMm, Normal = k.T, Count = n, Spacing = step };
+            if (par == null)
             {
-                Role = BarRole.CorbelTie,
-                DiameterMm = s.TieDiameterMm,
-                Points =
-                {
-                    k.At(f, dIn, sStart, zTie - innerLeg),
-                    k.At(f, dIn, sStart, zTie),
-                    // com a barra soldada a ponta é livre e vai até o cobrimento, como no CAD; com a perna na ponta, o eixo da
-                    // perna fica a cobrimento + φ/2
-                    k.At(f, s.TieWeldedBar ? k.Projection - cover : dTip, sStart, zTie)
-                },
-                Normal = k.T,
-                Count = n,
-                Spacing = step
-            };
+                tie.Points.Add(k.At(f, dIn, sStart, zTie - innerLeg));
+                tie.Points.Add(k.At(f, dIn, sStart, zTie));
+            }
+            else
+            {
+                // passante (D30): de ponta a ponta; com a perna na ponta, ela desce também do outro lado
+                double tipLegOutro = Math.Max(par.TipHeight - 2 * cover, 10 * dTie);
+                if (!s.TieWeldedBar) tie.Points.Add(k.At(f, dOutro + dTie / 2, sStart, zTie - tipLegOutro));
+                tie.Points.Add(k.At(f, s.TieWeldedBar ? dOutro : dOutro + dTie / 2, sStart, zTie));
+            }
+            // com a barra soldada a ponta é livre e vai até o cobrimento, como no CAD; com a perna na ponta, o eixo da perna
+            // fica a cobrimento + φ/2
+            tie.Points.Add(k.At(f, s.TieWeldedBar ? k.Projection - cover : dTip, sStart, zTie));
             if (!s.TieWeldedBar) tie.Points.Add(k.At(f, dTip, sStart, zTie - tipLeg));
-            yield return tie;
+            if (par == null || primeiro) yield return tie;
 
             // Barra de ancoragem soldada: transversal, na ponta, logo abaixo do tirante.
             if (s.TieWeldedBar)
@@ -348,15 +373,15 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                 };
             }
 
-            // Costura: estribos horizontais fechados, abaixo do tirante, em 2/3 d.
+            // Costura: estribos horizontais fechados, abaixo do tirante, em 2/3 d (no duplo, passante, gerada pelo primeiro).
             int m = Math.Max(0, s.SewCount);
-            if (m == 0) yield break;
+            if (m == 0 || (par != null && !primeiro)) yield break;
             double d = k.HeightAtFace - cover;
             double zone = 2.0 / 3.0 * d;
             double sp = zone / m;
             double zFirst = zTie - dTie / 2 - dSew / 2 - sp;
             double sa = k.S0 + cover + dSew / 2, sb = k.S1 - cover - dSew / 2;
-            double dInSew = -(fim - dSew / 2);
+            double dInSew = par == null ? -(fim - dSew / 2) : dOutro + dSew / 2;
             double dTipSew = k.Projection - cover - dSew / 2;
 
             yield return new BarDef

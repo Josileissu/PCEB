@@ -53,8 +53,14 @@ public sealed class ConsoloPilar
     public double AlmB { get; set; }
     public double AlmE { get; set; }
 
+    /// <summary>
+    /// Consolos opostos desta linha estão em nível (<see cref="BarrasConsolo.ParesEmNivel"/>, D30): formam um duplo mesmo que o
+    /// tipo seja simples. Preenchido por <see cref="TemplatePilarPreMoldado.LerConsolos"/>.
+    /// </summary>
+    public bool EmNivel { get; set; }
+
     /// <summary>Pares de faces opostas (tirante passante) e faces sozinhas (tirante ancorado no pilar).</summary>
-    public List<(int F1, int F2)> Pares => !TipoDuplo ? new List<(int, int)>()
+    public List<(int F1, int F2)> Pares => !(TipoDuplo || EmNivel) ? new List<(int, int)>()
         : new[] { (1, 3), (2, 4) }.Where(p => Faces.Contains(p.Item1) && Faces.Contains(p.Item2)).ToList();
     public List<int> Sozinhas => Faces.Where(f => !Pares.Any(p => p.F1 == f || p.F2 == f)).ToList();
     public bool Duplo => Pares.Count > 0;
@@ -194,8 +200,38 @@ public sealed partial class TemplatePilarPreMoldado
             if (c.ZTopo - c.H < 0 || c.ZTopo > L) { avisos.Add($"Consolo {k}: fora do pilar (topo a {Num(c.ZTopo, "0.#")} cm da base)."); continue; }
             r.Add(c);
         }
+        JuntarEmNivel(r, v.Numero("B"), v.Numero("H"));
         AgruparCortes(r);
         return r;
+    }
+
+    /// <summary>
+    /// Consolos opostos em nível viram duplo (D30: "se tornam um tipo, com tirante igual, desde que em nível"), pela mesma
+    /// função do modelo 3D do Revit (<see cref="BarrasConsolo.ParesEmNivel"/>): mesmo tipo (mesma armadura), faces opostas,
+    /// mesmo topo e mesma posição ao longo da face dentro de 0,6 cm. Na mesma linha (tipo simples em "1,3"), a linha passa a
+    /// ser duplo; em linhas diferentes, a face da segunda vai para a primeira quando o deslocamento da primeira a põe no
+    /// mesmo lugar. Os tipos duplos do catálogo continuam como antes.
+    /// </summary>
+    private static void JuntarEmNivel(List<ConsoloPilar> r, double b, double h)
+    {
+        // centro ao longo da face, no eixo comum às faces opostas (mesma convenção de RetanguloPlanta)
+        double Centro(ConsoloPilar co, int f) => f == 1 ? h / 2 + co.Desl : f == 3 ? h / 2 - co.Desl : f == 2 ? b / 2 + co.Desl : b / 2 - co.Desl;
+        var itens = new List<(ConsoloPilar Co, int Face)>();
+        foreach (var co in r.Where(co => !co.TipoDuplo))
+            foreach (int f in co.Faces) itens.Add((co, f));
+        var nivel = itens.Select(t => new ConsoloNoNivel(t.Face, t.Co.ZTopo, t.Co.H, Centro(t.Co, t.Face), t.Co.B, t.Co.A, t.Co.H1, t.Co.Tipo)).ToList();
+        foreach (var (i, j) in BarrasConsolo.ParesEmNivel(nivel))
+        {
+            var (ci, _) = itens[i];
+            var (cj, fj) = itens[j];
+            if (ci == cj) { ci.EmNivel = true; continue; }
+            if (Math.Abs(Centro(ci, fj) - nivel[j].Centro) > BarrasConsolo.ToleranciaNivel) continue;
+            cj.Faces.Remove(fj);
+            ci.Faces.Add(fj);
+            ci.Faces.Sort();
+            ci.EmNivel = true;
+        }
+        r.RemoveAll(co => co.Faces.Count == 0);
     }
 
     /// <summary>
@@ -528,7 +564,7 @@ public sealed partial class TemplatePilarPreMoldado
         int fOposta = (fDir + 1) % 4 + 1;   // 1↔3, 2↔4
         double fimPilar = BarrasConsolo.FimNoPilar(colW, cob[fOposta - 1], phiEstPilar, phiLongPilar);
         double compSoz = BarrasConsolo.Horizontal(co.A, cc, fimPilar);
-        double compPar = 2 * co.A + colW - 2 * cc;   // só a largura do desenho das armaduras inferiores do duplo
+        double compPar = BarrasConsolo.Passante(co.A, co.A, colW, cc, cc);   // duplo: tirante e costura de ponta a ponta
         // armadura inferior: perna na ponta, trecho de baixo entrando no pilar e o retorno em cima (duplo: gancho 3 + 5)
         double pernaInf = co.H1 - 2 * cc;
         double horizInf = Math.Min(co.A - cc + co.InfAnc, co.A + colW - 2 * cc);
@@ -607,7 +643,7 @@ public sealed partial class TemplatePilarPreMoldado
         double XPonta(int s) => (s < 0 ? xB : xB + colW) + s * (co.A - cc);
         double XFim(int s) => (s < 0 ? xB : xB + colW) - s * fimPilar;
         double xIni = XPonta(-1);
-        bool pernaNoCorte = !co.Laco;
+        bool pernaNoCorte = !duplo && !co.Laco;
         Rotulo("CORTE B-B", xB + colW / 2, yR1 - 1.5 * hc, hc);
         double yPilTopo = zt + Math.Max(co.PinoAcima, 2 * hc) + 2 * hc;
         double yPilBase = Math.Min(zt - co.H - 8 * hc, pernaNoCorte ? tirZ - pernaTir - 3 * hc : double.MaxValue);
@@ -659,24 +695,22 @@ public sealed partial class TemplatePilarPreMoldado
                 Indicar(id + "pino", new[] { (xp, zt + co.PinoAcima * 0.75) }, xRot, zt + Math.Max(4.9 * hc, co.PinoAcima * 0.9));
             }
         }
-        // tirante de cada consolo: da ponta até por dentro das longitudinais da outra face, descendo junto delas (no duplo, os
-        // dois se cruzam no pilar — um por consolo, D30)
-        foreach (int s in lados)
-        {
-            if (pernaNoCorte) Polilinha("ARM-BARRA-DETALHE", (XPonta(s), tirZ), (XFim(s), tirZ), (XFim(s), tirZ - pernaTir));
-            else c.Linha(XPonta(s), tirZ, XFim(s), tirZ, "ARM-BARRA-DETALHE");
-        }
-        string idTir = co.Laco ? id + "laco" : id + "tirs";
-        if (duplo) Indicar(idTir, new[] { (XFim(-1), tirZ - pernaTir * 0.6), (XFim(1), tirZ - pernaTir * 0.6) }, xB + colW / 2 - 1.5 * hc, zt + 2.5 * hc);
+        // tirante: no duplo, reto de ponta a ponta (passante); no simples, da ponta até por dentro das longitudinais da outra
+        // face, descendo junto delas (D30)
+        if (duplo) c.Linha(XPonta(-1), tirZ, XPonta(1), tirZ, "ARM-BARRA-DETALHE");
+        else if (pernaNoCorte) Polilinha("ARM-BARRA-DETALHE", (XPonta(-1), tirZ), (XFim(-1), tirZ), (XFim(-1), tirZ - pernaTir));
+        else c.Linha(XPonta(-1), tirZ, XFim(-1), tirZ, "ARM-BARRA-DETALHE");
+        string idTir = co.Laco ? id + "laco" : duplo ? id + "tir" : id + "tirs";
+        if (duplo) Indicar(idTir, new[] { (xB + colW / 2 + 1 * hc, tirZ) }, xB + colW / 2 - 1.5 * hc, zt + 2.5 * hc);
         else Indicar(idTir, new[] { (xB + colW * 0.6, tirZ) }, xB + colW + 4 * hc, zt + 2.5 * hc);
-        // estribos horizontais (costura): da ponta até por dentro das longitudinais da outra face, um por consolo
+        // estribos horizontais (costura): passante no duplo; no simples até por dentro das longitudinais da outra face
         if (co.CostN > 0)
         {
             var refs = new List<(double X, double Y)>();
             for (int k = 1; k <= co.CostN; k++)
             {
                 double z = tirZ - k * passoCost;
-                foreach (int s in lados) c.Linha(XPonta(s), z, XFim(s), z, "ARM-BARRA-DETALHE");
+                c.Linha(XPonta(-1), z, duplo ? XPonta(1) : XFim(-1), z, "ARM-BARRA-DETALHE");
                 refs.Add(duplo ? (xB + colW / 2 - 1.5 * hc + 0.6 * k * hc, z) : (XFim(-1) - 1.5 * hc - 0.6 * k * hc, z));
             }
             if (duplo) Indicar(id + "cost", refs, xB + colW / 2 + 2 * hc, zt - co.H - 3 * hc);
@@ -695,15 +729,28 @@ public sealed partial class TemplatePilarPreMoldado
         double xFim = xS, ySFim = yS;
         if (!co.Laco)
         {
-            // um tirante em L por consolo, também nos opostos (D30 item 3): "2x3 N…" no duplo
-            double comp = compSoz;
+            // duplo (par em nível, D30): reto de ponta a ponta, um conjunto por par; faces sozinhas (e o simples): em L
+            double comp = duplo ? compPar : compSoz;
             Rotulo("Tirante", xS + comp / 2, yS + 5.2 * hc);
-            var bt = new BarraTemplate { Nome = id + "tirs", Vertices = { (xS, yS), (xS + comp, yS), (xS + comp, yS - pernaTir) },
-                Bitola = co.TirPhi, Aco = acoLong, Quantidade = co.TirN, Repeticoes = rep, Escala = c.escC };
-            if (co.TirPerna <= 0) bt.Formatos.AddRange(new[] { FormatoSegmento.Linha, FormatoSegmento.Gancho90 });
-            r.Barras.Add(bt);
-            Indicar(id + "tr", new[] { (xS, yS) }, xS - 4 * hc, yS);
-            ySFim = yS - pernaTir;
+            if (duplo)
+            {
+                r.Barras.Add(new BarraTemplate { Nome = id + "tir", Vertices = { (xS, yS), (xS + comp, yS) }, Bitola = co.TirPhi, Aco = acoLong,
+                    Quantidade = co.TirN, Repeticoes = Math.Max(1, nPares), Escala = c.escC });
+                // a barra soldada nas duas pontas
+                Indicar(id + "tr", new[] { (xS, yS) }, xS - 3 * hc, yS - 1.2 * hc);
+                Indicar(id + "tr", new[] { (xS + comp, yS) }, xS + comp + 3 * hc, yS - 1.2 * hc);
+                ySFim = yS;
+            }
+            if (!duplo || nSoz > 0)
+            {
+                double y0 = duplo ? yS - 5 * hc : yS;
+                var bt = new BarraTemplate { Nome = id + "tirs", Vertices = { (xS, y0), (xS + compSoz, y0), (xS + compSoz, y0 - pernaTir) },
+                    Bitola = co.TirPhi, Aco = acoLong, Quantidade = co.TirN, Repeticoes = duplo ? nSoz : rep, Escala = c.escC };
+                if (co.TirPerna <= 0) bt.Formatos.AddRange(new[] { FormatoSegmento.Linha, FormatoSegmento.Gancho90 });
+                r.Barras.Add(bt);
+                if (!duplo) Indicar(id + "tr", new[] { (xS, y0) }, xS - 4 * hc, y0);
+                ySFim = y0 - pernaTir;
+            }
             xFim = Math.Max(xFim, xS + comp + 5 * hc);
         }
         else
@@ -822,12 +869,21 @@ public sealed partial class TemplatePilarPreMoldado
         double xMeioFim = xCur;
         if (co.CostN > 0)
         {
-            // comprimento: da ponta até por dentro das longitudinais da outra face (D30 item 3); largura por dentro dos estribos
-            // verticais (regra do CAD; a largura não fez parte da decisão)
-            double w = compSoz, prof = Math.Max(2 * co.CostPhi / 10, co.B - 2 * cc - 2 * co.VertPhi / 10);
+            // comprimento: passante no duplo; no simples até por dentro das longitudinais da outra face (D30); largura por
+            // dentro dos estribos verticais
+            double w = duplo ? compPar : compSoz, prof = Math.Max(2 * co.CostPhi / 10, co.B - 2 * cc - 2 * co.VertPhi / 10);
             var bc = Estribo(cfg, id + "cost", xCur, topAA - prof, w, prof, co.CostPhi, acoEst, c.escC);
             bc.Quantidade = co.CostN;
-            bc.Repeticoes = rep;   // uma costura por consolo, também nos opostos
+            bc.Repeticoes = duplo ? Math.Max(1, nPares) : rep;   // duplo: uma em volta dos dois consolos de cada par
+            if (duplo && nSoz > 0)
+            {
+                // faces sozinhas num nível com par: costura própria, até por dentro das longitudinais
+                var bs = Estribo(cfg, id + "cost2", xCur, topAA - 2 * prof - 6 * hc, compSoz, prof, co.CostPhi, acoEst, c.escC);
+                bs.Quantidade = co.CostN;
+                bs.Repeticoes = nSoz;
+                r.Barras.Add(bs);
+                yBaixo = Math.Min(yBaixo, topAA - 2 * prof - 12 * hc);
+            }
             r.Barras.Add(bc);
             Rotulo("Estribo horizontal", xCur + w / 2, topAA - prof - 4.5 * hc);
             xMeioFim = Math.Max(xMeioFim, xCur + w + 10 * hc);
