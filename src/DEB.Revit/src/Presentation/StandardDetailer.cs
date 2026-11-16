@@ -642,7 +642,7 @@ namespace DEB.Revit.Presentation
             }
             if (best == null) return null;
             // para fora: o lado em que a alça passa da face do pilar
-            List<XYZ> pts = best.Curves.SelectMany(q => new[] { q.GetEndPoint(0), q.GetEndPoint(1) }).ToList();
+            List<XYZ> pts = best.Curves.SelectMany(q => q.Tessellate()).ToList();   // arco do topo da alça: pontos ao longo dele
             best.U = new[] { p.AxisX, p.AxisX.Negate(), p.AxisY, p.AxisY.Negate() }
                 .OrderByDescending(d => pts.Max(q => q.DotProduct(d)) - p.MaxAlong(d)).First();
             best.Face = p.MaxAlong(best.U);
@@ -655,7 +655,7 @@ namespace DEB.Revit.Presentation
             ViewFamilyType vft = new FilteredElementCollector(_doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Section);
             if (vft == null) return null;
-            List<XYZ> pts = g.Curves.SelectMany(q => new[] { q.GetEndPoint(0), q.GetEndPoint(1), q.Evaluate(0.5, true) }).ToList();
+            List<XYZ> pts = g.Curves.SelectMany(q => q.Tessellate()).ToList();   // inclui o topo em arco da alça
             XYZ z = p.AxisZ, u = g.U;
             XYZ c = pts.Aggregate(XYZ.Zero, (a, b) => a + b) / pts.Count;
             var tr = Transform.Identity;
@@ -689,7 +689,7 @@ namespace DEB.Revit.Presentation
             double s = view.Scale, w = view.Origin.DotProduct(vd);
             XYZ At(double r, double uu) => right * r + up * uu + vd * w;
             double sg = g.U.DotProduct(right) >= 0 ? 1 : -1;      // a alça sai para a direita (+1) ou para a esquerda
-            List<XYZ> pts = g.Curves.SelectMany(q => new[] { q.GetEndPoint(0), q.GetEndPoint(1) }).ToList();
+            List<XYZ> pts = g.Curves.SelectMany(q => q.Tessellate()).ToList();   // o topo em arco conta no "lado de fora"
             double rFace = g.Face * g.U.DotProduct(right);
             double rad = U.Mm(g.DiameterMm / 2);
             double rOut = pts.Select(q => q.DotProduct(right)).OrderBy(x => x * sg).Last() + sg * rad;

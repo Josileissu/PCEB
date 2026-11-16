@@ -18,15 +18,15 @@ Decisões do dono de 16/11/2026 (D30 em `00_escopo/escopo_organizado.md`, com a 
 | Posição das longitudinais na seção | `SecaoBarras.Posicoes` | sim |
 | Estribo: medidas externas b − 2c; ganchos 135° (estribo, costura, estribo vertical) | `GeradorEstribo.FechadoPadrao` com gancho de 45° | sim |
 | Estribos: início no cobrimento das pontas; sem repetir na divisa entre zonas | `KitDesenho.EstribosNaZona` / `RepeteNaDivisa` / `FimSemRepetir` (também na viga) | sim (alturas e quantidades) |
-| Estribos: zonas que se sobrepõem | Revit: o menor espaçamento; CAD (`LerZonas`): a zona de baixo | **não** (ver abaixo) |
+| Estribos: zonas (menor espaçamento onde se sobrepõem; corrente nos vãos) | `TemplatePilarPreMoldado.MontarZonas` (CAD em `LerZonas`, Revit em `StirrupRuns`) | sim |
 | Grampo | `Lay` / `Arm.Grampo`, 135° | sim |
 | Consolos opostos em nível = duplo (tolerância 0,6 cm) | `BarrasConsolo.ParesEmNivel` | sim |
 | Tirante e costura: sozinho até por dentro das longitudinais; duplo passante | `BarrasConsolo.FimNoPilar` / `Horizontal` / `Passante` | sim |
 | Largura da costura: por dentro dos estribos verticais | `BarrasConsolo.LarguraCostura` | sim |
 | Barra soldada, pino (comprimento) | b − 2c; medidas externas | sim |
 | Estribo vertical e armadura inferior do consolo | **definidos pelo usuário** (abaixo) | não unificados |
-| Alças: alturas (CG ± 30 % de L) e embutimento (por dentro dos estribos da face oposta) | `AlturaCG` + `PosicaoAlcas`; `EmbutimentoAlca` | sim |
-| Alças: material | cordoalha CP-190 ø12,7 nos dois (`ColumnRebarLayout.LiftSteel`) | sim |
+| Alças: alturas (CG ± 30 % de L) e embutimento (por dentro das longitudinais da face oposta) | `AlturaCG` + `PosicaoAlcas`; `EmbutimentoAlca` | sim |
+| Alças: cordoalha CP-190 ø12,7, topo em semicírculo, 2 por ponto, face escolhida (padrão sul) | `ColumnRebarLayout.LiftSteel`, `BarDef.ArcMid`, `LiftLoops`, `LiftFaceOf` | sim |
 | Comprimento real (dobras, ganchos, arredondamento) | `ComprimentoPorEixo` / `MedidaBarra.Unitario` | mesma regra |
 
 ## Medidas no teste (cm, Revit / CAD)
@@ -43,10 +43,12 @@ Decisões do dono de 16/11/2026 (D30 em `00_escopo/escopo_organizado.md`, com a 
 | Estribo vertical do consolo (usuário) | — | 131 / 133 | 131 / 133 | — | 131 / 133 | 131 / 133 |
 | Armadura inferior do consolo (usuário) | — | 92 / 98 | 91 / 79 | — | 101 / 98 | 102 / 79 |
 | Alças: alturas | 120 e 480 | 122,6 e 482,6 | 125 e 485 | 120 e 480 | 121,7 e 481,7 | 123,3 e 483,3 |
-| Alças: embutimento | 37 | 37 | 37 | 47 | 47 | 47 |
-| Alças: comprimento | 158 / 150 | 158 / 150 | 158 / 150 | 178 / 170 | 178 / 170 | 178 / 170 |
+| Alças: embutimento | 35,75 | 35,75 | 35,4 | 45,4 | 45,4 | 45,75 |
+| Alças: comprimento | 147 / 147 | 147 / 147 | 147 / 147 | 167 / 167 | 167 / 167 | 167 / 167 |
+| Alças: face e cordoalhas por ponto | 2 e 2 | 2 e 2 | 2 e 2 | 2 e 2 | 2 e 2 | 2 e 2 |
 
-Iguais também: longitudinais (quantidade, posições, 595), grampo (47 e 57, 90 e 102), barra soldada (35), pino (74).
+Zonas sobrepostas (teste `ZonasSobrepostas`, base 4 m c/10 e consolo 3,5–4,2 m c/7,5): c/7,5 nos dois, mesmas quantidades e
+alturas. Iguais também: longitudinais (quantidade, posições, 595), grampo (47 e 57, 90 e 102), barra soldada (35), pino (74).
 
 ## Definidos pelo usuário (não são regra a unificar)
 - **Estribo vertical do consolo** — CAD: tipo de consolo do catálogo (ARMCONSOLOS), `VertN` e `VertPhi`; a altura é h − 2c.
@@ -62,12 +64,8 @@ Iguais também: longitudinais (quantidade, posições, 595), grampo (47 e 57, 90
 
 | Divergência | Causa | Recomendação |
 |---|---|---|
-| Zonas de estribos que se sobrepõem | Revit: o menor espaçamento na sobreposição; CAD: a zona de baixo vale (pode deixar c/10 junto de um consolo c/7,5 — teste `ZonasSobrepostas`) | Adotar o menor espaçamento também no CAD (`LerZonas`); depois o Revit pode chamar a mesma função |
-| Alças: comprimento (+8 cm no Revit) | topo do laço em semicírculo no CAD; o modelo 3D só tem trechos retos (dois cantos) | Dar ao modelo 3D trechos em arco (BarDef com bulge e `Arc` no Revit) |
-| Alças: pé na longitudinal do meio da face oposta | o pé corre ao longo do pilar por dentro do estribo, no meio da face, onde há a longitudinal do meio (3 por face) | Tirar a alça do eixo da barra do meio, ou parar o pé por dentro das longitudinais |
-| Alças: face | CAD pelo parâmetro `AlcaFace`; Revit pela regra `LiftFace` (face com consolos para cima) | decisão do dono |
-| Alças: cordoalhas por ponto | CAD 2 por alça (`AlcaPernas`), sem posição definida; Revit `LiftLoops` = 1 (ou 2, a 20 cm) | decisão do dono |
 | Alças: perto de consolo | CAD avisa; Revit desloca a alça o mínimo | — |
+| Alças: distância entre as 2 cordoalhas do ponto | só o Revit posiciona (LiftSpacingMm, 20 cm); o CAD só dá a quantidade | — |
 | Pino: posição ao longo do balanço | meio do balanço × centro da almofada | — |
 | Etiqueta da alça no Revit | a família de etiqueta do usuário lê o comprimento do Revit | mudar a família para ler `SD_Comprimento (núcleo)` |
 | Duplo do CAD com deslocamento | o template espelha o par pelo centro (face 3 em −desl): com desl ≠ 0 os dois consolos não ficam alinhados e não viram duplo automático | — |

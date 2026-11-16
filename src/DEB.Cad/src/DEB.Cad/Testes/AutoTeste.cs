@@ -2788,8 +2788,9 @@ public sealed class AutoTeste
             Checar(rel.Avisos.Any(a => a.Contains("CS 40x40x35") && a.Contains("ARMCONSOLOS")), "peças: consolo fora do catálogo criado com aviso (PX3: CS 40x40x35)");
             Checar(rel.Avisos.Any(a => a.Contains("DG 30x20") && a.Contains("ARMDENTES")), "peças: dente fora do catálogo criado com aviso e VX3 gerada (DG 30x20)");
             Checar(rel.CatalogosAlterados && Plugin.Config.Dentes.All(t => t.Nome != "DG 30x20"), "peças: catálogos do usuário devolvidos depois do teste");
-            // detalhes típicos da biblioteca de DWGs dependem do computador: não contam
-            Checar(!rel.Avisos.Where(a => !a.Contains("não está na biblioteca")).Any(a => a.Contains("PX1") || a.Contains("PX2") || a.Contains("VX1") || a.Contains("VX2")),
+            // detalhes típicos da biblioteca de DWGs dependem do computador: não contam; nem o aviso do embutimento da alça, que
+            // depende do valor salvo pelo usuário no template (D30: limitado por dentro das longitudinais)
+            Checar(!rel.Avisos.Where(a => !a.Contains("não está na biblioteca") &&!a.Contains("Alça: embutimento")).Any(a => a.Contains("PX1") || a.Contains("PX2") || a.Contains("VX1") || a.Contains("VX2")),
                 "peças: PX1 (duplo), PX2 (trapezoidal), VX1 (dente) e VX2 (reta) sem avisos");
         }
 
