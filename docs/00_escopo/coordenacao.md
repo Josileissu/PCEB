@@ -8,7 +8,7 @@ Situação: a fazer · em andamento · pausado · aguardando usuário · pronto 
 
 | # | Tarefa | Situação | Branch | Atualizado em |
 |---|---|---|---|---|
-| O-2 | Organização do núcleo: etapas 3 a 6 (D26–D30) — [tarefa](tarefas/O-2.md); etapa 3 (pilar no Revit pelo núcleo) feita; D30 e a revisão do dono aplicadas em `feat/pilar-regras-unificadas` (pilar e estribos da viga), o que sobra em `04_arquitetura/paridade_pilar.md` | pronto p/ revisão | `feat/pilar-revit-nucleo`, `feat/pilar-regras-unificadas` | 16/11 |
+| O-2 | Organização do núcleo: etapas 3 a 6 (D26–D30) — [tarefa](tarefas/O-2.md); etapa 3 (pilar no Revit pelo núcleo) feita; D30 completa (alças e zonas em `feat/pilar-alcas-e-zonas`, instalada no Revit 2025/2026 e no AutoCAD 2026), o que sobra em `04_arquitetura/paridade_pilar.md` | pronto p/ revisão | `feat/pilar-alcas-e-zonas` | 16/11 |
 | P1-9 | Pranchas de formas no Revit (D25) — [tarefa](tarefas/P1-9.md) | em andamento | — | 14/11 |
 | P1-8 | Paginar laje alveolar no Revit (D24) — [tarefa](tarefas/P1-8.md) | pronto p/ revisão | — | 12/11 |
 | P1-1 | Pilar pré-moldado no Revit igual à PP127 — [tarefa](tarefas/P1-1.md) | em andamento | — | 06/11 |
