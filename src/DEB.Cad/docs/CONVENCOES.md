@@ -135,7 +135,7 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   elemento desenhado pelo ARMTEMPLATE é salvo pelo Nome. Janela: Modelo, Salvar como padrão, Excluir, Importar, Exportar,
   Abrir arquivo; comandos ARMTEMPLATEIMPORTAR/ARMTEMPLATEEXPORTAR. O autoteste importa nesse arquivo: o roteiro tem de
   guardar e devolver a pasta Templates (como o config.json).
-- **Padrão do escritório para pranchas**: o DWG do P56 (`auxiliar_cad/pilar_padrão/<código do projeto>.dwg`) é a
+- **Padrão do escritório para pranchas**: o DWG do P56 (`auxiliar_cad/pilar_padrão/<arquivo do projeto>.dwg`) é a
   referência de layers, cotas e arranjo. Para medir: copie para o scratchpad, ARMTESTEDXF (ARM_DXF_ENTRADA/SAIDA) numa
   instância nova e leia com ezdxf (`python -E -P`). Prévia rápida do template sem CAD: `tools/previa_template.py`.
 - Linha de chamada (sem patamar) termina ao lado do texto, 0,4 altura afastada, do lado de onde vem (`ServicoFaixa.PontoNoTexto`;

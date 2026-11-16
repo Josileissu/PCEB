@@ -58,7 +58,7 @@ Bonsai têm ficha própria (`opensource/ifcopenshell.md`).
 - **RH Engenharia – Bloco de Estacas 3D + Memorial** (página HTML, licença desconhecida): reações em estacas por bloco rígido,
   grelha, as-built, memorial passo a passo, IFC/DXF/PDF. Referência para fundações e para o formato do memorial.
 
-## Nossos (fichas em `proprios/`)
+## Nossos (tabela em `programas.md`)
 | Função | Armadura BR (CAD) | StructuralDetailer (Revit) |
 |---|---|---|
 | Plataforma | GstarCAD 2021, AutoCAD 2021–2027 (ZWCAD previsto) | Revit 2025/2026 |

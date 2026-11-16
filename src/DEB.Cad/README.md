@@ -122,7 +122,6 @@ No dia a dia, use `ARMPALETA` para abrir a paleta, `ARMCOMANDOS` para a paleta d
 - [Templates de elementos](docs/TEMPLATES.md)
 - [Formato de importação QiCAD](docs/FORMATO_QICAD.md)
 - [Requisitos do pilar pré-moldado](docs/PILAR_PREMOLDADO_REQUISITOS.md)
-- [Progresso do projeto](docs/PROGRESSO.md)
 
 ## Licença
 

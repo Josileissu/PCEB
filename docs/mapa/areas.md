@@ -7,15 +7,15 @@ quadro (`docs/00_escopo/coordenacao.md`); confira lá antes de começar.
 |---|---|---|---|
 | Barras, comprimento real, dobras, normas | `src/DEB.Core/Calculo`, `Normas`, `Descricao`, `Estribos` | `ComprimentoReal`, `Barra`, `Estribo`, `Normas` | — |
 | Relação do aço, tabelas, numeração | `src/DEB.Core/RelacaoAco`, `Tabelas`, `Numeracao` | `Tabela`, `OrdenacaoMarcas` | — |
-| Pilar pré-moldado (template) | `src/DEB.Core/Templates/PilarPreMoldado` | `Pilar` | P1-1 (Revit), PC2 |
-| Viga pré-moldada (template) | `src/DEB.Core/Templates/VigaPreMoldada` | `Viga` | P2-8, PC2 |
-| Blocos sobre estacas | `src/DEB.Core/Templates/Blocos`, `src/DEB.Core/Motor/Fundacoes` | `BlocoEstacas`, `Motor` | P2-9 / P2-10, PC2 |
+| Pilar pré-moldado (template) | `src/DEB.Core/Templates/PilarPreMoldado` | `Pilar` | P1-1 (Revit) |
+| Viga pré-moldada (template) | `src/DEB.Core/Templates/VigaPreMoldada` | `Viga` | P2-8 |
+| Blocos sobre estacas | `src/DEB.Core/Templates/Blocos`, `src/DEB.Core/Motor/Fundacoes` | `BlocoEstacas`, `Motor` | P2-9 / P2-10 |
 | Reservatório e base | `src/DEB.Core/Templates/Reservatorio`, `BaseReservatorio` | `Reservatorio` | pausado (P2-7) |
-| Motor de detalhamento | `src/DEB.Core/Motor` | `Motor` | P2-10, PC2 |
+| Motor de detalhamento | `src/DEB.Core/Motor` | `Motor` | P2-10 |
 | Regressão visual dos templates | `tests/DEB.Core.Tests/Referencias/*.txt` | `RegressaoVisual` | — |
 | Peças Revit → CAD | `src/DEB.Core/Intercambio`, `Pecas`; `src/DEB.Revit/src/Precast` | `Intercambio`, `ConversorLevantamento`, `SubdivisaoPecas`, `Reimportacao` | — |
-| Laje alveolar | `src/DEB.Core/Lajes`; `src/DEB.Revit/src/LajeAlveolar` | `LajeAlveolar` | P1-8, PC1 |
-| Formas (Revit) | `src/DEB.Core/Formas`; `src/DEB.Revit/src/Formas` | `Formas` | P1-9, PC1 |
+| Laje alveolar | `src/DEB.Core/Lajes`; `src/DEB.Revit/src/LajeAlveolar` | `LajeAlveolar` | P1-8 |
+| Formas (Revit) | `src/DEB.Core/Formas`; `src/DEB.Revit/src/Formas` | `Formas` | P1-9 |
 | Importação QiCad, reconhecimento | `src/DEB.Core/Importacao`, `Reconhecimento` | `ImportacaoQiCad`, `Reconhecimento` | — |
 | Plugin CAD (comandos, paleta, sincronizador) | `src/DEB.Cad/src` | autoteste no CAD (`comandos.md`) | — |
 | Plugin Revit (comandos, prancha) | `src/DEB.Revit/src` | AutoRun no Revit (`comandos.md`) | — |

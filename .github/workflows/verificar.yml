@@ -6,7 +6,7 @@ name: Verificar
 
 on:
   push:
-    branches: [main, 'feat/**', 'fix/**', 'ref/**', 'docs/**', 'chore/**', 'pc1/**', 'pc2/**']
+    branches: [main, 'feat/**', 'fix/**', 'ref/**', 'docs/**', 'chore/**']
   pull_request:
   workflow_dispatch:
 

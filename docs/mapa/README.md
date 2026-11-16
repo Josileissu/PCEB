@@ -15,5 +15,5 @@ Caminhos de hoje. Regras gerais: `AGENTS.md` da raiz. Áreas e testes: `areas.md
 | Pranchas de formas no Revit | `src/DEB.Revit/docs/FORMAS.md`, `docs/04_arquitetura/pranchas_de_formas.md`; `src/DEB.Core/Formas` |
 | Folha nova no Revit | D29 no `AGENTS.md` da raiz: só as vistas prontas |
 | Importar .cad do QiArmaduras | `src/DEB.Cad/docs/FORMATO_QICAD.md`; `src/DEB.Core/Importacao` |
-| Quadro de tarefas / decisões | `docs/00_escopo/coordenacao.md`; decisões em `docs/00_escopo/escopo_organizado.md` (PC1) ou `docs/notas/pc2_pendencias.md` (PC2) |
+| Quadro de tarefas / decisões | `docs/00_escopo/coordenacao.md`; decisões em `docs/00_escopo/escopo_organizado.md` |
 | Programas de estudo (Tekla, TQS, FreeCAD…) | `docs/01_catalogo/programas.md` |

@@ -59,4 +59,4 @@ Decisões gravadas no próprio elemento (Extensible Storage do plugin); geometri
 4. **CAD**: JSON v2 com trechos; seções não suportadas marcadas até o VP-4.
 5. Depois: armar no Revit e as barras da análise sobre a mesma estrutura.
 
-Frente do DEB.Revit é do PC1: proposta registrada em `docs/notas/pc2_pendencias.md` (09/11/2026).
+Proposta registrada em `docs/notas/pendencias_escopo.md` (09/11/2026).

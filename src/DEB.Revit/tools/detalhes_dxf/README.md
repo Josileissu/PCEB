@@ -2,7 +2,7 @@
 
 Os detalhes padrão da prancha de pilar (raio de dobra, emendas, comprimento das barras, chaves de cisalhamento,
 espaçamento das barras, alça de içamento, reforço de furos, aterramento) foram tirados do DWG de referência do P56
-(`<código do projeto>.dwg`, fora do Git). Cada detalhe vira um DXF simples, em cm, na escala da legenda,
+(`<arquivo do projeto>.dwg`, fora do Git). Cada detalhe vira um DXF simples, em cm, na escala da legenda,
 com os layers `PCEB-ARMADURA`, `PCEB-CONTORNO`, `PCEB-FINA`, `PCEB-TRACEJADA`, `PCEB-COTA`, `PCEB-TEXTO` e
 `PCEB-PREENCHIMENTO`. O plugin (`Presentation/LegendFactory.cs`) cria a legenda do Revit a partir dele na primeira vez
 que uma prancha precisa dela; depois a legenda fica no projeto.

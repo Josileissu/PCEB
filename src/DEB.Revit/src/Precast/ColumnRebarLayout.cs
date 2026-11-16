@@ -106,7 +106,7 @@ namespace DEB.Revit.Precast
         /// face mais estreita), para os consolos ficarem para cima no transporte. Com consolos nas 4 faces: a face oposta
         /// ao consolo mais armado (maior), e no empate a face mais estreita. "Alça no maior lado" = alça na face menor:
         /// o pilar deitado fica com o lado maior na vertical (maior inércia no sentido do maior momento do transporte).
-        /// Regra combinada com o usuário em 06/11/2026 (ver docs/notas/pc2_pendencias.md).
+        /// Regra combinada com o usuário em 06/11/2026 (ver docs/notas/pendencias_escopo.md).
         /// </summary>
         public static ColumnFace LiftFace(ColumnFrame f, IList<Corbel> corbels)
         {

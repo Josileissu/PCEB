@@ -58,9 +58,9 @@ Para o PCEB como programa:
 | Lista de corte e dobra em CSV + HTML | `README.md` |
 | Detalhamentos como blocos do CAD | `README.md` |
 | Importação de `.cad` do QiArmaduras (AltoQi Builder) | `README.md`, `docs/FORMATO_QICAD.md` |
-| Templates de elementos; base de reservatório e pilar pré-moldado implementados | `docs/TEMPLATES.md`, `docs/PROGRESSO.md` |
+| Templates de elementos; base de reservatório e pilar pré-moldado implementados | `docs/TEMPLATES.md` |
 | Norma de referência do detalhamento: NBR 6118 (pinos/dobramento) e NBR 9062 (pré-moldados) | `docs/*`, `CLAUDE.md` |
-| 178 testes de núcleo; autoteste no CAD com 200+ verificações | `README.md`, `docs/PROGRESSO.md` |
+| 178 testes de núcleo; autoteste no CAD com 200+ verificações | `README.md` |
 | Licença GPL-3.0 + exceção da seção 7 para APIs de CAD | `README.md`, `LICENSE*` |
 | Autor: Projeto PCEB · GitHub: `Josileissu/PCEB` | `README.md` |
 | Domínio planejado: `pceb.com.br` (+ `.app`/`.dev` redirecionando) | `docs/DOMINIO.md` |

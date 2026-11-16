@@ -52,7 +52,7 @@ Fontes usadas neste levantamento:
 - Notas: "dimensões em cm", "utilizar neoprene 15 mm", "insertos metálicos são de responsabilidade da fornecedora".
 - **Informações p/ produção**: fcj saque (30), fcj montagem (35), fck 28 dias (40), volume (m³), peso (t), quantidade.
 
-### 1.3 O DWG do P61 (`<código do projeto>.dwg`, analisado em 2026-10-29)
+### 1.3 O DWG do P61 (`<arquivo do projeto>.dwg`, analisado em 2026-10-29)
 - O arquivo traz **3 pilares na mesma folha** (P60, P61, P71; folhas 6097/6098/6110) — a folha é reaproveitada
   trocando o conteúdo.
 - **Modelo em tamanho real (cm)**; as escalas saem das **viewports do Layout1** (papel em mm): vistas 1:50,
