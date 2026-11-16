@@ -137,7 +137,8 @@ public sealed partial class TemplatePilarPreMoldado
     }
 
     /// <summary>
-    /// Zonas de estribos em ordem, cobrindo [yIni, yFim]: as da lista (sobrepostas são cortadas) e o trecho corrente nos vãos.
+    /// Zonas de estribos em ordem, cobrindo [yIni, yFim]: as da lista e o trecho corrente nos vãos (<see cref="MontarZonas"/>:
+    /// onde se sobrepõem, vale o menor espaçamento).
     /// </summary>
     public static List<ZonaEstribo> LerZonas(ValoresTemplate v, double yIni, double yFim, double L, List<string> avisos)
     {
@@ -161,28 +162,39 @@ public sealed partial class TemplatePilarPreMoldado
                 Grampos = !ValoresTemplate.Celula(l, 6).Equals("Não", StringComparison.OrdinalIgnoreCase),
             });
         }
-        lista = lista.OrderBy(z => z.Y1).ToList();
-        for (int i = 1; i < lista.Count; i++)
-            if (lista[i].Y1 < lista[i - 1].Y2 - 1e-6)
-            {
-                avisos.Add($"Zonas de estribos \"{lista[i - 1].Nome}\" e \"{lista[i].Nome}\" se sobrepõem: vale a primeira.");
-                lista[i].Y1 = lista[i - 1].Y2;
-                if (lista[i].Y2 - lista[i].Y1 < 1) lista.RemoveAt(i--);
-            }
-        // vãos: trecho corrente
+        var corrente = new ZonaEstribo { Nome = "corrente", Bitola = v.Numero("EstBitola"), Esp = v.Numero("EstEsp"), Grampos = v.SimNao("GramposCorrente") };
+        return MontarZonas(lista, yIni, yFim, corrente, avisos);
+    }
+
+    /// <summary>
+    /// Zonas de estribos em ordem, cobrindo [yIni, yFim] sem sobreposição — regra única do template do CAD (<see cref="LerZonas"/>)
+    /// e do modelo 3D do Revit (<see cref="Modelo3D.ColumnRebarLayout.StirrupRuns"/>). Onde zonas da lista se sobrepõem vale o
+    /// MENOR espaçamento (decisão do dono, D30, 16/11/2026; empate: a primeira da lista); nos vãos, o trecho corrente
+    /// (<paramref name="corrente"/>: bitola, espaçamento e grampos, sem trecho). Pedaços vizinhos da mesma zona ficam juntos.
+    /// </summary>
+    public static List<ZonaEstribo> MontarZonas(IEnumerable<ZonaEstribo> lista, double yIni, double yFim, ZonaEstribo corrente, List<string> avisos)
+    {
+        var zs = lista.Select(z => new ZonaEstribo { Nome = z.Nome, Y1 = Math.Max(yIni, z.Y1), Y2 = Math.Min(yFim, z.Y2), Bitola = z.Bitola, Esp = z.Esp, Grampos = z.Grampos })
+            .Where(z => z.Y2 - z.Y1 >= 1).ToList();
+        for (int i = 0; i < zs.Count; i++)
+            for (int j = i + 1; j < zs.Count; j++)
+                if (zs[i].Y1 < zs[j].Y2 - 1e-6 && zs[j].Y1 < zs[i].Y2 - 1e-6)
+                    avisos?.Add($"Zonas de estribos \"{zs[i].Nome}\" e \"{zs[j].Nome}\" se sobrepõem: vale o menor espaçamento.");
+        var cortes = new SortedSet<double> { yIni, yFim };
+        foreach (var z in zs) { cortes.Add(z.Y1); cortes.Add(z.Y2); }
+        var c = cortes.Where(y => y >= yIni - 1e-9 && y <= yFim + 1e-9).ToArray();
         var r = new List<ZonaEstribo>();
-        double y = yIni;
-        ZonaEstribo Corrente(double a, double b) => new ZonaEstribo
+        ZonaEstribo origemAnterior = null;
+        for (int i = 0; i + 1 < c.Length; i++)
         {
-            Nome = "corrente", Y1 = a, Y2 = b, Bitola = v.Numero("EstBitola"), Esp = v.Numero("EstEsp"), Grampos = v.SimNao("GramposCorrente"),
-        };
-        foreach (var z in lista)
-        {
-            if (z.Y1 - y > 1e-6) r.Add(Corrente(y, z.Y1));
-            r.Add(z);
-            y = z.Y2;
+            if (c[i + 1] - c[i] < 1e-6) continue;
+            double meio = (c[i] + c[i + 1]) / 2;
+            // a zona de menor espaçamento que cobre o trecho (empate: a primeira da lista); nenhuma = corrente
+            ZonaEstribo origem = zs.Where(z => z.Y1 < meio && z.Y2 > meio).OrderBy(z => z.Esp).FirstOrDefault() ?? corrente;
+            if (origem == origemAnterior && r.Count > 0 && Math.Abs(r[r.Count - 1].Y2 - c[i]) < 1e-6) { r[r.Count - 1].Y2 = c[i + 1]; continue; }
+            r.Add(new ZonaEstribo { Nome = origem.Nome, Y1 = c[i], Y2 = c[i + 1], Bitola = origem.Bitola, Esp = origem.Esp, Grampos = origem.Grampos });
+            origemAnterior = origem;
         }
-        if (yFim - y > 1e-6) r.Add(Corrente(y, yFim));
         return r;
     }
 

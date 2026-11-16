@@ -174,14 +174,7 @@ public class ParidadePilarTests
         m.Add(new Medida("estribo: comprimento", ComprimentoRevit(Um(BarRole.Stirrup)), Un("estribo0")));
         m.Add(new Medida("estribo: quantidade", RevQtd(BarRole.Stirrup), FaixasQtd("estribo0")));
         // alturas de todos os estribos (cm): Revit pelos conjuntos; CAD pelas faixas (posições da regra de faixas da configuração)
-        var zR = bars.Where(b => b.Role == BarRole.Stirrup).SelectMany(b => Enumerable.Range(0, b.Count).Select(i => (b.Points[0].C + i * b.Spacing) * CmPorPe)).ToList();
-        var zC = r.Faixas.Where(x => x.Barra.StartsWith("estribo") && x.Tipo == TipoFaixa.Ortogonal).SelectMany(x =>
-        {
-            double comp = Math.Abs(x.P2.Y - x.P1.Y), y0 = Math.Min(x.P1.Y, x.P2.Y);
-            int q = CalculoFaixa.Quantidade(comp, x.Espacamento, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
-            return CalculoFaixa.Posicoes(comp, q, x.Espacamento, cfg.EspacamentoInicialFaixa).Select(p => y0 + p);
-        }).ToList();
-        double Afast(List<double> a, List<double> b) => a.Max(z => b.Min(w => Math.Abs(w - z)));
+        var (zR, zC) = AlturasEstribos(bars, r, cfg);
         m.Add(new Medida("estribo: maior afastamento entre alturas (cm)", Math.Round(Afast(zR, zC), 6), Math.Round(Afast(zC, zR), 6)));
         m.Add(new Medida("grampo: comprimento", ComprimentoRevit(Um(BarRole.CrossTie)), Un("grampo0")));
         m.Add(new Medida("grampo: quantidade", RevQtd(BarRole.CrossTie), FaixasQtd("grampo0")));
@@ -219,6 +212,21 @@ public class ParidadePilarTests
         return m;
     }
 
+    /// <summary>Alturas (cm) de todos os estribos: Revit pelos conjuntos; CAD pelas faixas (posições da regra de faixas da configuração).</summary>
+    private static (List<double> Revit, List<double> Cad) AlturasEstribos(List<BarDef> bars, ResultadoTemplate r, ConfiguracaoArmadura cfg)
+    {
+        var zR = bars.Where(b => b.Role == BarRole.Stirrup).SelectMany(b => Enumerable.Range(0, b.Count).Select(i => (b.Points[0].C + i * b.Spacing) * CmPorPe)).ToList();
+        var zC = r.Faixas.Where(x => x.Barra.StartsWith("estribo") && x.Tipo == TipoFaixa.Ortogonal).SelectMany(x =>
+        {
+            double comp = Math.Abs(x.P2.Y - x.P1.Y), y0 = Math.Min(x.P1.Y, x.P2.Y);
+            int q = CalculoFaixa.Quantidade(comp, x.Espacamento, cfg.EspacamentoInicialFaixa, cfg.ModoQuantidadeFaixa);
+            return CalculoFaixa.Posicoes(comp, q, x.Espacamento, cfg.EspacamentoInicialFaixa).Select(p => y0 + p);
+        }).ToList();
+        return (zR, zC);
+    }
+
+    private static double Afast(List<double> a, List<double> b) => a.Max(z => b.Min(w => Math.Abs(w - z)));
+
     /// <summary>Os valores do template para ler as linhas longitudinais (mesmo texto que <see cref="Cad"/> usa).</summary>
     private static ValoresTemplate Valores(Caso c, ColumnRebarSpec s)
     {
@@ -237,8 +245,8 @@ public class ParidadePilarTests
     // ganchos: 135° nos dois desde a decisão D30 (16/11/2026); estribo, costura e estribo vertical do CAD saem de
     // GeradorEstribo.FechadoPadrao com gancho de 45° (ponta 5φt ≥ 5 cm), a mesma função do comprimento por eixo do Revit
     // divisa entre zonas: nenhum dos dois repete o estribo (EstribosNaZona). Desde a D30 (revisão) o Revit começa no cobrimento
-    // das pontas, como o CAD: as alturas de todos os estribos são as mesmas nestes casos. Sobra a regra de zonas sobrepostas
-    // (Revit: o menor espaçamento; CAD: a zona de baixo) — ver ZonasSobrepostas e paridade_pilar.md
+    // das pontas, como o CAD, e as zonas saem da mesma função (MontarZonas: menor espaçamento onde se sobrepõem) — ver
+    // ZonasSobrepostas
     // tirante e costura (D30): consolo sozinho, por dentro das longitudinais da face oposta (BarrasConsolo.FimNoPilar); opostos
     // em nível (BarrasConsolo.ParesEmNivel), passantes de ponta a ponta; perna do tirante medida por fora nos dois (D7).
     // Largura da costura (D30, revisão): por dentro dos estribos verticais nos dois (BarrasConsolo.LarguraCostura). A diferença
@@ -390,9 +398,8 @@ public class ParidadePilarTests
     }
 
     /// <summary>
-    /// Divergência que fica (D30, revisão, relatada ao dono): zonas que se sobrepõem. Base de 4 m c/10 e consolo de 3,5 a 4,2 m
-    /// c/7,5: o Revit usa o menor espaçamento na sobreposição (c/7,5 de 3,5 a 4 m); o CAD fica com a zona de baixo (c/10), mais
-    /// aberto junto do consolo. Por isso o Revit não passou a usar LerZonas.
+    /// Zonas que se sobrepõem (D30, decisão do dono): vale o MENOR espaçamento nos dois programas (TemplatePilarPreMoldado.MontarZonas).
+    /// Base de 4 m c/10 e consolo de 3,5 a 4,2 m c/7,5: c/7,5 de 3,5 a 4,2 m nos dois; mesmas quantidades e alturas.
     /// </summary>
     [Fact]
     public void ZonasSobrepostas()
@@ -400,16 +407,21 @@ public class ParidadePilarTests
         var c = Casos.First(x => x.Nome == "40x40-um-12.5");
         var (f, k, s) = Revit(c);
         s.BaseZoneLengthMm = 4000;
-        double EspRevit(double zCm) => ColumnRebarLayout.StirrupRuns(f, k, s)
-            .Where(r => r.Z * CmPorPe <= zCm + 1e-6).OrderBy(r => r.Z).Last().Spacing * CmPorPe;
+        var runs = ColumnRebarLayout.StirrupRuns(f, k, s);
+        double EspRevit(double zCm) => runs.Where(r => r.Z * CmPorPe <= zCm + 1e-6).OrderBy(r => r.Z).Last().Spacing * CmPorPe;
         Assert.Equal(7.5, EspRevit(375), 6);
-        var v = new ValoresTemplate(T.Parametros);
-        v["EstBitola"] = "5"; v["EstEsp"] = "15"; v["GramposCorrente"] = "Sim";
-        v["ZonasEstribos"] = "Base|Base|0|400|5|10|Sim;Consolo|Base|350|420|5|7.5|Sim";
-        var avisos = new List<string>();
-        var zonas = TemplatePilarPreMoldado.LerZonas(v, 2.5, 597.5, 600, avisos);
-        Assert.Equal(10, zonas.First(z => z.Y1 <= 375 && z.Y2 >= 375).Esp, 6);
-        Assert.Contains(avisos, a => a.Contains("se sobrepõem"));
+        var cfg = new ConfiguracaoArmadura { AlturaTextoMm = 2 };
+        ResultadoTemplate r;
+        TemplatePilarPreMoldado.Catalogo = TipoConsolo.Padrao().Concat(new[] { TipoDoRevit(s, false), TipoDoRevit(s, true) }).ToList();
+        try { r = Cad(c, s, cfg); }
+        finally { TemplatePilarPreMoldado.Catalogo = TipoConsolo.Padrao(); }
+        Assert.Contains(r.Avisos, a => a.Contains("vale o menor espaçamento"));
+        var fx = r.Faixas.Where(x => x.Barra.StartsWith("estribo") && x.Tipo == TipoFaixa.Ortogonal).ToList();
+        Assert.Contains(fx, x => Math.Abs(Math.Min(x.P1.Y, x.P2.Y) - 350) < 1e-6 && Math.Abs(x.Espacamento - 7.5) < 1e-6);
+        var (zR, zC) = AlturasEstribos(ColumnRebarLayout.Compute(f, k, s), r, cfg);
+        Assert.Equal(zC.Count, zR.Count);
+        Assert.Equal(0, Afast(zR, zC), 6);
+        Assert.Equal(0, Afast(zC, zR), 6);
     }
 
     /// <summary>

@@ -412,7 +412,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         }
 
         /// <summary>
-        /// Divide a altura em trechos de espaçamento constante (o menor espaçamento vale onde as zonas se sobrepõem).
+        /// Divide a altura em trechos de espaçamento constante pela regra do núcleo comum ao CAD
+        /// (<see cref="TemplatePilarPreMoldado.MontarZonas"/>: menor espaçamento onde as zonas se sobrepõem; corrente nos vãos).
         /// Devolve (cota do primeiro estribo, quantidade, passo). Estribos não se repetem nas divisas.
         /// </summary>
         public static List<(double Z, int Count, double Spacing)> StirrupRuns(ColumnBox f, IList<Corbel> corbels, ColumnRebarSpec s)
@@ -420,45 +421,28 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
             // começa onde o CAD começa: no cobrimento das pontas das longitudinais (D30, revisão: "igual ao do CAD, respeitando o
             // cobrimento"; antes, StirrupEndOffsetMm = 5 cm)
             double z0 = U_.Mm(s.LongEndCoverMm), z1 = f.H - U_.Mm(s.LongEndCoverMm);
-            var zones = new List<(double A, double B, double S)>();
-            if (s.BaseZoneLengthMm > 0) zones.Add((0, U_.Mm(s.BaseZoneLengthMm), U_.Mm(s.BaseZoneSpacingMm)));
-            if (s.TopZoneLengthMm > 0) zones.Add((f.H - U_.Mm(s.TopZoneLengthMm), f.H, U_.Mm(s.TopZoneSpacingMm)));
-            double ext = U_.Mm(s.CorbelZoneExtensionMm);
+            // zonas da especificação, na ordem (base, topo, consolos), em cm, como a lista de zonas do CAD
+            double Cm(double ft) => U_.ToMm(ft) / 10;
+            var lista = new List<ZonaEstribo>();
+            if (s.BaseZoneLengthMm > 0) lista.Add(new ZonaEstribo { Nome = "Base", Y1 = 0, Y2 = s.BaseZoneLengthMm / 10, Esp = s.BaseZoneSpacingMm / 10 });
+            if (s.TopZoneLengthMm > 0) lista.Add(new ZonaEstribo { Nome = "Topo", Y1 = Cm(f.H) - s.TopZoneLengthMm / 10, Y2 = Cm(f.H), Esp = s.TopZoneSpacingMm / 10 });
+            double ext = s.CorbelZoneExtensionMm / 10;
             foreach (Corbel k in corbels)
-                zones.Add((k.ZBottom - ext, k.ZTop + ext, U_.Mm(s.CorbelZoneSpacingMm)));
+                lista.Add(new ZonaEstribo { Nome = "Consolo", Y1 = Cm(k.ZBottom) - ext, Y2 = Cm(k.ZTop) + ext, Esp = s.CorbelZoneSpacingMm / 10 });
+            var corrente = new ZonaEstribo { Nome = "corrente", Esp = s.StirrupSpacingMm / 10 };
+            var zonas = TemplatePilarPreMoldado.MontarZonas(lista, Cm(z0), Cm(z1), corrente, null);
 
-            double sDefault = U_.Mm(s.StirrupSpacingMm);
-            var cuts = new SortedSet<double> { z0, z1 };
-            foreach (var (a, b, _) in zones)
-            {
-                if (a > z0 && a < z1) cuts.Add(a);
-                if (b > z0 && b < z1) cuts.Add(b);
-            }
-
-            // Trechos com o espaçamento aplicável; une trechos vizinhos de mesmo espaçamento.
-            var spans = new List<(double A, double B, double S)>();
-            double[] c = cuts.ToArray();
-            for (int i = 0; i < c.Length - 1; i++)
-            {
-                double mid = (c[i] + c[i + 1]) / 2;
-                double sp = zones.Where(zn => mid > zn.A && mid < zn.B).Select(zn => zn.S).DefaultIfEmpty(sDefault).Min();
-                sp = Math.Min(sp, sDefault);
-                if (spans.Count > 0 && Math.Abs(spans[spans.Count - 1].S - sp) < 1e-9) spans[spans.Count - 1] = (spans[spans.Count - 1].A, c[i + 1], sp);
-                else spans.Add((c[i], c[i + 1], sp));
-            }
-
-            // Espaçamento nominal exato (c/10, c/15...): a sobra fica no fim de cada trecho. Quantidade pela regra do núcleo,
-            // a mesma das faixas do CAD (KitDesenho.EstribosNaZona, ⌊L/s⌋ + 1 da configuração padrão): trecho
-            // intermediário não repete o estribo da divisa (ela pertence ao trecho seguinte); o último inclui a ponta.
+            // Espaçamento nominal exato (c/10, c/15...): a sobra fica no fim de cada zona. Quantidade pela regra do núcleo, a
+            // mesma das faixas do CAD (KitDesenho.EstribosNaZona, ⌊L/s⌋ + 1 da configuração padrão): zona intermediária não
+            // repete o estribo da divisa (ela pertence à zona seguinte); a última inclui a ponta.
             var cfg = new Configuracao.ConfiguracaoArmadura();
             var runs = new List<(double, int, double)>();
-            for (int i = 0; i < spans.Count; i++)
+            for (int i = 0; i < zonas.Count; i++)
             {
-                var (a, b, sp) = spans[i];
-                if (sp <= 0) continue;
-                bool last = i == spans.Count - 1;
-                int count = Math.Max(1, KitDesenho.EstribosNaZona(U_.ToMm(b - a) / 10, U_.ToMm(sp) / 10, last, cfg));
-                runs.Add((a, count, sp));
+                var zn = zonas[i];
+                if (zn.Esp <= 0) continue;
+                int count = Math.Max(1, KitDesenho.EstribosNaZona(zn.Y2 - zn.Y1, zn.Esp, i == zonas.Count - 1, cfg));
+                runs.Add((U_.Mm(zn.Y1 * 10), count, U_.Mm(zn.Esp * 10)));
             }
             return runs;
         }
