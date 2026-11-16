@@ -21,6 +21,9 @@ namespace DEB.Revit.Presentation
             def.IsItemized = false;
 
             ElementId steel = RebarData.SteelParamId(doc), weight = RebarData.WeightParamId(doc);
+            // comprimentos pelo núcleo (D30, item 4: os do CAD); projeto sem os parâmetros do plugin: os do Revit
+            ElementId unit = Or(RebarData.CoreLengthParamId(doc), BuiltInParameter.REBAR_ELEM_LENGTH);
+            ElementId total = Or(RebarData.CoreTotalParamId(doc), BuiltInParameter.REBAR_ELEM_TOTAL_LENGTH);
             var cm = new FormatOptions(UnitTypeId.Centimeters) { UseDefault = false, Accuracy = 1 };
             var mm = new FormatOptions(UnitTypeId.Millimeters) { UseDefault = false, Accuracy = 0.1 };
             var m = new FormatOptions(UnitTypeId.Meters) { UseDefault = false, Accuracy = 0.1 };
@@ -31,8 +34,8 @@ namespace DEB.Revit.Presentation
                 ScheduleField fN = Add(def, new ElementId(BuiltInParameter.REBAR_NUMBER), "N");
                 Add(def, new ElementId(BuiltInParameter.REBAR_BAR_DIAMETER), "DIAM\n(mm)", mm);
                 Add(def, new ElementId(BuiltInParameter.REBAR_ELEM_QUANTITY_OF_BARS), "QUANT", totals: true);
-                Add(def, new ElementId(BuiltInParameter.REBAR_ELEM_LENGTH), "C.UNIT\n(U. LENGTH)\n(cm)", cm);
-                Add(def, new ElementId(BuiltInParameter.REBAR_ELEM_TOTAL_LENGTH), "C.TOTAL\n(T. LENGTH)\n(cm)", cm, totals: true);
+                Add(def, unit, "C.UNIT\n(U. LENGTH)\n(cm)", cm);
+                Add(def, total, "C.TOTAL\n(T. LENGTH)\n(cm)", cm, totals: true);
                 if (fN != null) def.AddSortGroupField(new ScheduleSortGroupField(fN.FieldId));
                 def.ShowGrandTotal = false;
             }
@@ -47,7 +50,7 @@ namespace DEB.Revit.Presentation
                 Add(def, new ElementId(BuiltInParameter.REBAR_SHAPE_IMAGE), "DESENHO\n(SKETCH)");
                 foreach (string seg in new[] { "A", "B", "C", "D", "E" })
                     AddByName(doc, def, seg, seg + "\n(cm)", cm);
-                Add(def, new ElementId(BuiltInParameter.REBAR_ELEM_LENGTH), "C.UNIT\n(U. LENGTH)\n(cm)", cm);
+                Add(def, unit, "C.UNIT\n(U. LENGTH)\n(cm)", cm);
                 if (fN != null) def.AddSortGroupField(new ScheduleSortGroupField(fN.FieldId));
                 def.ShowGrandTotal = false;
                 // colunas estreitas (a largura padrão do Revit passava da folha)
@@ -63,7 +66,7 @@ namespace DEB.Revit.Presentation
             {
                 ScheduleField fSteel = Add(def, steel, "AÇO\n(STEEL)");
                 ScheduleField fD = Add(def, new ElementId(BuiltInParameter.REBAR_BAR_DIAMETER), "DIAM\n(mm)", mm);
-                Add(def, new ElementId(BuiltInParameter.REBAR_ELEM_TOTAL_LENGTH), "C.TOTAL\n(T. LENGTH)\n(m)", m, totals: true);
+                Add(def, total, "C.TOTAL\n(T. LENGTH)\n(m)", m, totals: true);
                 Add(def, weight, "PESO\n(WEIGHT)\n(kg)", totals: true);
                 if (fSteel != null) def.AddSortGroupField(new ScheduleSortGroupField(fSteel.FieldId));
                 if (fD != null) def.AddSortGroupField(new ScheduleSortGroupField(fD.FieldId));
@@ -82,6 +85,9 @@ namespace DEB.Revit.Presentation
             catch { /* título padrão do Revit */ }
             return vs;
         }
+
+        private static ElementId Or(ElementId shared, BuiltInParameter fallback) =>
+            shared != ElementId.InvalidElementId ? shared : new ElementId(fallback);
 
         /// <summary>Campo pelo nome (parâmetros compartilhados das formas: A, B, C...). Sem o campo, não acrescenta.</summary>
         private static ScheduleField AddByName(Document doc, ScheduleDefinition def, string name, string heading, FormatOptions fmt)

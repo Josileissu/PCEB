@@ -1373,7 +1373,8 @@ namespace DEB.Revit.Presentation
                 Number = r.get_Parameter(BuiltInParameter.REBAR_NUMBER)?.AsString() ?? "";
                 Quantity = r.Quantity;
                 DiameterMm = U.ToMm((doc.GetElement(r.GetTypeId()) as RebarBarType)?.BarNominalDiameter ?? 0);
-                LengthCm = U.ToMm(r.get_Parameter(BuiltInParameter.REBAR_ELEM_LENGTH)?.AsDouble() ?? 0) / 10;
+                // comprimento do núcleo gravado pelo plugin (D30, o mesmo das tabelas); sem ele, o do Revit
+                LengthCm = RebarData.CoreLengthCm(r) ?? U.ToMm(r.get_Parameter(BuiltInParameter.REBAR_ELEM_LENGTH)?.AsDouble() ?? 0) / 10;
                 SpacingCm = U.ToMm(r.get_Parameter(BuiltInParameter.REBAR_ELEM_BAR_SPACING)?.AsDouble() ?? 0) / 10;
                 BoundingBoxXYZ bb = r.get_BoundingBox(null);
                 Center = bb == null ? XYZ.Zero : (bb.Min + bb.Max) / 2;

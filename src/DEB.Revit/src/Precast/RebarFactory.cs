@@ -21,6 +21,13 @@ namespace DEB.Revit.Precast
         /// <summary>Ganchos de estribo que saíram para fora e foram invertidos (relatório).</summary>
         public int HooksFlipped { get; private set; }
 
+        /// <summary>
+        /// Comprimento unitário pelo núcleo (cm, regras do CAD: SharedRules.RealLengthCm) de cada conjunto criado. As barras de um
+        /// conjunto são iguais (mesma forma; só a posição muda). Vai para o parâmetro SD_Comprimento (RebarData.Apply), que as
+        /// tabelas e o peso usam (decisão do dono D30, item 4).
+        /// </summary>
+        public Dictionary<ElementId, double> CoreLengthsCm { get; } = new Dictionary<ElementId, double>();
+
         public RebarFactory(Document doc, PieceLog log)
         {
             _doc = doc; _log = log;
@@ -71,23 +78,32 @@ namespace DEB.Revit.Precast
             }
             // o comprimento do Revit só existe depois de regenerar
             if (HooksFlipped > 0) _log.Info($"{HooksFlipped} gancho(s) de estribo virados para dentro.");
+            foreach (var (def, bar) in created)
+                try { CoreLengthsCm[bar.Id] = CoreLengthCm(def); }
+                catch (Exception ex) { _log.Trace("Comprimento pelo núcleo", ex); }
             try { _doc.Regenerate(); foreach (var (def, bar) in created) LogLengthComparison(def, bar); }
             catch (Exception ex) { _log.Trace("Comprimento pelo núcleo", ex); }
             return ids;
         }
 
+        /// <summary>Comprimento real de uma barra pelo núcleo (cm, arredondado como na relação do aço do CAD).</summary>
+        public static double CoreLengthCm(BarDef b)
+        {
+            const double cmPerFoot = 30.48;
+            var axis = b.Points.Select(p => (p.A * cmPerFoot, p.B * cmPerFoot, p.C * cmPerFoot)).ToList();
+            return SharedRules.RealLengthCm(axis, b.Closed, b.DiameterMm, IsTie(b.Role), b.Hooks135);
+        }
+
         /// <summary>
-        /// Etapa 5.3c-1: registra o comprimento do Revit ao lado do comprimento real do núcleo (regras do CAD),
-        /// para conferência antes de o núcleo passar a valer nas tabelas e pesos. Não altera nada no modelo.
+        /// Registra no log o comprimento do Revit (REBAR_ELEM_LENGTH) ao lado do comprimento do núcleo, que é o que vale nas
+        /// tabelas e no peso desde a D30 (parâmetro SD_Comprimento). Não altera nada no modelo.
         /// </summary>
         private void LogLengthComparison(BarDef b, Rebar r)
         {
             try
             {
                 const double cmPerFoot = 30.48;
-                var axis = b.Points.Select(p => (p.A * cmPerFoot, p.B * cmPerFoot, p.C * cmPerFoot)).ToList();
-                bool tie = IsTie(b.Role);
-                double core = SharedRules.RealLengthCm(axis, b.Closed, b.DiameterMm, tie, b.Hooks135);
+                double core = CoreLengthCm(b);
                 double revit = (r.get_Parameter(BuiltInParameter.REBAR_ELEM_LENGTH)?.AsDouble() ?? 0) * cmPerFoot;
                 _log.Info($"Comprimento {RoleLabel(b.Role)} Ø{Fmt(b.DiameterMm)}: Revit {revit.ToString("0.0", CultureInfo.InvariantCulture)} cm | núcleo {core.ToString("0.0", CultureInfo.InvariantCulture)} cm | diferença {(core - revit).ToString("+0.0;-0.0;0.0", CultureInfo.InvariantCulture)}");
             }

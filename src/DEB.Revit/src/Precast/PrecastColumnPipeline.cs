@@ -86,7 +86,8 @@ namespace DEB.Revit.Precast
             {
                 List<BarDef> bars = ColumnRebarLayout.Compute(m.Frame, m.Corbels, g.Spec);
                 List<ElementId> rebar = null;
-                Tx("Armar pilar", log, () => rebar = new RebarFactory(_doc, log).Create(m.Frame, m.Instance, bars, g.Mark), critical: false);
+                var factory = new RebarFactory(_doc, log);
+                Tx("Armar pilar", log, () => rebar = factory.Create(m.Frame, m.Instance, bars, g.Mark), critical: false);
                 if (rebar != null)
                 {
                     members.AddRange(rebar);
@@ -95,7 +96,8 @@ namespace DEB.Revit.Precast
                     Tx("Dados das barras", log, () =>
                     {
                         RebarData.EnsureParameters(_doc);
-                        RebarData.Apply(_doc, rebar, partition);
+                        int n = RebarData.Apply(_doc, rebar, partition, factory.CoreLengthsCm);
+                        log.Info($"{RebarData.CoreLengthParam} e {RebarData.CoreTotalParam} gravados em {n} de {rebar.Count} conjunto(s).");
                     }, critical: false);
                 }
 

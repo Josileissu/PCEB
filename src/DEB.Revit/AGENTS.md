@@ -106,6 +106,9 @@ Detalhe de cada funcionalidade (consulte quando for mexer nela), em `docs/`: `EX
   içamento/insertos.
 - Pranchas guiadas por padrões de apresentação (pilar, viga, laje, fundação).
 - Parâmetros `SD_Aço` / `SD_Peso (kg)` mantêm o nome (modelos já detalhados).
+- Tabelas, rótulos e peso das barras pelo comprimento do **núcleo** (D30, 16/11/2026): `SD_Comprimento (núcleo)` e
+  `SD_Comprimento total (núcleo)` (GUIDs fixos `5f0c3a8e-…-1d2b3c4d5e03`/`…5e04`, nunca mudar), gravados na criação da barra
+  (`RebarData.Apply`). São valores gravados: barra editada à mão no Revit só se atualiza rodando o comando de novo.
 - Parâmetros de Formas: compartilhados com GUIDs FIXOS `8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN` (nunca mudar).
 
 ## Armadilhas já encontradas
