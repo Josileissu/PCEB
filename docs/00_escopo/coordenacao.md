@@ -1,96 +1,31 @@
 # Quadro de coordenação — PC1 × PC2
 
-Cada Claude lê este quadro no **início** da sessão e atualiza no **fim** (situação, branch, próximo passo).
-Regras em `docs/04_arquitetura/trabalho_em_paralelo.md`.
+Uma linha por tarefa **em aberto**. Leia no início da sessão e atualize no fim (situação, branch, data, quem).
+O que ainda serve de cada tarefa (pendências, achados, como testar) fica em `tarefas/<#>.md`; tarefa feita sai do
+quadro (o Git guarda o histórico). Regras em `docs/04_arquitetura/trabalho_em_paralelo.md`.
 
-Situação: a fazer · em andamento · aguardando usuário · pronto p/ merge · feito
+Situação: a fazer · em andamento · pausado · aguardando usuário · pronto p/ revisão · pronto p/ merge
 
-## PC2 — estudo e código (também implementa e testa desde 10/11/2026 — decisão do usuário)
-| # | Tarefa | Situação | Branch | Entrega / observação |
-|---|---|---|---|---|
-| P2-1 | Preparar o PC2 (Git, gh, .NET 8, Claude Code, clone) | em andamento | — | 05/11: Git, .NET 8, Claude Code, clone e `S:\Meu Drive\Normas` ok; **falta o `gh`** (instalar e `gh auth login`) |
-| P2-2 | **Inventário do PC2**: todos os programas estruturais/CAD instalados, versões, caminhos, API/SDK (o usuário citou "Tekla" e "Tekla Structures": conferir o que é cada um). Rodar `docs/notas/ferramentas/raiox.py` em Tekla, IDEA e AutoCAD e mandar o resultado em `notas/pc2_pendencias.md` (o PC1 junta na tabela 1.1 de `interfaces_e_desempenho.md`) | pronto p/ merge | `pc2/inventario` | `docs/01_catalogo/inventario_pc2.md` (Tekla = Tekla Structures 2025, ambiente Brazil, + Structural Designer 2025 + Tedds). 07/11: **raio-X feito** em Tekla Structures 2025, Structural Designer 2025, Tedds, IDEA StatiCa 26.0 e AutoCAD 2026 (com Advance Steel em `ADVS`): resultado em `notas/pc2_pendencias.md` |
-| P2-3 | Ficha do **Tekla** conferida no programa (✓): detalhamento de pré-moldados, pranchas, numeração, quadros, Open API | em andamento | `pc2/estudo-tekla` | 05/11: `comerciais/tekla.md` conferida pelos arquivos do ambiente Brazil (aços e dobras × NBR 6118, componentes, pranchas, relatórios, Open API). Falta abrir o programa: licença, prancha de pilar × PP127 |
-| P2-4 | Ficha do **IDEA StatiCa** conferida (✓): módulo Detail para consolos e dentes Gerber, normas (tem NBR?), IOM | a fazer | `pc2/estudo-idea` | atualizar `01_catalogo/comerciais/idea-statica.md` |
-| P2-5 | **Matriz de detalhamento**: como Tekla, CYPE, Eberick e IDEA tratam os 15 elementos da D19 | a fazer | `pc2/matriz-detalhamento` | `01_catalogo/matriz_detalhamento.md` (o PC1 preenche TQS e DEB) |
-| P2-6 | Testar o **DEB.Revit** no Revit do PC2 (versão?) com o AutoRun | em andamento | — | 05/11: AutoRun `precast` no Revit 2025 do PC2 com `Teste_PM_entrada.rvt` (4 P1 40×40 + 2 P2 50×50): **OK**, 2 pranchas, grupos e giros certos. Achados p/ o PC1: (1) seções 1-1/2-2 e cortes A-A/B-B caem sobre as tabelas e o carimbo; (2) aço CA25 nas barras de 8/12,5/16 (esperado CA-50?); (3) Revit × núcleo: estribo +6,8 cm, grampo +2,0, costura do consolo +9,0, tirante −0,9; (4) P2: ρ = 0,39% < 0,40%; (5) o modelo de teste não tem as legendas nem o parâmetro "Título" no carimbo. Revit no PC2 abre devagar (~9 min) no ambiente do Claude: rede bloqueada na licença. O PC2 tem Revit 2021 e 2023–2026 |
-| P2-7 | **Template de reservatório** com reconhecimento (pedido do usuário no PC2, 05/11) | pausado (decisão do usuário) | `pc2/template-reservatorio` | v1: `TemplateReservatorio` + `ReconhecedorReservatorio` (Core) + ARMRESERVATORIO; testado no AutoCAD 2026 com o DWG de teste (Eberick). Na `main` em 05/11. Ver `src/DEB.Cad/docs/TEMPLATES.md`. **Ordem decidida (05/11):** 1) template de LAJES, 2) template de PAREDES (como pilar e base de reservatório), com os esquemas de armação de cada um; 3) detalhe dos CANTOS e encontros; 4) juntar tudo no template de reservatório |
-| P2-8 | **Template de viga pré-moldada** (pedido do usuário no PC2, 06/11): levantar os requisitos, depois as informações do detalhamento; o usuário vai enviar o padrão | em andamento (aguardando o padrão) | `pc2/viga-premoldada` | `src/DEB.Cad/docs/VIGA_PREMOLDADA_REQUISITOS.md` (normas conferidas, categorias VP-1…VP-5, entrada, perguntas da seção 14). Padrão em `src/DEB.Cad/info_auxiliar/templates/viga_pre_moldada/` |
-| P2-9 | **Template de blocos sobre estacas** (pedido do usuário no PC2, 06/11: B3 + exemplos B4/B15/B28/B31/B3.1) | pronto p/ revisão do usuário | `pc2/template-bloco-estacas` | padrão do escritório A; grade e triangular; cálice com colarinho/embutido/arranque; `BLOCOS_REQUISITOS.md` + `TEMPLATES.md`; 209 testes ok; ARMTESTEBLOCO 8 ok (AutoCAD 2026). Detalhes padrão do pilar expostos (`DesenharDetalhesComuns`) |
-| P2-10 | **Motor de detalhamento: contratos + bloco como piloto** (pedido do usuário no PC2, 07/11: "organizar e trabalhar em várias frentes") | em andamento | `pc2/motor-detalhamento` (+ frentes A–D) | contratos em `DEB.Core/Motor/Contratos.cs` e `04_arquitetura/motor_contratos.md`. **PC1: o P1-2 (motor de lineares) deve usar os mesmos contratos**. 07/11: bloco montado pela receita JSON; limpeza (peso de aço = regras da RA via `MedidaBarra`; `DetalhesTipicos`/`IdiomaDesenho` fora do pilar; `Geometria2D`; `GeradorEstribo.FechadoPadrao`; `LeitorJson`). ARMTEMPLATE do bloco passou ao motor (`TemplateBlocoMotor`: mesma janela/modelos; origem — elemento, perfil, sobreposições, sobrescritas — no XData "MOT" do detalhamento); ARMTESTEBLOCO 10 ok no AutoCAD 2026. Template antigo ainda no código até o usuário conferir no CAD. Depois (07/11, autônomo): `SecaoBarras` + `barras_secao_longitudinal` (emendas, feixes) + `grampos_secao` (o pilar pré-moldado delega o cálculo da seção; serve ao P1-2); `apoios_estacas` com forma dada e anéis, `borda_u`, `barras_borda`, `malha_face.cobrimento_normal` (base de reservatório). Decisões do usuário (07/11): cobrimento das malhas na perpendicular da face (padrão); barras curvas no contrato (`PosicaoArmadura.Bulges` + `NormalArcos`; anel da base circular). `malha_parede` 1ª versão (horizontais/verticais, pé, U de fechamento, canto L, encontro T). 08/11: levantamento dos modelos do escritório (`src/DEB.Cad/docs/LEVANTAMENTO_MODELOS.md`); detalhe típico removido do pilar; ARMTEMPLATE com blocos separados por nº de estacas (1–5) e variante (simples, arranque, embutimento, embutimento+colarinho); estribos verticais acima da cabeça das estacas; 5 estacas = 4 cantos + centro; alça do pilar ancorada no fundo; biblioteca de detalhes típicos em DWG (`%AppData%\PCEB\DEB.Cad\Detalhes`, ferramenta ARMTESTEDETALHES) — falta os templates inserirem esses DWGs |
-| P2-11 | **Integração e prova no CAD** (plano de 3 iterações aprovado pelo usuário em 09/11: 1 integrar, 2 fechar as vigas reais, 3 reuso + regressão visual + instalador) | as 3 iterações **feitas e na `main`** (10/11): 1 integração; 2 reimportação, marca "conferir", aba pendurada no dente e consolo de outra viga (modelo real: 157/168 vigas); 3 regressão visual (11 casos), kit de desenho comum (`KitDesenho`), formatação única (`Fmt`) e instalador **0.1.33** | `main` | junta `pc2/exportar-pela-conferencia` (exportação pelo levantamento da conferência, marca do modelo, edições na janela, viga com aba), `pc2/motor-detalhamento` (3 commits) e `pc2/pilar-premoldado` (36 commits do pilar no Revit que não estavam na `main`). Núcleo 497 ok; DEB.Revit e DEB.Cad compilam; AutoCAD 2026: ARMTESTEVIGA 23 ok (com duas vigas de aba) e ARMTESTEPECAS 11 ok com um JSON de um modelo real (8 grupos). Iteração 2: consolo de outra viga na viga, duas saliências no mesmo lado, furos de pino, reimportação que atualiza, marca "conferir". Iteração 3: kit de desenho comum, formatação única, regressão visual, instalador |
-| P2-12 | Pedidos de 10/11 (usuário: "pode levar ao git, pode publicar, pode escolher a melhor ordem") | feito | `main` | verificação automática no GitHub; limpeza das pastas de trabalho e branches; nomes do escritório e da obra fora do repositório público; escolha dos grupos a exportar na janela do Revit; viga com ressalto (armadura proposta pelo usuário); DEB.Cad 0.1.34. Falta: pilar no Revit pelo padrão do CAD (o usuário: "o do CAD está mais bem acabado") |
-| P2-0 | DEB.Cad no AutoCAD 2026 do PC2 (pedido do usuário antes da divisão) | feito | `main` (f4dfa56) | palette com 2 barras, texto da cópia mantém rotação (XData `DROT`), MATCHPROP do plugin (barra/faixa/tabela), faixas ortogonal/alinhada sem diâmetro. Ver `src/DEB.Cad/CLAUDE.md`. GstarCAD/ZWCAD sem teste (não instalados aqui) |
+| # | Tarefa | Situação | Branch | Atualizado em | Por |
+|---|---|---|---|---|---|
+| O-1 | Organização: limpeza pública e leitura barata (etapas 1 e 2) — [tarefa](tarefas/O-1.md) | aguardando usuário | `chore/limpeza-publica`, `docs/leitura-barata` | 16/11 | PC2 |
+| P1-9 | Pranchas de formas no Revit (D25) — [tarefa](tarefas/P1-9.md) | em andamento | `pc1/pranchas-formas` (na `main`) | 14/11 | PC1 |
+| P1-8 | Paginar laje alveolar no Revit (D24) — [tarefa](tarefas/P1-8.md) | pronto p/ revisão | `feature/laje-alveolar-paginacao` (local) | 12/11 | PC1 |
+| P1-1 | Pilar pré-moldado no Revit igual à PP127 — [tarefa](tarefas/P1-1.md) | em andamento | `pc2/pilar-premoldado` | 06/11 | PC2 |
+| P1-2 | Lógica do pilar no `DEB.Core` (motor de lineares + perfil JSON), depois do P1-1 | a fazer | `pc1/motor-lineares` | 05/11 | PC1 |
+| P2-10 | Motor de detalhamento: contratos + bloco como piloto — [tarefa](tarefas/P2-10.md) | em andamento | `pc2/motor-detalhamento` | 08/11 | PC2 |
+| P2-9 | Template de blocos sobre estacas — [tarefa](tarefas/P2-9.md) | pronto p/ revisão | `pc2/template-bloco-estacas` | 06/11 | PC2 |
+| P2-8 | Template de viga pré-moldada — [tarefa](tarefas/P2-8.md) | em andamento (aguardando o padrão) | `pc2/viga-premoldada` | 06/11 | PC2 |
+| P2-7 | Template de reservatório com reconhecimento — [tarefa](tarefas/P2-7.md) | pausado (decisão do usuário) | `pc2/template-reservatorio` | 05/11 | PC2 |
+| P2-6 | Testar o DEB.Revit no Revit do PC2 com o AutoRun — [tarefa](tarefas/P2-6.md) | em andamento | — | 05/11 | PC2 |
+| P2-5 | Matriz de detalhamento: Tekla, CYPE, Eberick e IDEA nos 15 elementos da D19 (`01_catalogo/matriz_detalhamento.md`) | a fazer | `pc2/matriz-detalhamento` | 05/11 | PC2 |
+| P2-4 | IDEA StatiCa conferido no programa: Detail (consolos, dentes Gerber), normas, IOM (`01_catalogo/programas.md`) | a fazer | `pc2/estudo-idea` | 05/11 | PC2 |
+| P2-3 | Tekla conferido no programa — [tarefa](tarefas/P2-3.md) | em andamento | `pc2/estudo-tekla` | 05/11 | PC2 |
+| P2-2 | Inventário do PC2 e raio-X dos programas de lá — [tarefa](tarefas/P2-2.md) | pronto p/ merge | `pc2/inventario` | 07/11 | PC2 |
+| P2-1 | Preparar o PC2 (Git, gh, .NET 8, Claude Code, clone); faltava o `gh` em 05/11 | em andamento | — | 05/11 | PC2 |
 
-## PC1 — código
-| # | Tarefa | Situação | Branch | Entrega / observação |
-|---|---|---|---|---|
-| P1-9 | **Pranchas de formas** (D25, 13/11): locação, montagem, paginação, cortes/elevações, seções consideradas | etapas 1–4 + paginação, cortes/elevações, seções e detalhes típicos **testados no Revit 2026 em cópia destacada de um modelo real** (todas as folhas saem; montagens em 1:50 no A0) — 14/11: comando **"Anotar corte"** (cotas, nomes, cotas de nível; geral/caixa/escada) | `pc1/pranchas-formas` (local) | Módulo `src/DEB.Revit/src/Formas` + núcleo `DEB.Core/Formas` (textos, CSV de cargas, ordem natural; testes). Painel "Formas": Atualizar dados, Cargas (CSV), Planta de locação, Planta de montagem, Paginação das lajes, Cortes e elevações, Seções consideradas. Parâmetros SD_ com GUIDs fixos; tudo que o comando cria é marcado (Extensible Storage) e reaproveitado sem duplicar; folha com número já ocupado por outras vistas sai com sufixo "-F". Configuração (famílias de identificador, números/nomes de folha, detalhes típicos) só na cópia local do usuário. **Pendente**: decisão da numeração das folhas já ocupadas (plantas de cargas); detalhes típicos vindos de PDF sem hachuras (refazer dos DWG); identificadores de vigas curtas perto de escadas; corte transversal carregado na região da escada; símbolo de sentido do vão (sem família no modelo); esforços de fundação (entram depois); escadas e caixa de elevador (etapas 6–7); comando único (etapa 8) |
-| P1-1 | Pilar pré-moldado no Revit igual à PP127 | **em andamento no PC2** (ordem do usuário, 05/11) | `pc2/pilar-premoldado` | feitos (05/11): CA-50, carimbo A1, padrão `PCEB-PPM-A1` (v29) no repo, templates `PCEB-PPM-*`, embutimento, níveis em todas as vistas, títulos acima das vistas, elevação da armadura esquemática, chamadas N nas seções, formas em cm, quadro do consolo (planta/corte 1:10 + formas) com as barras novas (barra soldada, estribos verticais, inferior em U, pinos); (06/11) chamadas N no quadro do consolo (corte: todas as barras + "Solda"; planta: pinos) e título "ARMADURAS CONSOLE … - n UN.", CORTE A-A (transversal) e B-B; cotas do quadro só do consolo; formas dos estribos e grampos embaixo da última seção (coluna das seções com a altura toda da folha); cota acumulada nas vistas de face (uma cadeia base → consolos → topo, total por fora); marcas de corte simples (A/B nas faces, 1/2 na armadura). Comparação com o pilar padrão do CAD em `docs/04_arquitetura/padroes_apresentacao.md`. Detalhes padrão (06/11): extraídos do DWG do P56 para DXF e criados como legendas no Revit. Exemplo com 3 níveis de viga (`criarmodelo` + `SD_NIVEIS`, ex.: "3000:X;6000:XY;9000:Y"): prancha reorganizada como a do P56 (padrão v29) — colunas separadas de cortes e seções em 1:25, detalhes padrão entre as seções e as tabelas, recorte dos cortes/seções só com o que está na profundidade (era um quadrado de 1,25 m), títulos das seções curtos ("SEÇÃO 1-1 (SECTION 1-1)") e caixa do título sem quebra de linha. Pilar interno 50×50 com consolos em 3 faces: os cortes de forma ainda caem para 1:50. (06/11, tarde) Recursos do Revit na ARMADURA: longitudinais e alças como conjuntos com barras movidas (etiqueta "8 N1 ø12.5 C=995" no detalhe de curvatura em escala), trechos de estribos com cota + etiqueta do escritório (sem textos), Marca da tabela = N, ganchos dos estribos conferidos para dentro, alças numa face a 20%/80% (regra da face em `pc2_pendencias.md`), pinos/peças do consolo só no quadro do consolo, marcas de corte para fora das cotas e dentro do recorte, filtros de bitola para vista 3D (padrão v32). Rota em `docs/04_arquitetura/rota_recursos_revit.md`. (06/11, fim da tarde, padrão v33) armadura em vermelho pelo template (vergalhões e detalhes de curvatura), legenda "PCEB - Níveis da obra - escala 1-N" na folha encostada às linhas de nível da 1ª vista, elevações niveladas pela base do pilar, cotas só dos consolos em corte (sem chanfros), detalhe da alça de içamento da peça (corte com cotas e etiqueta) no lugar da legenda fixa. (06/11, noite, padrão v34) etiquetas da ARMADURA como o usuário ajustou (trechos curtos com o tipo "1 N1 c/ - Quebra", vertical, lado a lado; o tipo só existe no projeto do usuário — falta salvá-lo na família do escritório); quadro do consolo só com a armadura do consolo, formas com o nome da peça (PT/EN), planta com a posição dos pinos cotada e as marcas A-A/B-B. (06/11, noite, padrão v35) cota acumulada do lado para onde o consolo aponta; planta do consolo só com os pinos e cadeias encostadas no consolo (totais por fora); altura do pino no corte B-B; seções/cortes do trecho corrente sem os consolos; tabela "DOBRAMENTO DO AÇO (BAR BENDING SCHEDULE)" em teste (forma do Revit + trechos A–E; sem imagem das formas); AutoRun `SD_VARIAR=1` (bitolas/quantidades por grupo e pilares 50x50 com +1,50 m) — achou e corrigiu o conjunto de barras movidas que falhava com 6 ø20; verificação nova: alça que não comporta o pino de dobramento. Próximo: nota do neoprene, linhas de interrupção do pilar, tabela de dobra (lugar na folha e imagens das formas), tabelas sobrepondo as informações de produção, P3 alto em 1:75. Testes no Revit 2026 do PC2 (o 2025 é o do usuário) |
-| P1-2 | Levar a lógica do pilar para o `DEB.Core` (motor de lineares + perfil JSON) | a fazer | `pc1/motor-lineares` | depois do P1-1 |
-| P1-3 | Matriz de detalhamento (TQS, Eberick, CYPE, Revit, DEB) | feito 05/11 | `pc1/matriz-detalhamento` | `01_catalogo/matriz_detalhamento.md`; faltam Tekla e IDEA (P2-5) |
-| P1-4 | Raio-X dos programas do PC1 (interface, gráfico, geometria, cálculo, automação) | feito 05/11 | `pc1/catalogo-programas` | tabela 1.1 em `interfaces_e_desempenho.md` |
-| P1-5 | Fichas completas do PC1: TQS, Eberick, CYPE 3D, SAP2000, Robot, Revit, GstarCAD | feito 05/11 | `pc1/catalogo-programas` | o PC2 só completa o que depende dos programas de lá (Tekla, IDEA, AutoCAD, CYPECAD se houver) |
-| P1-6 | Instalador só espera os CADs da **sessão** de quem instala (o GstarCAD de outro usuário conectado no PC1 travava a instalação) | feito 09/11 | `pc1/instalador-sessao` | DEB.Cad **0.1.30**, Release v0.1.30 no GitHub; instalada no PC1 (substituiu a ArmaduraBR antiga; DLLs antigas apagadas). Autoteste GstarCAD 2021: 219 ok com a escala de fábrica (5 falhas de escala com o config do usuário, já conhecidas). Rascunho de release "v.0.1.27" apagado |
-| P1-8 | **Paginar laje alveolar** (D24, 12/11): protótipo migrado para o DEB.Revit | pronto p/ revisão do usuário (sem teste no Revit) | `feature/laje-alveolar-paginacao` (local) | motor `DEB.Core/Lajes` (16 testes; reproduz o protótipo num modelo real com 0 divergências nas 3 estratégias), comando `src/DEB.Revit/src/LajeAlveolar` (leitura, janela, prévia, inserção, fase 3 capa/chaves/tirantes, furo em obra). Falta: testar no Revit (AutoRun), conferir as janelas com o usuário, etapa dos tirantes |
-| P1-7 | **Revit → CAD** (D22): peças do modelo exportadas como dados e detalhadas no CAD, um detalhamento por grupo de peças iguais | feito 09/11 (falta testar com modelo real) | `pc1/revit-cad-pecas` (na `main`, 80db4c8) | DEB.Revit: botão "Exportar para o CAD" (+ AutoRun `exportarpecas`) → JSON "DEB.Pecas" (`DEB.Core/Intercambio`). Pilares: seção, L, cota da base, níveis, embutimento, consolos casados com o ARMCONSOLOS (par oposto = duplo). Vigas pré-moldadas: dentes Gerber lidos pela geometria e casados com o ARMDENTES, invertidas = iguais; furos ainda não lidos. DEB.Cad: **ARMIMPORTARPECAS** (pilares numa fila, vigas abaixo; repetições = nº de peças). Testes: núcleo 462 ok; ARMTESTEPECAS 12 ok (GstarCAD 2021). **No PC1 o Revit 2025 travou em "manage licensing": a exportação real não rodou.** **PC2: o usuário vai testar lá** (compilar o DEB.Revit, exportar, carregar a DLL do CAD compilada e rodar ARMIMPORTARPECAS); conferir se os consolos aninhados na viga entram no perfil (dentes viriam como pontas retas) |
-
-## Passagem para o PC2 — pilar pré-moldado (05/11/2026)
-O usuário pediu para **aguardar a ordem dele** antes de continuar; os testes no Revit passam para o PC2.
-
-Feito no PC1 (branch `pc1/teste-pilares`):
-- Tarefas de AutoRun sem projeto aberto: `familias` e `criarmodelo` (`src/DEB.Revit/src/Precast/TestModel.cs`; uso no
-  `CLAUDE.md` do DEB.Revit). O modelo de teste é gerado de novo em cada computador (não vai para o Git).
-- Famílias usadas (`S:\Meu Drive\Arquivos\Familias Revit\Estrutura\Concreto`): `Pilar Pré-Moldado.rfa` (tipos
-  "40x40 - docas" e "50x50 - internos") e `Viga Pré-Moldada.rfa` (consolos aninhados). Template:
-  `Structural Analysis-DefaultBRAPTB.rte` do Revit 2025.
-- Resultado: P1 = 4 pilares de canto (giros 0/90/180/270°), P2 = 2 do meio (0/180°); armadura e prancha geradas.
-
-Respostas do usuário:
-- **Folha padrão**: `S:\Meu Drive\Arquivos\Familias Revit\Carimbo e Folhas\Folhas Revit.rfa`, com tipos/instâncias A0, A1, A2, A3…
-  (a PP127 é A1).
-- **Embutimento** na família "Pilar Pré-Moldado": **deslocamento negativo da base** (não há parâmetro "Embutimento").
-
-Próximos passos (só com a ordem do usuário), comparando com a PP127:
-1. Aço CA25 saindo nas barras Ø8/12,5/16 — deve ser **CA50** (erro).
-2. Carimbo: usar `Folhas Revit.rfa` (A1).
-3. Embutimento lido do deslocamento negativo da base; `criarmodelo` passa a criar pilares com base negativa.
-4. Layout: seções e cortes em 1:25, sem sobreposição com tabelas e títulos.
-5. Faltam: detalhe da armadura do consolo (planta, cortes, formas), formas das barras cotadas, níveis (topo/térreo/base),
-   alça de içamento, legendas padrão (raio, emendas, comprimento). Aviso no P2: ρ = 0,39% < 0,40%.
-
-## Aguardando o usuário
-- GN Corbel: avaliar depois (decisão do usuário, 05/11/2026).
-- Pasta privada no Drive: ainda não é necessária (decisão do usuário, 05/11/2026). A PP127 e o `Projeto1.rvt`, se o PC2 precisar,
-  passam para lá depois.
-
-## Passagem do PC2 para o PC1 (11/11/2026)
-Tudo na `main` e no GitHub (branch de trabalho `pc2/padroes-vigas-pilares`, já mesclada). Publicado: **DEB.Cad 0.1.38** (release `v0.1.38`,
-a "mais recente"), **DEB para Revit 0.2.0** (release `revit-v0.2.0`, criada com `--latest=false`) e o site **https://www.pceb.com.br**
-(GitHub Pages, `.github/workflows/site.yml`; botões "Baixar para CAD" e "Baixar para Revit"; página Apoiar com Pix).
-
-Feito no PC2 nos dias 10 e 11/11 (detalhes nos CLAUDE.md e no histórico do Git):
-- Vigas: ressalto com aba rente ao topo; estribo do ressalto até o fundo; grampo U na aba (`AbaEstForma`); dente/suspensão em faixas
-  com cota (`FaixaContada`, `FaixaTemplate.MostrarEspacamento`); furos de pino pela largura (`FurosModo`: < 30 cm → 1, ≥ 30 → 2);
-  **aberturas na alma** (`AberturaViga.cs`, tabela "Aberturas"; regra aprovada pelo usuário: 3 estribos em 10 cm de cada lado, estribos
-  curtos c/5, 2 + 2 barras ø10 com 40φ, circular ≤ 15 cm sem reforço); **segundo estágio** (`SegEstagio`: b x h+capa, estribos na capa,
-  superior "2º estágio", porta-estribo 2 ø6,3, nota).
-- Pilares: vistas APRESENTADAS 1 = oeste, 2 = sul, 3 = leste, 4 = norte (`TemplatePilarPreMoldado.FaceExibida`, troca 1 ↔ 3; a numeração
-  interna e o JSON não mudaram; também na janela "Conferir peças" do Revit); cortes de consolos com topos < 50 cm juntos e grupo repetido
-  com a letra do já apresentado (`AgruparCortes`); sem a nota de traspasse; embutimento da alça limitado à face oposta.
-- Arquivo de peças **versão 4** (aberturas passantes; nicho continua recusado); Revit reconhece furo redondo; estações dentro de
-  aberturas ignoradas; conversor não cria mais aba de largura 0 em viga só com ressalto.
-- ARMIMPORTARPECAS ~4,5x mais rápido (uma `ServicoRA.Atualizar` no fim em vez de uma por peça).
-- Instalador do Revit: `src/DEB.Revit/instalador/gerar.bat` → `DEB_Revit_Setup_<ver>.exe` (ver o CLAUDE.md do DEB.Revit).
-- Testes: núcleo 542 (pt-BR e en-US); `PreviaTemplateTests.GravarPreviaDasPecasDeUmArquivo` (ARM_PREVIA + ARM_PECAS_ENTRADA) gera a
-  prévia de peças de um JSON real.
-
-Pendente:
-- **Consolo inclinado na lateral da viga** — ADIADO pelo usuário em 11/11 (proposta feita no PC1: tratar como consolo local da viga,
-  reaproveitando o motor do consolo do pilar). Era: (viga com aba no fundo de um lado e consolo do outro): o reconhecimento da seção
-  (`SecaoComAba`) aceita uma saliência lateral só; depois a armadura (estribos horizontais do consolo e verticais de alturas variáveis).
-- ~~Interpretações a confirmar~~ — confirmadas pelo PC1 em 11/11 (D23): porta-estribo em cima por dentro do estribo e **superior suprimida no 2º
-  estágio** (já implementado, branch `pc1/segundo-estagio-sem-superior`); construtiva do ressalto = as 4 longitudinais; < 30 cm → 1 furo, ≥ 30 → 2.
-- Instalador do Revit 0.2.0: testado no PC2 (instala, carrega no 2025 e 2026, desmarca, desinstala).
-- Pilar no Revit pelo padrão do CAD ("o do CAD está mais bem acabado").
-- Consolos digitados nas faces 1/3 em modelos salvos antes da 0.1.37 trocam de lado (a face 1 agora é oeste).
+## Pendências sem tarefa
+- GN Corbel: avaliar depois (decisão do usuário, 05/11).
+- Pasta privada no Drive para os arquivos do escritório: ainda não é necessária (decisão do usuário, 05/11).
+- Consolo inclinado na lateral da viga: adiado pelo usuário (11/11); proposta: consolo local da viga com o motor do consolo do pilar.
+- Consolos digitados nas faces 1/3 em modelos salvos antes da 0.1.37 trocam de lado (a face 1 passou a ser oeste).
