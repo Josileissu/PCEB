@@ -77,7 +77,8 @@ public class ParidadePilarTests
         bool tie = b.Role == BarRole.Stirrup || b.Role == BarRole.CrossTie || b.Role == BarRole.CorbelSew || b.Role == BarRole.CorbelStirrup;
         var eixo = b.Points.Select(p => (p.A * CmPorPe, p.B * CmPorPe, p.C * CmPorPe)).ToList();
         string aco = b.Steel ?? (b.DiameterMm < 6.3 ? "CA-60" : "CA-50");
-        return ComprimentoPorEixo.Calcular(eixo, b.Closed, b.DiameterMm, aco, tie, b.Hooks135, new ConfiguracaoArmadura());
+        var arcos = b.ArcMid.ToDictionary(kv => kv.Key, kv => (kv.Value.A * CmPorPe, kv.Value.B * CmPorPe, kv.Value.C * CmPorPe));
+        return ComprimentoPorEixo.Calcular(eixo, b.Closed, b.DiameterMm, aco, tie, b.Hooks135, new ConfiguracaoArmadura(), arcos);
     }
 
     // ------------------------------------------------------------------ caminho do CAD (template), com os dados do Revit
@@ -251,8 +252,8 @@ public class ParidadePilarTests
     // em nível (BarrasConsolo.ParesEmNivel), passantes de ponta a ponta; perna do tirante medida por fora nos dois (D7).
     // Largura da costura (D30, revisão): por dentro dos estribos verticais nos dois (BarrasConsolo.LarguraCostura). A diferença
     // de −3 cm não vinha da entrada (cobrimento 2,5 e pinos de dobra iguais nos dois caminhos — ver LarguraDaCosturaEraRegra).
-    private const string TOPO_ALCA = "alça: topo do laço em semicírculo no CAD (polilinha com arco) × dois cantos no Revit (o modelo 3D " +
-                                     "só tem trechos retos; a cordoalha não desconta dobra) — mesmas pernas, pés, altura e distância entre pernas";
+    // alça (D30): topo do laço em semicírculo nos dois (no Revit, trecho em arco no BarDef e Arc no vergalhão); comprimento
+    // pelo eixo com o arco = o da polilinha do CAD: 2 pés + 2 pernas + π·entre/2
     // estribo vertical e armadura inferior do consolo: DEFINIDOS PELO USUÁRIO (D30, revisão: "é inserido pelo usuário") — não são
     // regra a unificar. CAD: no tipo de consolo do catálogo (ARMCONSOLOS: VertN, VertPhi, InfN, InfPhi, InfAnc, InfRetorno,
     // InfDescida); Revit: na especificação do grupo (quantidade e bitola). As formas que cada programa monta com essas entradas
@@ -265,32 +266,32 @@ public class ParidadePilarTests
         ("40x40-sem-12.5", "alças: altura da de baixo (cm)", 120, 120, Igual),
         ("40x40-sem-12.5", "alças: altura da de cima (cm)", 480, 480, Igual),
         ("40x40-sem-12.5", "alças: embutimento das pernas (cm)", 35.75, 35.75, Igual),
-        ("40x40-sem-12.5", "alças: comprimento", 155, 147, TOPO_ALCA),
+        ("40x40-sem-12.5", "alças: comprimento", 147, 147, Igual),
         ("40x40-sem-12.5", "alças: aço", 1, 1, Igual),
         ("40x40-um-12.5", "alças: altura da de baixo (cm)", 122.6, 122.6, Igual),
         ("40x40-um-12.5", "alças: altura da de cima (cm)", 482.6, 482.6, Igual),
         ("40x40-um-12.5", "alças: embutimento das pernas (cm)", 35.75, 35.75, Igual),
-        ("40x40-um-12.5", "alças: comprimento", 155, 147, TOPO_ALCA),
+        ("40x40-um-12.5", "alças: comprimento", 147, 147, Igual),
         ("40x40-um-12.5", "alças: aço", 1, 1, Igual),
         ("40x40-opostos-16", "alças: altura da de baixo (cm)", 125, 125, Igual),
         ("40x40-opostos-16", "alças: altura da de cima (cm)", 485, 485, Igual),
         ("40x40-opostos-16", "alças: embutimento das pernas (cm)", 35.4, 35.4, Igual),
-        ("40x40-opostos-16", "alças: comprimento", 155, 147, TOPO_ALCA),
+        ("40x40-opostos-16", "alças: comprimento", 147, 147, Igual),
         ("40x40-opostos-16", "alças: aço", 1, 1, Igual),
         ("50x50-sem-16", "alças: altura da de baixo (cm)", 120, 120, Igual),
         ("50x50-sem-16", "alças: altura da de cima (cm)", 480, 480, Igual),
         ("50x50-sem-16", "alças: embutimento das pernas (cm)", 45.4, 45.4, Igual),
-        ("50x50-sem-16", "alças: comprimento", 175, 167, TOPO_ALCA),
+        ("50x50-sem-16", "alças: comprimento", 167, 167, Igual),
         ("50x50-sem-16", "alças: aço", 1, 1, Igual),
         ("50x50-um-16", "alças: altura da de baixo (cm)", 121.7, 121.7, Igual),
         ("50x50-um-16", "alças: altura da de cima (cm)", 481.7, 481.7, Igual),
         ("50x50-um-16", "alças: embutimento das pernas (cm)", 45.4, 45.4, Igual),
-        ("50x50-um-16", "alças: comprimento", 175, 167, TOPO_ALCA),
+        ("50x50-um-16", "alças: comprimento", 167, 167, Igual),
         ("50x50-um-16", "alças: aço", 1, 1, Igual),
         ("50x50-opostos-12.5", "alças: altura da de baixo (cm)", 123.3, 123.3, Igual),
         ("50x50-opostos-12.5", "alças: altura da de cima (cm)", 483.3, 483.3, Igual),
         ("50x50-opostos-12.5", "alças: embutimento das pernas (cm)", 45.75, 45.75, Igual),
-        ("50x50-opostos-12.5", "alças: comprimento", 175, 167, TOPO_ALCA),
+        ("50x50-opostos-12.5", "alças: comprimento", 167, 167, Igual),
         ("50x50-opostos-12.5", "alças: aço", 1, 1, Igual),
         ("40x40-opostos-16", "armadura inferior do consolo: comprimento", 91, 79, USUARIO),
         ("40x40-opostos-16", "barra soldada: comprimento", 35, 35, Igual),

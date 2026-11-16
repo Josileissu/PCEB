@@ -18,6 +18,8 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
         /// <summary>Aço ("CP-190" na alça de cordoalha); null = pela bitola (CA-60 abaixo de 6,3 mm, senão CA-50).</summary>
         public string Steel { get; set; }
         public List<Loc> Points { get; set; } = new List<Loc>();
+        /// <summary>Trechos em arco: índice do trecho (Points[i] → Points[i + 1]) → um ponto do arco no meio dele (topo da alça).</summary>
+        public Dictionary<int, Loc> ArcMid { get; set; } = new Dictionary<int, Loc>();
         public bool Closed { get; set; }
         public Loc Normal { get; set; }
         public bool Hooks135 { get; set; }
@@ -199,15 +201,23 @@ namespace DEB.Core.Templates.PilarPreMoldado.Modelo3D
                 double z = Free(z0);
                 foreach (double t in ss)
                 {
+                    // como o laço do CAD (D30): pé (medida externa, o eixo da dobra a φ/2), perna, topo em SEMICÍRCULO de diâmetro w
+                    // (eixo), perna, pé; pr = topo do eixo acima da face
                     var pts = new List<Loc>();
-                    if (foot > 0) pts.Add(g.At(f, dIn, t, z - w / 2 - foot));
+                    double footAxis = foot > 0 ? foot - dLift / 2 : 0;
+                    if (foot > 0) pts.Add(g.At(f, dIn, t, z - w / 2 - footAxis));
                     pts.Add(g.At(f, dIn, t, z - w / 2));
-                    pts.Add(g.At(f, pr, t, z - w / 2));
-                    pts.Add(g.At(f, pr, t, z + w / 2));
+                    pts.Add(g.At(f, pr - w / 2, t, z - w / 2));
+                    pts.Add(g.At(f, pr - w / 2, t, z + w / 2));
                     pts.Add(g.At(f, dIn, t, z + w / 2));
-                    if (foot > 0) pts.Add(g.At(f, dIn, t, z + w / 2 + foot));
+                    if (foot > 0) pts.Add(g.At(f, dIn, t, z + w / 2 + footAxis));
+                    int arco = foot > 0 ? 2 : 1;
                     // cordoalha CP-190, como a alça do CAD (D30, revisão: "cordoalha")
-                    yield return new BarDef { Role = BarRole.LiftLoop, DiameterMm = s.LiftDiameterMm, Steel = LiftSteel, Points = pts, Normal = g.T };
+                    yield return new BarDef
+                    {
+                        Role = BarRole.LiftLoop, DiameterMm = s.LiftDiameterMm, Steel = LiftSteel, Points = pts, Normal = g.T,
+                        ArcMid = { [arco] = g.At(f, pr, t, z) },
+                    };
                 }
             }
         }

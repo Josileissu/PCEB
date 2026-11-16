@@ -18,16 +18,20 @@ public static class ComprimentoPorEixo
     /// <param name="eixo">vértices do eixo da barra, em cm (sem repetir o 1º no fim quando fechada)</param>
     /// <param name="fechada">poligonal fechada (estribo)</param>
     /// <param name="ganchos135">ganchos de 135° nas pontas (estribo fechado ou grampo), como no padrão do escritório</param>
+    /// <param name="arcos">trechos em arco (poligonal aberta sem ganchos): índice do trecho (eixo[i] → eixo[i + 1]) → um ponto
+    /// do arco no meio dele, em cm. Ex.: o topo da alça em semicírculo.</param>
     public static double Calcular(IReadOnlyList<(double X, double Y, double Z)> eixo, bool fechada, double bitolaMm,
-        string aco, bool estribo, bool ganchos135, ConfiguracaoArmadura cfg)
+        string aco, bool estribo, bool ganchos135, ConfiguracaoArmadura cfg,
+        IReadOnlyDictionary<int, (double X, double Y, double Z)> arcos = null)
     {
-        var (geo, dados) = Montar(eixo, fechada, bitolaMm, aco, estribo, ganchos135, cfg);
+        var (geo, dados) = Montar(eixo, fechada, bitolaMm, aco, estribo, ganchos135, cfg, arcos);
         return CalculoComprimento.ComprimentoUnitario(geo, cfg, dados);
     }
 
     /// <summary>Segmentos (medidas externas) e dados da barra equivalentes ao desenho do CAD.</summary>
     public static (List<GeoSegmento> geo, DadosArmadura dados) Montar(IReadOnlyList<(double X, double Y, double Z)> eixo,
-        bool fechada, double bitolaMm, string aco, bool estribo, bool ganchos135, ConfiguracaoArmadura cfg)
+        bool fechada, double bitolaMm, string aco, bool estribo, bool ganchos135, ConfiguracaoArmadura cfg,
+        IReadOnlyDictionary<int, (double X, double Y, double Z)> arcos = null)
     {
         if (eixo == null || eixo.Count < 2) throw new ArgumentException("O eixo precisa de pelo menos 2 pontos.", nameof(eixo));
         double phi = bitolaMm / 10.0;
@@ -64,24 +68,65 @@ public static class ComprimentoPorEixo
             return (geo, dados);
         }
 
-        // poligonal sem ganchos: cada trecho ganha (φ/2)·tan(δ/2) em cada ponta dobrada (medida até a face externa)
+        // poligonal sem ganchos: cada trecho reto ganha (φ/2)·tan(δ/2) em cada ponta dobrada (medida até a face externa); o
+        // trecho em arco vale o comprimento do arco no eixo (como o arco da polilinha do CAD) e a junção tangente não dobra
         int n = eixo.Count, nSeg = fechada ? n : n - 1;
+        bool Arco(int seg) => arcos != null && !fechada && arcos.ContainsKey(seg);
+        // direções no início e no fim de cada trecho (tangentes no arco)
+        (double X, double Y, double Z) Inicio(int seg) => Arco(seg) ? TangenteArco(eixo[seg], arcos[seg], eixo[seg + 1]).ini : Sub(eixo[(seg + 1) % n], eixo[seg]);
+        (double X, double Y, double Z) Fim(int seg) => Arco(seg) ? TangenteArco(eixo[seg], arcos[seg], eixo[seg + 1]).fim : Sub(eixo[(seg + 1) % n], eixo[seg]);
         double Deflexao(int vertice)
         {
             if (!fechada && (vertice == 0 || vertice == n - 1)) return 0;
-            var a = eixo[(vertice - 1 + n) % n]; var b = eixo[vertice]; var c = eixo[(vertice + 1) % n];
-            return Angulo(Sub(b, a), Sub(c, b));
+            return Angulo(Fim((vertice - 1 + n) % n), Inicio(vertice % nSeg));
         }
         var r = new List<GeoSegmento>();
         for (int i = 0; i < nSeg; i++)
         {
             int ini = i, fim = (i + 1) % n;
             double di = Deflexao(ini), df = Deflexao(fim);
-            double ext = Distancia(eixo[ini], eixo[fim]) + phi / 2 * (Math.Tan(di / 2) + Math.Tan(df / 2));
-            r.Add(new GeoSegmento(TipoSegmento.Reta, ext, (i == 0 && !fechada) ? 0 : di * 180 / Math.PI));
+            if (Arco(i))
+            {
+                var (_, raio, ang) = Circulo(eixo[ini], arcos[i], eixo[fim]);
+                r.Add(new GeoSegmento(TipoSegmento.Arco, raio * ang, i == 0 ? 0 : di * 180 / Math.PI, ang * 180 / Math.PI));
+            }
+            else
+            {
+                double ext = Distancia(eixo[ini], eixo[fim]) + phi / 2 * (Math.Tan(di / 2) + Math.Tan(df / 2));
+                r.Add(new GeoSegmento(TipoSegmento.Reta, ext, (i == 0 && !fechada) ? 0 : di * 180 / Math.PI));
+            }
             dados.Segmentos.Add(new Segmento());
         }
         return (r, dados);
+    }
+
+    /// <summary>Círculo pelos pontos a, m, b (início, meio, fim do arco): centro, raio e ângulo varrido de a a b passando por m.</summary>
+    private static ((double X, double Y, double Z) c, double raio, double ang) Circulo((double X, double Y, double Z) a,
+        (double X, double Y, double Z) m, (double X, double Y, double Z) b)
+    {
+        var u = Sub(m, a); var v = Sub(b, a); var w = Cross(u, v);
+        double w2 = Dot(w, w);
+        if (w2 < 1e-12) throw new ArgumentException("Arco com pontos alinhados.");
+        var t1 = Cross(v, w); var t2 = Cross(w, u);
+        double uu = Dot(u, u), vv = Dot(v, v);
+        var c = (X: a.X + (uu * t1.X + vv * t2.X) / (2 * w2), Y: a.Y + (uu * t1.Y + vv * t2.Y) / (2 * w2), Z: a.Z + (uu * t1.Z + vv * t2.Z) / (2 * w2));
+        double raio = Len(Sub(a, c));
+        double ang = 2 * Math.Asin(Math.Min(1, Distancia(a, b) / (2 * raio)));
+        // o ponto do meio do outro lado da corda = arco maior
+        var meioCorda = (X: (a.X + b.X) / 2, Y: (a.Y + b.Y) / 2, Z: (a.Z + b.Z) / 2);
+        if (Dot(Sub(meioCorda, c), Sub(m, c)) < -1e-9) ang = 2 * Math.PI - ang;
+        return (c, raio, ang);
+    }
+
+    /// <summary>Tangentes do arco a → m → b no início (sentido de a para m) e no fim (saindo de b).</summary>
+    private static ((double X, double Y, double Z) ini, (double X, double Y, double Z) fim) TangenteArco((double X, double Y, double Z) a,
+        (double X, double Y, double Z) m, (double X, double Y, double Z) b)
+    {
+        var (c, _, _) = Circulo(a, m, b);
+        var nrm = Cross(Sub(m, a), Sub(b, a));
+        var ti = Cross(nrm, Sub(a, c)); if (Dot(ti, Sub(m, a)) < 0) ti = (-ti.X, -ti.Y, -ti.Z);
+        var tf = Cross(nrm, Sub(b, c)); if (Dot(tf, Sub(b, m)) < 0) tf = (-tf.X, -tf.Y, -tf.Z);
+        return (ti, tf);
     }
 
     /// <summary>

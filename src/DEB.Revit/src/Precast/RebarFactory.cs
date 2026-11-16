@@ -91,7 +91,8 @@ namespace DEB.Revit.Precast
         {
             const double cmPerFoot = 30.48;
             var axis = b.Points.Select(p => (p.A * cmPerFoot, p.B * cmPerFoot, p.C * cmPerFoot)).ToList();
-            return SharedRules.RealLengthCm(axis, b.Closed, b.DiameterMm, IsTie(b.Role), b.Hooks135, b.Steel);
+            var arcs = b.ArcMid.ToDictionary(kv => kv.Key, kv => (kv.Value.A * cmPerFoot, kv.Value.B * cmPerFoot, kv.Value.C * cmPerFoot));
+            return SharedRules.RealLengthCm(axis, b.Closed, b.DiameterMm, IsTie(b.Role), b.Hooks135, b.Steel, arcs);
         }
 
         /// <summary>
@@ -116,7 +117,7 @@ namespace DEB.Revit.Precast
             if (b.Closed && SignedArea(pts, b.Normal) < 0) pts = Enumerable.Reverse(pts).ToList();
 
             var curves = new List<Curve>();
-            for (int i = 0; i < pts.Count - 1; i++) curves.Add(Line.CreateBound(f.ToWorld(pts[i]), f.ToWorld(pts[i + 1])));
+            for (int i = 0; i < pts.Count - 1; i++) curves.Add(Segment(f, b, pts, i));
             if (b.Closed) curves.Add(Line.CreateBound(f.ToWorld(pts[^1]), f.ToWorld(pts[0])));
 
             bool tie = IsTie(b.Role);
@@ -138,6 +139,15 @@ namespace DEB.Revit.Precast
 
             r.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.Set($"{Tag}|{mark}|{RoleLabel(b.Role)}");
             return r;
+        }
+
+        /// <summary>Trecho i da barra: reto, ou arco pelos três pontos quando a barra tem ArcMid nele (topo da alça).</summary>
+        private static Curve Segment(ColumnFrame f, BarDef b, List<Loc> pts, int i)
+        {
+            // só a poligonal na ordem original tem os arcos (as fechadas, que podem ser invertidas, não têm)
+            if (!b.Closed && b.ArcMid.TryGetValue(i, out Loc mid))
+                return Arc.Create(f.ToWorld(pts[i]), f.ToWorld(pts[i + 1]), f.ToWorld(mid));
+            return Line.CreateBound(f.ToWorld(pts[i]), f.ToWorld(pts[i + 1]));
         }
 
         /// <summary>Chave de igualdade das barras: bitola + vetores dos trechos (mm), sem a posição.</summary>
@@ -186,8 +196,7 @@ namespace DEB.Revit.Precast
             }
 
             var curves = new List<Curve>();
-            for (int i = 0; i < first.Points.Count - 1; i++)
-                curves.Add(Line.CreateBound(f.ToWorld(first.Points[i]), f.ToWorld(first.Points[i + 1])));
+            for (int i = 0; i < first.Points.Count - 1; i++) curves.Add(Segment(f, first, first.Points, i));
             Rebar r = Rebar.CreateFromCurves(_doc, RebarStyle.Standard, BarType(first.DiameterMm, first.Steel), null, null, column, n, curves,
                 RebarHookOrientation.Right, RebarHookOrientation.Left, true, true);
             try
