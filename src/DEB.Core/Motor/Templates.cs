@@ -273,7 +273,7 @@ public sealed class ResultadoTemplate
 }
 
 /// <summary>
-/// Template de armadura de um elemento. Implementações ficam em <c>Templates/&lt;Categoria&gt;/</c> e
+/// Template de armadura de um elemento. Implementações ficam em <c>Elementos/&lt;Elemento&gt;/</c> e
 /// são registradas em <see cref="CatalogoTemplates"/>. O template só GERA geometria e dados; o CAD
 /// desenha (ARMTEMPLATE). Nada de dimensionamento: os valores são decisão do engenheiro.
 /// </summary>

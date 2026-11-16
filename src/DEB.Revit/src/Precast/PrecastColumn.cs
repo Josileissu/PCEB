@@ -62,7 +62,7 @@ namespace DEB.Revit.Precast
         };
     }
 
-    // Loc, ColumnFace, Corbel (parte pura), ColumnBox e U_ estão no núcleo: DEB.Core/Templates/PilarPreMoldado/Modelo3D.
+    // Loc, ColumnFace, Corbel (parte pura), ColumnBox e U_ estão no núcleo: DEB.Core/Elementos/Pilar/PreMoldado/Modelo3D.
 
     /// <summary>Consolo levantado no modelo: a parte pura (<see cref="Corbel"/>) mais a instância da família no Revit.</summary>
     internal sealed class RevitCorbel : Corbel

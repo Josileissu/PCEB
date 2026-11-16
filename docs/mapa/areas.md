@@ -7,12 +7,14 @@ quadro (`docs/00_escopo/coordenacao.md`); confira lá antes de começar.
 |---|---|---|---|
 | Barras, comprimento real, dobras, normas | `src/DEB.Core/Calculo`, `Normas`, `Descricao`, `Estribos` | `ComprimentoReal`, `Barra`, `Estribo`, `Normas` | — |
 | Relação do aço, tabelas, numeração | `src/DEB.Core/RelacaoAco`, `Tabelas`, `Numeracao` | `Tabela`, `OrdenacaoMarcas` | — |
-| Pilar pré-moldado (template) | `src/DEB.Core/Templates/PilarPreMoldado` | `Pilar` | P1-1 (Revit) |
-| Pilar pré-moldado do Revit (armadura 3D) | `src/DEB.Core/Templates/PilarPreMoldado/Modelo3D`; `src/DEB.Revit/src/Precast` | `ParidadePilar` | O-2 (etapa 3) |
-| Viga pré-moldada (template) | `src/DEB.Core/Templates/VigaPreMoldada` | `Viga` | P2-8 |
-| Blocos sobre estacas | `src/DEB.Core/Templates/Blocos`, `src/DEB.Core/Motor/Fundacoes` | `BlocoEstacas`, `Motor` | P2-9 / P2-10 |
-| Reservatório e base | `src/DEB.Core/Templates/Reservatorio`, `BaseReservatorio` | `Reservatorio` | pausado (P2-7) |
+| Pilar pré-moldado (template) | `src/DEB.Core/Elementos/Pilar/PreMoldado` | `Pilar` | P1-1 (Revit) |
+| Pilar pré-moldado do Revit (armadura 3D) | `src/DEB.Core/Elementos/Pilar/PreMoldado/Modelo3D`; `src/DEB.Revit/src/Precast` | `ParidadePilar` | O-2 (etapa 3) |
+| Consolo (catálogo, tirante e costura) | `src/DEB.Core/Elementos/Consolo`; o desenho ainda em `src/DEB.Core/Elementos/Pilar/PreMoldado/ConsolosPilar.cs` | `PilarConsolos` | — |
+| Viga pré-moldada (template) | `src/DEB.Core/Elementos/Viga/PreMoldada` | `Viga` | P2-8 |
+| Blocos sobre estacas | `src/DEB.Core/Elementos/Fundacao/Bloco`, `src/DEB.Core/Motor/Fundacoes` | `BlocoEstacas`, `Motor` | P2-9 / P2-10 |
+| Reservatório e base | `src/DEB.Core/Elementos/Reservatorio`, `src/DEB.Core/Elementos/Fundacao/BaseReservatorio` | `Reservatorio` | pausado (P2-7) |
 | Motor de detalhamento | `src/DEB.Core/Motor` | `Motor` | P2-10 |
+| Comum aos templates (kit de desenho, detalhes típicos, modelos salvos) | `src/DEB.Core/Documentacao`; contratos em `src/DEB.Core/Motor/Templates.cs` | `PreviaTemplate`, `ModelosTemplate`, `RegressaoVisual` | — |
 | Regressão visual dos templates | `tests/DEB.Core.Tests/Referencias/*.txt` | `RegressaoVisual` | — |
 | Peças Revit → CAD | `src/DEB.Core/Intercambio`, `Pecas`; `src/DEB.Revit/src/Precast` | `Intercambio`, `ConversorLevantamento`, `SubdivisaoPecas`, `Reimportacao` | — |
 | Laje alveolar | `src/DEB.Core/Lajes`; `src/DEB.Revit/src/LajeAlveolar` | `LajeAlveolar` | P1-8 |

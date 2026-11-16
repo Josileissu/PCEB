@@ -186,7 +186,7 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   usuário ficam); mudou = o comando pergunta UMA vez [Substituir/Manter] — substituir apaga o antigo (inserções, a relação do aço que era só
   dele e a definição, com o conteúdo antes) e leva o novo para o mesmo canto superior esquerdo (`ComandosPecas.Apagar`/`Reposicionar`); manter
   = o novo entra como "nome (2)" com aviso. Importados antes da assinatura contam como "mudou".
-  **Marca "conferir"** (`Core/Templates/MarcaConferir`): dente/consolo criado pela importação com a armadura padrão sai com um aviso vermelho
+  **Marca "conferir"** (`Core/Motor/MarcaConferir`): dente/consolo criado pela importação com a armadura padrão sai com um aviso vermelho
   acima do título da prancha (layer ARM-CORTE) enquanto a descrição do tipo for a da importação; o usuário troca a descrição no ARMDENTES /
   ARMCONSOLOS depois de conferir e o aviso some.
   O Sincronizador passou a isolar a falha de uma barra na atualização (uma exceção derrubava a atualização de todas as outras).

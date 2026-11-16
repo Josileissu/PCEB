@@ -47,7 +47,7 @@ próprio (ver o AGENTS.md de cada plugin). `dotnet` não está no PATH.
   diferenças que o teste mostra, regrave com `$env:ARM_ATUALIZAR_REFERENCIAS = "1"` e inclua os .txt no commit. Template novo ou
   caso novo relevante = acrescentar um caso lá.
 - **Outro idioma do Windows**: `$env:ARM_CULTURA = "en-US"; dotnet test tests\DEB.Core.Tests` roda os testes noutra cultura (10/11/2026: 514 ok em en-US e de-DE).
-- **Reuso** (10/11/2026): contexto de desenho e funções comuns dos templates em `DEB.Core/Templates/KitDesenho.cs` (`Ctx`, `KitDesenho`);
+- **Reuso** (10/11/2026): contexto de desenho e funções comuns dos templates em `DEB.Core/Documentacao/KitDesenho.cs` (`Ctx`, `KitDesenho`);
   formatação de números em `DEB.Core/Fmt.cs` (`N` invariante, `Virgula` para a prancha, `Mm` para chaves). Não criar cópias novas.
 - **Prioridade (D19)**: o motor de detalhamento vem antes das análises estruturais
   (`docs/04_arquitetura/motor_detalhamento.md`). Lembre o usuário disso se o assunto for começar análise.

@@ -5,8 +5,8 @@ pilar 6 m (1 m embutido), seções 40×40 e 50×50, sem consolo / um consolo (+x
 e ø16; consolo 40×30×25 com topo a 4 m; armadura do Revit = `ColumnRebarSpec.Default`. O CAD recebe um tipo de consolo
 com a armadura da especificação do Revit. Comprimentos dos dois lados pelo núcleo (cm, arredondados como na relação do aço).
 
-Caminhos: Revit = `src/DEB.Core/Templates/PilarPreMoldado/Modelo3D/ColumnRebarLayout.cs` (o plugin só converte para o
-Revit em `src/DEB.Revit/src/Precast/RebarFactory.cs`); CAD = `src/DEB.Core/Templates/PilarPreMoldado/`.
+Caminhos: Revit = `src/DEB.Core/Elementos/Pilar/PreMoldado/Modelo3D/ColumnRebarLayout.cs` (o plugin só converte para o
+Revit em `src/DEB.Revit/src/Precast/RebarFactory.cs`); CAD = `src/DEB.Core/Elementos/Pilar/PreMoldado/`.
 
 Decisões do dono de 16/11/2026 (D30 em `00_escopo/escopo_organizado.md`, com a revisão do mesmo dia) aplicadas na branch
 `feat/pilar-regras-unificadas`.

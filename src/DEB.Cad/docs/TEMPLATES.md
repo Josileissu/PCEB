@@ -17,7 +17,7 @@ de cada um começa quando ele enviar os PDFs/DWGs (pastas em `info_auxiliar/temp
 | Laje | |
 
 ## Estrutura do código
-- `PCEB/src/DEB.Core/Templates/Templates.cs` (testável, sem CAD):
+- `PCEB/src/DEB.Core/Motor/Templates.cs` (testável, sem CAD):
   - `ITemplateArmadura`: `Id`, `Nome`, `Categoria`, `Descricao`, `Parametros`, `Gerar(valores, cfg)`;
   - `ParametroTemplate` (número, inteiro, texto, opção, bitola, sim/não; grupo, unidade, limites);
   - `ValoresTemplate` (valores digitados, com leitura numérica tolerante a vírgula);
@@ -32,14 +32,14 @@ de cada um começa quando ele enviar os PDFs/DWGs (pastas em `info_auxiliar/temp
   escolhe o canto dos ganchos).
 
 ## Para implementar um template
-1. Nova classe em `PCEB/src/DEB.Core/Templates/<Elemento>/`, implementando `ITemplateArmadura`.
+1. Nova classe em `PCEB/src/DEB.Core/Elementos/<Elemento>/<Subtipo>/` (D27), implementando `ITemplateArmadura`.
 2. Registrar no carregamento do plugin (`CatalogoTemplates.Registrar`).
 3. Testes de unidade com as medidas de um projeto real (do PDF/DWG do usuário) e uma verificação no autoteste.
 4. Próximos passos previstos: faixas geradas pelo template (distribuição), cortes, quadro de ferros por
    elemento, salvar conjuntos de valores ("predefinições") por elemento.
 
 ## Implementados
-### Base de reservatório (`Templates/BaseReservatorio/TemplateBaseReservatorio.cs`, 2026-10-27)
+### Base de reservatório (`Elementos/Fundacao/BaseReservatorio/TemplateBaseReservatorio.cs`, 2026-10-27)
 Padrão dos projetos Assaí SPA/SRP/ASC (2024–2025). Circular ou retangular, num template só.
 - Parâmetros: geometria (forma, D ou Lx/Ly, h, cobrimentos 4/5, reservatório Ø e capacidade), estacas (anéis,
   grade ou nenhuma), malha inferior e superior (aço, bitola, espaçamento, dobra: até a outra face/fixa/sem),
@@ -54,7 +54,7 @@ Padrão dos projetos Assaí SPA/SRP/ASC (2024–2025). Circular ou retangular, n
 - Fora do escopo (pedido do usuário): nichos de concretagem, chumbadores, tabela de cargas das estacas.
 [VALIDAR com o usuário no uso: posição das faixas, tamanhos de texto, valores padrão das dobras.]
 
-### Pilar pré-moldado PP-1 (`Templates/PilarPreMoldado/TemplatePilarPreMoldado.cs`) — em construção
+### Pilar pré-moldado PP-1 (`Elementos/Pilar/PreMoldado/TemplatePilarPreMoldado.cs`) — em construção
 Requisitos e regras de norma: `src/DEB.Core/Elementos/Pilar/PreMoldado/REQUISITOS.md`. Verdadeira grandeza (cm); a escala de cada
 região só dá a altura dos textos/cotas (a folha é montada com viewports, como no DWG do P61). Seção b (x) × h (y);
 face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram h, 2 e 4 mostram b).
@@ -154,7 +154,7 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
 - Próximas (quando houver projeto real): seções circular/L/T/U/vazada e pilar-parede, seção variável, topo inclinado/garfo,
   base com chapa/luvas/esperas, consolo esconso/corrido/metálico, furos e nichos, seção na altura do consolo.
 
-### Reservatório retangular (Templates/Reservatorio/, 2026-11-05, PC2, branch pc2/template-reservatorio)
+### Reservatório retangular (Elementos/Reservatorio/, 2026-11-05, PC2, branch pc2/template-reservatorio)
 Pedido do usuário: reconhecer a estrutura de um DWG de outro programa e gerar o detalhamento no padrão do exemplo
 uxiliar_cad/reservatório (armadura.dwg + forma.dwg), usando só as bitolas e espaçamentos do desenho original.
 - TemplateReservatorio (id `reservatorio`, também no ARMTEMPLATE): retângulo externo Lx × Ly, paredes de espessura t,
@@ -175,7 +175,7 @@ Pedido do usuário: reconhecer a estrutura de um DWG de outro programa e gerar o
   Testado no AutoCAD 2026 com o DWG de teste do usuário (Eberick, 396 × 402, 1 interna): leitura correta, 13 posições.
 - Fora da v1 (avisos): furos/aberturas, mísulas, planta em L, paredes de espessuras diferentes, vistas por nível
   ("vista topo", "inferior à laje") e corte D-D do exemplo.
-### Blocos sobre estacas (Templates/Blocos/TemplateBlocoEstacas.cs, 2026-11-06, PC2)
+### Blocos sobre estacas (Elementos/Fundacao/Bloco/TemplateBlocoEstacas.cs, 2026-11-06, PC2)
 Exemplos e regras medidas: `src/DEB.Core/Elementos/Fundacao/Bloco/REQUISITOS.md` (B3 em imagem; B4, B15, B28, B31 e B3.1 em PDF/DWG). Decisões do
 usuário (2026-11-06): **padrão de folha do escritório A para todos**, **todos os tipos de uma vez**, **perna da principal pela altura do
 bloco** (topo da base − cobrimento; valor digitado manda).
@@ -193,7 +193,7 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
   com regularização, concreto magro e NÍVEIS por pilar a partir do topo — tabela "Níveis"); ARMADURA (VISTA SUPERIOR da
   inferior principal, inferior secundária e superior com as dobradas embaixo; CÁLICE; ARM. LATERAL HORIZONTAL; CORTES A-A e
   B-B com barras em ponto e chamadas curtas; arranque); relação do aço; INFORMAÇÕES P/ PRODUÇÃO; detalhes padrão do pilar
-  (`DetalhesTipicos.Desenhar`, em `DEB.Core/Templates/DetalhesTipicos.cs`: DETALHE 01 chaves, raio de curvatura, emendas, comprimento das barras);
+  (`DetalhesTipicos.Desenhar`, em `DEB.Core/Documentacao/DetalhesTipicos.cs`: DETALHE 01 chaves, raio de curvatura, emendas, comprimento das barras);
   ANCORAGEM DAS ARMADURAS DAS ESTACAS; INDICAÇÃO BARRA VARIÁVEL; notas. Idioma PT, EN ou PT/EN.
 - Detalhamento com repetições = nº de pilares (`ResultadoTemplate.DadosDetalhamento`: grupo, classe, volume, área de forma).
 - Avisos: estaca/pilar fora, Lemb < 40 e < 1,2h/1,5h (NBR 9062 Tab. 15), parede < 15, fundo sob o cálice < 20, arranque < lb.
@@ -204,7 +204,7 @@ Uma classe, dois registros: `bloco_1_estaca` (Bloco1Estaca) e `bloco_estacas` (B
   edição do bloco); principal no triangular reta de face a face; pernas da secundária/superior = valor padrão do template
   (20); suspensão com perna externa = interna − 6. [VALIDAR no uso] posição das chamadas; o B3 agora sai no padrão do escritório A.
 - Depois (não são comuns, decisão de 2026-11-07): 5 estacas em quincôncio e outros arranjos não em grade; colarinho excêntrico; chaves desenhadas nas paredes do cálice.
-### Viga pré-moldada VP-1/VP-2/VP-3 (Templates/VigaPreMoldada/, 2026-11-07/08, PC2) — aguardando a conferência do usuário
+### Viga pré-moldada VP-1/VP-2/VP-3 (Elementos/Viga/PreMoldada/, 2026-11-07/08, PC2) — aguardando a conferência do usuário
 Padrão medido e decisões: `src/DEB.Core/Elementos/Viga/PreMoldada/REQUISITOS.md` (seção 1 = pranchas do escritório; seção 16 = etapas).
 Usa o contexto de desenho do pilar (`TemplatePilarPreMoldado.Ctx`, agora `internal`), o quadro de produção e a regra das alças.
 - **Etapa 1 (forma, feita)**: planta e elevação com dentes Gerber do catálogo (`TipoDente`), furos de pino, alças, cotas,
@@ -230,7 +230,7 @@ Usa o contexto de desenho do pilar (`TemplatePilarPreMoldado.Ctx`, agora `intern
   (pesos pelas regras da RA, `MedidaBarra`; alças fora).
 - Falta: VP-4 (L, T invertido, I).
 
-### Viga com aba — VP-4, 1ª parte (Templates/VigaPreMoldada/AbaViga.cs, 2026-11-09, PC2) — PROPOSTA, aguardando os padrões do usuário
+### Viga com aba — VP-4, 1ª parte (Elementos/Viga/PreMoldada/AbaViga.cs, 2026-11-09, PC2) — PROPOSTA, aguardando os padrões do usuário
 Pedido do usuário: "pode propor o detalhamento das vigas com seções diferentes; depois eu te passo padrões para ajustarmos".
 Formato tirado das vigas reais de um modelo real (janela "Conferir peças"): a aba é um CONSOLO CORRIDO lateral.
 - Grupo de parâmetros "10. Aba (apoio de laje)": `Aba` (sem / esquerda (L) / direita (L) / dois lados (T invertido)), `AbaLargura`

@@ -383,7 +383,7 @@ validadas com o padrão de viga armada → **VP-3** com o desenho protendido que
 
 ## 16. Implementação (PC2, branch `pc2/viga-premoldada-template`)
 Etapas do VP-1 + VP-2, cada uma conferida pelo usuário antes da seguinte:
-1. **Forma** (2026-11-07, feita) — `src/DEB.Core/Templates/VigaPreMoldada/`: título `V144 (20 x 75)` (`- 17x` com várias
+1. **Forma** (2026-11-07, feita) — `src/DEB.Core/Elementos/Viga/PreMoldada/`: título `V144 (20 x 75)` (`- 17x` com várias
    peças), FÔRMAS EM PLANTA (furos de pino distribuídos na largura, faces dos recortes ocultas, cotas furo | dente, dente |
    vão | dente e total, largura dos furos), FÔRMAS EM ELEVAÇÃO (recortes dos dentes, furos ocultos, alças pelo CG a 20 %,
    alturas nas pontas, marcas A/B/C), seções de forma (dente cortado + recorte em vista; vão), notas (cobrimentos fundo /
