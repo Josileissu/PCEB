@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using DEB.Core.Persistencia;
-using DEB.Core.Templates.Blocos;
+using DEB.Core.Elementos.Fundacao.Bloco;
 
 namespace DEB.Core.Motor.Entrada;
 

@@ -8,9 +8,9 @@ using DEB.Core.Configuracao;
 using DEB.Core.Motor.Entrada;
 using DEB.Core.Motor.Fundacoes;
 using DEB.Core.Motor;
-using DEB.Core.Templates.BaseReservatorio;
+using DEB.Core.Elementos.Fundacao.BaseReservatorio;
 using DEB.Core.Templates.PilarPreMoldado;
-using DEB.Core.Templates.Reservatorio;
+using DEB.Core.Elementos.Reservatorio;
 using DEB.Core.Elementos.Viga.PreMoldada;
 using Xunit;
 

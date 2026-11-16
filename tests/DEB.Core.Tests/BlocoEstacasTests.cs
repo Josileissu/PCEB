@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Motor;
-using DEB.Core.Templates.Blocos;
+using DEB.Core.Elementos.Fundacao.Bloco;
 using Xunit;
 
 namespace DEB.Core.Tests;

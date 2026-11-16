@@ -1911,17 +1911,17 @@ public sealed class AutoTeste
     {
         try
         {
-            var t = new Core.Templates.BaseReservatorio.TemplateBaseReservatorio();
+            var t = new Core.Elementos.Fundacao.BaseReservatorio.TemplateBaseReservatorio();
             foreach (var (forma, origem, nome) in new[]
             {
-                (Core.Templates.BaseReservatorio.TemplateBaseReservatorio.Circular, new Point3d(30000, -20000, 0), "base_circular"),
-                (Core.Templates.BaseReservatorio.TemplateBaseReservatorio.Retangular, new Point3d(30000, -45000, 0), "base_retangular"),
+                (Core.Elementos.Fundacao.BaseReservatorio.TemplateBaseReservatorio.Circular, new Point3d(30000, -20000, 0), "base_circular"),
+                (Core.Elementos.Fundacao.BaseReservatorio.TemplateBaseReservatorio.Retangular, new Point3d(30000, -45000, 0), "base_retangular"),
             })
             {
                 var v = new Core.Motor.ValoresTemplate(t.Parametros);
                 v["Forma"] = forma;
                 v["Nome"] = "TESTE " + nome.ToUpperInvariant();
-                if (forma == Core.Templates.BaseReservatorio.TemplateBaseReservatorio.Retangular) { v["Arranjo"] = "Grade"; v["CentralLargura"] = "0"; }
+                if (forma == Core.Elementos.Fundacao.BaseReservatorio.TemplateBaseReservatorio.Retangular) { v["Arranjo"] = "Grade"; v["CentralLargura"] = "0"; }
                 else { v["CentralLargura"] = "200"; v["Inter"] = "Tela"; v["InterCamadas"] = "2"; }
                 var r = t.Gerar(v, cfg);
                 ObjectId refId;
@@ -1943,7 +1943,7 @@ public sealed class AutoTeste
                     var linhas = tp == null ? new List<string[]>() : LinhasRelacao(tp);
                     Rel.AppendLine($"        {nome}: {barras.Count} armaduras no bloco; RA: " + string.Join(" | ", linhas.Select(l => string.Join(" ", l))));
                     Checar(tp != null && linhas.Count >= 4, $"template {nome}: relação do aço parcial com as posições");
-                    if (forma == Core.Templates.BaseReservatorio.TemplateBaseReservatorio.Circular)
+                    if (forma == Core.Elementos.Fundacao.BaseReservatorio.TemplateBaseReservatorio.Circular)
                     {
                         var vars = barras.Where(x => x.d.EhVarLista).ToList();
                         Checar(vars.Count >= 4 && vars.All(x => x.d.Quantidade == x.d.ComprimentosVar.Count),
@@ -2354,7 +2354,7 @@ public sealed class AutoTeste
         var vB28 = new Core.Motor.ValoresTemplate(t.Parametros);
         vB28["Niveis"] = "P106|-11.43;P118|-11.43";
         var vB15 = new Core.Motor.ValoresTemplate(t.Parametros);
-        foreach (var (k, val) in new[] { ("Nome", "B15"), ("Arranjo", Core.Templates.Blocos.TemplateBlocoEstacas.Triangulo), ("EspX", "150"), ("DistFace", "40"),
+        foreach (var (k, val) in new[] { ("Nome", "B15"), ("Arranjo", Core.Elementos.Fundacao.Bloco.TemplateBlocoEstacas.Triangulo), ("EspX", "150"), ("DistFace", "40"),
                      ("DiamEstaca", "50"), ("PilarBx", "40"), ("PilarBy", "40"), ("tParede", "25"), ("hBase", "105"), ("hColar", "30"), ("Lemb", "65"),
                      ("PrincBitola", "12.5"), ("PrincEsp", "11"), ("Pilares", "P23/ P24/ P32/ P33/ P35/ P36") })
             vB15[k] = val;
@@ -2362,7 +2362,7 @@ public sealed class AutoTeste
         var t1 = new Core.Motor.Fundacoes.TemplateBlocoMotor(umaEstaca: true);
         var vB1 = new Core.Motor.ValoresTemplate(t1.Parametros);
         foreach (var (k, val) in new[] { ("Nome", "B1"), ("Pilares", "P1"), ("DiamEstaca", "30"), ("DistFace", "25"), ("hBase", "50"),
-                     ("PilarBx", "14"), ("PilarBy", "30"), ("Ligacao", Core.Templates.Blocos.TemplateBlocoEstacas.Arranque), ("Cob", "3"),
+                     ("PilarBx", "14"), ("PilarBy", "30"), ("Ligacao", Core.Elementos.Fundacao.Bloco.TemplateBlocoEstacas.Arranque), ("Cob", "3"),
                      ("SecBitola", "0"), ("SupBitola", "0"), ("LatBitola", "6.3"), ("LatEsp", "20"), ("EstVBitola", "6.3"), ("EstVEsp", "20"),
                      ("ArrBitola", "10"), ("Escala", "20") })
             vB1[k] = val;
@@ -2392,7 +2392,7 @@ public sealed class AutoTeste
                 var dados = ids.Select(i => XDataCad.LerBarra(tr.GetObject(i, OpenMode.ForRead))).ToList();
                 Checar(dados.All(d => d != null), $"{nome}: todas as barras com dados do plugin");
                 int iCal = r.Barras.FindIndex(b => b.Nome == "calice_topo");
-                if (v["Ligacao"] != Core.Templates.Blocos.TemplateBlocoEstacas.Arranque)
+                if (v["Ligacao"] != Core.Elementos.Fundacao.Bloco.TemplateBlocoEstacas.Arranque)
                     Checar(iCal >= 0 && dados[iCal].Estribo && dados[iCal].Quantidade == 3, $"{nome}: horizontais do topo do cálice ({(iCal >= 0 ? dados[iCal].Quantidade : -1)})");
                 else Checar(r.Barras.Any(b => b.Nome == "arranque"), $"{nome}: barras do arranque");
                 tr.Commit();

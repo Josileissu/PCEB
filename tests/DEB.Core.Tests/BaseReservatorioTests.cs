@@ -6,7 +6,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Persistencia;
 using DEB.Core.RelacaoAco;
 using DEB.Core.Motor;
-using DEB.Core.Templates.BaseReservatorio;
+using DEB.Core.Elementos.Fundacao.BaseReservatorio;
 using Xunit;
 
 namespace DEB.Core.Tests;

@@ -8,7 +8,7 @@ using DEB.Core.Normas;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.Reservatorio;
+namespace DEB.Core.Elementos.Reservatorio;
 
 /// <summary>
 /// Reservatório retangular de concreto armado moldado in loco (pedido do usuário, 2026-11-05): paredes externas e

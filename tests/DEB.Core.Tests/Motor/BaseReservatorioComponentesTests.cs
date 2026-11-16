@@ -5,7 +5,7 @@ using DEB.Core.Configuracao;
 using DEB.Core.Motor;
 using DEB.Core.Motor.Componentes;
 using DEB.Core.Documentacao;
-using DEB.Core.Templates.BaseReservatorio;
+using DEB.Core.Elementos.Fundacao.BaseReservatorio;
 using Xunit;
 
 namespace DEB.Core.Tests.Motor;

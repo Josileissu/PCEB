@@ -84,7 +84,7 @@ public class IntegracaoPranchaTests
         Assert.Contains(r.Tabelas, t => t.Titulo.StartsWith("INFORMAÇÕES"));
 
         // mesmas bitolas do template atual (as quantidades mudaram com a divisão igual de 2026-11-08)
-        var t0 = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
+        var t0 = new DEB.Core.Elementos.Fundacao.Bloco.TemplateBlocoEstacas();
         var v = new DEB.Core.Motor.ValoresTemplate(t0.Parametros);
         DEB.Core.Motor.Entrada.ConversorBloco.ParaValores(b28, v);
         var antigo = t0.Gerar(v, new DEB.Core.Configuracao.ConfiguracaoArmadura());
@@ -103,7 +103,7 @@ public class IntegracaoPranchaTests
         Assert.Contains(r.Tabelas.SelectMany(t => t.Linhas), l => l.Length > 1 && l[1] == FormatoMotor_NumV(Math.Round(esperado, 1)) + " kg");
 
         // o template antigo mostra o mesmo peso (mesmas barras, mesmas regras)
-        var t0 = new DEB.Core.Templates.Blocos.TemplateBlocoEstacas();
+        var t0 = new DEB.Core.Elementos.Fundacao.Bloco.TemplateBlocoEstacas();
         var v = new DEB.Core.Motor.ValoresTemplate(t0.Parametros);
         DEB.Core.Motor.Entrada.ConversorBloco.ParaValores(b28, v);
         var antigo = t0.Gerar(v, cfg);

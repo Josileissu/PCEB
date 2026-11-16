@@ -7,7 +7,7 @@ using DEB.Core.Modelo;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.BaseReservatorio;
+namespace DEB.Core.Elementos.Fundacao.BaseReservatorio;
 
 /// <summary>
 /// Base de reservatório (circular ou retangular) sobre estacas, no padrão do escritório (projetos Assaí

@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 using DEB.Core.Reconhecimento;
 using DEB.Core.Motor;
 
-namespace DEB.Core.Templates.Reservatorio;
+namespace DEB.Core.Elementos.Reservatorio;
 
 /// <summary>Segmento de reta do desenho (unidades do desenho).</summary>
 public sealed class LinhaDesenho

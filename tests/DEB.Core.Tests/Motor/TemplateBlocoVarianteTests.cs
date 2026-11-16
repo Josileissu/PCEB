@@ -67,6 +67,6 @@ public class TemplateBlocoVarianteTests
         Assert.Equal("80", completo["hBase"]);
         Assert.Equal("2", completo["NEstX"]);
         Assert.Equal("2", completo["NEstY"]);
-        Assert.Equal(DEB.Core.Templates.Blocos.TemplateBlocoEstacas.Embutido, completo["Ligacao"]);
+        Assert.Equal(DEB.Core.Elementos.Fundacao.Bloco.TemplateBlocoEstacas.Embutido, completo["Ligacao"]);
     }
 }

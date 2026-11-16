@@ -8,7 +8,7 @@ using DEB.Core.Motor.Entrada;
 using DEB.Core.Motor.Fundacoes;
 using DEB.Core.Motor.Json;
 using DEB.Core.Persistencia;
-using DEB.Core.Templates.Blocos;
+using DEB.Core.Elementos.Fundacao.Bloco;
 using Xunit;
 
 namespace DEB.Core.Tests.Motor;

@@ -12,7 +12,7 @@ using DEB.Core.Templates.PilarPreMoldado;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
 
-namespace DEB.Core.Templates.Blocos;
+namespace DEB.Core.Elementos.Fundacao.Bloco;
 
 /// <summary>
 /// Bloco de fundação sobre estacas (pedidos do usuário, 2026-11-06): retangular com estacas em grade (1, 2, 3 em linha,

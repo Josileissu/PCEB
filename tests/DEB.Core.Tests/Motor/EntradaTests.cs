@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using DEB.Core.Motor;
 using DEB.Core.Motor.Entrada;
-using DEB.Core.Templates.Blocos;
+using DEB.Core.Elementos.Fundacao.Bloco;
 using Xunit;
 
 namespace DEB.Core.Tests.Motor;

@@ -86,8 +86,8 @@ public sealed class ComandosTemplate
             ids = r.Value.GetObjectIds();
         }
 
-        var linhas = new List<Core.Templates.Reservatorio.LinhaDesenho>();
-        var textos = new List<Core.Templates.Reservatorio.TextoDesenho>();
+        var linhas = new List<Core.Elementos.Reservatorio.LinhaDesenho>();
+        var textos = new List<Core.Elementos.Reservatorio.TextoDesenho>();
         using (var tr = new TransacaoSegura(db))
         {
             foreach (var id in ids)
@@ -97,25 +97,25 @@ public sealed class ComandosTemplate
                 switch (e)
                 {
                     case Line ln:
-                        linhas.Add(new Core.Templates.Reservatorio.LinhaDesenho(ln.StartPoint.X, ln.StartPoint.Y, ln.EndPoint.X, ln.EndPoint.Y, ln.Layer));
+                        linhas.Add(new Core.Elementos.Reservatorio.LinhaDesenho(ln.StartPoint.X, ln.StartPoint.Y, ln.EndPoint.X, ln.EndPoint.Y, ln.Layer));
                         break;
                     case Polyline pl:
                         for (int i = 0; i < pl.NumberOfVertices - (pl.Closed ? 0 : 1); i++)
                         {
                             if (pl.GetSegmentType(i) != SegmentType.Line) continue;
                             var s = pl.GetLineSegment2dAt(i);
-                            linhas.Add(new Core.Templates.Reservatorio.LinhaDesenho(s.StartPoint.X, s.StartPoint.Y, s.EndPoint.X, s.EndPoint.Y, pl.Layer));
+                            linhas.Add(new Core.Elementos.Reservatorio.LinhaDesenho(s.StartPoint.X, s.StartPoint.Y, s.EndPoint.X, s.EndPoint.Y, pl.Layer));
                         }
                         break;
                     case DBText dt:
-                        textos.Add(new Core.Templates.Reservatorio.TextoDesenho
+                        textos.Add(new Core.Elementos.Reservatorio.TextoDesenho
                         {
                             Texto = Core.Reconhecimento.TextoArmadura.Limpar(dt.TextString), X = dt.Position.X, Y = dt.Position.Y,
                             Altura = dt.Height, Rotacao = dt.Rotation, Layer = dt.Layer,
                         });
                         break;
                     case MText mt:
-                        textos.Add(new Core.Templates.Reservatorio.TextoDesenho
+                        textos.Add(new Core.Elementos.Reservatorio.TextoDesenho
                         {
                             Texto = Core.Reconhecimento.TextoArmadura.Limpar(mt.Contents), X = mt.Location.X, Y = mt.Location.Y,
                             Altura = mt.TextHeight, Rotacao = mt.Rotation, Layer = mt.Layer,
@@ -126,7 +126,7 @@ public sealed class ComandosTemplate
             tr.Commit();
         }
 
-        var rec = Core.Templates.Reservatorio.ReconhecedorReservatorio.Reconhecer(linhas, textos);
+        var rec = Core.Elementos.Reservatorio.ReconhecedorReservatorio.Reconhecer(linhas, textos);
         ed.WriteMessage("\nReconhecimento do reservatório:");
         foreach (var s in rec.Relatorio) ed.WriteMessage("\n  " + s);
         foreach (var a in rec.Avisos) ed.WriteMessage("\n  Aviso: " + a);

@@ -27,9 +27,9 @@ public sealed class Plugin : Rt.IExtensionApplication
             try { Layers.GarantirArquivo(); } catch (Exception ex) { Log.Erro("layers.csv", ex); }
             RecarregarConfig();
             // templates de elementos (docs/TEMPLATES.md)
-            Core.Motor.CatalogoTemplates.Registrar(new Core.Templates.BaseReservatorio.TemplateBaseReservatorio());
+            Core.Motor.CatalogoTemplates.Registrar(new Core.Elementos.Fundacao.BaseReservatorio.TemplateBaseReservatorio());
             Core.Motor.CatalogoTemplates.Registrar(new Core.Templates.PilarPreMoldado.TemplatePilarPreMoldado());
-            Core.Motor.CatalogoTemplates.Registrar(new Core.Templates.Reservatorio.TemplateReservatorio());
+            Core.Motor.CatalogoTemplates.Registrar(new Core.Elementos.Reservatorio.TemplateReservatorio());
             // blocos pelo motor de detalhamento (2026-11-07): mesma janela e modelos do template antigo; perfil e receita do
             // usuário em %AppData%\PCEB\Perfis e \Receitas (sem arquivo = fábrica); origem gravada no detalhamento
             // blocos: uma entrada por número de estacas e variante (pedido do usuário, 2026-11-08)

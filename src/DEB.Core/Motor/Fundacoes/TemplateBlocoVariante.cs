@@ -4,7 +4,7 @@ using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Motor.Perfis;
 using DEB.Core.Motor.Receitas;
-using DEB.Core.Templates.Blocos;
+using DEB.Core.Elementos.Fundacao.Bloco;
 
 namespace DEB.Core.Motor.Fundacoes;
 
