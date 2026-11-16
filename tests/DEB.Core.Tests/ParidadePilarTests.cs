@@ -245,10 +245,11 @@ public class ParidadePilarTests
     // de −3 cm não vinha da entrada (cobrimento 2,5 e pinos de dobra iguais nos dois caminhos — ver LarguraDaCosturaEraRegra).
     private const string TOPO_ALCA = "alça: topo do laço em semicírculo no CAD (polilinha com arco) × dois cantos no Revit (o modelo 3D " +
                                      "só tem trechos retos; a cordoalha não desconta dobra) — mesmas pernas, pés, altura e distância entre pernas";
-    private const string VERT = "estribo vertical do consolo: o Revit fica abaixo do tirante (altura h − 2c − φtir); o CAD " +
-                                "usa h − 2c (ganchos de 135° nos dois; a posição não foi decidida pelo dono)";
-    private const string INF = "formas diferentes: Revit em U com as pernas para cima entrando até as longitudinais; CAD com a perna na " +
-                               "ponta, o trecho para dentro do pilar (ancoragem do tipo) e o retorno";
+    // estribo vertical e armadura inferior do consolo: DEFINIDOS PELO USUÁRIO (D30, revisão: "é inserido pelo usuário") — não são
+    // regra a unificar. CAD: no tipo de consolo do catálogo (ARMCONSOLOS: VertN, VertPhi, InfN, InfPhi, InfAnc, InfRetorno,
+    // InfDescida); Revit: na especificação do grupo (quantidade e bitola). As formas que cada programa monta com essas entradas
+    // são diferentes; a medida fica aqui só para travar o valor.
+    private const string USUARIO = "definido pelo usuário (tipo de consolo no CAD; especificação do grupo no Revit) — não unificado";
 
     /// <summary>(caso, medida, Revit, CAD, causa). Comprimentos em cm (arredondados como na relação do aço); Igual = sem divergência.</summary>
     private static readonly (string Caso, string Item, double Revit, double Cad, string Causa)[] Esperado =
@@ -283,11 +284,11 @@ public class ParidadePilarTests
         ("50x50-opostos-12.5", "alças: embutimento das pernas (cm)", 47, 47, Igual),
         ("50x50-opostos-12.5", "alças: comprimento", 178, 170, TOPO_ALCA),
         ("50x50-opostos-12.5", "alças: aço", 1, 1, Igual),
-        ("40x40-opostos-16", "armadura inferior do consolo: comprimento", 91, 79, INF),
+        ("40x40-opostos-16", "armadura inferior do consolo: comprimento", 91, 79, USUARIO),
         ("40x40-opostos-16", "barra soldada: comprimento", 35, 35, Igual),
         ("40x40-opostos-16", "costura: comprimento", 252, 252, Igual),
         ("40x40-opostos-16", "costura: quantidade", 3, 3, Igual),
-        ("40x40-opostos-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
+        ("40x40-opostos-16", "estribo vertical do consolo: comprimento", 131, 133, USUARIO),
         ("40x40-opostos-16", "estribo: comprimento", 153, 153, Igual),
         ("40x40-opostos-16", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("40x40-opostos-16", "estribo: quantidade", 51, 51, Igual),
@@ -307,11 +308,11 @@ public class ParidadePilarTests
         ("40x40-sem-12.5", "longitudinais: comprimento", 595, 595, Igual),
         ("40x40-sem-12.5", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("40x40-sem-12.5", "longitudinais: quantidade", 8, 8, Igual),
-        ("40x40-um-12.5", "armadura inferior do consolo: comprimento", 92, 98, INF),
+        ("40x40-um-12.5", "armadura inferior do consolo: comprimento", 92, 98, USUARIO),
         ("40x40-um-12.5", "barra soldada: comprimento", 35, 35, Igual),
         ("40x40-um-12.5", "costura: comprimento", 198, 198, Igual),
         ("40x40-um-12.5", "costura: quantidade", 3, 3, Igual),
-        ("40x40-um-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
+        ("40x40-um-12.5", "estribo vertical do consolo: comprimento", 131, 133, USUARIO),
         ("40x40-um-12.5", "estribo: comprimento", 153, 153, Igual),
         ("40x40-um-12.5", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("40x40-um-12.5", "estribo: quantidade", 51, 51, Igual),
@@ -323,11 +324,11 @@ public class ParidadePilarTests
         ("40x40-um-12.5", "pino: comprimento", 74, 74, Igual),
         ("40x40-um-12.5", "tirante: comprimento", 95, 95, Igual),
         ("40x40-um-12.5", "tirante: quantidade", 3, 3, Igual),
-        ("50x50-opostos-12.5", "armadura inferior do consolo: comprimento", 102, 79, INF),
+        ("50x50-opostos-12.5", "armadura inferior do consolo: comprimento", 102, 79, USUARIO),
         ("50x50-opostos-12.5", "barra soldada: comprimento", 35, 35, Igual),
         ("50x50-opostos-12.5", "costura: comprimento", 272, 272, Igual),
         ("50x50-opostos-12.5", "costura: quantidade", 3, 3, Igual),
-        ("50x50-opostos-12.5", "estribo vertical do consolo: comprimento", 131, 133, VERT),
+        ("50x50-opostos-12.5", "estribo vertical do consolo: comprimento", 131, 133, USUARIO),
         ("50x50-opostos-12.5", "estribo: comprimento", 193, 193, Igual),
         ("50x50-opostos-12.5", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("50x50-opostos-12.5", "estribo: quantidade", 51, 51, Igual),
@@ -347,11 +348,11 @@ public class ParidadePilarTests
         ("50x50-sem-16", "longitudinais: comprimento", 595, 595, Igual),
         ("50x50-sem-16", "longitudinais: maior afastamento entre posições (cm)", 0, 0, Igual),
         ("50x50-sem-16", "longitudinais: quantidade", 8, 8, Igual),
-        ("50x50-um-16", "armadura inferior do consolo: comprimento", 101, 98, INF),
+        ("50x50-um-16", "armadura inferior do consolo: comprimento", 101, 98, USUARIO),
         ("50x50-um-16", "barra soldada: comprimento", 35, 35, Igual),
         ("50x50-um-16", "costura: comprimento", 217, 217, Igual),
         ("50x50-um-16", "costura: quantidade", 3, 3, Igual),
-        ("50x50-um-16", "estribo vertical do consolo: comprimento", 131, 133, VERT),
+        ("50x50-um-16", "estribo vertical do consolo: comprimento", 131, 133, USUARIO),
         ("50x50-um-16", "estribo: comprimento", 193, 193, Igual),
         ("50x50-um-16", "estribo: maior afastamento entre alturas (cm)", 0, 0, Igual),
         ("50x50-um-16", "estribo: quantidade", 51, 51, Igual),
