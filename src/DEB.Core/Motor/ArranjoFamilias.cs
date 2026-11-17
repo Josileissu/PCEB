@@ -87,7 +87,89 @@ internal static class ArranjoFamilias
             double l = ComprimentoPorEixo.Calcular(eixo.Select(q => (q.X, q.Y, 0.0)).ToList(), true, phiT, aco, true, true, cfg);
             estribos.Add(new EstriboNaSecao(Nome(e.Parte), eixo, phiT, aco, l));
         }
+        Verificar(s.Contorno().Contorno, barras, estribos, cfg.Dobramento.DiametroPino(phiT, aco, estribo: true), m.Avisos);
         return new ArranjoSecao(barras, null, estribos, m.Avisos);
+    }
+
+    /// <summary>
+    /// Verificações de consistência (avisos, não exceções): barra fora do concreto (centro fora ou a menos de φ/2 da face),
+    /// barras que se sobrepõem, estribo que não cabe (cobrimentos maiores que a parte, ou lado com menos que o pino por
+    /// dentro: largura &lt; cobrimentos + 2φt + pino) e estribo fora do concreto (eixo a menos de φt/2 da face).
+    /// </summary>
+    private static void Verificar(List<(double Y, double Z)> contorno, List<BarraNaSecao> barras, List<EstriboNaSecao> estribos,
+        double pino, List<string> avisos)
+    {
+        const double tol = 1e-6;
+        for (int i = 0; i < barras.Count; i++)
+        {
+            var b = barras[i];
+            double r = b.Bitola / 20;
+            if (!Dentro(contorno, b.X, b.Y) || DistanciaAoContorno(contorno, b.X, b.Y) < r - tol)
+                avisos.Add($"Barra {i + 1} ({b.Grupo}, ø{Fmt.N(b.Bitola)}) em ({Fmt.N(Math.Round(b.X, 2))}; {Fmt.N(Math.Round(b.Y, 2))}) " +
+                           "fora do concreto (ou a menos de φ/2 da face).");
+        }
+        for (int i = 0; i < barras.Count; i++)
+            for (int j = i + 1; j < barras.Count; j++)
+            {
+                double d = Math.Sqrt(Math.Pow(barras[i].X - barras[j].X, 2) + Math.Pow(barras[i].Y - barras[j].Y, 2));
+                double min = barras[i].Bitola / 20 + barras[j].Bitola / 20;
+                if (d < min - tol)
+                    avisos.Add($"Barras {i + 1} e {j + 1} se sobrepõem: {Fmt.N(Math.Round(d, 2))} cm entre eixos < {Fmt.N(min)} cm (φ/2 + φ/2).");
+            }
+        foreach (var e in estribos)
+        {
+            string nome = e.Parte.HasValue ? $"Estribo da {e.Parte}" : "Estribo";
+            double t = e.Bitola / 10;
+            if (Area(e.Eixo) <= tol)
+            {
+                avisos.Add($"{nome}: os cobrimentos são maiores que a parte; o estribo não cabe.");
+                continue;
+            }
+            for (int k = 0; k < e.Eixo.Count; k++)
+            {
+                var a = e.Eixo[k]; var z = e.Eixo[(k + 1) % e.Eixo.Count];
+                double l = Math.Sqrt(Math.Pow(z.X - a.X, 2) + Math.Pow(z.Y - a.Y, 2));
+                if (l - t < pino - tol)
+                {
+                    avisos.Add($"{nome}: lado de {Fmt.N(Math.Round(l, 2))} cm no eixo deixa {Fmt.N(Math.Round(l - t, 2))} cm por dentro, " +
+                               $"menos que o pino ({Fmt.N(pino)} cm): o estribo não cabe.");
+                    break;
+                }
+            }
+            if (e.Eixo.Any(p => !Dentro(contorno, p.X, p.Y) || DistanciaAoContorno(contorno, p.X, p.Y) < t / 2 - tol))
+                avisos.Add($"{nome}: fora do concreto (eixo a menos de φt/2 da face).");
+        }
+    }
+
+    private static double Area(List<(double X, double Y)> p)
+    {
+        double a = 0;
+        for (int i = 0; i < p.Count; i++) { var u = p[i]; var v = p[(i + 1) % p.Count]; a += u.X * v.Y - v.X * u.Y; }
+        return a / 2;
+    }
+
+    /// <summary>Ponto dentro do polígono (raio horizontal).</summary>
+    internal static bool Dentro(IReadOnlyList<(double Y, double Z)> c, double y, double z)
+    {
+        bool dentro = false;
+        for (int i = 0, j = c.Count - 1; i < c.Count; j = i++)
+            if ((c[i].Z > z) != (c[j].Z > z) && y < (c[j].Y - c[i].Y) * (z - c[i].Z) / (c[j].Z - c[i].Z) + c[i].Y) dentro = !dentro;
+        return dentro;
+    }
+
+    /// <summary>Menor distância do ponto aos lados do polígono.</summary>
+    internal static double DistanciaAoContorno(IReadOnlyList<(double Y, double Z)> c, double y, double z)
+    {
+        double m = double.MaxValue;
+        for (int i = 0; i < c.Count; i++)
+        {
+            var a = c[i]; var b = c[(i + 1) % c.Count];
+            double dy = b.Y - a.Y, dz = b.Z - a.Z, l2 = dy * dy + dz * dz;
+            double f = l2 < 1e-12 ? 0 : Math.Max(0, Math.Min(1, ((y - a.Y) * dy + (z - a.Z) * dz) / l2));
+            double py = a.Y + f * dy - y, pz = a.Z + f * dz - z;
+            m = Math.Min(m, Math.Sqrt(py * py + pz * pz));
+        }
+        return m;
     }
 
     /// <summary>Montagem na posição canônica da família (y na horizontal, z na vertical, cm).</summary>
