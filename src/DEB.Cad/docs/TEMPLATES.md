@@ -89,7 +89,8 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
   GstarCAD) e `SetTextHeight` (sem ele o texto ficava com a altura do estilo); colunas 24/11 alturas de texto. Seções:
   cada longitudinal com a chamada na altura da própria barra (afastada só o necessário: passadas de cima para baixo e
   de volta, depois recentradas); U com UMA chamada por conjunto (direção x ao lado, direção y em cima).
-- **Etapa 3 (2026-10-29, feita)** — `ConsolosPilar.cs`: 2 consolos parametrizados (faces "1,3" = duplo com tirante
+- **Etapa 3 (2026-10-29, feita)** — `ConsolosPilar.cs` (desde 16/11/2026 o desenho do consolo está em
+  `src/DEB.Core/Elementos/Consolo/DesenhoConsolo.cs`): 2 consolos parametrizados (faces "1,3" = duplo com tirante
   passante; face sozinha = tirante com gancho de 90° no pilar), cota do topo, b, a, h e h1 (trapezoidal), deslocamento;
   vistas: de frente (retângulo + aresta da ponta + pinos + almofada) e de lado (trapézio + pino + almofada + cotas na
   VISTA 2); cortes de forma B-B/C-C hachurados (ANSI31; `HachuraTemplate`) com almofada, pinos e cotas, e marcas na
