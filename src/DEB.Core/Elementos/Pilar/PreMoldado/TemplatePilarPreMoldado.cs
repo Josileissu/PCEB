@@ -157,8 +157,11 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
 
     public static IdiomaDesenho LerIdioma(string s) => KitDesenho.LerIdioma(s);
 
-    /// <summary>Face interna → número apresentado (e vice-versa): troca 1 (+x) e 3 (−x); 2 e 4 não mudam.</summary>
-    public static int FaceExibida(int f) => f == 1 ? 3 : f == 3 ? 1 : f;
+    /// <summary>
+    /// Face interna → número apresentado (e vice-versa): troca 1 (+x) e 3 (−x); 2 e 4 não mudam. A tabela das duas
+    /// numerações e das partes nomeadas está em <see cref="Geometria.Secao.FacesRetangulo"/>.
+    /// </summary>
+    public static int FaceExibida(int f) => Geometria.Secao.FacesRetangulo.TrocarNumeracao(f);
 
     /// <summary>Tolerância de comprimento da NBR 9062 (tab. 2) para pilares, em mm.</summary>
     public static int ToleranciaComprimento(double lCm) => lCm <= 500 ? 10 : lCm <= 1000 ? 15 : 20;
