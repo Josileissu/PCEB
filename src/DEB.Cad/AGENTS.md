@@ -69,6 +69,10 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   O autoteste cria uma viewport no Layout1 (ARMTESTELAYOUT) e gera `autoteste_layout_viewport.png`.
 - `GraphicsInterface.Polyline` colide com `DatabaseServices.Polyline` e `Runtime.Exception` com `System.Exception`:
   use os apelidos `Gi.` e `Rt.`.
+- Plotagem (ARMPDFLOTE, 2026-11-17): `PlotType` existe em DatabaseServices e em PlottingServices → PlottingServices entra pelo
+  apelido `Plt.` (nos 4 GlobalUsings). `BlockReference.GeometricExtents` de bloco dinâmico inclui os estados de visibilidade
+  OCULTOS: para medir o que aparece, explodir em memória e olhar `Visible`. A PDF24 grava toda folha em pé (ver
+  `docs/CONVENCOES.md`, "PDFs em lote"). Comando Session que abre DWG: o roteiro .scr segue para a linha seguinte no meio dele.
 
 ## Convenções e procedimentos que valem sempre
 - Unidades do desenho e das medidas escritas (cm, m ou mm; ARMUNIDADES): ver `docs/CONVENCOES.md`. Tudo passa por

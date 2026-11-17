@@ -152,6 +152,41 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
 - Pilar pré-moldado: requisitos e regras conferidas na norma em `src/DEB.Core/Elementos/Pilar/PreMoldado/REQUISITOS.md`; template e
   etapas em `docs/TEMPLATES.md`.
 
+## PDFs em lote (ARMPDFLOTE, pedido do usuário de 2026-11-17)
+- Janela (`Paleta/FormPdfLote.cs`): origem = desenhos abertos (carregados ao abrir), arquivos DWG (multisseleção) ou pasta (com
+  subpastas); lista desenho × layout (sem o Model) com caixinha, medida, formato reconhecido (combo para trocar; "?" = escolher)
+  e "reconhecido por". Impressora (só a **PDF24** salva sem diálogo), estilo de plotagem (ctb), área (moldura reconhecida em
+  janela, extensão ou limites), destino (pasta de cada DWG ou uma pasta), sobrescrever sem perguntar, gravar no layout (só
+  desenhos abertos; o usuário salva), abrir a pasta no fim. Escolhas em `%AppData%\PCEB\DEB.Cad\pdflote.json` (`ConfigLotePdf`,
+  inclusive a lista de formatos). Layout vazio entra desmarcado. Botão "PDFs em lote" na paleta DEB - Comandos (Geral).
+- Nome: o do DWG (`FormatosFolha.NomePdf`); com 2+ layouts marcados do mesmo DWG, " - <layout>". Já existe? Pergunta Sim (todos) /
+  Não (pula) / Cancelar, salvo "sobrescrever".
+- **Formato** (`DEB.Core/Documentacao/LotePdf.cs` + `Pdf/FolhasPdf.cs`): no espaço do papel, candidatos = polilinhas retangulares
+  e blocos grandes; vale o MAIOR que casa com um formato da lista (medidas ordenadas, ±10 mm; layout em mm, senão cm/pol/m).
+  Sem candidato: a extensão do layout. Só conta o VISÍVEL: sem viewports, layers desligados/congelados/não plotáveis e, nos
+  blocos grandes (explodidos em memória, até 4 níveis), só o estado de visibilidade atual — o `GeometricExtents` de bloco
+  dinâmico no GstarCAD inclui os estados ocultos (o carimbo do escritório tem A0…A0++ num bloco só, em cm).
+- Folha da impressora: nome canônico (`UserNNNNN`) achado pelo nome LOCAL (`GetLocaleMediaName`) a cada plotagem — os códigos
+  mudam quando os formulários do Windows são recriados.
+- **Plotagem** (`Pdf/PlotadorPdf.cs`): `PlotInfo.OverrideSettings` com uma cópia do layout (o page setup salvo não muda), janela
+  na moldura, ajustar à folha, centralizado, giro 90° só quando a orientação do desenho ≠ a do formulário, ctb escolhido.
+  `BACKGROUNDPLOT` = 0 durante o lote. DWG fechado: aberto só-leitura, plotado e fechado sem salvar; desenho aberto: volta o
+  layout corrente. O desenho ativo do início volta no fim. Comando com `CommandFlags.Session`.
+- **PDF24 sem diálogo** (`Pdf/Pdf24.cs`, PDF24 Creator 11.30): durante CADA folha grava em `HKCU\Software\PDF24\Services\PDF`
+  Handler=autoSave, AutoSaveDir=%TEMP%\DEB_PDF_xxxx, AutoSaveFilename=$fileName, AutoSaveOpenDir/ShowProgress/UseFileChooser/
+  UseFileCmd=0, AutoSaveOverwriteFile=1 (HKCU vale por cima do HKLM e é relido a cada trabalho). Quando o PDF chega, volta o
+  que havia (valor ausente é apagado; chaves criadas também). Estado anterior em `%AppData%\PCEB\DEB.Cad\pdf24_restaurar.txt`;
+  se o CAD fechar no meio, `Plugin.Initialize` restaura. O PDF é esperado (tamanho estável e livre, até 180 s) e copiado ao destino.
+- **Orientação** (`Pdf/AjustePdf.cs`): a PDF24 grava tudo em pé (A0++ sai com MediaBox 841 × 1486,3 e o desenho girado). A
+  página recebe /Rotate 90 (formulário deitado) ou 270 (A4 em pé com desenho deitado), reescrevendo o trecho com o mesmo número
+  de bytes (o xref continua certo). Resultado: abre deitado, com o tamanho do formulário.
+- Teste: `ARMTESTEPDFLOTE` (`Testes/AutoTestePdf.cs`; variáveis no comentário da classe) numa instância nova com CÓPIAS de DWGs.
+  O roteiro .scr CONTINUA rodando quando o lote abre um desenho: não ponha ARMTESTEFIM depois; use `ARM_PDFLOTE_FIM=1`.
+  Conferência: MediaBox/Rotate e pixels coloridos com PyMuPDF (`python -E -P`). 2026-11-17: A0++ e A0 das pranchas de teste,
+  3 layouts num DWG (A0, A0, A4), cancelar no meio, desenhos abertos, gravar no layout e a janela/relatório pelo próprio
+  ARMPDFLOTE (BM_CLICK): tudo certo; a PDF24 sempre restaurada. Com monochrome.ctb as linhas saem pretas; hachuras em cor
+  verdadeira continuam coloridas (o GstarCAD não converte cor verdadeira pelo ctb).
+
 ## Port para AutoCAD e ZWCAD: comportamentos
 - Descrição da barra: barra nova nasce girada com o maior segmento; a cópia recria o texto com a posição relativa e a
   ROTAÇÃO do original (texto original, senão `DescricaoRotacao`, XData "DROT"; ausente = 0). Pedidos de 2026-11-05.
