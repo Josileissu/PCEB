@@ -32,21 +32,25 @@ public class SecaoBarrasPorSecaoTests
     }
 
     [Fact]
-    public void OutrasFamiliasNaoTemArranjo()
+    public void SecaoMedidaNaoTemArranjo()
     {
+        // D31: T, L, I e trapezoidal têm arranjo (ArranjoFamiliasTests); a medida (poligonal) continua sem
         var cob = FacesRetangulo.Cobrimentos(new[] { 3.0, 3, 3, 3 });
-        foreach (var s in new[]
-        {
-            SecaoTransversal.T(20, 60, 15, 20, 20, invertida: true), SecaoTransversal.L(26, 170, 20, 25),
-            SecaoTransversal.I(12, 80, 15, 19, 19, 20, 14, 14), SecaoTransversal.Trapezoidal(30, 20, 50),
-            SecaoTransversal.DaMedida(new SecaoPoligonal { Contorno = { (0, 0), (60, 0), (60, 40), (45, 40), (45, 10), (15, 10), (15, 40), (0, 40) } }),
-        })
-        {
-            var a = SecaoBarras.Posicoes(s, cob, 8, 20, 1, 0, 20, 1, 1, 16);
-            Assert.False(a.Definido);
-            Assert.Empty(a.Barras);
-            Assert.Contains("não definido para a seção " + s.Familia.Nome, a.Erro);
-        }
+        var s = SecaoTransversal.DaMedida(new SecaoPoligonal { Contorno = { (0, 0), (60, 0), (60, 40), (45, 40), (45, 10), (15, 10), (15, 40), (0, 40) } });
+        var a = SecaoBarras.Posicoes(s, cob, 8, 20, 1, 0, 20, 1, 1, 16);
+        Assert.False(a.Definido);
+        Assert.Empty(a.Barras);
+        Assert.Empty(a.Estribos);
+        Assert.Contains("não definido para a seção " + s.Familia.Nome, a.Erro);
+    }
+
+    [Fact]
+    public void RetangularSemEstribosNemAvisos()
+    {
+        var a = SecaoBarras.Posicoes(SecaoTransversal.Retangular(40, 60), FacesRetangulo.Cobrimentos(new[] { 3.0, 3, 3, 3 }), 8, 20, 3, 5, 16, 2, 2, 12.5);
+        Assert.Empty(a.Estribos);
+        Assert.Empty(a.Avisos);
+        Assert.All(a.Barras, x => Assert.Null(x.Parte));
     }
 
     [Fact]

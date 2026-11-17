@@ -10,9 +10,9 @@ namespace DEB.Core.Motor;
 /// <summary>Barra longitudinal na seção (coordenadas da seção: origem no canto inferior esquerdo, x ao longo de b).</summary>
 public readonly struct BarraNaSecao
 {
-    public BarraNaSecao(double x, double y, double bitola, string grupo, int feixe = 1, string arranjo = "")
+    public BarraNaSecao(double x, double y, double bitola, string grupo, int feixe = 1, string arranjo = "", ParteSecao? parte = null)
     {
-        X = x; Y = y; Bitola = bitola; Grupo = grupo; Feixe = feixe; Arranjo = arranjo;
+        X = x; Y = y; Bitola = bitola; Grupo = grupo; Feixe = feixe; Arranjo = arranjo; Parte = parte;
     }
     /// <summary>Centro da barra (ou do feixe).</summary>
     public double X { get; }
@@ -22,6 +22,33 @@ public readonly struct BarraNaSecao
     public string Grupo { get; }
     public int Feixe { get; }
     public string Arranjo { get; }
+    /// <summary>
+    /// Parte nomeada a que a barra pertence (nome na posição real), no arranjo por família (T, L, I): a do estribo em cujo
+    /// canto ela está (barra comum a dois estribos: a do primeiro, a alma). Null na retangular e nos cantos da trapezoidal.
+    /// </summary>
+    public ParteSecao? Parte { get; }
+}
+
+/// <summary>
+/// Estribo fechado de uma parte da seção, no arranjo por família: o contorno pelo EIXO do estribo (cm, coordenadas da seção,
+/// sentido anti-horário) e o comprimento pelas regras do núcleo (<see cref="Calculo.ComprimentoPorEixo"/>, ganchos de 135°,
+/// D30). O chamador desenha e mede a partir daqui.
+/// </summary>
+public sealed class EstriboNaSecao
+{
+    internal EstriboNaSecao(ParteSecao? parte, List<(double X, double Y)> eixo, double bitola, string aco, double comprimento)
+    {
+        Parte = parte; Eixo = eixo; Bitola = bitola; Aco = aco; Comprimento = comprimento;
+    }
+    /// <summary>Parte que o estribo envolve (Alma, Mesa, Aba, MesaSuperior, MesaInferior); null na trapezoidal (seção inteira).</summary>
+    public ParteSecao? Parte { get; }
+    /// <summary>Vértices do eixo (sem repetir o primeiro).</summary>
+    public List<(double X, double Y)> Eixo { get; }
+    /// <summary>Bitola (mm).</summary>
+    public double Bitola { get; }
+    public string Aco { get; }
+    /// <summary>Comprimento do estribo (cm), com ganchos de 135° e passagens, arredondado pela configuração.</summary>
+    public double Comprimento { get; }
 }
 
 /// <summary>Trecho de uma barra emendada, ao longo dela (cm a partir do início).</summary>
@@ -45,10 +72,18 @@ public readonly struct PecaEmendada
 /// <summary>Resultado do arranjo das longitudinais numa seção: as barras, ou o motivo de não haver arranjo para ela.</summary>
 public sealed class ArranjoSecao
 {
-    internal ArranjoSecao(List<BarraNaSecao> barras, string erro) { Barras = barras ?? new List<BarraNaSecao>(); Erro = erro; }
-    internal static ArranjoSecao NaoDefinido(string motivo) => new ArranjoSecao(null, motivo);
+    internal ArranjoSecao(List<BarraNaSecao> barras, string erro, List<EstriboNaSecao> estribos = null, List<string> avisos = null)
+    {
+        Barras = barras ?? new List<BarraNaSecao>(); Erro = erro;
+        Estribos = estribos ?? new List<EstriboNaSecao>(); Avisos = avisos ?? new List<string>();
+    }
+    internal static ArranjoSecao NaoDefinido(string motivo, List<string> avisos = null) => new ArranjoSecao(null, motivo, null, avisos);
     /// <summary>Barras (vazio se <see cref="Definido"/> é falso).</summary>
     public List<BarraNaSecao> Barras { get; }
+    /// <summary>Estribos por parte (T, L, I, trapezoidal); vazio na retangular (o chamador faz o estribo dela, como antes).</summary>
+    public List<EstriboNaSecao> Estribos { get; }
+    /// <summary>Verificações de consistência e regras provisórias usadas (não impedem o arranjo); vazio na retangular.</summary>
+    public List<string> Avisos { get; }
     /// <summary>Motivo de não haver arranjo; null se há.</summary>
     public string Erro { get; }
     public bool Definido => Erro == null;
@@ -106,16 +141,20 @@ public static class SecaoBarras
     /// <summary>
     /// Posições das longitudinais pela seção do contrato (D28) e cobrimentos por parte nomeada (Topo, Fundo, Esquerda,
     /// Direita, até o estribo). Retangular: exatamente <see cref="Posicoes(double, double, double[], double, double, int,
-    /// double, double, int, int, double)"/> (delega para ela). Outras famílias e a seção medida: sem barras e com
-    /// <see cref="ArranjoSecao.Erro"/> — o arranjo delas ainda não foi definido (perguntas em docs/04_arquitetura/secoes.md).
+    /// double, double, int, int, double)"/> (delega para ela; sem estribos nem avisos). T, L, I e trapezoidal: arranjo por
+    /// família (D31, <see cref="ArranjoFamilias"/>), com as barras de canto de cada estribo, os estribos por parte e os
+    /// avisos. Seção medida: sem barras e com <see cref="ArranjoSecao.Erro"/>. Ver docs/04_arquitetura/secoes.md.
     /// </summary>
+    /// <param name="acoEstribo">aço do estribo (pino e ganchos no comprimento); só nas famílias não retangulares</param>
+    /// <param name="cfg">configuração (regras de dobramento, arredondamento); null = a padrão</param>
     public static ArranjoSecao Posicoes(SecaoTransversal secao, IReadOnlyDictionary<ParteSecao, double> cobrimentos, double phiT,
-        double phiCanto, int porCanto, double sCanto, double phiViz, int nFaceB, int nFaceH, double phiFace)
+        double phiCanto, int porCanto, double sCanto, double phiViz, int nFaceB, int nFaceH, double phiFace,
+        string acoEstribo = "CA-60", Configuracao.ConfiguracaoArmadura cfg = null)
     {
         if (secao == null) throw new ArgumentNullException(nameof(secao));
         if (secao.Familia != FamiliasSecao.Retangular)
-            return ArranjoSecao.NaoDefinido($"Arranjo das longitudinais não definido para a seção {secao.Familia.Nome} " +
-                                            $"({secao.Descricao}): por enquanto só a retangular.");
+            return ArranjoFamilias.Montar(secao, cobrimentos, phiT, phiCanto, porCanto, nFaceB, nFaceH, phiFace,
+                                          acoEstribo, cfg ?? new Configuracao.ConfiguracaoArmadura());
         double[] cob;
         try { cob = FacesRetangulo.CobrimentosPorFace(cobrimentos); }
         catch (ArgumentException e) { return ArranjoSecao.NaoDefinido(e.Message); }
