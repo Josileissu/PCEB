@@ -212,6 +212,22 @@ public sealed class AutoTestePdf
             try { foreach (var m in PlotadorPdf.ListarMidias(cfg.ImpressoraLote)) L("  mídia " + m); }
             catch (Exception ex) { L("  ERRO ao listar mídias: " + ex.Message); }
             L("estilos: " + string.Join(", ", PlotadorPdf.EstilosDisponiveis()));
+            L("dispositivos do CAD (combo): " + string.Join(" | ", PlotadorPdf.Dispositivos().Where(d => !ImpressorasPdf.EhNenhuma(d))));
+            // ARM_PDFLOTE_CRIARFOLHAS = 1: o botão "Criar folhas na impressora" para a impressora do lote (.pc3), sem as caixas de
+            // diálogo. GRAVA o .pmp da impressora: faça backup da pasta Plotters antes e restaure depois
+            if (Environment.GetEnvironmentVariable("ARM_PDFLOTE_CRIARFOLHAS") == "1")
+            {
+                try
+                {
+                    var plano = FolhasPc3.Planejar(cfg.ImpressoraLote, cfg.Formatos);
+                    L($"criar folhas: {plano.Mudancas} mudança(s), pmp {plano.Pmp} (novo {plano.PmpNovo}, religar {plano.Religar})");
+                    if (plano.Mudancas > 0) L(FolhasPc3.Aplicar(plano));
+                    var depois = PlotadorPdf.NomesMidias(cfg.ImpressoraLote) ?? new HashSet<string>();
+                    var faltam = cfg.Formatos.Where(f => !depois.Contains(f.Nome.Trim())).Select(f => f.Nome).ToList();
+                    L(faltam.Count == 0 ? "criar folhas: o CAD já lista todas as folhas da lista" : "criar folhas: o CAD AINDA NÃO lista: " + string.Join(", ", faltam));
+                }
+                catch (Exception ex) { L("criar folhas: ERRO " + ErrosLotePdf.Classificar(ex, EtapaLotePdf.Configurar).Resumo + " — " + ex.Message); }
+            }
 
             var criar = Environment.GetEnvironmentVariable("ARM_PDFLOTE_CRIAR");
             if (!string.IsNullOrEmpty(criar)) { var p = criar.Split('|'); CriarVariosLayouts(p[0], p[1]); L("criado " + p[1]); }

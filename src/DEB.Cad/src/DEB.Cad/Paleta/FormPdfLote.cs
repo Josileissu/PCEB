@@ -87,15 +87,11 @@ internal sealed class FormPdfLote : Form
         _grade.DataError += (s, e) => e.ThrowException = false;
 
         // opções
-        if (ComandosPdf.NoAutoCad)
-        {
-            // AutoCAD: a AutoCAD PDF (plotar para arquivo; padrão) e a PDF24, se estiver instalada
-            var dispositivos = PlotadorPdf.Dispositivos();
-            _impressora.Items.Add(dispositivos.FirstOrDefault(d => string.Equals(d, ImpressorasPdf.AutoCadPdf, StringComparison.OrdinalIgnoreCase)) ?? ImpressorasPdf.AutoCadPdf);
-            foreach (string p in PrinterSettings.InstalledPrinters)
-                if (ImpressorasPdf.Tipo(p) == TipoImpressoraPdf.Pdf24) _impressora.Items.Add(p);
-        }
-        else foreach (string p in PrinterSettings.InstalledPrinters) _impressora.Items.Add(p);
+        // todas as impressoras/plotters do CAD (.pc3 e impressoras do Windows; pedido do usuário de 17/11/2026), sem o "Nenhum";
+        // se o CAD não responder, as impressoras do Windows
+        var dispositivos = PlotadorPdf.Dispositivos().Where(d => !ImpressorasPdf.EhNenhuma(d)).ToList();
+        if (dispositivos.Count == 0) foreach (string p in PrinterSettings.InstalledPrinters) dispositivos.Add(p);
+        foreach (var d in dispositivos.Distinct(StringComparer.OrdinalIgnoreCase)) _impressora.Items.Add(d);
         _impressora.Text = cfg.ImpressoraLote;
         _impressora.SelectedIndexChanged += (s, e) => { if (!_preenchendo) Preencher(); };
         _impressora.Leave += (s, e) => Preencher();
@@ -341,8 +337,8 @@ internal sealed class FormPdfLote : Form
 
     /// <summary>
     /// "Criar folhas na impressora": PDF24 (ou outra impressora do Windows) = formulários de papel do Windows da lista de formatos,
-    /// sem margem e em ordem crescente (plano no núcleo: <see cref="FormulariosPapel"/>); .pc3 do AutoCAD = instruções para criar
-    /// os tamanhos personalizados à mão (o .pmp não é gravado).
+    /// sem margem e em ordem crescente (plano no núcleo: <see cref="FormulariosPapel"/>); .pc3 = folhas gravadas no .pmp ligado a
+    /// ele (<see cref="FolhasPc3"/>). Vale para a impressora/plotter escolhida no combo, qualquer que seja.
     /// </summary>
     private void CriarFolhas()
     {

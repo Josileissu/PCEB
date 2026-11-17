@@ -323,6 +323,14 @@ public static class ImpressorasPdf
     public const string AutoCadPdf = "AutoCAD PDF (High Quality Print).pc3";
     public const string Pdf24 = "PDF24";
 
+    /// <summary>O "nenhum dispositivo" da lista do CAD (AutoCAD: "None"; em português "Nenhum").</summary>
+    public static bool EhNenhuma(string dispositivo)
+    {
+        var d = (dispositivo ?? "").Trim();
+        return d.Length == 0 || d.Equals("None", StringComparison.OrdinalIgnoreCase) || d.Equals("Nenhum", StringComparison.OrdinalIgnoreCase)
+               || d.Equals("Nenhuma", StringComparison.OrdinalIgnoreCase);
+    }
+
     public static TipoImpressoraPdf Tipo(string impressora)
     {
         if (string.IsNullOrWhiteSpace(impressora)) return TipoImpressoraPdf.Outra;

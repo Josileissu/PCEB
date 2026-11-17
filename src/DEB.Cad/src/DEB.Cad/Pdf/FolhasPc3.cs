@@ -48,23 +48,38 @@ internal static class FolhasPc3
         if (!ArquivoPia.EhPia(bytes))
             throw new ErroLotePdfException(CausaErroPdf.DriverSemTamanhoPersonalizado,
                 $"o .pc3 \"{impressora}\" deste CAD não está no formato da Autodesk (o GstarCAD usa um formato próprio): o plugin não cria folhas nele; use a PDF24");
-        var p = new Plano { Pc3 = pc3, ArquivoPc3 = ArquivoPia.Ler(bytes) };
+        var p = new Plano { Pc3 = pc3, ArquivoPc3 = LerPia(bytes, pc3) };
         var ligado = TamanhosPc3.PmpLigado(p.ArquivoPc3.Raiz);
         if (ligado.Length > 0 && File.Exists(ligado))
         {
             p.Pmp = ligado;
-            p.ArquivoPmp = ArquivoPia.Ler(File.ReadAllBytes(ligado));
+            p.ArquivoPmp = LerPia(File.ReadAllBytes(ligado), ligado);
         }
         else
         {
             // sem .pmp, ou ligado a um caminho que não existe neste PC (.pc3 copiado de outra máquina): .pmp novo, ligado ao .pc3
             p.Pmp = Path.Combine(PastaPmp(pasta), Path.GetFileNameWithoutExtension(pc3) + ".pmp");
             p.PmpNovo = !File.Exists(p.Pmp);
-            p.ArquivoPmp = p.PmpNovo ? TamanhosPc3.NovoPmp(p.ArquivoPc3.Raiz, p.Pmp) : ArquivoPia.Ler(File.ReadAllBytes(p.Pmp));
+            p.ArquivoPmp = p.PmpNovo ? TamanhosPc3.NovoPmp(p.ArquivoPc3.Raiz, p.Pmp) : LerPia(File.ReadAllBytes(p.Pmp), p.Pmp);
+            // .pmp novo no formato do .pc3 (AutoCAD 2025+: JSON)
+            if (p.PmpNovo && p.ArquivoPc3.Json) p.ArquivoPmp.ParaJson();
             p.Religar = true;
         }
         p.Passos = TamanhosPc3.Conciliar(p.ArquivoPmp.Raiz, formatos);
         return p;
+    }
+
+    /// <summary>Lê um .pc3/.pmp da Autodesk (formato 2.0 compactado ou 3.0 JSON); formato desconhecido = erro com o nome do arquivo.</summary>
+    private static ArquivoPia LerPia(byte[] bytes, string caminho)
+    {
+        try { return ArquivoPia.Ler(bytes); }
+        catch (Exception ex) when (ex is InvalidDataException || ex is FormatException)
+        {
+            var linha1 = System.Text.Encoding.ASCII.GetString(bytes, 0, Math.Min(bytes.Length, 40)).Split('\r', '\n')[0];
+            throw new ErroLotePdfException(CausaErroPdf.DriverSemTamanhoPersonalizado,
+                $"o arquivo \"{Path.GetFileName(caminho)}\" está num formato que o plugin não sabe gravar (\"{linha1}\"): crie as folhas pelo " +
+                "Plotter Manager do CAD (Propriedades da impressora → Tamanhos de papel personalizados)", ex);
+        }
     }
 
     /// <summary>Grava o plano (com cópias de segurança) e recarrega a lista de dispositivos. Devolve o resumo.</summary>

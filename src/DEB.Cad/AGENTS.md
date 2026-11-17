@@ -77,7 +77,9 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   compare o EnumForms antes/depois; NÃO recrie os forms da lista no PC do usuário sem ele pedir (muda os códigos UserNNNNN).
   GstarCAD guarda a lista de estilos de plotagem da sessão: ctb gravado depois da 1ª consulta só aparece ao reabrir (por isso
   o PCEB.ctb é gravado no `Plugin.Initialize`). `Preferences.Files.PrinterStyleSheetPath` não existe no GstarCAD 2021
-  (DISP_E_UNKNOWNNAME): pasta pelo `PrinterStyleSheetDir` do perfil. Os .pc3/.pmp do GstarCAD são binários (não são PIA).
+  (DISP_E_UNKNOWNNAME): pasta pelo `PrinterStyleSheetDir` do perfil. Os .pc3/.pmp do GstarCAD são binários (não são PIA). Os do AutoCAD 2025+
+  são `PIAFILEVERSION_3.0,json` (JSON, sem zlib); os do TrueView 2022/AutoCAD ≤ 2024, 2.0 compactado — `ArquivoPia` lê os dois.
+  Testar o "Criar folhas" no AutoCAD grava o .pmp REAL do usuário: copie a pasta Plotters antes e restaure (hash) depois.
   .pmp/.pc3 da Autodesk sem AutoCAD: o `accoreconsole.exe` do DWG TrueView 2022 plota por roteiro (`PLOT`, nomes sem aspas,
   `?` lista papéis) — faça backup da pasta Plotters do TrueView e restaure.
 

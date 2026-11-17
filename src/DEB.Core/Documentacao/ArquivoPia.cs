@@ -25,6 +25,14 @@ public sealed class ArquivoPia
     public NoPia Raiz { get; set; } = new NoPia("");
     /// <summary>O texto terminava em "\0".</summary>
     public bool TerminaEmNulo { get; set; } = true;
+    /// <summary>Formato 3.0 do AutoCAD 2025+ (JSON sem compressão, <see cref="PiaJson"/>); false = 2.0 (zlib).</summary>
+    public bool Json { get; set; }
+    /// <summary>JSON: os pares de fora de "data" ("subver", "version"), devolvidos iguais.</summary>
+    public List<NoPia> EnvelopeJson { get; } = new List<NoPia>();
+
+    /// <summary>Formato 3.0 (JSON)?</summary>
+    public static bool EhJson(byte[] arquivo) =>
+        arquivo != null && arquivo.Length > PiaJson.Versao.Length && Encoding.ASCII.GetString(arquivo, 0, PiaJson.Versao.Length) == PiaJson.Versao;
 
     /// <summary>É um arquivo PIA compactado (a lista de folhas de um .pc3 do GstarCAD, por exemplo, não é)?</summary>
     public static bool EhPia(byte[] arquivo) =>
@@ -77,15 +85,37 @@ public sealed class ArquivoPia
 
     public static ArquivoPia Ler(byte[] arquivo)
     {
+        if (EhJson(arquivo))
+        {
+            // cabeçalho = a 1ª linha com o "\r\n"; o resto é JSON em UTF-8
+            int fim = Array.IndexOf(arquivo, (byte)'\n');
+            if (fim < 0) throw new InvalidDataException("arquivo PIA 3.0 sem o fim da linha do cabeçalho");
+            var j = new ArquivoPia { Cabecalho = arquivo.Take(fim + 1).ToArray(), Json = true, TerminaEmNulo = false };
+            j.Raiz = PiaJson.Ler(new UTF8Encoding(false).GetString(arquivo, fim + 1, arquivo.Length - fim - 1), j.EnvelopeJson);
+            return j;
+        }
         var texto = Texto8.GetString(Descompactar(arquivo, out var cab));
         var a = new ArquivoPia { Cabecalho = cab, TerminaEmNulo = texto.EndsWith("\0", StringComparison.Ordinal) };
         a.Raiz = NoPia.Analisar(a.TerminaEmNulo ? texto.Substring(0, texto.Length - 1) : texto);
         return a;
     }
 
-    public string Texto() => Raiz.Escrever() + (TerminaEmNulo ? "\0" : "");
+    public string Texto() => Json ? PiaJson.Escrever(Raiz, EnvelopeJson) : Raiz.Escrever() + (TerminaEmNulo ? "\0" : "");
 
-    public byte[] Gravar() => Compactar(Cabecalho, Texto8.GetBytes(Texto()));
+    public byte[] Gravar() =>
+        Json ? Cabecalho.Concat(new UTF8Encoding(false).GetBytes(Texto())).ToArray() : Compactar(Cabecalho, Texto8.GetBytes(Texto()));
+
+    /// <summary>Passa um arquivo novo para o formato 3.0 (JSON), o do .pc3 de AutoCAD 2025+ a que ele vai ser ligado.</summary>
+    public void ParaJson()
+    {
+        if (Json) return;
+        Json = true;
+        TerminaEmNulo = false;
+        Cabecalho = Encoding.ASCII.GetBytes(PiaJson.Versao + "\r\n");
+        EnvelopeJson.Clear();
+        EnvelopeJson.Add(new NoPia("subver", "\"json"));
+        EnvelopeJson.Add(new NoPia("version", "0.01"));
+    }
 
     /// <summary>Cabeçalho de um .pc3/.pmp.</summary>
     public static byte[] CabecalhoPc3 => Encoding.ASCII.GetBytes("PIAFILEVERSION_2.0,PC3VER1,compress\r\npmzlibcodec");
