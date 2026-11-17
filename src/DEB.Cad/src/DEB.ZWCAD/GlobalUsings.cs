@@ -6,6 +6,7 @@ global using ZwSoft.ZwCAD.Colors;
 global using ZwSoft.ZwCAD.DatabaseServices;
 global using ZwSoft.ZwCAD.EditorInput;
 global using ZwSoft.ZwCAD.Geometry;
+global using Plt = ZwSoft.ZwCAD.PlottingServices; // ARMPDFLOTE (PlotType colide com DatabaseServices)
 global using Gi = ZwSoft.ZwCAD.GraphicsInterface;
 global using Rt = ZwSoft.ZwCAD.Runtime;
 global using CadApp = ZwSoft.ZwCAD.ApplicationServices.Application;

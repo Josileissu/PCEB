@@ -24,6 +24,7 @@ public sealed class Plugin : Rt.IExtensionApplication
         try
         {
             Demo.Iniciar();
+            Pdf.Pdf24.RestaurarPendente(); // ARMPDFLOTE interrompido (CAD fechado no meio): devolve a configuração da PDF24
             try { Layers.GarantirArquivo(); } catch (Exception ex) { Log.Erro("layers.csv", ex); }
             RecarregarConfig();
             // templates de elementos (docs/TEMPLATES.md)

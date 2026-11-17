@@ -6,6 +6,7 @@ global using Gssoft.Gscad.Colors;
 global using Gssoft.Gscad.DatabaseServices;
 global using Gssoft.Gscad.EditorInput;
 global using Gssoft.Gscad.Geometry;
+global using Plt = Gssoft.Gscad.PlottingServices; // ARMPDFLOTE (PlotType colide com DatabaseServices)
 global using Gi = Gssoft.Gscad.GraphicsInterface;
 global using Rt = Gssoft.Gscad.Runtime;
 global using CadApp = Gssoft.Gscad.ApplicationServices.Application;

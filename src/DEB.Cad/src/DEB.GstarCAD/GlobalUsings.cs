@@ -6,6 +6,7 @@ global using GrxCAD.Colors;
 global using GrxCAD.DatabaseServices;
 global using GrxCAD.EditorInput;
 global using GrxCAD.Geometry;
+global using Plt = GrxCAD.PlottingServices; // ARMPDFLOTE (PlotType colide com DatabaseServices)
 global using Gi = GrxCAD.GraphicsInterface;
 global using Rt = GrxCAD.Runtime;
 global using CadApp = GrxCAD.ApplicationServices.Application;

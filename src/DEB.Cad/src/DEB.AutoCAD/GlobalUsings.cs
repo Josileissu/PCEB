@@ -6,6 +6,7 @@ global using Autodesk.AutoCAD.Colors;
 global using Autodesk.AutoCAD.DatabaseServices;
 global using Autodesk.AutoCAD.EditorInput;
 global using Autodesk.AutoCAD.Geometry;
+global using Plt = Autodesk.AutoCAD.PlottingServices; // ARMPDFLOTE (PlotType colide com DatabaseServices)
 global using Gi = Autodesk.AutoCAD.GraphicsInterface;
 global using Rt = Autodesk.AutoCAD.Runtime;
 global using CadApp = Autodesk.AutoCAD.ApplicationServices.Application;
