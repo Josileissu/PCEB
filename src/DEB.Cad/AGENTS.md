@@ -73,6 +73,8 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   apelido `Plt.` (nos 4 GlobalUsings). `BlockReference.GeometricExtents` de bloco dinâmico inclui os estados de visibilidade
   OCULTOS: para medir o que aparece, explodir em memória e olhar `Visible`. A PDF24 grava toda folha em pé (ver
   `docs/CONVENCOES.md`, "PDFs em lote"). Comando Session que abre DWG: o roteiro .scr segue para a linha seguinte no meio dele.
+  Formulários de papel do Windows ("Criar folhas na impressora"): para testar, crie e apague um form com nome de TESTE e
+  compare o EnumForms antes/depois; NÃO recrie os forms da lista no PC do usuário sem ele pedir (muda os códigos UserNNNNN).
 
 ## Convenções e procedimentos que valem sempre
 - Unidades do desenho e das medidas escritas (cm, m ou mm; ARMUNIDADES): ver `docs/CONVENCOES.md`. Tudo passa por

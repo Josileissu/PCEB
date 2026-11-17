@@ -167,7 +167,41 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   blocos grandes (explodidos em memória, até 4 níveis), só o estado de visibilidade atual — o `GeometricExtents` de bloco
   dinâmico no GstarCAD inclui os estados ocultos (o carimbo do escritório tem A0…A0++ num bloco só, em cm).
 - Folha da impressora: nome canônico (`UserNNNNN`) achado pelo nome LOCAL (`GetLocaleMediaName`) a cada plotagem — os códigos
-  mudam quando os formulários do Windows são recriados.
+  mudam quando os formulários do Windows são recriados. A janela lê as folhas da impressora escolhida (`PlotadorPdf.NomesMidias`;
+  sem desenho aberto, `DeviceCapabilities` do driver) e a linha cuja folha falta avisa "crie as folhas na impressora" (o
+  Exportar pergunta antes de seguir).
+- **Impressora** (17/11): GstarCAD/ZWCAD = PDF24 (campo `Impressora` do pdflote.json). **AutoCAD** = combo com a
+  "AutoCAD PDF (High Quality Print).pc3" (padrão) e a PDF24, se instalada; a escolha fica em `ImpressoraAutoCad` (o mesmo
+  pdflote.json serve aos dois CADs; `ConfigLotePdf.ImpressoraLote` escolhe pelo hospedeiro). Com a .pc3 o lote plota para
+  arquivo (`BeginDocument(..., true, arquivo)`) e a PDF24 não é tocada; com a PDF24, o salvamento automático de sempre.
+  Tipo pela impressora: `ImpressorasPdf.Tipo` (Core). Lote com a .pc3 NÃO testado (AutoCAD só no PC2).
+- **Criar folhas na impressora** (botão da janela, 17/11): age sobre a impressora do combo.
+  - PDF24 (ou outra do Windows): formulários de papel do Windows da lista de formatos do pdflote.json, sem margem
+    (ImageableArea = folha inteira), em milésimos de mm. Plano no núcleo (`FormulariosPapel.Planejar`, D26): ordem crescente
+    de área; não existe = criar; form de usuário com outro tamanho ou margem = recriar; o Windows lista os forms de usuário na
+    ordem de criação, então do 1º fora de ordem em diante os da lista são recriados (os anteriores ficam, para não mudar
+    códigos sem necessidade); form do driver (PRINTER) com o mesmo nome e outro tamanho = pergunta específica (Sim =
+    substituir); form do Windows (BUILTIN) = nunca (avisa o conflito). Confirmação lista criar/recriar/substituir/manter/pular
+    e avisa que DWGs que já usavam papéis da PDF24 podem abrir com o papel errado. Aplicação (`FormulariosPapel.Aplicar`) um
+    passo por vez: apaga e cria em seguida. Chamada ao Windows em `Pdf/FormulariosWindows.cs` (OpenPrinter(null) com
+    SERVER_ACCESS_ADMINISTER, EnumForms/AddForm/DeleteForm nível 1); funcionou sem administrador no Windows 10; erro 5 =
+    mensagem "abra o CAD como administrador" (sem contorno). No fim relê as folhas e mostra criados/recriados/pulados/erros.
+  - .pc3 (AutoCAD PDF): só instruções (Plotter Manager → a .pc3 → Custom Paper Sizes → Add, margens 0, nomes exatos, na
+    ordem). O .pmp NÃO é gravado: ver "Formato do .pmp" abaixo.
+  - Fora do CAD (outro computador): `tools\criar_folhas_pdf24.ps1` (mesma regra, em PowerShell; instalado em
+    `<pasta do plugin>\ferramentas`): `powershell -ExecutionPolicy Bypass -File criar_folhas_pdf24.ps1` mostra o plano e
+    pergunta; `-Listar` só lista; `-Sim` sem perguntas; `-SubstituirDoDriver`; `-Config <json>`; `-Impressora <nome>`.
+  - Teste (17/11): núcleo (`FormulariosPapelTests`); winspool com um form de TESTE ("ZZ teste DEB", criado e apagado; EnumForms
+    igual antes/depois); script com uma lista de teste (criar, ordem, recriar, "nada a fazer"); janela numa instância separada
+    do GstarCAD (BM_CLICK + PrintWindow): com os forms certos, "Nada a fazer".
+- **Formato do .pmp** (levantado em 17/11 nos .pmp do DWG TrueView 2022; NÃO gravado pelo plugin): cabeçalho ASCII
+  `PIAFILEVERSION_2.0,PC3VER1,compress\r\npmzlibcodec` (48 bytes), depois 3 inteiros de 32 bits little-endian: Adler-32 dos
+  bytes compactados, tamanho descompactado e tamanho compactado; em seguida o fluxo zlib. Dentro, texto terminado em `\0`
+  com blocos `meta{}`, `mod{}`, `udm{ calibration{} media{ size{ 0{ caps_type=2 name="UserDefinedMetric (L x A MM)"
+  localized_name="<nome>" media_description_name=… media_group=15 landscape_mode=TRUE } … } description{ … media_bounds_urx=…
+  printable_bounds_*=… printable_area=… dimensional=TRUE } } }` e `hidden{}`. Valores não exatos em float levam um código entre
+  parênteses (ex.: `911.08331299 (    H*IXC$!X20)`) que não foi decifrado; há ainda entradas órfãs (`User-1`). Gravar o
+  .pmp exige testar num AutoCAD (PC2).
 - **Plotagem** (`Pdf/PlotadorPdf.cs`): `PlotInfo.OverrideSettings` com uma cópia do layout (o page setup salvo não muda), janela
   na moldura, ajustar à folha, centralizado, giro 90° só quando a orientação do desenho ≠ a do formulário, ctb escolhido.
   `BACKGROUNDPLOT` = 0 durante o lote. DWG fechado: aberto só-leitura, plotado e fechado sem salvar; desenho aberto: volta o
