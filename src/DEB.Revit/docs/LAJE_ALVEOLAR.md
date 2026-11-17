@@ -22,3 +22,15 @@ fase 3 chamados por reflexão de uma DLL de teste carregada num AssemblyLoadCont
 em L (limites arredondados como a grade em `ClassificarPano`); (2) recortes de pilar com borda a frações de 0,1 mm não cortavam →
 coordenadas da extração arredondadas a 0,1 mm (`M4`, como o protótipo) e nova tentativa com 1 mm a mais; (3) "Completar" reconhece
 também o comentário do protótipo (`pano <id>`). Falta testar as janelas WPF com o usuário.
+
+## Aberturas do Revit (17/11/2026)
+Além dos furos do croqui, `ExtracaoLajeAlveolar.Aberturas` lê os elementos `Opening` que furam o piso: **abertura por face/vertical**
+(`Host` = o piso) e **shaft** (`OST_ShaftOpening`, sem host) cuja faixa vertical (caixa do elemento; sem caixa, `WALL_BASE_CONSTRAINT`/
+`WALL_BASE_OFFSET` e `WALL_HEIGHT_TYPE`/`WALL_TOP_OFFSET`/`WALL_USER_HEIGHT_PARAM`) cobre a espessura do painel (topo − capa − altura do
+painel até o topo) e cuja caixa em planta cruza a do piso. Contorno: `BoundaryRect` (2 cantos) ou `BoundaryCurves` tesseladas e
+encadeadas em laços (`AberturasPiso.Lacos`, tolerância 2 mm). Só quando o contorno veio do croqui (na leitura pela face superior as
+aberturas já são laços da face). Regras no núcleo (`DEB.Core/Lajes/AberturasPiso.Incluir`): dentro do contorno → furo; fora → ignora;
+cruzando ou encostando na borda → não entra e avisa "abertura <id> na borda do piso: ajuste o contorno do piso" (o motor não trata furo
+que corta a borda); igual a um furo do croqui (tolerância 1 cm) → não duplica; dentro de outro furo → ignora; sobreposta a outro furo →
+entra com aviso. Avisos e o resumo ("2 aberturas por face e 1 shaft incluídos como furos") vão para as notas do relatório.
+Testes: `tests/DEB.Core.Tests/LajeAlveolarAberturasTests.cs`. Falta conferir no Revit com um modelo que tenha essas aberturas.
