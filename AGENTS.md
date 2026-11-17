@@ -39,7 +39,7 @@ próprio (ver o AGENTS.md de cada plugin). `dotnet` não está no PATH.
 - **Robustez**: um comando que falha não pode fechar o Revit/CAD nem perder trabalho (`docs/00_escopo/robustez_e_estabilidade.md`).
 - **Identificadores gravados em arquivos de clientes não mudam** (XData `ARMADURA_BR`, comandos `ARM*`, parâmetros `SD_`).
 - Regras de detalhamento: o DEB.Cad é a referência (decisão D7); serão extraídas para um núcleo comum (etapa 5).
-- Instalador só quando o usuário pedir (não gerar Setup nem subir `<Version>` por conta própria).
+- Instalador só quando o usuário pedir (não gerar Setup nem mudar as versões por conta própria; elas ficam em `Directory.Build.props`, na raiz: `VersaoCad` e `VersaoRevit`).
 - **Testes sem mouse/teclado reais** (SetCursorPos, SendInput): o usuário usa o computador ao mesmo tempo e um clique
   real já caiu no Revit dele. Use `BM_CLICK`, a API ou o autoteste; capture telas com PrintWindow.
 - **Regressão visual** (10/11/2026): `tests/DEB.Core.Tests/RegressaoVisualTests` compara o desenho de 11 casos dos templates, entidade por

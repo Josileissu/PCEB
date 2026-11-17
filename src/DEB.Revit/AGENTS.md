@@ -34,8 +34,8 @@ cd <raiz do PCEB>\src\DEB.Revit
 
 ## Instalador e Release
 - `instalador\gerar.bat`: compila 2025 e 2026 com `DeployToRevit=false`, assina com `CN=PCEB DEB` e gera
-  `instalador\saida\DEB_Revit_Setup_<versão>.exe` (Inno Setup, por usuário: `%AppData%\Autodesk\Revit\Addins\<ano>`). Versão = `<Version>`
-  do csproj. Só gere quando o usuário PEDIR. Não rode o Setup com o Revit dele aberto (o aviso "feche o Revit" vira laço em modo silencioso).
+  `instalador\saida\DEB_Revit_Setup_<versão>.exe` (Inno Setup, por usuário: `%AppData%\Autodesk\Revit\Addins\<ano>`). Versão = `VersaoRevit`
+  em `Directory.Build.props` (raiz). Só gere quando o usuário PEDIR. Não rode o Setup com o Revit dele aberto (o aviso "feche o Revit" vira laço em modo silencioso).
 - Release própria: `gh release create revit-v<ver> src/DEB.Revit/instalador/saida/DEB_Revit_Setup_<ver>.exe --target main
   --title "DEB para Revit <ver>" --notes-file <notas> --latest=false` — `--latest=false` mantém a do CAD como "mais recente" (o botão
   "Baixar para CAD" do site usa `releases/latest`; o "Baixar para Revit" procura a última release com `DEB_Revit_Setup_*.exe`).

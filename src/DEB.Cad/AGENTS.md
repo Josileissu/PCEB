@@ -110,7 +110,7 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   gcad/acad/zwcad. Conferido (página de componentes capturada); instalação real com AutoCAD/ZWCAD ainda não testada.
   GstarCAD (sem admin; instala em `%LocalAppData%\Programs\ArmaduraBR`,
   grava a chave para cada idioma em `R21\`, avisa se o gcad.exe estiver aberto). Testado: instala, carrega
-  sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `<Version>` do DEB.GstarCAD.csproj. SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
+  sozinho ao abrir o GstarCAD e desinstala limpo. Versão = `VersaoCad` em `Directory.Build.props` (raiz). SÓ gere o instalador quando o usuário PEDIR (aí: suba a versão, rode `gerar.bat` e
   apague o Setup antigo de `saida\`). NUNCA rode o Setup com algum gcad.exe aberto NA SESSÃO do usuário: em `/VERYSILENT
   /SUPPRESSMSGBOXES` o aviso "feche o GstarCAD" vira laço infinito (atualize copiando as DLLs para a pasta instalada).
 - **Release no GitHub** (pedido do usuário, 2026-11-06; 1ª = v0.1.27): os instaladores vão para as Releases do repositório

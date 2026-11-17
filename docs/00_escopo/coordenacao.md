@@ -8,7 +8,7 @@ Situação: a fazer · em andamento · pausado · aguardando usuário · pronto 
 
 | # | Tarefa | Situação | Branch | Atualizado em |
 |---|---|---|---|---|
-| O-2 | Organização do núcleo: etapas 3 a 6 (D26–D30) — [tarefa](tarefas/O-2.md). Feitas e na `main`: etapa 3 (pilar do Revit pelo núcleo, D30) e etapa 4 (`Templates/` dividido em `Elementos/`, `Documentacao/`, `Motor/`). Etapa 5 (seção por família, D28) feita na branch `feat/secao-por-familia`, sobre `ref/consolo-separado` (nenhuma das duas na `main`). Falta a etapa 6 | pronto p/ revisão | `feat/secao-por-familia` | 16/11 |
+| O-2 | Organização do núcleo: etapas 3 a 6 (D26–D30) — [tarefa](tarefas/O-2.md). Etapas 3 a 6 feitas; falta o usuário responder o arranjo das barras nas seções não retangulares (`04_arquitetura/secoes.md`) e decidir a fonte das DLLs de referência dos CADs | aguardando usuário | — | 16/11 |
 | P1-9 | Pranchas de formas no Revit (D25) — [tarefa](tarefas/P1-9.md) | em andamento | — | 14/11 |
 | P1-8 | Paginar laje alveolar no Revit (D24) — [tarefa](tarefas/P1-8.md) | pronto p/ revisão | — | 12/11 |
 | P1-1 | Pilar pré-moldado no Revit igual à PP127 — [tarefa](tarefas/P1-1.md) | em andamento | — | 06/11 |
