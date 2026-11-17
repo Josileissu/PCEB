@@ -514,6 +514,56 @@ public class ParidadePilarTests
     }
 
     /// <summary>
+    /// Armadura por linha antes da troca no Revit (D32): a especificação simples (uma bitola, barras por face com os cantos)
+    /// convertida em linhas (cantos + faces) e calculada pela função do núcleo que o CAD usa dá as MESMAS posições, bitolas e
+    /// trecho que o Revit calcula hoje (<see cref="ColumnRebarLayout.LongitudinalPositions"/>, cobrimento das pontas).
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(TodosOsCasos))]
+    public void ArmaduraPorLinhaIgualAoRevitDeHoje(Caso c)
+    {
+        var (f, _, s) = Revit(c);
+        ConferirLinhasIgualAoRevit(f, s);
+    }
+
+    /// <summary>O mesmo com faces diferentes em x e em y e outras bitolas (as do SD_VARIAR do AutoRun e um retângulo).</summary>
+    [Theory]
+    [InlineData(40, 40, 16, 3, 3)]
+    [InlineData(50, 50, 20, 2, 3)]
+    [InlineData(30, 60, 12.5, 2, 4)]
+    [InlineData(70, 40, 25, 4, 2)]
+    public void ArmaduraPorLinhaIgualAoRevitDeHojeComFacesDiferentes(double b, double h, double phi, int nx, int ny)
+    {
+        var f = new ColumnBox(U_.Mm(b * 10), U_.Mm(h * 10), U_.Mm(L * 10));
+        var s = ColumnRebarSpec.Default(f, Lemb * 10, new List<Corbel>());
+        s.LongDiameterMm = phi; s.LongBarsAlongX = nx; s.LongBarsAlongY = ny; s.StirrupDiameterMm = 6.3;
+        ConferirLinhasIgualAoRevit(f, s);
+    }
+
+    private static void ConferirLinhasIgualAoRevit(ColumnBox f, ColumnRebarSpec s)
+    {
+        var avisos = new List<string>();
+        double hCm = f.H * CmPorPe, yIni = s.LongEndCoverMm / 10, yFim = hCm - s.LongEndCoverMm / 10;
+        var linhas = ArmaduraPorLinha.Ler(ArmaduraPorLinha.DaArmaduraSimples(s.LongDiameterMm, s.LongBarsAlongX, s.LongBarsAlongY), yIni, yFim, avisos);
+        Assert.Empty(avisos);
+        var secao = DEB.Core.Geometria.Secao.SecaoTransversal.Retangular(f.Bx * CmPorPe, f.By * CmPorPe);
+        var cob = DEB.Core.Geometria.Secao.FacesRetangulo.Cobrimentos(Enumerable.Repeat(s.CoverMm / 10, 4).ToArray());
+        var pos = ArmaduraPorLinha.Posicoes(secao, cob, s.StirrupDiameterMm, linhas, 5);
+        Assert.True(pos.Definido, pos.Erro);
+        var porLinha = pos.PorLinha.Values.SelectMany(x => x).Select(x => (X: x.X, Y: x.Y, Phi: x.Bitola)).ToList();
+        var hoje = ColumnRebarLayout.LongitudinalPositions(f, s).Select(p => (X: p.A * CmPorPe, Y: p.B * CmPorPe)).ToList();
+        Assert.Equal(hoje.Count, porLinha.Count);
+        foreach (var p in hoje)
+            Assert.Contains(porLinha, q => Math.Abs(q.X - p.X) < 1e-6 && Math.Abs(q.Y - p.Y) < 1e-6 && q.Phi == s.LongDiameterMm);
+        // nenhuma posição repetida (a correspondência é um para um)
+        Assert.Equal(porLinha.Count, porLinha.Select(q => (Math.Round(q.X, 6), Math.Round(q.Y, 6))).Distinct().Count());
+        // trecho: o mesmo das barras do Revit de hoje (cobrimento das pontas), sem feixe
+        var longR = ColumnRebarLayout.Compute(f, new List<Corbel>(), s).Where(b => b.Role == BarRole.Longitudinal).ToList();
+        Assert.All(linhas, l => { Assert.Equal(yIni, l.Ini, 9); Assert.Equal(yFim, l.Fim, 9); Assert.Equal(1, l.Feixe); });
+        Assert.All(longR, b => { Assert.Equal(yIni, b.Points[0].C * CmPorPe, 6); Assert.Equal(yFim, b.Points[1].C * CmPorPe, 6); });
+    }
+
+    /// <summary>
     /// As longitudinais do Revit saem de SecaoBarras.Posicoes (16/11/2026) na mesma ordem e posição da conta antiga do plugin
     /// (filas a cobrimento + φt + φ/2, divididas por igual): o conjunto de barras do Revit nasce das duas primeiras.
     /// </summary>

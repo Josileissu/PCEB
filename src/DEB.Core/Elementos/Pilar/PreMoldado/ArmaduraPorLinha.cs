@@ -27,6 +27,38 @@ public sealed class LinhaLongitudinal
 }
 
 /// <summary>
+/// Uma linha da armadura por linha como o usuário digita (as colunas da tabela "Longitudinais" do CAD): arranjo, barras por face,
+/// bitola (mm), feixe e início e fim (cm a partir da base da peça; vazio = a peça toda). É o que o Revit grava nos modelos de
+/// armadura; vira <see cref="LinhaLongitudinal"/> pela mesma leitura do CAD (<see cref="ArmaduraPorLinha.Ler"/> sobre <see cref="Celulas"/>).
+/// </summary>
+public sealed class LinhaArmaduraPorLinha
+{
+    public string Arranjo { get; set; } = ArmaduraPorLinha.Cantos;
+    /// <summary>Barras por face (arranjos de face); ignorado nos cantos.</summary>
+    public int PorFace { get; set; } = 1;
+    public double Bitola { get; set; } = 12.5;
+    /// <summary>Barras por feixe (1, 2 ou 3).</summary>
+    public int Feixe { get; set; } = 1;
+    /// <summary>Início, cm a partir da base da peça; null = desde a base (menos o cobrimento da ponta).</summary>
+    public double? Ini { get; set; }
+    /// <summary>Fim, cm a partir da base da peça; null = até o topo (menos o cobrimento da ponta).</summary>
+    public double? Fim { get; set; }
+
+    public LinhaArmaduraPorLinha Copia() => (LinhaArmaduraPorLinha)MemberwiseClone();
+
+    /// <summary>As células na ordem das colunas do template (números com ponto; cantos sem barras por face).</summary>
+    public string[] Celulas()
+    {
+        static string N(double x) => x.ToString("0.###", CultureInfo.InvariantCulture);
+        return new[]
+        {
+            Arranjo ?? "", ArmaduraPorLinha.ArranjoDeCanto(Arranjo) ? "" : PorFace.ToString(CultureInfo.InvariantCulture), N(Bitola),
+            Feixe.ToString(CultureInfo.InvariantCulture), Ini.HasValue ? N(Ini.Value) : "", Fim.HasValue ? N(Fim.Value) : "",
+        };
+    }
+}
+
+/// <summary>
 /// Armadura por linha: as barras longitudinais digitadas em linhas — cada linha é um arranjo na seção (cantos, ao lado dos
 /// cantos, faces), barras por face, bitola, feixe (1 a 3) e início e fim ao longo da peça. Permite bitolas mistas, feixes e
 /// redução com a altura (linhas do mesmo arranjo que se sobrepõem formam uma emenda). Uma só regra para o template do pilar do
@@ -43,7 +75,26 @@ public static class ArmaduraPorLinha
     /// <summary>Cantos (4 barras) e "ao lado dos cantos" (8, em "L"): quantidade fixa, sem barras por face.</summary>
     public static bool ArranjoDeCanto(string a) => a == Cantos || a == AoLado;
 
+    /// <summary>
+    /// Linhas equivalentes à armadura simples de um pilar retangular — uma bitola, <paramref name="barrasFaceX"/> barras em cada
+    /// face paralela a x e <paramref name="barrasFaceY"/> em cada face paralela a y, contando os cantos (a especificação antiga
+    /// do Revit): cantos + "Faces 2 e 4" (as intermediárias das faces paralelas a x) + "Faces 1 e 3" (as das faces paralelas a y);
+    /// a peça toda, sem feixe. Face sem intermediária não vira linha.
+    /// </summary>
+    public static List<LinhaArmaduraPorLinha> DaArmaduraSimples(double bitola, int barrasFaceX, int barrasFaceY)
+    {
+        var r = new List<LinhaArmaduraPorLinha> { new LinhaArmaduraPorLinha { Arranjo = Cantos, PorFace = 0, Bitola = bitola } };
+        int nx = Math.Max(2, barrasFaceX) - 2, ny = Math.Max(2, barrasFaceY) - 2;
+        if (nx > 0) r.Add(new LinhaArmaduraPorLinha { Arranjo = Faces24, PorFace = nx, Bitola = bitola });
+        if (ny > 0) r.Add(new LinhaArmaduraPorLinha { Arranjo = Faces13, PorFace = ny, Bitola = bitola });
+        return r;
+    }
+
     // ======================== leitura (testável) ========================
+
+    /// <summary>A mesma leitura de <see cref="Ler(IReadOnlyList{string[]}, double, double, List{string})"/> para as linhas digitadas.</summary>
+    public static List<LinhaLongitudinal> Ler(IEnumerable<LinhaArmaduraPorLinha> linhas, double yIni, double yFim, List<string> avisos) =>
+        Ler((linhas ?? Enumerable.Empty<LinhaArmaduraPorLinha>()).Select(l => l.Celulas()).ToList(), yIni, yFim, avisos);
 
     /// <summary>
     /// Linhas válidas a partir das células digitadas (arranjo, barras por face, bitola, feixe, início, fim — a ordem das colunas do
