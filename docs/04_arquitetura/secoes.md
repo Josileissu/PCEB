@@ -69,28 +69,72 @@ na leitura e no uso. `TemplatePilarPreMoldado.FaceExibida` chama esta tabela.
 
 ## Barras longitudinais pela seção
 
-`SecaoBarras.Posicoes(SecaoTransversal, cobrimentos por ParteSecao, …)` → `ArranjoSecao` (barras, ou `Erro`). Retangular:
-delega para a função antiga (resultado idêntico). Chamam a nova: `TemplatePilarPreMoldado.PosicoesBarras` e o modelo 3D do
-Revit (`ColumnRebarLayout.LongitudinalPositions`). Outras famílias: "arranjo não definido", sem barras.
+`SecaoBarras.Posicoes(SecaoTransversal, cobrimentos por ParteSecao, …, aço do estribo, configuração)` → `ArranjoSecao`
+(barras, estribos por parte, avisos, ou `Erro`). Retangular: delega para a função antiga (resultado idêntico; sem estribos
+nem avisos). Chamam: `TemplatePilarPreMoldado.PosicoesBarras` e o modelo 3D do Revit (`ColumnRebarLayout.LongitudinalPositions`),
+só com seção retangular. T, L, I e trapezoidal: arranjo por família (D31, `Motor/ArranjoFamilias.cs`); nenhum template nem
+comando chama ainda. Seção medida: "arranjo não definido".
+
+## Arranjo por família (D31)
+
+Cobrimento até o estribo; barra de canto a cobrimento + φt + φ/2 das faces do estribo; eixo do estribo a cobrimento + φt/2.
+Cada barra traz a parte nomeada (`BarraNaSecao.Parte`); cada estribo traz a parte, o contorno pelo eixo (anti-horário) e o
+comprimento pelo `ComprimentoPorEixo` (ganchos de 135°, D30). A conta é feita na posição canônica e espelhada para a real.
+
+| Família | Estribos | Longitudinais (mínimo) | Intermediárias |
+|---|---|---|---|
+| T / T invertida | alma na altura toda (os cantos de cima ficam na face externa da mesa) + mesa na largura toda | 8: 4 cantos da alma e 4 da mesa (pontas) | não aplicadas (aviso) |
+| L (4 orientações) | alma na altura toda + aba na largura toda (como a mesa da T) | 7: 4 da alma e 4 da aba, o canto externo comum é uma barra só | não aplicadas (aviso) |
+| I | alma na altura toda + um por mesa | 12: por mesa, 4 na face externa (2 da alma, 2 das pontas) + 2 fechando o estribo da mesa | pele da alma: `nFaceH` por face, φface, dividida por igual entre as barras internas das mesas; `nFaceB` não aplicado (aviso) |
+| Trapezoidal | um trapezoidal, cobrimento na **normal** de cada face | 4 cantos (cruzamento das paralelas às faces) | como no retângulo: `nFaceB` no topo e no fundo, `nFaceH` em cada inclinada (numa reta, dividir pelo comprimento ou pela projeção dá o mesmo) |
+| Medida (poligonal) | — | "arranjo não definido" | — |
+
+Cantos com 3 barras (`porCanto` ≥ 3) não entram em nenhuma família não retangular (aviso). A trapezoidal é a nervura da laje
+nervurada (dono, 16/11); a laje nervurada não está feita.
+
+**Cobrimento das faces internas — PROVISÓRIO** (o dono não respondeu; regra do coordenador, com aviso quando usada): o
+informado para a própria parte (a face, se tem nome, ou a região); na falta, o maior das faces externas adjacentes da mesma parte.
+
+| Família | Face interna | Própria | Na falta |
+|---|---|---|---|
+| T | lateral da alma | LateralAlmaEsquerda/Direita, Alma | Fundo (Topo na invertida) |
+| T | face interna da mesa | Mesa | maior de Esquerda, Direita |
+| L | lateral interna da alma | LateralAlma…, Alma | Topo (Fundo com a aba em cima) |
+| L | face interna da aba | Aba | Direita (Esquerda com a aba à esquerda) |
+| I | lateral da alma | LateralAlmaEsquerda/Direita, Alma | nenhuma: cobrimento faltando |
+| I | pontas e face interna de cada mesa | MesaSuperior / MesaInferior | Topo / Fundo |
+
+Avisos (não exceções; `ArranjoSecao.Avisos`): cobrimento faltando (face externa sem valor → também `Erro`, sem barras),
+regra provisória usada, barra fora do concreto (ou a menos de φ/2 da face), barras sobrepostas, estribo que não cabe
+(cobrimentos maiores que a parte, ou lado com menos que o pino por dentro: largura < cobrimentos + 2φt + pino), estribo fora
+do concreto, intermediárias não aplicadas.
+
+Prévia: com `ARM_PREVIA=<pasta>`, `tests/DEB.Core.Tests/Geometria/PreviaSecoesTests` grava `<pasta>\secoes\*.svg` (contorno,
+estribos, barras numeradas, cobrimento medido em cada lado, lista e avisos). Testes: `ArranjoFamiliasTests`.
+
+Achado: o núcleo põe os ganchos do estribo sempre no canto superior esquerdo; na trapezoidal invertida esse canto tem outro
+ângulo e o comprimento muda (120 × 121 cm no caso do teste). Não mexido.
 
 ## Não feito
 
 | O quê | Situação |
 |---|---|
-| Arranjo de barras em T, L, I, trapezoidal e medida | depende das perguntas abaixo |
+| Template, comando do CAD ou do Revit usando o arranjo por família | nenhum (pilar L, viga T etc. não existem como template; a viga pré-moldada tem armadura própria) |
+| Intermediárias em T, L e nas mesas da I; cantos com 3 barras fora do retângulo | falta definir por parte |
+| Quantidade e espaçamento da pele pela NBR 6118 (17.3.5.2.3) | o núcleo não tem função para isso (só o aviso "h > 60 sem pele" da viga); a quantidade vem de `nFaceH` |
+| Grampos nas famílias compostas; espaçamento máximo entre longitudinais por parte | sem resposta do dono |
+| Estribo da retangular no `ArranjoSecao` | o chamador continua fazendo (resultado da retangular não muda) |
 | `SecaoComAba`, subdivisão (`TrechoPeca`), consolo | continuam com `SecaoPoligonal`, `TipoSecao` e face 1…4 |
 | Componentes do motor (`SecaoLongitudinal`, `GramposSecao`, `Arranque`) e as listas do template do pilar (`PosicoesLinhas`) | ainda chamam a função por b × h |
 | Famílias e catálogos de aço | D28: quando uma entrega pedir |
 | Orientação gravada em arquivo | nenhum formato grava `SecaoTransversal` ainda |
+| Laje nervurada (a trapezoidal é a nervura) | não feita |
 
-## Perguntas para o dono (arranjo das longitudinais)
+## Perguntas ainda abertas
 
-| Família | Perguntas |
+| Família | Pergunta |
 |---|---|
-| Todas | Cobrimento das faces que não são da caixa (lateral da alma sob a mesa, face de cima da aba): o da lateral, o do topo ou um próprio? Espaçamento máximo entre longitudinais e barra de pele valem por parte? |
-| T / T invertida | Barras de canto nos 4 cantos da alma e também nas pontas da mesa? Estribo fechado só na alma e outro (ou grampo) na mesa? Barras na mesa até as pontas ou só na largura da alma? Na T invertida, a mesa (que recebe a laje) segue a regra da aba do template da viga? |
-| L | Barra no canto reentrante (encontro alma-aba)? Um estribo poligonal em L ou estribo da alma + estribo/grampo da aba? Barras na ponta da aba: quantas? |
-| I | Quantas barras por mesa e onde (cantos de cada mesa)? O estribo da alma entra nas mesas? Cordoalhas da mesa inferior ficam fora deste arranjo (protensão)? |
-| Trapezoidal | Cobrimento medido na normal da face inclinada? Estribo trapezoidal? Intermediárias divididas pelo comprimento da face inclinada ou pela projeção? |
-| Medida (poligonal) | Recusar, ou o usuário posiciona as barras à mão? |
+| Todas | Cobrimento das faces internas: confirmar a regra provisória acima. Espaçamento máximo entre longitudinais e pele valem por parte? |
+| T / L | Intermediárias: por face de cada estribo? Na T invertida, a mesa (que recebe a laje) segue a regra da aba do template da viga? Na L, o estribo da aba vai na largura toda (como aqui) ou só no balanço? |
+| I | Cordoalhas da mesa inferior ficam fora deste arranjo (protensão)? Intermediárias nas mesas? |
 | Grampos | Nas famílias compostas, os grampos amarram as intermediárias de cada parte separadamente? |
