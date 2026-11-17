@@ -105,7 +105,7 @@ internal static class ArranjoFamilias
             var b = barras[i];
             double r = b.Bitola / 20;
             if (!Dentro(contorno, b.X, b.Y) || DistanciaAoContorno(contorno, b.X, b.Y) < r - tol)
-                avisos.Add($"Barra {i + 1} ({b.Grupo}, ø{Fmt.N(b.Bitola)}) em ({Fmt.N(Math.Round(b.X, 2))}; {Fmt.N(Math.Round(b.Y, 2))}) " +
+                avisos.Add($"Barra {i + 1} ({b.Grupo}, ø{Fmt.Virgula(b.Bitola, "0.##")}) em ({Fmt.Virgula(b.X, "0.##")}; {Fmt.Virgula(b.Y, "0.##")}) " +
                            "fora do concreto (ou a menos de φ/2 da face).");
         }
         for (int i = 0; i < barras.Count; i++)
@@ -114,7 +114,7 @@ internal static class ArranjoFamilias
                 double d = Math.Sqrt(Math.Pow(barras[i].X - barras[j].X, 2) + Math.Pow(barras[i].Y - barras[j].Y, 2));
                 double min = barras[i].Bitola / 20 + barras[j].Bitola / 20;
                 if (d < min - tol)
-                    avisos.Add($"Barras {i + 1} e {j + 1} se sobrepõem: {Fmt.N(Math.Round(d, 2))} cm entre eixos < {Fmt.N(min)} cm (φ/2 + φ/2).");
+                    avisos.Add($"Barras {i + 1} e {j + 1} se sobrepõem: {Fmt.Virgula(d, "0.##")} cm entre eixos < {Fmt.Virgula(min, "0.##")} cm (φ/2 + φ/2).");
             }
         foreach (var e in estribos)
         {
@@ -131,8 +131,8 @@ internal static class ArranjoFamilias
                 double l = Math.Sqrt(Math.Pow(z.X - a.X, 2) + Math.Pow(z.Y - a.Y, 2));
                 if (l - t < pino - tol)
                 {
-                    avisos.Add($"{nome}: lado de {Fmt.N(Math.Round(l, 2))} cm no eixo deixa {Fmt.N(Math.Round(l - t, 2))} cm por dentro, " +
-                               $"menos que o pino ({Fmt.N(pino)} cm): o estribo não cabe.");
+                    avisos.Add($"{nome}: lado de {Fmt.Virgula(l, "0.##")} cm no eixo deixa {Fmt.Virgula(l - t, "0.##")} cm por dentro, " +
+                               $"menos que o pino ({Fmt.Virgula(pino, "0.##")} cm): o estribo não cabe.");
                     break;
                 }
             }
@@ -224,7 +224,7 @@ internal static class ArranjoFamilias
                 return 0;
             }
             double m = achadas.Max(a => a.C);
-            Avisos.Add($"Cobrimento de {descricao} não informado: usado {Fmt.N(m)} cm, " +
+            Avisos.Add($"Cobrimento de {descricao} não informado: usado {Fmt.Virgula(m, "0.##")} cm, " +
                        $"o {(achadas.Count > 1 ? "maior de " : "de ")}{string.Join(", ", achadas.Select(a => a.P))} " +
                        "(regra provisória, a confirmar com o dono).");
             return m;
