@@ -2,7 +2,7 @@
   <!-- Versões dos plugins num lugar só. Os .csproj usam $(VersaoCad) e $(VersaoRevit); os instaladores leem a versão da DLL compilada.
        Só mude a pedido do usuário (regra do AGENTS.md). -->
   <PropertyGroup>
-    <VersaoCad>0.1.39</VersaoCad>
+    <VersaoCad>0.1.40</VersaoCad>
     <VersaoRevit>0.2.0</VersaoRevit>
   </PropertyGroup>
 </Project>

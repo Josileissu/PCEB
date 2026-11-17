@@ -29,7 +29,10 @@ for %%v in (2021 2022 2023 2024 2025 2026) do (
   "%DOTNET8%" build src\DEB.AutoCAD %OPC% -p:AutoCadVersao=%%v || goto erro
 )
 echo AutoCAD 2027...
-"%DOTNET10%" build src\DEB.AutoCAD %OPC% -p:AutoCadVersao=2027 || goto erro
+rem O global.json da raiz fixa o SDK 8; o .NET 10 so e aceito rodando de fora do repositorio.
+pushd "%TEMP%"
+"%DOTNET10%" build "%~dp0..\src\DEB.AutoCAD" %OPC% -p:AutoCadVersao=2027 || (popd & goto erro)
+popd
 for %%v in (2024 2025 2026) do (
   echo ZWCAD %%v...
   "%DOTNET8%" build src\DEB.ZWCAD %OPC% -p:ZwcadVersao=%%v || goto erro
