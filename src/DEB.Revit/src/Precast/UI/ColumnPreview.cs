@@ -80,6 +80,25 @@ namespace DEB.Revit.Precast.UI
             foreach (Corbel k in rep.Corbels.OrderBy(k => k.ZTop))
                 if (cuts.All(c => Math.Abs(c.Z - k.ZTop) > U_.Mm(50)))
                     cuts.Add(($"SEÇÃO NO CONSOLO (h = {U_.ToMm(k.ZTop) / 1000:0.00} m)", k.ZTop - U_.Mm(_group.Spec.CoverMm + _group.Spec.TieDiameterMm)));
+            // armadura por linha (D32): um corte a mais em cada trecho com outra composição de longitudinais (redução com a
+            // altura), como as seções do CAD; o trecho da emenda (duas linhas na mesma posição) não ganha corte
+            var longs = bars.Where(b => b.Role == BarRole.Longitudinal).ToList();
+            string Comp(double z)
+            {
+                var ativas = longs.Where(b => z >= b.Points.Min(x => x.C) && z <= b.Points.Max(x => x.C))
+                    .Select(b => $"{b.DiameterMm:0.#}@{Math.Round(b.Points[0].A, 4)},{Math.Round(b.Points[0].B, 4)}").ToList();
+                return ativas.Count != ativas.Select(a => a.Substring(a.IndexOf('@'))).Distinct().Count() ? null : string.Join(";", ativas.OrderBy(a => a));
+            }
+            var vistos = new HashSet<string> { Comp(cuts[0].Z) ?? "" };
+            var zs = longs.SelectMany(b => new[] { b.Points.Min(x => x.C), b.Points.Max(x => x.C) }).Distinct().OrderBy(z => z).ToList();
+            for (int i = 0; i + 1 < zs.Count && cuts.Count < 4; i++)
+            {
+                if (zs[i + 1] - zs[i] < U_.Mm(100)) continue;
+                double zm = (zs[i] + zs[i + 1]) / 2;
+                string c = Comp(zm);
+                if (c != null && vistos.Add(c)) cuts.Add(($"SEÇÃO h = {U_.ToMm(zm) / 1000:0.00} m", zm));
+            }
+            cuts = cuts.Take(1).Concat(cuts.Skip(1).OrderBy(c => c.Z)).ToList();
             double cellH = (ActualHeight - 2 * pad) / cuts.Count;
             for (int i = 0; i < cuts.Count; i++)
                 DrawSection(dc, new Rect(sx, pad + i * cellH, sectionsW - pad, cellH - 8), cuts[i].Title, f, rep, bars, cuts[i].Z);

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 
 namespace DEB.Revit.Precast.UI
@@ -49,7 +50,7 @@ namespace DEB.Revit.Precast.UI
             var root = new Grid { Margin = new Thickness(10) };
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(330) });
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(430) });   // cabe a tabela da armadura por linha
             root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
@@ -209,11 +210,12 @@ namespace DEB.Revit.Precast.UI
             Section("Geral");
             Num("Cobrimento (mm)", () => s.CoverMm, v => s.CoverMm = v);
 
-            Section("Longitudinal");
-            Dia("Bitola", () => s.LongDiameterMm, v => s.LongDiameterMm = v);
-            Int("Barras por face paralela a X (com cantos)", () => s.LongBarsAlongX, v => s.LongBarsAlongX = Math.Max(2, v));
-            Int("Barras por face paralela a Y (com cantos)", () => s.LongBarsAlongY, v => s.LongBarsAlongY = Math.Max(2, v));
+            Section("Armadura por linha (longitudinais)");
+            // modelo salvo antes da D32: as linhas nascem dos campos simples (as mesmas barras) e passam a ser as editadas
+            if (s.ArmaduraPorLinha == null) s.ArmaduraPorLinha = s.Linhas();
+            _fields.Children.Add(LinesTable(s));
             Num("Cobrimento nas pontas (mm)", () => s.LongEndCoverMm, v => s.LongEndCoverMm = v);
+            Num("Canto em \"L\": distância entre eixos (mm)", () => s.LongCornerSpacingMm, v => s.LongCornerSpacingMm = Math.Max(20, v));
 
             Section("Estribos");
             Dia("Bitola", () => s.StirrupDiameterMm, v => s.StirrupDiameterMm = v);
@@ -282,12 +284,20 @@ namespace DEB.Revit.Precast.UI
             foreach (string m in w)
                 _checks.Children.Add(new TextBlock { Text = "⚠ " + m, Foreground = Brushes.DarkOrange, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 3) });
 
+            // armadura por linha: barras por bitola (feixe = cada barra) e a taxa do trecho menos e do mais armado
             ColumnRebarSpec s = g.Spec;
-            double rho = s.LongBarCount * Math.PI * s.LongDiameterMm * s.LongDiameterMm / 4 / (U_.ToMm(g.Representative.Frame.Bx) * U_.ToMm(g.Representative.Frame.By)) * 100;
+            ColumnBox frame = g.Representative.Frame;
+            var longs = ColumnRebarLayout.LongitudinalBars(frame, s);
+            string barras = string.Join(" + ", longs.GroupBy(b => b.Bitola).OrderByDescending(x => x.Key)
+                .Select(x => $"{x.Sum(b => b.Feixe)} Ø{RebarFactory.Fmt(x.Key)}"));
+            double ac = U_.ToMm(frame.Bx) * U_.ToMm(frame.By);
+            var rhos = ColumnRebarLayout.LongitudinalStretches(frame, s)
+                .Select(t => t.Sum(b => b.Feixe * Math.PI * b.Bitola * b.Bitola / 4) / ac * 100).DefaultIfEmpty(0).ToList();
+            double r0 = rhos.Min(), r1 = rhos.Max();
             _checks.Children.Add(new TextBlock
             {
-                Text = $"{s.LongBarCount} Ø{RebarFactory.Fmt(s.LongDiameterMm)}  ·  ρ = {rho:0.00}%",
-                Foreground = Brushes.DimGray, Margin = new Thickness(0, 6, 0, 0)
+                Text = $"{(barras.Length > 0 ? barras : "sem longitudinais")}  ·  ρ = " + (r1 - r0 < 0.005 ? $"{r0:0.00}%" : $"{r0:0.00}% a {r1:0.00}%"),
+                Foreground = Brushes.DimGray, Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap
             });
         }
 
@@ -344,6 +354,123 @@ namespace DEB.Revit.Precast.UI
             var tb = new TextBox { Text = get() ?? "", Width = 150 };
             tb.TextChanged += (s, e) => { set(tb.Text); Changed(); };
             _fields.Children.Add(Row(label, tb));
+        }
+
+        /// <summary>Bitolas da coluna "Bitola" da armadura por linha: as do template do pilar do CAD.</summary>
+        private static readonly double[] LongDiameters = { 10, 12.5, 16, 20, 22, 25, 32, 40 };
+
+        /// <summary>
+        /// Tabela da armadura por linha (D32): as colunas e os nomes de arranjo da tabela "Longitudinais" do template do pilar do
+        /// CAD — arranjo, barras por face, bitola, feixe, início e fim (cm da base; vazio = o pilar todo).
+        /// </summary>
+        private UIElement LinesTable(ColumnRebarSpec s)
+        {
+            var box = new StackPanel { Margin = new Thickness(0, 2, 0, 2) };
+            void Build()
+            {
+                box.Children.Clear();
+                var grid = new Grid();
+                double[] widths = { 116, 48, 58, 42, 52, 52, 24 };
+                foreach (double w in widths) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(w) });
+                string[] heads = { "Arranjo", "Barras por face", "Bitola (mm)", "Feixe", "Início (cm da base)", "Fim (cm da base)", "" };
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                for (int c = 0; c < heads.Length; c++)
+                    Cell(grid, new TextBlock { Text = heads[c], TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Brushes.DimGray, VerticalAlignment = VerticalAlignment.Bottom }, 0, c);
+                for (int i = 0; i < s.ArmaduraPorLinha.Count; i++)
+                {
+                    LinhaArmaduraPorLinha l = s.ArmaduraPorLinha[i];
+                    int row = i + 1;
+                    grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                    var arr = new ComboBox();
+                    foreach (string a in ArmaduraPorLinha.Arranjos) arr.Items.Add(a);
+                    arr.SelectedItem = ArmaduraPorLinha.Arranjos.FirstOrDefault(a => string.Equals(a, l.Arranjo, StringComparison.OrdinalIgnoreCase));
+                    bool canto = ArmaduraPorLinha.ArranjoDeCanto(l.Arranjo);
+                    var porFace = new TextBox { Text = canto ? "" : l.PorFace.ToString(CultureInfo.CurrentCulture), IsEnabled = !canto };
+                    arr.SelectionChanged += (o, e) =>
+                    {
+                        if (!(arr.SelectedItem is string a)) return;
+                        l.Arranjo = a;
+                        bool c = ArmaduraPorLinha.ArranjoDeCanto(a);
+                        porFace.IsEnabled = !c;
+                        if (!c && l.PorFace < 1) l.PorFace = 1;
+                        porFace.Text = c ? "" : l.PorFace.ToString(CultureInfo.CurrentCulture);
+                        Changed();
+                    };
+                    porFace.TextChanged += (o, e) =>
+                    {
+                        if (!porFace.IsEnabled) return;
+                        if (int.TryParse(porFace.Text, out int v) && v >= 1) { l.PorFace = v; porFace.ClearValue(BackgroundProperty); Changed(); }
+                        else porFace.Background = Brushes.MistyRose;
+                    };
+
+                    var phi = new ComboBox { IsEditable = true };
+                    foreach (double d in LongDiameters) phi.Items.Add(d.ToString("0.#", CultureInfo.CurrentCulture));
+                    phi.Text = l.Bitola.ToString("0.#", CultureInfo.CurrentCulture);
+                    void applyPhi()
+                    {
+                        string t = phi.SelectedItem as string ?? phi.Text;
+                        if (TryParse(t, out double v) && v > 0 && Math.Abs(v - l.Bitola) > 1e-9) { l.Bitola = v; Changed(); }
+                    }
+                    phi.SelectionChanged += (o, e) => applyPhi();
+                    phi.LostFocus += (o, e) => applyPhi();
+
+                    var fx = new ComboBox();
+                    foreach (string n in new[] { "1", "2", "3" }) fx.Items.Add(n);
+                    fx.SelectedItem = Math.Max(1, Math.Min(3, l.Feixe)).ToString(CultureInfo.InvariantCulture);
+                    fx.SelectionChanged += (o, e) => { if (fx.SelectedItem is string n) { l.Feixe = int.Parse(n, CultureInfo.InvariantCulture); Changed(); } };
+
+                    TextBox Optional(double? get, Action<double?> set)
+                    {
+                        var tb = new TextBox { Text = get.HasValue ? get.Value.ToString("0.##", CultureInfo.CurrentCulture) : "" };
+                        tb.TextChanged += (o, e) =>
+                        {
+                            if (string.IsNullOrWhiteSpace(tb.Text)) { set(null); tb.ClearValue(BackgroundProperty); Changed(); }
+                            else if (TryParse(tb.Text, out double v) && v >= 0) { set(v); tb.ClearValue(BackgroundProperty); Changed(); }
+                            else tb.Background = Brushes.MistyRose;
+                        };
+                        return tb;
+                    }
+
+                    var del = new Button { Content = "×", Padding = new Thickness(4, 0, 4, 0), ToolTip = "Excluir a linha" };
+                    del.Click += (o, e) => { s.ArmaduraPorLinha.Remove(l); Build(); Changed(); };
+
+                    Cell(grid, arr, row, 0);
+                    Cell(grid, porFace, row, 1);
+                    Cell(grid, phi, row, 2);
+                    Cell(grid, fx, row, 3);
+                    Cell(grid, Optional(l.Ini, v => l.Ini = v), row, 4);
+                    Cell(grid, Optional(l.Fim, v => l.Fim = v), row, 5);
+                    Cell(grid, del, row, 6);
+                }
+                box.Children.Add(grid);
+                Button add = Button("+ linha", () =>
+                {
+                    // linha nova como a do CAD: faces 2 e 4, 1 barra por face, ø20
+                    s.ArmaduraPorLinha.Add(new LinhaArmaduraPorLinha { Arranjo = ArmaduraPorLinha.Faces24, PorFace = 1, Bitola = 20 });
+                    Build();
+                    Changed();
+                }, new Thickness(0, 4, 0, 0));
+                add.HorizontalAlignment = HorizontalAlignment.Left;
+                box.Children.Add(add);
+                box.Children.Add(new TextBlock
+                {
+                    Text = "Cantos = 4 barras; ao lado dos cantos = 8, em \"L\"; faces = barras por face. Para reduzir com a altura, termine " +
+                           "uma linha e comece outra do mesmo arranjo antes do fim dela: a sobreposição é o traspasse (sem emenda automática " +
+                           "pelo comprimento comercial).",
+                    TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Brushes.DimGray, Margin = new Thickness(0, 4, 0, 0)
+                });
+            }
+            Build();
+            return box;
+        }
+
+        private static void Cell(Grid grid, FrameworkElement e, int row, int col)
+        {
+            e.Margin = new Thickness(0, 1, 3, 1);
+            Grid.SetRow(e, row);
+            Grid.SetColumn(e, col);
+            grid.Children.Add(e);
         }
 
         private static bool TryParse(string s, out double v) =>
