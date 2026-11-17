@@ -1,4 +1,6 @@
 <Project>
+  <!-- versões e demais propriedades comuns: Directory.Build.props da raiz -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
   <!-- Lido antes do Microsoft.Common.props: a pasta obj (inclusive a restauração do NuGet) fica separada por versão do
        AutoCAD e pela demo. Definida no .csproj, a restauração de todas as versões caía no mesmo obj\ (aviso MSB3539). -->
   <PropertyGroup>

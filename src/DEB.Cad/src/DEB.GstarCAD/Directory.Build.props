@@ -1,4 +1,6 @@
 <Project>
+  <!-- versões e demais propriedades comuns: Directory.Build.props da raiz -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
   <!-- Lido antes do Microsoft.Common.props: pasta obj separada por versão do GstarCAD e pela demo
        (2026/2027 são .NET 8 e as outras .NET Framework: a restauração de uma não pode cair na pasta da outra). -->
   <PropertyGroup>
