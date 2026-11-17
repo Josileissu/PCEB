@@ -485,9 +485,10 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         public static List<(double A, double B)> LongitudinalPositions(ColumnBox f, ColumnRebarSpec s)
         {
             int nx = Math.Max(2, s.LongBarsAlongX), ny = Math.Max(2, s.LongBarsAlongY);
-            double[] cob = Enumerable.Repeat(s.CoverMm / 10, 4).ToArray();
-            var sec = Motor.SecaoBarras.Posicoes(U_.ToMm(f.Bx) / 10, U_.ToMm(f.By) / 10, cob, s.StirrupDiameterMm,
-                s.LongDiameterMm, 1, 0, s.LongDiameterMm, nx - 2, ny - 2, s.LongDiameterMm);
+            var secao = Geometria.Secao.SecaoTransversal.Retangular(U_.ToMm(f.Bx) / 10, U_.ToMm(f.By) / 10);
+            var cob = Geometria.Secao.FacesRetangulo.Cobrimentos(Enumerable.Repeat(s.CoverMm / 10, 4).ToArray());
+            var sec = Motor.SecaoBarras.Posicoes(secao, cob, s.StirrupDiameterMm,
+                s.LongDiameterMm, 1, 0, s.LongDiameterMm, nx - 2, ny - 2, s.LongDiameterMm).Barras;
             var faceX = sec.Where(b => b.Grupo == "canto" || b.Grupo == "faceB").OrderBy(b => b.X).ThenBy(b => b.Y);
             var faceY = sec.Where(b => b.Grupo == "faceH").OrderBy(b => b.Y).ThenBy(b => b.X);
             return faceX.Concat(faceY).Select(b => (U_.Mm(b.X * 10), U_.Mm(b.Y * 10))).ToList();

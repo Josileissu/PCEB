@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DEB.Core.Geometria.Secao;
 using DEB.Core.Normas;
 using DEB.Core.Tabelas;
 
@@ -39,6 +40,18 @@ public readonly struct PecaEmendada
     public PecaBarra Peca { get; }
     public int Quantidade { get; }
     public bool Alternada { get; }
+}
+
+/// <summary>Resultado do arranjo das longitudinais numa seção: as barras, ou o motivo de não haver arranjo para ela.</summary>
+public sealed class ArranjoSecao
+{
+    internal ArranjoSecao(List<BarraNaSecao> barras, string erro) { Barras = barras ?? new List<BarraNaSecao>(); Erro = erro; }
+    internal static ArranjoSecao NaoDefinido(string motivo) => new ArranjoSecao(null, motivo);
+    /// <summary>Barras (vazio se <see cref="Definido"/> é falso).</summary>
+    public List<BarraNaSecao> Barras { get; }
+    /// <summary>Motivo de não haver arranjo; null se há.</summary>
+    public string Erro { get; }
+    public bool Definido => Erro == null;
 }
 
 /// <summary>
@@ -88,6 +101,25 @@ public static class SecaoBarras
             r.Add(new BarraNaSecao(b - cob[0] - t - rf, y, phiFace, "faceH"));
         }
         return r;
+    }
+
+    /// <summary>
+    /// Posições das longitudinais pela seção do contrato (D28) e cobrimentos por parte nomeada (Topo, Fundo, Esquerda,
+    /// Direita, até o estribo). Retangular: exatamente <see cref="Posicoes(double, double, double[], double, double, int,
+    /// double, double, int, int, double)"/> (delega para ela). Outras famílias e a seção medida: sem barras e com
+    /// <see cref="ArranjoSecao.Erro"/> — o arranjo delas ainda não foi definido (perguntas em docs/04_arquitetura/secoes.md).
+    /// </summary>
+    public static ArranjoSecao Posicoes(SecaoTransversal secao, IReadOnlyDictionary<ParteSecao, double> cobrimentos, double phiT,
+        double phiCanto, int porCanto, double sCanto, double phiViz, int nFaceB, int nFaceH, double phiFace)
+    {
+        if (secao == null) throw new ArgumentNullException(nameof(secao));
+        if (secao.Familia != FamiliasSecao.Retangular)
+            return ArranjoSecao.NaoDefinido($"Arranjo das longitudinais não definido para a seção {secao.Familia.Nome} " +
+                                            $"({secao.Descricao}): por enquanto só a retangular.");
+        double[] cob;
+        try { cob = FacesRetangulo.CobrimentosPorFace(cobrimentos); }
+        catch (ArgumentException e) { return ArranjoSecao.NaoDefinido(e.Message); }
+        return new ArranjoSecao(Posicoes(secao.Valor("b"), secao.Valor("h"), cob, phiT, phiCanto, porCanto, sCanto, phiViz, nFaceB, nFaceH, phiFace), null);
     }
 
     /// <summary>Raio do círculo que envolve o feixe (1: φ/2; 2: φ; 3: φ/2·(1 + 2/√3)), em cm.</summary>

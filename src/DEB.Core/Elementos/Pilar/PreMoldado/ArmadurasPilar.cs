@@ -63,10 +63,14 @@ public sealed partial class TemplatePilarPreMoldado
     // cálculos da seção: em DEB.Core.Motor.SecaoBarras desde 2026-11-07 (o motor usa os mesmos); os nomes ficam aqui
     // porque os testes e o resto do pilar chamam por eles.
 
-    /// <summary><see cref="SecaoBarras.Posicoes"/>.</summary>
+    /// <summary>
+    /// <see cref="SecaoBarras.Posicoes(Geometria.Secao.SecaoTransversal, IReadOnlyDictionary{Geometria.Secao.ParteSecao, double}, double, double, int, double, double, int, int, double)"/>
+    /// com a seção retangular b × h e os cobrimentos por face interna (cob[0…3]).
+    /// </summary>
     public static List<BarraNaSecao> PosicoesBarras(double b, double h, double[] cob, double phiT, double phiCanto, int porCanto,
         double sCanto, double phiViz, int nFaceB, int nFaceH, double phiFace) =>
-        SecaoBarras.Posicoes(b, h, cob, phiT, phiCanto, porCanto, sCanto, phiViz, nFaceB, nFaceH, phiFace);
+        SecaoBarras.Posicoes(Geometria.Secao.SecaoTransversal.Retangular(b, h), Geometria.Secao.FacesRetangulo.Cobrimentos(cob),
+                             phiT, phiCanto, porCanto, sCanto, phiViz, nFaceB, nFaceH, phiFace).Barras;
 
     /// <summary><see cref="SecaoBarras.Traspasse"/>.</summary>
     public static double TraspassePilar(double bitola, string aco, double fck, bool mesmaSecao, TabelaBarras barras) =>
