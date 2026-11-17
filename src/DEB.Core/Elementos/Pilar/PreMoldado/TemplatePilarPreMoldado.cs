@@ -5,6 +5,7 @@ using System.Linq;
 using DEB.Core.Configuracao;
 using DEB.Core.Motor;
 using DEB.Core.Documentacao;
+using DEB.Core.Elementos.Consolo;
 
 namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
@@ -114,20 +115,11 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     }
 
     /// <summary>Número com vírgula decimal (textos em PT).</summary>
-    /// <summary>Quantos elementos o resultado já tem (para medir o que foi desenhado depois).</summary>
-    private static (int b, int c, int t, int ci, int co) Marca(ResultadoTemplate r) =>
-        (r.Barras.Count, r.Contornos.Count, r.Textos.Count, r.Circulos.Count, r.Cotas.Count);
+    /// <summary>Quantos elementos o resultado já tem (<see cref="KitDesenho.Marca"/>).</summary>
+    private static (int b, int c, int t, int ci, int co) Marca(ResultadoTemplate r) => KitDesenho.Marca(r);
 
-    /// <summary>Maior x do que foi desenhado depois da marca (texto: largura aproximada 0,7·h por caractere).</summary>
-    private static double MaxX(ResultadoTemplate r, (int b, int c, int t, int ci, int co) m)
-    {
-        var xs = r.Barras.Skip(m.b).SelectMany(x => x.Vertices).Select(p => p.X)
-            .Concat(r.Contornos.Skip(m.c).SelectMany(x => x.Vertices).Select(p => p.X))
-            .Concat(r.Textos.Skip(m.t).Select(x => x.X + (Math.Abs(x.Angulo) < 1e-9 ? (x.Alinhamento == 0 ? 1.0 : x.Alinhamento == 1 ? 0.5 : 0) * 0.7 * x.Altura * x.Texto.Length : x.Altura)))
-            .Concat(r.Circulos.Skip(m.ci).Select(x => x.X + x.Raio))
-            .Concat(r.Cotas.Skip(m.co).SelectMany(x => new[] { x.P1.X, x.P2.X, x.Posicao.X }));
-        return xs.DefaultIfEmpty(0).Max();
-    }
+    /// <summary>Maior x do que foi desenhado depois da marca (<see cref="KitDesenho.MaxX"/>).</summary>
+    private static double MaxX(ResultadoTemplate r, (int b, int c, int t, int ci, int co) m) => KitDesenho.MaxX(r, m);
 
     /// <summary>Cobrimentos: faces 1 a 4, topo, base (cm).</summary>
     private static double[] Cobrimentos(ValoresTemplate v) =>
@@ -367,12 +359,17 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         var marca = Marca(r);
         // um detalhe por tipo (e largura do pilar na direção do balanço), somando as posições que usam o tipo
         int nDet = 0;
+        // o que o consolo precisa saber do pilar: seção, cobrimentos das faces, aços e as bitolas onde o tirante termina
+        var apoio = new ContextoConsolo
+        {
+            Desenho = c, Cfg = cfg, B = b, H = h, Cob = cob0, AcoLong = v["LongAco"], AcoEst = v["EstAco"],
+            PhiEstriboApoio = BitolaMaxEstribo(v), PhiLongApoio = BitolaMaxLongitudinal(v),
+        };
         foreach (var grupo in consolos.GroupBy(co => (co.Tipo, co.Duplo, colW: co.Faces[0] == 1 || co.Faces[0] == 3 ? b : h)))
         {
             var rep = grupo.First();
             int pares = grupo.Sum(co => co.Pares.Count), soz = grupo.Sum(co => co.Sozinhas.Count);
-            yDet = DetalheConsolo(c, cfg, rep, pares, soz, $"cons{++nDet}", b, h, cob0, 0, yDet, v["LongAco"], v["EstAco"],
-                BitolaMaxEstribo(v), BitolaMaxLongitudinal(v));
+            yDet = DesenhoConsolo.Detalhe(apoio, rep, pares, soz, $"cons{++nDet}", 0, yDet);
         }
         // detalhes padrão (alça, reforço do furo, chaves, canto, raio de curvatura, emendas, SPDA): ao lado dos detalhes dos
         // consolos, na mesma faixa (antes ficavam numa fileira abaixo, com tudo à direita vazio — checagem de 2026-10-30)

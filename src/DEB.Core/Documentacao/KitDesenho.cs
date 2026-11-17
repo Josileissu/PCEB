@@ -154,6 +154,39 @@ public static class KitDesenho
     public static double FimSemRepetir(double a, double b, double esp, bool ultima, Configuracao.ConfiguracaoArmadura cfg) =>
         !ultima && RepeteNaDivisa(b - a, esp, cfg) ? b - esp : b;
 
+    /// <summary>Quantos elementos o resultado já tem (para medir o que foi desenhado depois).</summary>
+    internal static (int b, int c, int t, int ci, int co) Marca(ResultadoTemplate r) =>
+        (r.Barras.Count, r.Contornos.Count, r.Textos.Count, r.Circulos.Count, r.Cotas.Count);
+
+    /// <summary>Maior x do que foi desenhado depois da marca (texto: largura aproximada 0,7·h por caractere).</summary>
+    internal static double MaxX(ResultadoTemplate r, (int b, int c, int t, int ci, int co) m)
+    {
+        var xs = r.Barras.Skip(m.b).SelectMany(x => x.Vertices).Select(p => p.X)
+            .Concat(r.Contornos.Skip(m.c).SelectMany(x => x.Vertices).Select(p => p.X))
+            .Concat(r.Textos.Skip(m.t).Select(x => x.X + (Math.Abs(x.Angulo) < 1e-9 ? (x.Alinhamento == 0 ? 1.0 : x.Alinhamento == 1 ? 0.5 : 0) * 0.7 * x.Altura * x.Texto.Length : x.Altura)))
+            .Concat(r.Circulos.Skip(m.ci).Select(x => x.X + x.Raio))
+            .Concat(r.Cotas.Skip(m.co).SelectMany(x => new[] { x.P1.X, x.P2.X, x.Posicao.X }));
+        return xs.DefaultIfEmpty(0).Max();
+    }
+
+    /// <summary>
+    /// Estribo fechado (medidas externas w × h) com ganchos de 135° no canto superior esquerdo. Vale para o estribo do pilar, a
+    /// costura e o estribo vertical do consolo. Decisão do dono (D30, 16/11/2026): 135° é o padrão do pilar, como no modelo 3D
+    /// do Revit — o comprimento sai da mesma função (<see cref="Estribos.GeradorEstribo.FechadoPadrao"/> com gancho de 45°, ponta reta
+    /// 5φt ≥ 5 cm, NBR 6118 9.4.6.1) que <see cref="Calculo.ComprimentoPorEixo"/> usa para as barras do Revit.
+    /// </summary>
+    internal static BarraTemplate EstriboFechado(Configuracao.ConfiguracaoArmadura cfg, string nome, double x, double y, double w, double h, double phi, string aco, double escala)
+    {
+        var poligono = new List<(double X, double Y)> { (x, y), (x + w, y), (x + w, y + h), (x, y + h) };
+        var f = Estribos.GeradorEstribo.FechadoPadrao(poligono, phi, aco, cfg.Dobramento, Modelo.FormatoSegmento.Gancho45);
+        var bt = new BarraTemplate { Nome = nome, Bitola = phi, Aco = aco, Estribo = true, Escala = escala, Quantidade = 1 };
+        bt.Vertices.AddRange(f.Vertices.Select(p => (p.X, p.Y)));
+        bt.Formatos.AddRange(f.Formatos);
+        foreach (var s in f.Sobrepostos) bt.Sobrepostos.Add(s);
+        foreach (var s in f.Cotados) bt.Cotados.Add(s);
+        return bt;
+    }
+
     /// <summary>"12,5" → "12.5", "8.0" → "8" (a lista de bitolas aceita o que vem do Excel).</summary>
     public static string NormalizarBitola(string s)
     {
