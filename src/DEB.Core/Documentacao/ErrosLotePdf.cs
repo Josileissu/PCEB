@@ -15,6 +15,8 @@ public enum CausaErroPdf
     Pdf24NaoInstalada,
     ImpressoraInexistente,
     PapelInexistente,
+    /// <summary>Impressora do Windows cujo driver não mostra formulários personalizados (Microsoft Print to PDF).</summary>
+    DriverSemTamanhoPersonalizado,
     FormatoNaoEscolhido,
     SemMoldura,
     CtbNaoEncontrado,
@@ -128,6 +130,7 @@ public static class ErrosLotePdf
         CausaErroPdf.Pdf24NaoInstalada => ("PDF24 não instalada", "instale o PDF24 Creator (impressora \"PDF24\") ou escolha outra impressora de PDF"),
         CausaErroPdf.ImpressoraInexistente => ("a impressora escolhida não existe neste computador", "escolha a PDF24 na janela"),
         CausaErroPdf.PapelInexistente => ("o papel não existe na impressora", "use \"Criar folhas na impressora\""),
+        CausaErroPdf.DriverSemTamanhoPersonalizado => ("o driver da impressora não aceita tamanhos personalizados", "escolha outra impressora na janela"),
         CausaErroPdf.FormatoNaoEscolhido => ("formato da folha não escolhido", "escolha o formato na coluna \"Formato\""),
         CausaErroPdf.SemMoldura => ("nenhuma moldura/carimbo encontrado no Model nem nos layouts", "confira se a moldura é uma polilinha retangular ou um bloco com o tamanho de um dos formatos da lista"),
         CausaErroPdf.CtbNaoEncontrado => ("ctb não encontrado", "escolha outro estilo de plotagem ou use " + EstiloPlotagemPadrao.NomeArquivo),

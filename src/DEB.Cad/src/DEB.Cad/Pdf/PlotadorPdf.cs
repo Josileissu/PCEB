@@ -174,8 +174,7 @@ internal static class PlotadorPdf
                 $"a impressora \"{impressora}\" não existe neste CAD/computador", ex);
         }
         v.RefreshLists(ps);
-        var canon = MidiaCanonica(v, ps, f.Formato.Nome)
-                    ?? throw new ErroLotePdfException(CausaErroPdf.PapelInexistente, $"papel \"{f.Formato.Nome}\" não existe na impressora \"{impressora}\"");
+        var canon = MidiaCanonica(v, ps, f.Formato.Nome) ?? throw SemPapel(impressora, f.Formato.Nome);
         v.SetPlotConfigurationName(ps, impressora, canon);
         v.SetPlotPaperUnits(ps, PlotPaperUnit.Millimeters);
         if (f.TemCaixa && (cfg.Area == AreaPlotLote.Moldura || f.NoModelo))
@@ -188,8 +187,11 @@ internal static class PlotadorPdf
         else v.SetPlotType(ps, PlotType.Extents);
         v.SetUseStandardScale(ps, true);
         v.SetStdScaleType(ps, StdScaleType.ScaleToFit);
-        // folha deitada x desenho deitado: gira 90° quando as orientações não batem
-        v.SetPlotRotation(ps, f.Deitada == f.Formato.Paisagem ? PlotRotation.Degrees000 : PlotRotation.Degrees090);
+        // folha deitada x desenho deitado: gira 90° quando as orientações não batem. Orientação do papel REAL da impressora (a
+        // folha do .pc3 é gravada deitada mesmo para o A4 em pé da lista); sem medida, a do formato
+        var papel = ps.PlotPaperSize;
+        bool papelDeitado = papel.X > 0 && papel.Y > 0 ? papel.X >= papel.Y : f.Formato.Paisagem;
+        v.SetPlotRotation(ps, f.Deitada == papelDeitado ? PlotRotation.Degrees000 : PlotRotation.Degrees090);
         v.SetPlotCentered(ps, true);
 
         // estilo: o escolhido (ou o do layout); se não existir neste PC, PCEB.ctb (gravado na pasta de estilos do CAD)
@@ -202,6 +204,45 @@ internal static class PlotadorPdf
         ps.PlotPlotStyles = true;
         return estilo;
     }
+
+    /// <summary>
+    /// Papel que falta na impressora, com a causa específica quando dá para saber: impressora do Windows cujo driver não mostra os
+    /// formulários de papel personalizados (Microsoft Print to PDF) ou .pc3 em formato que o plugin não grava (GstarCAD).
+    /// </summary>
+    internal static ErroLotePdfException SemPapel(string impressora, string papel)
+    {
+        var motivo = MotivoSemFolhas(impressora);
+        return new ErroLotePdfException(motivo != null ? CausaErroPdf.DriverSemTamanhoPersonalizado : CausaErroPdf.PapelInexistente,
+            $"papel \"{papel}\" não existe na impressora \"{impressora}\"" + (motivo != null ? ": " + motivo : ""));
+    }
+
+    /// <summary>
+    /// Por que a impressora não pode ter as folhas da lista (null = pode; basta criá-las): driver do Windows que ignora formulários
+    /// personalizados (os formulários existem no Windows, mas o driver não lista nenhum) — o resultado fica guardado por impressora.
+    /// </summary>
+    internal static string MotivoSemFolhas(string impressora)
+    {
+        if (string.IsNullOrWhiteSpace(impressora) || ImpressorasPdf.Tipo(impressora) == TipoImpressoraPdf.Pc3) return null;
+        lock (_motivos)
+        {
+            if (_motivos.TryGetValue(impressora, out var m)) return m;
+            try
+            {
+                List<FormularioWindows> forms;
+                using (var srv = FormulariosWindows.Abrir(false)) forms = srv.Listar();
+                m = FormulariosPapel.DriverIgnoraPersonalizados(forms, FormulariosWindows.PapeisDaImpressora(impressora))
+                    ? FormulariosPapel.MensagemDriverSemPersonalizados(impressora) : null;
+            }
+            catch (Exception ex) { Infra.Log.Erro("ARMPDFLOTE: conferir formulários do driver de " + impressora, ex); m = null; }
+            _motivos[impressora] = m;
+            return m;
+        }
+    }
+
+    private static readonly Dictionary<string, string> _motivos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Esquece o que se sabe dos drivers (depois de criar formulários).</summary>
+    internal static void EsquecerMotivos() { lock (_motivos) _motivos.Clear(); }
 
     /// <summary>Garante PCEB.ctb na pasta de estilos do CAD e na lista do validador; devolve o nome a usar.</summary>
     private static string GarantirPceb(PlotSettingsValidator v, PlotSettings ps, List<string> disponiveis)
@@ -253,15 +294,18 @@ internal static class PlotadorPdf
 
     private static bool NaLista(string nome) => EstilosDisponiveis().Any(d => string.Equals(d, nome, StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>Nomes da propriedade da pasta de estilos em Preferences.Files (o GstarCAD 2021 não tem o 1º: DISP_E_UNKNOWNNAME).</summary>
+    private static readonly string[] PropsEstilos = { "PrinterStyleSheetPath", "PrintStyleSheetPath", "PlotStyleSheetPath" };
+
     /// <summary>
-    /// Objeto Preferences.Files e o nome da propriedade da pasta de estilos (AutoCAD/ZWCAD: PrinterStyleSheetPath; o GstarCAD 2021
-    /// responde DISP_E_UNKNOWNNAME a esse nome, então outros nomes são tentados). (null, …) = nenhum serviu.
+    /// Objeto Preferences.Files, o nome da propriedade que respondeu e o valor (a 1ª de <paramref name="nomes"/> que existir).
+    /// (null, …) = nenhuma serviu.
     /// </summary>
-    private static (object Files, string Propriedade, string Valor) PreferenciaEstilos()
+    private static (object Files, string Propriedade, string Valor) Preferencia(string[] nomes)
     {
         object prefs = CadApp.Preferences;
         object files = prefs.GetType().InvokeMember("Files", System.Reflection.BindingFlags.GetProperty, null, prefs, null);
-        foreach (var nome in new[] { "PrinterStyleSheetPath", "PrintStyleSheetPath", "PlotStyleSheetPath", "PrinterStyleSheetDir" })
+        foreach (var nome in nomes)
         {
             try
             {
@@ -273,33 +317,45 @@ internal static class PlotadorPdf
         return (null, null, null);
     }
 
+    private static (object Files, string Propriedade, string Valor) PreferenciaEstilos() => Preferencia(PropsEstilos);
+
     /// <summary>
-    /// Pasta de estilos de plotagem (ctb) do CAD em uso: Preferences.Files (objeto COM de preferências, igual nos três CADs); senão
-    /// o PrinterStyleSheetDir do perfil corrente no registro (é o que serve no GstarCAD 2021); por último a pasta de um ctb da
-    /// lista achado pelo FindFile do CAD.
+    /// Pasta de configuração do CAD em uso: Preferences.Files.&lt;propriedade&gt; (objeto COM de preferências, igual nos três CADs);
+    /// senão o valor <paramref name="valorPerfil"/> do perfil corrente no registro (&lt;raiz do produto&gt;\Profiles\&lt;CPROFILE&gt;\General;
+    /// é o que serve no GstarCAD 2021). null = não achada.
     /// </summary>
-    public static string PastaEstilos()
+    internal static string PastaDoCad(string[] propriedades, string valorPerfil)
     {
         try
         {
-            var (files, prop, valor) = PreferenciaEstilos();
+            var (files, prop, valor) = Preferencia(propriedades);
             var achada = PrimeiraPasta(valor);
             if (achada != null) return achada;
-            Infra.Log.Info(files == null ? "ARMPDFLOTE: Preferences.Files sem propriedade da pasta de estilos" : $"ARMPDFLOTE: Preferences.Files.{prop} = \"{valor}\" (não serve)");
+            Infra.Log.Info(files == null ? $"ARMPDFLOTE: Preferences.Files sem {string.Join("/", propriedades)}" : $"ARMPDFLOTE: Preferences.Files.{prop} = \"{valor}\" (não serve)");
         }
-        catch (Exception ex) { Infra.Log.Erro("ARMPDFLOTE: pasta de estilos pelas preferências", ex); }
+        catch (Exception ex) { Infra.Log.Erro("ARMPDFLOTE: preferências " + string.Join("/", propriedades), ex); }
         try
         {
-            // perfil corrente no registro: <raiz do produto>\Profiles\<CPROFILE>\General\PrinterStyleSheetDir
             var raiz = HostApplicationServices.Current.UserRegistryProductRootKey;
             var perfil = Convert.ToString(CadApp.GetSystemVariable("CPROFILE"));
             using var k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey($@"{raiz}\Profiles\{perfil}\General");
-            var valor = k?.GetValue("PrinterStyleSheetDir") as string;
+            var valor = k?.GetValue(valorPerfil) as string;
             var achada = PrimeiraPasta(Environment.ExpandEnvironmentVariables(valor ?? ""));
             if (achada != null) return achada;
-            Infra.Log.Info($"ARMPDFLOTE: {raiz}\\Profiles\\{perfil}\\General\\PrinterStyleSheetDir = \"{valor}\" (não serve)");
+            Infra.Log.Info($@"ARMPDFLOTE: {raiz}\Profiles\{perfil}\General\{valorPerfil} = ""{valor}"" (não serve)");
         }
-        catch (Exception ex) { Infra.Log.Erro("ARMPDFLOTE: pasta de estilos pelo registro do perfil", ex); }
+        catch (Exception ex) { Infra.Log.Erro("ARMPDFLOTE: registro do perfil " + valorPerfil, ex); }
+        return null;
+    }
+
+    /// <summary>
+    /// Pasta de estilos de plotagem (ctb) do CAD em uso: <see cref="PastaDoCad"/> (preferências; no GstarCAD 2021, o
+    /// PrinterStyleSheetDir do perfil) e, por último, a pasta de um ctb da lista achado pelo FindFile do CAD.
+    /// </summary>
+    public static string PastaEstilos()
+    {
+        var p = PastaDoCad(PropsEstilos, "PrinterStyleSheetDir");
+        if (p != null) return p;
         try
         {
             var db = HostApplicationServices.WorkingDatabase;

@@ -202,12 +202,25 @@ public class FormulariosPapelTests
     }
 
     [Fact]
-    public void InstrucoesDoPc3()
+    public void DriverQueIgnoraFormulariosPersonalizados()
     {
-        var t = FormulariosPapel.InstrucoesPc3(FormatosFolha.Padrao(), ImpressorasPdf.AutoCadPdf);
-        Assert.Contains("Custom Paper Sizes", t);
-        Assert.Contains("911,1", t);
-        Assert.True(t.IndexOf("A4 (ISO A4)") < t.IndexOf("A0++"));
+        // Microsoft Print to PDF: os forms de usuário existem no Windows, mas o driver lista só os papéis fixos dele
+        // (lista real dela, conferida em 17/11: os papéis fixos + o form "A4 (ISO A4)", que coincide com o A4 dela)
+        var forms = new[]
+        {
+            new FormularioWindows("A4", 210000, 297000, TipoFormulario.Interno),
+            new FormularioWindows("A4 (ISO A4)", 210000, 297000),
+            new FormularioWindows("A0", 1189000, 841000), new FormularioWindows("A0++", 1486300, 841000),
+        };
+        var fixos = new System.Collections.Generic.HashSet<string> { "Carta", "Ofício", "A3", "A4", "A5", "B4 (JIS)", "A4 (ISO A4)" };
+        Assert.True(FormulariosPapel.DriverIgnoraPersonalizados(forms, fixos));
+        Assert.Equal(new[] { "A0", "A0++" }, FormulariosPapel.FormsQueODriverNaoMostra(forms, fixos));
+        // PDF24: o driver lista os forms de usuário
+        Assert.False(FormulariosPapel.DriverIgnoraPersonalizados(forms, new System.Collections.Generic.HashSet<string> { "A4", "A4 (ISO A4)", "A0", "A0++" }));
+        // sem forms de usuário ou sem a lista do driver: não dá para afirmar
+        Assert.False(FormulariosPapel.DriverIgnoraPersonalizados(forms.Take(1), fixos));
+        Assert.False(FormulariosPapel.DriverIgnoraPersonalizados(forms, new System.Collections.Generic.HashSet<string>()));
+        Assert.Contains("não aceita tamanhos personalizados", FormulariosPapel.MensagemDriverSemPersonalizados("Microsoft Print to PDF"));
     }
 
     [Theory]

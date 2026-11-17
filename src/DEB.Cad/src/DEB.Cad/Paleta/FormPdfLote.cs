@@ -260,6 +260,7 @@ internal sealed class FormPdfLote : Form
         if (!forcar && string.Equals(imp, _midiasDe, StringComparison.OrdinalIgnoreCase)) return;
         _midiasDe = imp;
         _midias = PlotadorPdf.NomesMidias(imp);
+        _motivoSemFolhas = PlotadorPdf.MotivoSemFolhas(imp);
         if (_midias == null && ImpressorasPdf.Tipo(imp) != TipoImpressoraPdf.Pc3)
         {
             var papeis = FormulariosWindows.PapeisDaImpressora(imp); // sem desenho aberto: pergunta ao driver
@@ -270,7 +271,11 @@ internal sealed class FormPdfLote : Form
     /// <summary>A impressora escolhida tem a folha deste formato? (sem a lista: considera que sim)</summary>
     private bool TemFolha(FormatoFolha f) => f == null || _midias == null || _midias.Contains(f.Nome.Trim());
 
-    private const string AvisoSemFolha = "a impressora não tem esta folha: crie as folhas na impressora";
+    /// <summary>Por que a impressora escolhida não pode ter as folhas (driver sem tamanhos personalizados); null = basta criá-las.</summary>
+    private string _motivoSemFolhas;
+
+    /// <summary>Aviso da linha sem a folha: a causa específica, quando conhecida, ou "crie as folhas".</summary>
+    private string AvisoSemFolha => _motivoSemFolhas ?? "a impressora não tem esta folha: crie as folhas na impressora";
 
     private void Preencher()
     {
@@ -344,11 +349,7 @@ internal sealed class FormPdfLote : Form
         GuardarEscolhas();
         var imp = _cfg.ImpressoraLote;
         const string titulo = "DEB - Criar folhas na impressora";
-        if (ImpressorasPdf.Tipo(imp) == TipoImpressoraPdf.Pc3)
-        {
-            MessageBox.Show(this, FormulariosPapel.InstrucoesPc3(_cfg.Formatos, imp), titulo, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
+        if (ImpressorasPdf.Tipo(imp) == TipoImpressoraPdf.Pc3) { CriarFolhasPc3(imp, titulo); return; }
         try
         {
             List<FormularioWindows> existentes;
@@ -384,10 +385,14 @@ internal sealed class FormPdfLote : Form
             finally { Cursor = Cursors.Default; }
             Log.Info("ARMPDFLOTE: criar folhas na impressora — " + res.Texto().Replace(Environment.NewLine, " | "));
 
+            PlotadorPdf.EsquecerMotivos();
             AtualizarMidias(true);
             Preencher();
             var faltam = FormulariosPapel.EmOrdem(_cfg.Formatos).Where(f => !TemFolha(f)).Select(f => f.Nome).ToList();
-            string conferencia = _midias == null ? ""
+            // conferência no driver: a Microsoft Print to PDF, por exemplo, não mostra formulários personalizados
+            var motivo = PlotadorPdf.MotivoSemFolhas(imp);
+            string conferencia = motivo != null ? $"\n\nAtenção: {motivo}."
+                : _midias == null ? ""
                 : faltam.Count == 0 ? $"\n\nA impressora \"{imp}\" já lista todas as folhas."
                 : $"\n\nA impressora \"{imp}\" ainda não lista: {string.Join(", ", faltam)}. Se acabaram de ser criadas, feche e abra o CAD.";
             MessageBox.Show(this, res.Texto() + conferencia, titulo, MessageBoxButtons.OK,
@@ -404,6 +409,44 @@ internal sealed class FormPdfLote : Form
         {
             Log.Erro("ARMPDFLOTE: criar folhas na impressora", ex);
             MessageBox.Show(this, "Não deu para criar as folhas: " + ex.Message, titulo, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    /// <summary>
+    /// .pc3 (AutoCAD PDF ou outra): cria/ajusta as folhas da lista no .pmp da impressora, conciliando com as que já existem
+    /// (pedido do usuário: "apenas criar e sobrescrever o que já tem"). Uma confirmação curta e o resumo no fim.
+    /// </summary>
+    private void CriarFolhasPc3(string imp, string titulo)
+    {
+        try
+        {
+            var plano = FolhasPc3.Planejar(imp, _cfg.Formatos);
+            if (plano.Mudancas == 0)
+            {
+                MessageBox.Show(this, TamanhosPc3.Resumo(plano.Passos, imp), titulo, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            int n = plano.Passos.Count(p => p.Acao != AcaoTamanhoPc3.Manter);
+            if (MessageBox.Show(this, $"Criar/ajustar {n} folha(s) em \"{imp}\"?\n(cópia de segurança do arquivo atual é guardada ao lado dele)",
+                    titulo, MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+            string resumo;
+            Cursor = Cursors.WaitCursor;
+            try { resumo = FolhasPc3.Aplicar(plano); }
+            finally { Cursor = Cursors.Default; }
+            AtualizarMidias(true);
+            Preencher();
+            var faltam = FormulariosPapel.EmOrdem(_cfg.Formatos).Where(f => !TemFolha(f)).Select(f => f.Nome).ToList();
+            if (_midias != null && faltam.Count > 0)
+                resumo += $"\n\nO CAD ainda não lista: {string.Join(", ", faltam)}. Feche e abra o CAD para ele reler a impressora.";
+            MessageBox.Show(this, resumo, titulo, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            var d = ErrosLotePdf.Classificar(ex, EtapaLotePdf.Configurar);
+            Log.ErroDetalhado("ARMPDFLOTE: criar folhas na " + imp, d.Detalhado(null, null, DateTime.Now));
+            MessageBox.Show(this, "Não deu para criar as folhas: " + d.Mensagem + "\n\nDetalhes no log: " + Log.ArquivoHoje, titulo,
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -448,7 +491,8 @@ internal sealed class FormPdfLote : Form
         var semFolha = sel.Where(f => !TemFolha(f.Formato)).Select(f => f.Formato.Nome).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if (semFolha.Count > 0 &&
             MessageBox.Show(this, $"A impressora \"{_cfg.ImpressoraLote}\" não tem a(s) folha(s): {string.Join(", ", semFolha)}.\n" +
-                                  "Use \"Criar folhas na impressora\" antes. Essas folhas vão dar erro no lote.\n\nExportar mesmo assim?",
+                                  (_motivoSemFolhas != null ? "Causa: " + _motivoSemFolhas + "." : "Use \"Criar folhas na impressora\" antes.") +
+                                  " Essas folhas vão dar erro no lote.\n\nExportar mesmo assim?",
                 Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
             return;
         if (!_cfg.NaPastaDoDesenho && !Directory.Exists(_cfg.PastaDestino))

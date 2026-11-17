@@ -186,22 +186,43 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
     passo por vez: apaga e cria em seguida. Chamada ao Windows em `Pdf/FormulariosWindows.cs` (OpenPrinter(null) com
     SERVER_ACCESS_ADMINISTER, EnumForms/AddForm/DeleteForm nível 1); funcionou sem administrador no Windows 10; erro 5 =
     mensagem "abra o CAD como administrador" (sem contorno). No fim relê as folhas e mostra criados/recriados/pulados/erros.
-  - .pc3 (AutoCAD PDF): só instruções (Plotter Manager → a .pc3 → Custom Paper Sizes → Add, margens 0, nomes exatos, na
-    ordem). O .pmp NÃO é gravado: ver "Formato do .pmp" abaixo.
+  - .pc3 (AutoCAD PDF ou outra .pc3 da Autodesk; pedido de 17/11): CRIA as folhas no .pmp ligado ao .pc3 (`Pdf/FolhasPc3.cs`;
+    regra no núcleo `TamanhosPc3`). Confirmação curta ("Criar/ajustar N folha(s) em X?") e resumo. Conciliação: mesmo nome e
+    tamanho = mantida; mesmo nome e outro tamanho = ajustada; outra folha do mesmo tamanho (±1 mm, qualquer orientação) =
+    reaproveitada com o nome da lista (não duplica; ex.: "A1" vira "A1 (ISO A1)"); senão criada (deitada, como o assistente da
+    Autodesk). Folhas fora da lista ficam. Cópia `.pmp.bak_AAAAMMDD-HHMMSS` antes de gravar; .pc3 sem .pmp (ou ligado a um
+    caminho que não existe neste PC) ganha um .pmp novo em PrinterDescDir ("PMP Files") e é ligado a ele (cópia `.pc3.bak_…`).
+    Pastas: Preferences.Files.PrinterConfigPath/PrinterDescPath ou PrinterConfigDir/PrinterDescDir do perfil. Depois:
+    `PlotConfigManager.RefreshList(RefreshCode.All)`; se a janela ainda não listar, ela pede para reabrir o CAD.
+    GstarCAD: os .pc3/.pmp dele são binários (outro formato) → o botão explica e não grava.
+  - Impressora do Windows cujo driver não mostra formulários personalizados (Microsoft Print to PDF: só papéis fixos + o form
+    que coincide com um deles, como "A4 (ISO A4)"): forms de usuário que existem no Windows e o driver não lista →
+    "o driver da X não aceita tamanhos personalizados; use PDF24 ou AutoCAD PDF" (no fim do botão, nas linhas da janela e na
+    causa da falha do lote: `FormulariosPapel.DriverIgnoraPersonalizados`, `CausaErroPdf.DriverSemTamanhoPersonalizado`).
   - Fora do CAD (outro computador): `tools\criar_folhas_pdf24.ps1` (mesma regra, em PowerShell; instalado em
     `<pasta do plugin>\ferramentas`): `powershell -ExecutionPolicy Bypass -File criar_folhas_pdf24.ps1` mostra o plano e
     pergunta; `-Listar` só lista; `-Sim` sem perguntas; `-SubstituirDoDriver`; `-Config <json>`; `-Impressora <nome>`.
   - Teste (17/11): núcleo (`FormulariosPapelTests`); winspool com um form de TESTE ("ZZ teste DEB", criado e apagado; EnumForms
     igual antes/depois); script com uma lista de teste (criar, ordem, recriar, "nada a fazer"); janela numa instância separada
     do GstarCAD (BM_CLICK + PrintWindow): com os forms certos, "Nada a fazer".
-- **Formato do .pmp** (levantado em 17/11 nos .pmp do DWG TrueView 2022; NÃO gravado pelo plugin): cabeçalho ASCII
+- **Formato do .pmp** (levantado em 17/11 nos .pmp do DWG TrueView 2022; gravado pelo plugin desde 17/11, ver abaixo): cabeçalho ASCII
   `PIAFILEVERSION_2.0,PC3VER1,compress\r\npmzlibcodec` (48 bytes), depois 3 inteiros de 32 bits little-endian: Adler-32 dos
   bytes compactados, tamanho descompactado e tamanho compactado; em seguida o fluxo zlib. Dentro, texto terminado em `\0`
   com blocos `meta{}`, `mod{}`, `udm{ calibration{} media{ size{ 0{ caps_type=2 name="UserDefinedMetric (L x A MM)"
   localized_name="<nome>" media_description_name=… media_group=15 landscape_mode=TRUE } … } description{ … media_bounds_urx=…
   printable_bounds_*=… printable_area=… dimensional=TRUE } } }` e `hidden{}`. Valores não exatos em float levam um código entre
-  parênteses (ex.: `911.08331299 (    H*IXC$!X20)`) que não foi decifrado; há ainda entradas órfãs (`User-1`). Gravar o
-  .pmp exige testar num AutoCAD (PC2).
+  parênteses (ex.: `911.08331299 (    H*IXC$!X20)`): 6 bits por caractere (ASCII − 32) com os 8 bytes do double em
+  little-endian + 16 bits de conferência NÃO decifrados (não é CRC-16, soma, Fletcher nem Adler). O código é OPCIONAL: valor só
+  em decimal é aceito. O Adler-32 do cabeçalho é dos bytes COMPRIMIDOS (igual ao .ctb). Há entradas órfãs (`User-1`).
+  Ligação size ↔ description: `media_description_name` do size = `name` da description; o nome que o CAD mostra é o
+  `localized_name`. .pc3 sem .pmp: `meta{ user_defined_model_pathname="` vazio. Leitura/gravação genérica: `ArquivoPia`.
+  **Validação (17/11, console do DWG TrueView 2022 = `accoreconsole.exe /i <dwg> /s <scr>`, sem janela)**: no console o `PLOT`
+  é a versão de linha de comando (`-PLOT` não existe; nomes com espaço SEM aspas; `?` lista dispositivos e papéis). Com
+  cópia de segurança da pasta Plotters do TrueView: (1) folha nova "1000.3 × 707.15" sem código no .pmp existente → listada e
+  plotada (PDF 1000,1 × 707,3 mm); (2) .pmp criado do zero (meta do .pc3 + udm, sem `mod`) ligado à "Smallest File.pc3" →
+  listado e plotado; (3) o gravador C# (`TamanhosPc3` + `ArquivoPia`, por um console descartável) nas duas .pc3: 9 folhas
+  com os nomes da lista, A0++ 1486,3 × 841, A4 297 × 210, A1 (ISO A1) 841 × 594, A1+ 911,1 × 594. Pasta restaurada e
+  conferida igual ao backup. No AutoCAD de verdade o botão e o `RefreshList` ainda NÃO foram testados (só no PC2).
 - **Plotagem** (`Pdf/PlotadorPdf.cs`): `PlotInfo.OverrideSettings` com uma cópia do layout (o page setup salvo não muda), janela
   na moldura, ajustar à folha, centralizado, giro 90° só quando a orientação do desenho ≠ a do formulário, ctb escolhido.
   `BACKGROUNDPLOT` = 0 durante o lote. DWG fechado: aberto só-leitura, plotado e fechado sem salvar; desenho aberto: volta o
@@ -220,6 +241,45 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   3 layouts num DWG (A0, A0, A4), cancelar no meio, desenhos abertos, gravar no layout e a janela/relatório pelo próprio
   ARMPDFLOTE (BM_CLICK): tudo certo; a PDF24 sempre restaurada. Com monochrome.ctb as linhas saem pretas; hachuras em cor
   verdadeira continuam coloridas (o GstarCAD não converte cor verdadeira pelo ctb).
+- **PCEB.ctb** (pedido de 17/11: "quando a pessoa não tem o ctb, criar um padrão copiando o ctb atual"): `DEB.Core/Documentacao/
+  EstiloPlotagemPadrao.cs` monta o texto do ctb (tudo preto, exceções em `Excecoes`: cores 1, 10 e 20 vermelhas, 4 ciano, 5 azul,
+  250-253 e 255 cor do objeto, 254 cinza claro; lineweight 0, linetype 31… iguais nas 255 cores; `custom_lineweight_table`
+  0,0…2,11) e grava o arquivo (zlib à mão sobre o DeflateStream). Teste: o texto com descrição vazia tem o SHA-256 do ctb do
+  escritório (o arquivo original fica fora do Git); a descrição gravada é neutra ("PCEB - estilo padrao de plotagem", ASCII).
+  Escolha (`Escolher`): o ctb da janela, senão o do layout; inexistente neste PC ou vazio → PCEB.ctb, com aviso na linha do
+  relatório ("ctb X não encontrado neste computador; usado PCEB.ctb"). PCEB.ctb existente NUNCA é sobrescrito.
+  **O GstarCAD lê a lista de estilos uma vez por sessão** (17/11: gravar no meio, `RefreshLists` e regravar a pasta nas
+  preferências não adiantam) → o plugin grava PCEB.ctb ao CARREGAR (`PlotadorPdf.GarantirPcebAoCarregar`, em
+  `Plugin.Initialize`); se mesmo assim faltar, a falha diz "feche e abra o CAD". Pasta: `Preferences.Files.PrinterStyleSheetPath`
+  (o GstarCAD 2021 responde DISP_E_UNKNOWNNAME) → `PrinterStyleSheetDir` do perfil (`UserRegistryProductRootKey\Profiles\
+  <CPROFILE>\General`) → FindFile de um ctb da lista. PCEB.ctb também aparece no combo da janela.
+- **Folhas no Model** (pedido de 17/11: DWGs de outro computador sem layout): regra no núcleo (`FolhasModeloPdf`): algum layout
+  com moldura reconhecida → só os layouts; nenhum (sem layout, layouts vazios/só viewport, sem moldura) → as molduras do Model,
+  uma folha por moldura ("Model", "Model 2"…; PDF "<dwg> - Model 2.pdf" com 2+); nada em lugar nenhum → linha de erro
+  "nenhuma moldura/carimbo encontrado no Model nem nos layouts" (desmarcada, no log). No Model a moldura está em escala: formato
+  por unidade (mm, cm, m) × escala usual (1:1…1:1000), menor diferença relativa; ficam só as molduras externas (a polilinha
+  dentro do carimbo sai) e com ≥ 20% da maior (seção de pilar solta sai). Blocos do Model são explodidos em memória se forem
+  grandes ou tiverem sozinhos a medida de um formato (até 3000). Plotagem do Model: janela na moldura, sempre.
+- **Page setup de outro computador** (impressora/papel/ctb inexistentes): a configuração é feita sobre a cópia do page setup;
+  se o validador recusar, refaz do zero (`new PlotSettings`) e avisa. O giro sai do tamanho REAL do papel (`PlotPaperSize`).
+- **Erros** (pedido de 17/11: "quando der algum erro saber do que se trata"): `DEB.Core/Documentacao/ErrosLotePdf.cs` classifica
+  (exceção + internas, HRESULT/Win32, ErrorStatus do CAD na mensagem, etapa) em `CausaErroPdf` com mensagem curta e dica:
+  PDF24 não instalada, impressora inexistente, papel inexistente ("use Criar folhas na impressora"), driver sem tamanhos
+  personalizados, formato não escolhido, sem moldura, ctb não encontrado, DWG não abre / em uso / danificado ou versão nova,
+  PDF não gerado em X s (PDF24 travada?), PDF de destino aberto em outro programa / somente leitura (conferido ANTES de plotar),
+  pasta sem permissão / não encontrada, disco cheio, CAD ocupado, plotagem falhou, cancelado. O plugin lança
+  `ErroLotePdfException` nos casos conhecidos. Uma falha não para o lote. Relatório: resumo, "Por que falharam" (por causa),
+  uma linha por folha com etapa, avisos; botões "Copiar detalhes do erro" (área de transferência: relatório + bloco técnico de
+  cada falha: data/hora, arquivo, folha, etapa, causa, exceção, HRESULT, Win32, pilha) e "Abrir log". Log = o do plugin
+  (`deb_AAAAMMDD.log`, `Log.ErroDetalhado`). Barreira no comando: nada sobe para o CAD. A PDF24 é restaurada por folha
+  (Dispose) e de novo no fim do lote.
+- Teste (17/11, GstarCAD 2021, instância separada; DWG de teste criado pelo autoteste com `ARM_PDFLOTE_CRIARMODEL`: só Model, 2
+  molduras A1 a 1:50 em cm + seção 42 × 29,7 dentro, page setup "Plotter Inexistente.pc3"/ctb inexistente escrito via DXF):
+  2 PDFs A1 com PCEB.ctb (cor 1 vermelha, cor 3 preta), seção ignorada, aviso do ctb; erros provocados com
+  `ARM_PDFLOTE_FORMATO_ERRADO` (papel inexistente) e `ARM_PDFLOTE_TRAVAR=1` (PDF de destino aberto): mensagens, relatório
+  (`ARM_PDFLOTE_RELATORIO_PNG`) e "Copiar detalhes" conferidos; `ARM_PDFLOTE_FOLHAS_DIAG=1` (só leitura): Microsoft Print to
+  PDF → "driver não aceita tamanhos personalizados"; "DWG To PDF.pc3" do GstarCAD → "formato próprio, não cria folhas".
+  A instância de teste carrega a DLL do bin por NETLOAD antes do carregador do plugin instalado (sem copiar DLLs).
 
 ## Port para AutoCAD e ZWCAD: comportamentos
 - Descrição da barra: barra nova nasce girada com o maior segmento; a cópia recria o texto com a posição relativa e a

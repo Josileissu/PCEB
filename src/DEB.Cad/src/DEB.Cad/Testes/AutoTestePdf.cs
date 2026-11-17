@@ -218,6 +218,18 @@ public sealed class AutoTestePdf
             var soModel = Environment.GetEnvironmentVariable("ARM_PDFLOTE_CRIARMODEL"); // DWG só com Model e page setup de outro PC
             if (!string.IsNullOrEmpty(soModel)) { CriarSoModel(soModel); L("criado " + soModel); }
             L("pasta de estilos: " + (PlotadorPdf.PastaEstilos() ?? "(não achada)"));
+            if (Environment.GetEnvironmentVariable("ARM_PDFLOTE_FOLHAS_DIAG") == "1")
+            {
+                // só leitura: o que o botão "Criar folhas na impressora" diria (nada é gravado)
+                foreach (var i in new[] { "Microsoft Print to PDF", "PDF24" })
+                    L($"motivo sem folhas em {i}: {PlotadorPdf.MotivoSemFolhas(i) ?? "(nenhum: basta criar)"}");
+                L("pasta dos .pc3: " + (FolhasPc3.PastaPc3() ?? "(não achada)"));
+                foreach (var pc3 in new[] { "DWG To PDF.pc3", "Inexistente.pc3" })
+                {
+                    try { var p = FolhasPc3.Planejar(pc3, cfg.Formatos); L($"plano {pc3}: {p.Mudancas} mudança(s), pmp {p.Pmp}"); }
+                    catch (Exception ex) { L($"plano {pc3}: {ErrosLotePdf.Classificar(ex, EtapaLotePdf.Configurar).Resumo}"); }
+                }
+            }
             var entrada = Environment.GetEnvironmentVariable("ARM_PDFLOTE_ARQUIVOS") ?? "";
             var arquivos = Directory.Exists(entrada)
                 ? Directory.GetFiles(entrada, "*.dwg").OrderBy(a => a).ToList()

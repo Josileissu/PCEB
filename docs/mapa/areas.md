@@ -22,6 +22,6 @@ quadro (`docs/00_escopo/coordenacao.md`); confira lá antes de começar.
 | Laje alveolar | `src/DEB.Core/Lajes`; `src/DEB.Revit/src/LajeAlveolar` | `LajeAlveolar` | P1-8 |
 | Formas (Revit) | `src/DEB.Core/Formas`; `src/DEB.Revit/src/Formas` | `Formas` | P1-9 |
 | Importação QiCad, reconhecimento | `src/DEB.Core/Importacao`, `Reconhecimento` | `ImportacaoQiCad`, `Reconhecimento` | — |
-| PDFs em lote no CAD (ARMPDFLOTE) | `src/DEB.Core/Documentacao/LotePdf.cs`; `src/DEB.Cad/src/DEB.Cad/Pdf`, `Paleta/FormPdfLote.cs` | `LotePdf`; `ARMTESTEPDFLOTE` no CAD | P2-11 |
+| PDFs em lote no CAD (ARMPDFLOTE) | `src/DEB.Core/Documentacao/LotePdf.cs`, `EstiloPlotagemPadrao.cs` (PCEB.ctb), `FolhasModeloPdf.cs`, `ErrosLotePdf.cs`, `ArquivoPia.cs` + `TamanhosPc3.cs` (.pmp), `FormulariosPapel.cs`; `src/DEB.Cad/src/DEB.Cad/Pdf`, `Paleta/FormPdfLote.cs` | `LotePdf`, `LotePdfCtbErros`, `TamanhosPc3`, `FormulariosPapel`; `ARMTESTEPDFLOTE` no CAD | P2-11 |
 | Plugin CAD (comandos, paleta, sincronizador) | `src/DEB.Cad/src` | autoteste no CAD (`comandos.md`) | — |
 | Plugin Revit (comandos, prancha) | `src/DEB.Revit/src` | AutoRun no Revit (`comandos.md`) | — |

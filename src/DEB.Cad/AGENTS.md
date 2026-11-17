@@ -75,6 +75,11 @@ XData `ARMADURA_BR`), e não entidade C++ (GRX). O DWG tem de abrir legível sem
   `docs/CONVENCOES.md`, "PDFs em lote"). Comando Session que abre DWG: o roteiro .scr segue para a linha seguinte no meio dele.
   Formulários de papel do Windows ("Criar folhas na impressora"): para testar, crie e apague um form com nome de TESTE e
   compare o EnumForms antes/depois; NÃO recrie os forms da lista no PC do usuário sem ele pedir (muda os códigos UserNNNNN).
+  GstarCAD guarda a lista de estilos de plotagem da sessão: ctb gravado depois da 1ª consulta só aparece ao reabrir (por isso
+  o PCEB.ctb é gravado no `Plugin.Initialize`). `Preferences.Files.PrinterStyleSheetPath` não existe no GstarCAD 2021
+  (DISP_E_UNKNOWNNAME): pasta pelo `PrinterStyleSheetDir` do perfil. Os .pc3/.pmp do GstarCAD são binários (não são PIA).
+  .pmp/.pc3 da Autodesk sem AutoCAD: o `accoreconsole.exe` do DWG TrueView 2022 plota por roteiro (`PLOT`, nomes sem aspas,
+  `?` lista papéis) — faça backup da pasta Plotters do TrueView e restaure.
 
 ## Convenções e procedimentos que valem sempre
 - Unidades do desenho e das medidas escritas (cm, m ou mm; ARMUNIDADES): ver `docs/CONVENCOES.md`. Tudo passa por

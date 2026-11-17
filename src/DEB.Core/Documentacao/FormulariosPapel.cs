@@ -285,28 +285,25 @@ public static class FormulariosPapel
     }
 
     /// <summary>
-    /// Instruções para criar as folhas à mão como tamanhos personalizados de uma impressora .pc3 do AutoCAD (o arquivo PMP não é
-    /// gravado pelo plugin: o formato tem números codificados que ainda não foram conferidos num AutoCAD).
+    /// O driver da impressora ignora os formulários de papel personalizados do Windows? Sim quando algum formulário de usuário que
+    /// existe no Windows não aparece na lista do driver (a Microsoft Print to PDF mostra só os papéis fixos dela e, dos forms de
+    /// usuário, só o que coincide com um deles, como o "A4 (ISO A4)"; a PDF24 mostra todos). Sem forms de usuário ou sem a lista
+    /// do driver não dá para afirmar (false).
     /// </summary>
-    public static string InstrucoesPc3(IEnumerable<FormatoFolha> formatos, string pc3)
+    public static bool DriverIgnoraPersonalizados(IEnumerable<FormularioWindows> formsDoWindows, ICollection<string> papeisDoDriver) =>
+        FormsQueODriverNaoMostra(formsDoWindows, papeisDoDriver).Count > 0;
+
+    /// <summary>Formulários de usuário do Windows que o driver não lista (vazio sem forms ou sem a lista do driver).</summary>
+    public static List<string> FormsQueODriverNaoMostra(IEnumerable<FormularioWindows> formsDoWindows, ICollection<string> papeisDoDriver)
     {
-        var l = new List<string>
-        {
-            $"Crie as folhas como tamanhos de papel personalizados da \"{pc3}\":",
-            "",
-            "1. Comando PLOTTERMANAGER → abra \"" + pc3 + "\".",
-            "2. Aba \"Device and Document Settings\" → \"Custom Paper Sizes\" → \"Add…\".",
-            "3. \"Start from scratch\" → largura e altura abaixo em Millimeters → margens (Printable Area) todas 0 →",
-            "   nome EXATAMENTE como abaixo → Finish. Repita para cada folha, nesta ordem (crescente).",
-            "4. OK e salve as alterações na .pc3 (o AutoCAD grava no arquivo .pmp dela).",
-            "",
-        };
-        foreach (var f in EmOrdem(formatos))
-            l.Add($"   {f.Nome,-14} {Fmt.Virgula(f.Largura, "0.#"),8} × {Fmt.Virgula(f.Altura, "0.#")} mm");
-        l.Add("");
-        l.Add("Depois feche e abra o ARMPDFLOTE para conferir: as linhas sem a folha na impressora avisam \"crie as folhas na impressora\".");
-        return string.Join(Environment.NewLine, l);
+        var usuario = (formsDoWindows ?? Enumerable.Empty<FormularioWindows>()).Where(f => f.Tipo == TipoFormulario.Usuario).Select(f => f.Nome.Trim()).ToList();
+        if (usuario.Count == 0 || papeisDoDriver == null || papeisDoDriver.Count == 0) return new List<string>();
+        var driver = new HashSet<string>(papeisDoDriver.Select(p => (p ?? "").Trim()), StringComparer.OrdinalIgnoreCase);
+        return usuario.Where(u => !driver.Contains(u)).ToList();
     }
+
+    public static string MensagemDriverSemPersonalizados(string impressora) =>
+        $"o driver da {impressora} não aceita tamanhos personalizados; use PDF24 ou AutoCAD PDF";
 }
 
 /// <summary>Como a impressora escolhida no ARMPDFLOTE salva o PDF.</summary>

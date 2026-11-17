@@ -129,48 +129,10 @@ public static class EstiloPlotagemPadrao
     public static byte[] Gerar(string descricao = DescricaoPadrao) => Empacotar(Encoding.ASCII.GetBytes(Texto(descricao)));
 
     /// <summary>Cabeçalho + (Adler-32 do zlib, tamanho descomprimido, tamanho comprimido) + zlib.</summary>
-    public static byte[] Empacotar(byte[] texto)
-    {
-        var z = Zlib.Comprimir(texto);
-        using var ms = new MemoryStream();
-        var cab = Encoding.ASCII.GetBytes(Cabecalho);
-        ms.Write(cab, 0, cab.Length);
-        void I(uint v) { ms.WriteByte((byte)v); ms.WriteByte((byte)(v >> 8)); ms.WriteByte((byte)(v >> 16)); ms.WriteByte((byte)(v >> 24)); }
-        I(Zlib.Adler32(z, 0, z.Length));
-        I((uint)texto.Length);
-        I((uint)z.Length);
-        ms.Write(z, 0, z.Length);
-        return ms.ToArray();
-    }
+    public static byte[] Empacotar(byte[] texto) => ArquivoPia.Compactar(Encoding.ASCII.GetBytes(Cabecalho), texto);
 
     /// <summary>Texto descomprimido de um .ctb/.stb/.pc3 (confere cabeçalho, Adler-32 e tamanhos; lança InvalidDataException).</summary>
-    public static byte[] Ler(byte[] arquivo)
-    {
-        var marca = Encoding.ASCII.GetBytes("pmzlibcodec");
-        int i = IndexOf(arquivo, marca);
-        if (i < 0 || !Encoding.ASCII.GetString(arquivo, 0, Math.Min(arquivo.Length, 14)).StartsWith("PIAFILEVERSION", StringComparison.Ordinal))
-            throw new InvalidDataException("não é um arquivo PIA compactado (.ctb/.stb/.pc3)");
-        i += marca.Length;
-        if (arquivo.Length < i + 12) throw new InvalidDataException("arquivo truncado");
-        uint adler = BitConverter.ToUInt32(arquivo, i), tamTexto = BitConverter.ToUInt32(arquivo, i + 4), tamZ = BitConverter.ToUInt32(arquivo, i + 8);
-        int ini = i + 12;
-        if (arquivo.Length - ini != tamZ) throw new InvalidDataException($"tamanho comprimido {tamZ} ≠ {arquivo.Length - ini}");
-        if (Zlib.Adler32(arquivo, ini, (int)tamZ) != adler) throw new InvalidDataException("Adler-32 do cabeçalho não confere");
-        var texto = Zlib.Descomprimir(arquivo, ini, (int)tamZ);
-        if (texto.Length != tamTexto) throw new InvalidDataException($"tamanho descomprimido {tamTexto} ≠ {texto.Length}");
-        return texto;
-    }
-
-    private static int IndexOf(byte[] a, byte[] m)
-    {
-        for (int i = 0; i + m.Length <= a.Length && i < 256; i++)
-        {
-            int k = 0;
-            while (k < m.Length && a[i + k] == m[k]) k++;
-            if (k == m.Length) return i;
-        }
-        return -1;
-    }
+    public static byte[] Ler(byte[] arquivo) => ArquivoPia.Descompactar(arquivo, out _);
 
     /// <summary>
     /// Grava PCEB.ctb na pasta de estilos de plotagem se ele ainda não existir (um PCEB.ctb existente nunca é sobrescrito: o
