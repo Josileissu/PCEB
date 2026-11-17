@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using DEB.Core.Documentacao;
+using DEB.Core.Geometria.Secao;
 using DEB.Core.Modelo;
 using DEB.Core.Motor;
 
@@ -82,6 +83,26 @@ public static class ArmaduraPorLinha
     // ======================== posições na seção (testável) ========================
 
     /// <summary>
+    /// Posições de cada linha pela seção do contrato (D28) e cobrimentos por parte nomeada (Topo, Fundo, Esquerda, Direita, até
+    /// o estribo), como <see cref="SecaoBarras.Posicoes(SecaoTransversal, IReadOnlyDictionary{ParteSecao, double}, double, double, int, double, double, int, int, double, string, Configuracao.ConfiguracaoArmadura)"/>.
+    /// Retangular: exatamente <see cref="Posicoes(double, double, double[], double, IReadOnlyList{LinhaLongitudinal}, double)"/>
+    /// (cobrimentos convertidos pela <see cref="FacesRetangulo"/>). Outras famílias e seção medida: sem posições e com
+    /// <see cref="PosicoesPorLinha.Erro"/> — a armadura por linha ainda não foi definida para elas (o arranjo por família da D31
+    /// não é combinado com as linhas).
+    /// </summary>
+    public static PosicoesPorLinha Posicoes(SecaoTransversal secao, IReadOnlyDictionary<ParteSecao, double> cobrimentos, double phiT,
+        IReadOnlyList<LinhaLongitudinal> linhas, double sCanto)
+    {
+        if (secao == null) throw new ArgumentNullException(nameof(secao));
+        if (secao.Familia != FamiliasSecao.Retangular)
+            return new PosicoesPorLinha(null, $"Armadura por linha não definida para esta família ({secao.Familia.Nome}).");
+        double[] cob;
+        try { cob = FacesRetangulo.CobrimentosPorFace(cobrimentos); }
+        catch (ArgumentException e) { return new PosicoesPorLinha(null, e.Message); }
+        return new PosicoesPorLinha(Posicoes(secao.Valor("b"), secao.Valor("h"), cob, phiT, linhas, sCanto), null);
+    }
+
+    /// <summary>
     /// Posições (centro do feixe) de cada linha na seção retangular b × h. Cobrimentos por face (1 = +x, 2 = −y, 3 = −x, 4 = +y)
     /// até o estribo; φt = maior estribo (mm). As barras de um arranjo ficam alinhadas pelo maior feixe do arranjo (a posição não
     /// muda com a altura); as de face ficam entre as do "L" (se houver) ou entre os cantos, divididas por igual.
@@ -121,4 +142,18 @@ public static class ArmaduraPorLinha
         }
         return r;
     }
+}
+
+/// <summary>Posições da armadura por linha numa seção: as barras de cada linha (pelo número da linha), ou o motivo de não haver.</summary>
+public sealed class PosicoesPorLinha
+{
+    internal PosicoesPorLinha(Dictionary<int, List<BarraNaSecao>> porLinha, string erro)
+    {
+        PorLinha = porLinha ?? new Dictionary<int, List<BarraNaSecao>>(); Erro = erro;
+    }
+    /// <summary>Barras (centro do feixe) de cada linha, pelo número da linha; vazio se <see cref="Definido"/> é falso.</summary>
+    public Dictionary<int, List<BarraNaSecao>> PorLinha { get; }
+    /// <summary>Motivo de não haver posições (família sem armadura por linha, cobrimento faltando); null se há.</summary>
+    public string Erro { get; }
+    public bool Definido => Erro == null;
 }
