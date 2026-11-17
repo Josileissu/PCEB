@@ -1,0 +1,27 @@
+# Finais de linha: texto normalizado (LF) no repositório; no Windows o Git entrega CRLF.
+* text=auto
+
+# Sempre CRLF na pasta de trabalho (ferramentas do Windows)
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.iss  text eol=crlf
+*.ps1  text eol=crlf
+*.sln  text eol=crlf
+
+# Sempre LF
+*.sh   text eol=lf
+
+# Binários
+*.dll  binary
+*.exe  binary
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.rvt  binary
+*.rfa  binary
+*.rte  binary
+*.dwg  binary
+*.dxf  binary
+*.woff2 binary
