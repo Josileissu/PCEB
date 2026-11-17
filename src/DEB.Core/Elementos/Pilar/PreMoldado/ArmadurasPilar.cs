@@ -126,7 +126,7 @@ public sealed partial class TemplatePilarPreMoldado
         double yIni = cob[5], yFim = L - cob[4];
 
         var linhas = LerLongitudinais(v, yIni, yFim, r.Avisos);
-        if (linhas.Count == 0) { r.Avisos.Add("Sem armadura longitudinal: inclua as barras na lista \"Barras longitudinais\"."); return x0; }
+        if (linhas.Count == 0) { r.Avisos.Add("Sem armadura longitudinal: inclua as barras na lista \"Armadura por linha (longitudinais)\"."); return x0; }
         var zonas = LerZonas(v, yIni, yFim, L, r.Avisos);
         double phiT = zonas.Max(z => z.Bitola);
         var posicoes = PosicoesLinhas(b, h, cob, phiT, linhas, sCanto);

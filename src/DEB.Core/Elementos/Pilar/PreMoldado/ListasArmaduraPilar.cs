@@ -41,7 +41,7 @@ public sealed partial class TemplatePilarPreMoldado
 
     private static ParametroTemplate ParametroLongitudinais() => new ParametroTemplate
     {
-        Grupo = G7, Nome = "Longitudinais", Rotulo = "Barras longitudinais", Tipo = TipoParametro.Tabela, NomeItem = "linha",
+        Grupo = G7, Nome = "Longitudinais", Rotulo = "Armadura por linha (longitudinais)", Tipo = TipoParametro.Tabela, NomeItem = "linha",
         Padrao = $"{ArrCantos}||25|1||;{ArrAoLado}||20|1||",
         Descricao = "Clique em … para a lista: arranjo (cantos = 4 barras; ao lado dos cantos = 8, em \"L\"; faces = barras por face), " +
                     "bitola, feixe, início e fim (cm da base; vazio = o pilar todo). Para reduzir com a altura, termine uma linha e comece " +
