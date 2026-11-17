@@ -20,6 +20,13 @@ public sealed class ComandosPdf
 {
     internal static string CaminhoConfig => Path.Combine(Log.PastaDados, "pdflote.json");
 
+    /// <summary>No AutoCAD o lote usa por padrão a "AutoCAD PDF (High Quality Print).pc3" (plotar para arquivo); nos outros, a PDF24.</summary>
+#if AUTOCAD
+    internal static readonly bool NoAutoCad = true;
+#else
+    internal static readonly bool NoAutoCad = false;
+#endif
+
     // Session: o lote abre (só leitura) e fecha os DWGs que não estão abertos e troca o desenho ativo
     [Rt.CommandMethod("ARMPDFLOTE", Rt.CommandFlags.Session)]
     public void PdfLote()
@@ -29,6 +36,7 @@ public sealed class ComandosPdf
         try
         {
             var cfg = ConfigLotePdf.Carregar(CaminhoConfig);
+            cfg.NoAutoCad = NoAutoCad;
             System.Collections.Generic.List<FolhaPdf> folhas;
             using (var f = new FormPdfLote(cfg))
             {

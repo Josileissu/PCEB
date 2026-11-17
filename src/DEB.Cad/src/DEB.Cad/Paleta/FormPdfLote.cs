@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.IO;
@@ -42,6 +43,10 @@ internal sealed class FormPdfLote : Form
     private readonly CheckBox _gravar = new CheckBox { Text = "Gravar impressora/folha/estilo no layout (só desenhos abertos; salve depois)", AutoSize = true };
     private readonly CheckBox _abrirPasta = new CheckBox { Text = "Abrir a pasta no fim", AutoSize = true };
     private readonly Label _status = new Label { AutoSize = true, Margin = new Padding(3, 8, 3, 3) };
+    /// <summary>Folhas (nomes locais) da impressora escolhida; null = não deu para ler (não avisa).</summary>
+    private HashSet<string> _midias;
+    private string _midiasDe;
+    private static readonly Color CorAviso = Color.FromArgb(255, 235, 200);
 
     /// <summary>Folhas marcadas, na ordem da lista (depois do OK).</summary>
     public List<FolhaPdf> Selecionadas => _folhas.Where(f => f.Marcada).ToList();
@@ -82,8 +87,18 @@ internal sealed class FormPdfLote : Form
         _grade.DataError += (s, e) => e.ThrowException = false;
 
         // opções
-        foreach (string p in PrinterSettings.InstalledPrinters) _impressora.Items.Add(p);
-        _impressora.Text = cfg.Impressora;
+        if (ComandosPdf.NoAutoCad)
+        {
+            // AutoCAD: a AutoCAD PDF (plotar para arquivo; padrão) e a PDF24, se estiver instalada
+            var dispositivos = PlotadorPdf.Dispositivos();
+            _impressora.Items.Add(dispositivos.FirstOrDefault(d => string.Equals(d, ImpressorasPdf.AutoCadPdf, StringComparison.OrdinalIgnoreCase)) ?? ImpressorasPdf.AutoCadPdf);
+            foreach (string p in PrinterSettings.InstalledPrinters)
+                if (ImpressorasPdf.Tipo(p) == TipoImpressoraPdf.Pdf24) _impressora.Items.Add(p);
+        }
+        else foreach (string p in PrinterSettings.InstalledPrinters) _impressora.Items.Add(p);
+        _impressora.Text = cfg.ImpressoraLote;
+        _impressora.SelectedIndexChanged += (s, e) => { if (!_preenchendo) Preencher(); };
+        _impressora.Leave += (s, e) => Preencher();
         var estilos = PlotadorPdf.EstilosDisponiveis().Where(e => e.EndsWith(".ctb", StringComparison.OrdinalIgnoreCase) || e.EndsWith(".stb", StringComparison.OrdinalIgnoreCase)).ToList();
         _estilo.Items.Add("(o de cada layout)");
         foreach (var e in estilos) _estilo.Items.Add(e);
@@ -96,6 +111,8 @@ internal sealed class FormPdfLote : Form
         Linha(plot, "Impressora", _impressora);
         Linha(plot, "Estilo de plotagem", _estilo);
         Linha(plot, "Área", _area);
+        var criar = Botao("Criar folhas na impressora", (s, e) => CriarFolhas());
+        Linha(plot, "Folhas", criar);
         var gPlot = new GroupBox { Text = "Plotagem (escala ajustada à folha, centralizado)", AutoSize = true, Padding = new Padding(6) };
         plot.Location = new Point(6, 20); // abaixo do título do GroupBox
         gPlot.Controls.Add(plot);
@@ -226,8 +243,28 @@ internal sealed class FormPdfLote : Form
 
     private bool _preenchendo;
 
+    /// <summary>Lê de novo as folhas da impressora escolhida (se ela mudou ou se <paramref name="forcar"/>).</summary>
+    private void AtualizarMidias(bool forcar = false)
+    {
+        var imp = _impressora.Text.Trim();
+        if (!forcar && string.Equals(imp, _midiasDe, StringComparison.OrdinalIgnoreCase)) return;
+        _midiasDe = imp;
+        _midias = PlotadorPdf.NomesMidias(imp);
+        if (_midias == null && ImpressorasPdf.Tipo(imp) != TipoImpressoraPdf.Pc3)
+        {
+            var papeis = FormulariosWindows.PapeisDaImpressora(imp); // sem desenho aberto: pergunta ao driver
+            _midias = papeis.Count > 0 ? papeis : null;
+        }
+    }
+
+    /// <summary>A impressora escolhida tem a folha deste formato? (sem a lista: considera que sim)</summary>
+    private bool TemFolha(FormatoFolha f) => f == null || _midias == null || _midias.Contains(f.Nome.Trim());
+
+    private const string AvisoSemFolha = "a impressora não tem esta folha: crie as folhas na impressora";
+
     private void Preencher()
     {
+        AtualizarMidias();
         _preenchendo = true;
         _grade.Rows.Clear();
         foreach (var f in _folhas)
@@ -236,15 +273,23 @@ internal sealed class FormPdfLote : Form
                 ? FormattableString.Invariant($"{f.Largura * (f.Reconhecido?.Fator > 0 ? f.Reconhecido.Fator : 1):0} × {f.Altura * (f.Reconhecido?.Fator > 0 ? f.Reconhecido.Fator : 1):0}")
                 : "-";
             string origem = f.Erro != null ? "erro: " + f.Erro
+                : f.Formato != null && !TemFolha(f.Formato) ? AvisoSemFolha
                 : f.Reconhecido?.Formato != null ? f.OrigemCaixa + (f.Reconhecido.Fator != 1 ? FormattableString.Invariant($" (papel em {(f.Reconhecido.Fator == 10 ? "cm" : f.Reconhecido.Fator == 1000 ? "m" : "pol")})") : "")
                 : "não reconhecido: escolha o formato";
             int i = _grade.Rows.Add(f.Marcada, f.NomeDesenho + (f.Doc != null ? " (aberto)" : ""), f.Layout, medida, f.Formato?.Nome ?? SemFormato, origem, Path.GetDirectoryName(f.Arquivo));
             _grade.Rows[i].Tag = f;
-            if (f.Formato == null) _grade.Rows[i].Cells["Formato"].Style.BackColor = Color.FromArgb(255, 235, 200);
+            if (f.Formato == null || !TemFolha(f.Formato)) _grade.Rows[i].Cells["Formato"].Style.BackColor = CorAviso;
         }
         _preenchendo = false;
+        AtualizarStatus();
+    }
+
+    private void AtualizarStatus()
+    {
         int sem = _folhas.Count(f => f.Marcada && f.Formato == null);
-        _status.Text = $"{_folhas.Count} folha(s), {_folhas.Count(f => f.Marcada)} marcada(s)" + (sem > 0 ? $", {sem} sem formato (?)" : "");
+        int semFolha = _folhas.Count(f => f.Marcada && f.Formato != null && !TemFolha(f.Formato));
+        _status.Text = $"{_folhas.Count} folha(s), {_folhas.Count(f => f.Marcada)} marcada(s)" + (sem > 0 ? $", {sem} sem formato (?)" : "") +
+                       (semFolha > 0 ? $", {semFolha} sem a folha na impressora" : "");
     }
 
     private void AoMudarCelula(object sender, DataGridViewCellEventArgs e)
@@ -257,10 +302,10 @@ internal sealed class FormPdfLote : Form
         else if (col == "Formato")
         {
             f.Formato = FormatosFolha.PorNome(_cfg.Formatos, Convert.ToString(row.Cells[e.ColumnIndex].Value));
-            row.Cells[e.ColumnIndex].Style.BackColor = f.Formato == null ? Color.FromArgb(255, 235, 200) : _grade.DefaultCellStyle.BackColor;
+            row.Cells[e.ColumnIndex].Style.BackColor = f.Formato == null || !TemFolha(f.Formato) ? CorAviso : _grade.DefaultCellStyle.BackColor;
+            if (f.Formato != null && !TemFolha(f.Formato)) row.Cells["Origem"].Value = AvisoSemFolha;
         }
-        int sem = _folhas.Count(x => x.Marcada && x.Formato == null);
-        _status.Text = $"{_folhas.Count} folha(s), {_folhas.Count(x => x.Marcada)} marcada(s)" + (sem > 0 ? $", {sem} sem formato (?)" : "");
+        AtualizarStatus();
     }
 
     private void Marcar(bool sim)
@@ -277,11 +322,86 @@ internal sealed class FormPdfLote : Form
         _outraPasta.Checked = true;
     }
 
+    // ---------------- criar folhas ----------------
+
+    /// <summary>
+    /// "Criar folhas na impressora": PDF24 (ou outra impressora do Windows) = formulários de papel do Windows da lista de formatos,
+    /// sem margem e em ordem crescente (plano no núcleo: <see cref="FormulariosPapel"/>); .pc3 do AutoCAD = instruções para criar
+    /// os tamanhos personalizados à mão (o .pmp não é gravado).
+    /// </summary>
+    private void CriarFolhas()
+    {
+        GuardarEscolhas();
+        var imp = _cfg.ImpressoraLote;
+        const string titulo = "DEB - Criar folhas na impressora";
+        if (ImpressorasPdf.Tipo(imp) == TipoImpressoraPdf.Pc3)
+        {
+            MessageBox.Show(this, FormulariosPapel.InstrucoesPc3(_cfg.Formatos, imp), titulo, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        try
+        {
+            List<FormularioWindows> existentes;
+            using (var srv = FormulariosWindows.Abrir(false)) existentes = srv.Listar();
+            var plano = FormulariosPapel.Planejar(_cfg.Formatos, existentes, true);
+            var conflitos = plano.ConflitosImpressora;
+            if (conflitos.Count > 0)
+            {
+                var txt = "Já existe formulário instalado pelo driver de uma impressora com o mesmo nome e outro tamanho:\n\n" +
+                          string.Join("\n", conflitos.Select(p => $"   {p.Formato.Nome}: o do driver tem {FormulariosPapel.Mm(p.Existente.Largura)} × " +
+                                                                  $"{FormulariosPapel.Mm(p.Existente.Altura)} mm; a lista pede {FormulariosPapel.Mm(p.Largura)} × {FormulariosPapel.Mm(p.Altura)} mm")) +
+                          "\n\nPode substituir?\nSim = apagar o do driver e criar o da lista\nNão = deixar o do driver e pular essa folha\nCancelar = não fazer nada";
+                var r = MessageBox.Show(this, txt, titulo, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                if (r == DialogResult.Cancel) return;
+                if (r == DialogResult.No) plano = FormulariosPapel.Planejar(_cfg.Formatos, existentes, false);
+            }
+            if (plano.NadaAFazer)
+            {
+                MessageBox.Show(this, plano.TextoConfirmacao(), titulo, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                AtualizarMidias(true); Preencher();
+                return;
+            }
+            if (MessageBox.Show(this, plano.TextoConfirmacao() + "\n\nContinuar?", titulo, MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
+                return;
+
+            ResultadoFormularios res;
+            Cursor = Cursors.WaitCursor;
+            try
+            {
+                using var srv = FormulariosWindows.Abrir(true);
+                res = FormulariosPapel.Aplicar(plano, srv);
+            }
+            finally { Cursor = Cursors.Default; }
+            Log.Info("ARMPDFLOTE: criar folhas na impressora — " + res.Texto().Replace(Environment.NewLine, " | "));
+
+            AtualizarMidias(true);
+            Preencher();
+            var faltam = FormulariosPapel.EmOrdem(_cfg.Formatos).Where(f => !TemFolha(f)).Select(f => f.Nome).ToList();
+            string conferencia = _midias == null ? ""
+                : faltam.Count == 0 ? $"\n\nA impressora \"{imp}\" já lista todas as folhas."
+                : $"\n\nA impressora \"{imp}\" ainda não lista: {string.Join(", ", faltam)}. Se acabaram de ser criadas, feche e abra o CAD.";
+            MessageBox.Show(this, res.Texto() + conferencia, titulo, MessageBoxButtons.OK,
+                res.Erros.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == FormulariosPapel.ErroAcessoNegado)
+        {
+            Log.Erro("ARMPDFLOTE: criar folhas na impressora", ex);
+            MessageBox.Show(this, "O Windows negou acesso aos formulários de papel (" + ex.Message + ").\n\n" +
+                                  "Feche o CAD, abra-o como administrador (botão direito → Executar como administrador) e use o botão de novo.",
+                titulo, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        catch (Exception ex)
+        {
+            Log.Erro("ARMPDFLOTE: criar folhas na impressora", ex);
+            MessageBox.Show(this, "Não deu para criar as folhas: " + ex.Message, titulo, MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     // ---------------- exportar ----------------
 
     private void GuardarEscolhas()
     {
-        _cfg.Impressora = _impressora.Text.Trim();
+        _cfg.ImpressoraLote = _impressora.Text.Trim();
         _cfg.EstiloPlotagem = _estilo.SelectedIndex <= 0 ? "" : _estilo.SelectedItem.ToString();
         _cfg.Area = (AreaPlotLote)Math.Max(0, _area.SelectedIndex);
         _cfg.NaPastaDoDesenho = _naPasta.Checked;
@@ -305,11 +425,21 @@ internal sealed class FormPdfLote : Form
                                   string.Join("\n", sem.Take(15).Select(f => $"{f.NomeDesenho} / {f.Layout}")), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (!Pdf24.EhPdf24(_cfg.Impressora))
+        var tipo = ImpressorasPdf.Tipo(_cfg.ImpressoraLote);
+        if (tipo == TipoImpressoraPdf.Outra || (tipo == TipoImpressoraPdf.Pc3 && !ComandosPdf.NoAutoCad))
         {
-            MessageBox.Show(this, "O lote sem diálogo usa a impressora PDF24 (salvamento automático). Escolha a PDF24.", Text);
+            MessageBox.Show(this, ComandosPdf.NoAutoCad
+                ? "O lote sem diálogo usa a \"" + ImpressorasPdf.AutoCadPdf + "\" (plotar para arquivo) ou a PDF24 (salvamento automático). Escolha uma delas."
+                : "O lote sem diálogo usa a impressora PDF24 (salvamento automático). Escolha a PDF24.", Text);
             return;
         }
+        AtualizarMidias();
+        var semFolha = sel.Where(f => !TemFolha(f.Formato)).Select(f => f.Formato.Nome).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (semFolha.Count > 0 &&
+            MessageBox.Show(this, $"A impressora \"{_cfg.ImpressoraLote}\" não tem a(s) folha(s): {string.Join(", ", semFolha)}.\n" +
+                                  "Use \"Criar folhas na impressora\" antes. Essas folhas vão dar erro no lote.\n\nExportar mesmo assim?",
+                Text, MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            return;
         if (!_cfg.NaPastaDoDesenho && !Directory.Exists(_cfg.PastaDestino))
         {
             if (string.IsNullOrEmpty(_cfg.PastaDestino)) { MessageBox.Show(this, "Escolha a pasta dos PDFs.", Text); return; }

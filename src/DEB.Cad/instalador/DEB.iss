@@ -72,6 +72,8 @@ Source: "{#Bin}\GstarCAD2025\*.dll"; DestDir: "{app}\GstarCAD2025"; Components: 
 Source: "{#Bin}\GstarCAD2026\*.dll"; DestDir: "{app}\GstarCAD2026"; Components: gstarcad; Flags: ignoreversion
 Source: "{#Bin}\GstarCAD2027\*.dll"; DestDir: "{app}\GstarCAD2027"; Components: gstarcad; Flags: ignoreversion
 Source: "{#Raiz}\INSTALACAO.txt"; DestDir: "{app}"; Flags: ignoreversion
+; script dos formulários de papel da PDF24 (o mesmo do botão "Criar folhas na impressora" do ARMPDFLOTE), para usar fora do CAD
+Source: "{#Raiz}\tools\criar_folhas_pdf24.ps1"; DestDir: "{app}\ferramentas"; Flags: ignoreversion
 
 ; AutoCAD: bundle do Autoloader, uma DLL compilada para cada versão (PackageContents.xml escolhe pela série)
 Source: "{#Raiz}\instalador\AutoCAD.bundle\PackageContents.xml"; DestDir: "{#Bundle}"; Components: autocad; Flags: ignoreversion

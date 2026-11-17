@@ -14,7 +14,7 @@ namespace DEB.Cad.Testes;
 /// <summary>
 /// ARMTESTEPDFLOTE: o lote do ARMPDFLOTE sem janela, para a instância de teste. Variáveis de ambiente:
 /// ARM_PDFLOTE_ARQUIVOS = DWGs separados por ";" (ou uma pasta), ARM_PDFLOTE_DESTINO = pasta dos PDFs (vazio = pasta do DWG),
-/// ARM_PDFLOTE_AREA = Moldura|Extensao|Layout, ARM_PDFLOTE_CTB = tabela de penas, ARM_PDFLOTE_ABERTOS = 1 (abre os DWGs antes,
+/// ARM_PDFLOTE_AREA = Moldura|Extensao|Layout, ARM_PDFLOTE_IMPRESSORA = impressora (padrão: a do CAD), ARM_PDFLOTE_CTB = tabela de penas, ARM_PDFLOTE_ABERTOS = 1 (abre os DWGs antes,
 /// para testar o caminho "desenhos abertos"), ARM_PDFLOTE_FIM = 1 (encerra a instância de teste no fim). Relatório em %AppData%\PCEB\DEB.Cad\logs\autoteste_pdflote.txt.
 /// </summary>
 public sealed class AutoTestePdf
@@ -130,8 +130,11 @@ public sealed class AutoTestePdf
             var dest = Environment.GetEnvironmentVariable("ARM_PDFLOTE_DESTINO");
             if (!string.IsNullOrEmpty(dest)) { cfg.NaPastaDoDesenho = false; cfg.PastaDestino = dest; }
             if (Enum.TryParse(Environment.GetEnvironmentVariable("ARM_PDFLOTE_AREA") ?? "", out AreaPlotLote area)) cfg.Area = area;
-            L($"impressora {cfg.Impressora}, estilo '{cfg.EstiloPlotagem}', área {cfg.Area}");
-            try { foreach (var m in PlotadorPdf.ListarMidias(cfg.Impressora)) L("  mídia " + m); }
+            cfg.NoAutoCad = ComandosPdf.NoAutoCad;
+            var imp = Environment.GetEnvironmentVariable("ARM_PDFLOTE_IMPRESSORA"); // ex.: "AutoCAD PDF (High Quality Print).pc3"
+            if (!string.IsNullOrEmpty(imp)) cfg.ImpressoraLote = imp;
+            L($"impressora {cfg.ImpressoraLote}, estilo '{cfg.EstiloPlotagem}', área {cfg.Area}");
+            try { foreach (var m in PlotadorPdf.ListarMidias(cfg.ImpressoraLote)) L("  mídia " + m); }
             catch (Exception ex) { L("  ERRO ao listar mídias: " + ex.Message); }
             L("estilos: " + string.Join(", ", PlotadorPdf.EstilosDisponiveis()));
 

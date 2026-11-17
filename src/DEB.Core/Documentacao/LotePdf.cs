@@ -135,6 +135,19 @@ public sealed class ConfigLotePdf
     [DataMember(Order = 11)] public int EsperaSegundos { get; set; } = 180;
     [DataMember(Order = 12)] public List<FormatoFolha> Formatos { get; set; } = FormatosFolha.Padrao();
     [DataMember(Order = 13)] public bool AbrirPastaNoFim { get; set; }
+    /// <summary>Impressora do lote no AutoCAD (lembrada à parte; no GstarCAD/ZWCAD vale <see cref="Impressora"/>).</summary>
+    [DataMember(Order = 14)] public string ImpressoraAutoCad { get; set; } = ImpressorasPdf.AutoCadPdf;
+
+    /// <summary>O hospedeiro é o AutoCAD (definido pelo comando; não é gravado).</summary>
+    [IgnoreDataMember] public bool NoAutoCad { get; set; }
+
+    /// <summary>Impressora usada pelo lote neste CAD: <see cref="ImpressoraAutoCad"/> no AutoCAD, senão <see cref="Impressora"/>.</summary>
+    [IgnoreDataMember]
+    public string ImpressoraLote
+    {
+        get => NoAutoCad ? ImpressoraAutoCad : Impressora;
+        set { if (NoAutoCad) ImpressoraAutoCad = value; else Impressora = value; }
+    }
 
     [OnDeserializing]
     private void AoDesserializar(StreamingContext _)
@@ -142,7 +155,7 @@ public sealed class ConfigLotePdf
         var p = new ConfigLotePdf();
         Impressora = p.Impressora; EstiloPlotagem = ""; Tolerancia = p.Tolerancia; Area = p.Area;
         PastaDestino = p.PastaDestino; NaPastaDoDesenho = p.NaPastaDoDesenho; UltimaPastaDwg = p.UltimaPastaDwg;
-        EsperaSegundos = p.EsperaSegundos; Formatos = null;
+        EsperaSegundos = p.EsperaSegundos; Formatos = null; ImpressoraAutoCad = p.ImpressoraAutoCad;
     }
 
     [OnDeserialized]
@@ -152,6 +165,7 @@ public sealed class ConfigLotePdf
         if (Tolerancia <= 0) Tolerancia = 10;
         if (EsperaSegundos < 10) EsperaSegundos = 180;
         if (string.IsNullOrWhiteSpace(Impressora)) Impressora = "PDF24";
+        if (string.IsNullOrWhiteSpace(ImpressoraAutoCad)) ImpressoraAutoCad = ImpressorasPdf.AutoCadPdf;
     }
 
     public static ConfigLotePdf Carregar(string caminho)

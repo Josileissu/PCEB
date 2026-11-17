@@ -49,6 +49,36 @@ internal static class PlotadorPdf
         return res;
     }
 
+    /// <summary>
+    /// Nomes LOCAIS das folhas que a impressora oferece neste CAD (para avisar "crie as folhas na impressora"). null = não deu para
+    /// ler (sem desenho aberto, impressora inexistente…): a janela não avisa nada.
+    /// </summary>
+    public static HashSet<string> NomesMidias(string impressora)
+    {
+        if (string.IsNullOrWhiteSpace(impressora) || CadApp.DocumentManager.Count == 0) return null;
+        try
+        {
+            var res = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var l in ListarMidias(impressora.Trim()))
+            {
+                int i = l.IndexOf(" = ", StringComparison.Ordinal);
+                if (i >= 0) res.Add(l.Substring(i + 3).Trim());
+                res.Add((i >= 0 ? l.Substring(0, i) : l).Trim());
+            }
+            return res.Count > 0 ? res : null;
+        }
+        catch (Exception ex) { Infra.Log.Erro("ARMPDFLOTE: folhas da impressora " + impressora, ex); return null; }
+    }
+
+    /// <summary>Configurações de plotagem do CAD (.pc3, ex.: AutoCAD PDF) e impressoras do sistema que o CAD enxerga.</summary>
+    public static List<string> Dispositivos()
+    {
+        var res = new List<string>();
+        try { foreach (string s in PlotSettingsValidator.Current.GetPlotDeviceList()) res.Add(s); }
+        catch (Exception ex) { Infra.Log.Erro("ARMPDFLOTE: lista de impressoras", ex); }
+        return res;
+    }
+
     public static List<string> EstilosDisponiveis()
     {
         var res = new List<string>();
@@ -59,9 +89,10 @@ internal static class PlotadorPdf
 
     /// <summary>
     /// Plota <paramref name="f"/> (documento já ativo e travado pelo chamador). <paramref name="nomeTrabalho"/> = nome do trabalho
-    /// de impressão (a PDF24 usa como nome do arquivo). Devolve um texto com o papel e a área usados (para o log).
+    /// de impressão (a PDF24 usa como nome do arquivo). <paramref name="arquivo"/> = plotar para este arquivo (impressora .pc3,
+    /// ex.: AutoCAD PDF); null = mandar para a impressora. Devolve um texto com o papel e a área usados (para o log).
     /// </summary>
-    public static string Plotar(Document doc, FolhaPdf f, ConfigLotePdf cfg, string nomeTrabalho, bool gravarNoLayout)
+    public static string Plotar(Document doc, FolhaPdf f, ConfigLotePdf cfg, string nomeTrabalho, bool gravarNoLayout, string arquivo = null)
     {
         var db = doc.Database;
         var lm = LayoutManager.Current;
@@ -74,11 +105,12 @@ internal static class PlotadorPdf
             using var ps = new PlotSettings(lay.ModelType);
             ps.CopyFrom(lay);
             var v = PlotSettingsValidator.Current;
-            v.SetPlotConfigurationName(ps, cfg.Impressora, null);
+            var impressora = cfg.ImpressoraLote;
+            v.SetPlotConfigurationName(ps, impressora, null);
             v.RefreshLists(ps);
             var canon = MidiaCanonica(v, ps, f.Formato.Nome)
-                        ?? throw new InvalidOperationException($"a impressora \"{cfg.Impressora}\" não tem a folha \"{f.Formato.Nome}\"");
-            v.SetPlotConfigurationName(ps, cfg.Impressora, canon);
+                        ?? throw new InvalidOperationException($"a impressora \"{impressora}\" não tem a folha \"{f.Formato.Nome}\": crie as folhas na impressora");
+            v.SetPlotConfigurationName(ps, impressora, canon);
             v.SetPlotPaperUnits(ps, PlotPaperUnit.Millimeters);
             if (cfg.Area == AreaPlotLote.Moldura && f.TemCaixa)
             {
@@ -106,7 +138,7 @@ internal static class PlotadorPdf
             using (var pe = Plt.PlotFactory.CreatePublishEngine())
             {
                 pe.BeginPlot(null, null);
-                pe.BeginDocument(pi, nomeTrabalho, null, 1, false, "");
+                pe.BeginDocument(pi, nomeTrabalho, null, 1, arquivo != null, arquivo ?? "");
                 var ppi = new Plt.PlotPageInfo();
                 pe.BeginPage(ppi, pi, true, null);
                 pe.BeginGenerateGraphics(null);

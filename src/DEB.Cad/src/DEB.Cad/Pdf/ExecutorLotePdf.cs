@@ -60,8 +60,9 @@ internal sealed class ExecutorLotePdf
     public List<ResultadoFolha> Executar(IList<FolhaPdf> folhas, ConfigLotePdf cfg)
     {
         var resultados = new List<ResultadoFolha>();
-        if (!Pdf24.EhPdf24(cfg.Impressora))
-            throw new InvalidOperationException($"o lote salva sem diálogo só com a impressora PDF24 (escolhida: {cfg.Impressora})");
+        var tipo = ImpressorasPdf.Tipo(cfg.ImpressoraLote);
+        if (tipo == TipoImpressoraPdf.Outra)
+            throw new InvalidOperationException($"o lote salva sem diálogo só com a PDF24 ou uma .pc3 de PDF (escolhida: {cfg.ImpressoraLote})");
         var destinos = Destinos(folhas, cfg);
         var existentes = destinos.Values.Where(File.Exists).ToList();
         bool sobrescrever = true;
@@ -113,14 +114,24 @@ internal sealed class ExecutorLotePdf
                                 LimparPasta(temp);
                                 var trabalho = Path.GetFileNameWithoutExtension(destino);
                                 string gerado;
-                                // salvamento automático da PDF24 só durante esta folha (plotagem + espera do arquivo)
-                                using (Pdf24.Ativar(temp))
+                                if (tipo == TipoImpressoraPdf.Pc3)
                                 {
-                                    res.Info = PlotadorPdf.Plotar(doc, f, cfg, trabalho, cfg.GravarNoLayout && f.Doc != null);
+                                    // .pc3 (AutoCAD PDF): plotar para arquivo, sem diálogo; a PDF24 não é tocada
+                                    res.Info = PlotadorPdf.Plotar(doc, f, cfg, trabalho, cfg.GravarNoLayout && f.Doc != null, Path.Combine(temp, trabalho + ".pdf"));
                                     gerado = EsperarPdf(temp, cfg.EsperaSegundos)
-                                             ?? throw new TimeoutException($"a PDF24 não entregou o PDF em {cfg.EsperaSegundos} s");
+                                             ?? throw new TimeoutException($"a {cfg.ImpressoraLote} não gravou o PDF em {cfg.EsperaSegundos} s");
                                 }
-                                // a PDF24 grava tudo em pé: folha deitada → página marcada para abrir deitada (AjustePdf)
+                                else
+                                {
+                                    // salvamento automático da PDF24 só durante esta folha (plotagem + espera do arquivo)
+                                    using (Pdf24.Ativar(temp))
+                                    {
+                                        res.Info = PlotadorPdf.Plotar(doc, f, cfg, trabalho, cfg.GravarNoLayout && f.Doc != null);
+                                        gerado = EsperarPdf(temp, cfg.EsperaSegundos)
+                                                 ?? throw new TimeoutException($"a PDF24 não entregou o PDF em {cfg.EsperaSegundos} s");
+                                    }
+                                }
+                                // a PDF24 grava tudo em pé: folha deitada → página marcada para abrir deitada (AjustePdf; só mexe em página em pé)
                                 // (folha deitada: o CAD girou 90° anti-horário → exibir a 90°; A4 em pé com desenho deitado: horário → 270°)
                                 if (f.Deitada && AjustePdf.Deitar(gerado, f.Formato.Paisagem ? 90 : 270) > 0) res.Info += ", página girada para abrir deitada";
                                 Directory.CreateDirectory(Path.GetDirectoryName(destino));
