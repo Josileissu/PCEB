@@ -47,29 +47,30 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         {
             var bars = new List<BarDef>();
             double cover = U_.Mm(s.CoverMm);
-            double dl = U_.Mm(s.LongDiameterMm), dt = U_.Mm(s.StirrupDiameterMm);
+            double dl = U_.Mm(s.MaxLongDiameterMm()), dt = U_.Mm(s.StirrupDiameterMm);
             double oT = cover + dt / 2;              // eixo do estribo
             double oL = cover + dt + dl / 2;         // eixo da barra longitudinal
             if (f.Bx <= 2 * oL || f.By <= 2 * oL) return bars;
 
             // ---------------- Longitudinais ----------------
-            // posições na seção pela regra do núcleo, a mesma do template do CAD (SecaoBarras.Posicoes); xs/ys = filas das
-            // barras, usadas pelos grampos
-            List<double> xs = Linspace(oL, f.Bx - oL, Math.Max(2, s.LongBarsAlongX));
-            List<double> ys = Linspace(oL, f.By - oL, Math.Max(2, s.LongBarsAlongY));
-            List<(double A, double B)> pos = LongitudinalPositions(f, s);
-
-            double c0 = U_.Mm(s.LongEndCoverMm), c1 = f.H - U_.Mm(s.LongEndCoverMm);
-            foreach (var (a, b) in pos)
-            {
-                bars.Add(new BarDef
+            // armadura por linha (D32), a mesma função do template do CAD (ArmaduraPorLinha): bitola, feixe e trecho (início e
+            // fim) de cada linha. Sem emenda automática pelo comprimento comercial (ver docs/04_arquitetura/paridade_pilar.md);
+            // a sobreposição de duas linhas do mesmo arranjo (redução com a altura) é a digitada, como no CAD. xs/ys = filas das
+            // barras nas faces, usadas pelos grampos.
+            List<LongitudinalBar> longs = LongitudinalBars(f, s);
+            var (xs, ys) = TieRows(f, longs);
+            foreach (LongitudinalBar lb in longs)
+                foreach (var (dx, dy) in Motor.SecaoBarras.CentrosFeixe(lb.Bitola, lb.Feixe))
                 {
-                    Role = BarRole.Longitudinal,
-                    DiameterMm = s.LongDiameterMm,
-                    Points = { new Loc(a, b, c0), new Loc(a, b, c1) },
-                    Normal = Loc.UnitA
-                });
-            }
+                    double a = U_.Mm((lb.X + dx) * 10), b = U_.Mm((lb.Y + dy) * 10);
+                    bars.Add(new BarDef
+                    {
+                        Role = BarRole.Longitudinal,
+                        DiameterMm = lb.Bitola,
+                        Points = { new Loc(a, b, U_.Mm(lb.Ini * 10)), new Loc(a, b, U_.Mm(lb.Fim * 10)) },
+                        Normal = Loc.UnitA
+                    });
+                }
 
             // ---------------- Estribos por zonas ----------------
             foreach (var (z, n, sp) in StirrupRuns(f, corbels, s))
@@ -193,7 +194,7 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
             double depth = g.ColumnDepth(f);
             double dLift = U_.Mm(s.LiftDiameterMm), w = U_.Mm(s.LiftWidthMm), pr = U_.Mm(s.LiftProtrusionMm);
             double foot = Math.Max(0, U_.Mm(s.LiftFootMm));
-            double emb = U_.Mm(10 * TemplatePilarPreMoldado.EmbutimentoAlca(U_.ToMm(depth) / 10, s.CoverMm / 10, s.StirrupDiameterMm, s.LongDiameterMm, s.LiftEmbedMm / 10));
+            double emb = U_.Mm(10 * TemplatePilarPreMoldado.EmbutimentoAlca(U_.ToMm(depth) / 10, s.CoverMm / 10, s.StirrupDiameterMm, s.MaxLongDiameterMm(), s.LiftEmbedMm / 10));
             double dIn = -(emb - dLift / 2);               // eixo do pé (o lado de fora dele por dentro das longitudinais da face oposta)
             double margin = U_.Mm(100);
             var busy = corbels.Where(k => k.Face == face)
@@ -279,12 +280,12 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         {
             double cover = U_.Mm(s.CoverMm);
             double dTie = U_.Mm(s.TieDiameterMm), dSew = U_.Mm(s.SewDiameterMm);
-            double dl = U_.Mm(s.LongDiameterMm), dt = U_.Mm(s.StirrupDiameterMm);
+            double dl = U_.Mm(s.MaxLongDiameterMm()), dt = U_.Mm(s.StirrupDiameterMm);
             double depth = k.ColumnDepth(f);
 
             // Dentro do pilar: a barra para por dentro das longitudinais da face oposta — regra do núcleo, a mesma do desenho do
             // CAD (BarrasConsolo, D30 item 3). fim = face externa da barra, medida da face do consolo.
-            double fim = U_.Mm(10 * BarrasConsolo.FimNoPilar(U_.ToMm(depth) / 10, s.CoverMm / 10, s.StirrupDiameterMm, s.LongDiameterMm));
+            double fim = U_.Mm(10 * BarrasConsolo.FimNoPilar(U_.ToMm(depth) / 10, s.CoverMm / 10, s.StirrupDiameterMm, s.MaxLongDiameterMm()));
             double dIn = -(fim - dTie / 2);
             double dTip = k.Projection - cover - dTie / 2;
             double zTie = k.ZTop - cover - dTie / 2;
@@ -478,20 +479,126 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         }
 
         /// <summary>
-        /// Centros das longitudinais na seção (pés), por <see cref="Motor.SecaoBarras.Posicoes"/>: cantos e barras das faces
-        /// divididas por igual, a cobrimento + φt + φ/2 das faces. Na mesma ordem de antes da troca (o conjunto do Revit nasce
-        /// das duas primeiras): faces paralelas a X por x e de baixo para cima; depois as das faces paralelas a Y.
+        /// Centros de todas as longitudinais na seção (pés; feixe = cada barra dele), pela armadura por linha
+        /// (<see cref="LongitudinalBars"/>), na ordem do Revit.
         /// </summary>
-        public static List<(double A, double B)> LongitudinalPositions(ColumnBox f, ColumnRebarSpec s)
+        public static List<(double A, double B)> LongitudinalPositions(ColumnBox f, ColumnRebarSpec s) =>
+            LongitudinalBars(f, s).SelectMany(lb => Motor.SecaoBarras.CentrosFeixe(lb.Bitola, lb.Feixe)
+                .Select(d => (U_.Mm((lb.X + d.X) * 10), U_.Mm((lb.Y + d.Y) * 10)))).ToList();
+
+        /// <summary>Uma posição da armadura por linha no pilar (cm): o centro do feixe na seção e o trecho ao longo da altura.</summary>
+        public sealed class LongitudinalBar
         {
-            int nx = Math.Max(2, s.LongBarsAlongX), ny = Math.Max(2, s.LongBarsAlongY);
+            /// <summary>Centro do feixe (cm, origem no canto −x −y da seção).</summary>
+            public double X { get; set; }
+            public double Y { get; set; }
+            public double Bitola { get; set; }
+            /// <summary>Barras no feixe (1, 2 ou 3).</summary>
+            public int Feixe { get; set; } = 1;
+            /// <summary>Trecho (cm a partir da base, já sem os cobrimentos das pontas).</summary>
+            public double Ini { get; set; }
+            public double Fim { get; set; }
+            /// <summary>Número da linha da armadura por linha.</summary>
+            public int Linha { get; set; }
+            public string Arranjo { get; set; } = "";
+            /// <summary>Na face paralela a X (fundo ou topo da seção: cantos, "Faces 2 e 4", "Face 2", "Face 4" e o "L" nessas faces).</summary>
+            public bool FaceX { get; set; }
+            /// <summary>Diâmetro do envoltório do feixe (mm).</summary>
+            public double EnvelopeMm => 20 * Motor.SecaoBarras.RaioFeixe(Bitola, Feixe);
+        }
+
+        /// <summary>
+        /// As linhas da especificação (<see cref="ColumnRebarSpec.Linhas"/>) lidas e calculadas pelas funções do template do CAD
+        /// (<see cref="ArmaduraPorLinha.Ler(IEnumerable{LinhaArmaduraPorLinha}, double, double, List{string})"/> e
+        /// <see cref="ArmaduraPorLinha.Posicoes(Geometria.Secao.SecaoTransversal, IReadOnlyDictionary{Geometria.Secao.ParteSecao, double}, double, IReadOnlyList{LinhaLongitudinal}, double)"/>):
+        /// trecho entre os cobrimentos das pontas, estribo = StirrupDiameterMm, canto em "L" = LongCornerSpacingMm. Na ordem de
+        /// antes da armadura por linha (o conjunto do Revit nasce das duas primeiras): faces paralelas a X por x e de baixo para
+        /// cima; depois as das faces paralelas a Y.
+        /// </summary>
+        public static List<LongitudinalBar> LongitudinalBars(ColumnBox f, ColumnRebarSpec s, List<string> avisos = null)
+        {
+            avisos ??= new List<string>();
+            double hCm = U_.ToMm(f.H) / 10;
+            var linhas = ArmaduraPorLinha.Ler(s.Linhas(), s.LongEndCoverMm / 10, hCm - s.LongEndCoverMm / 10, avisos);
             var secao = Geometria.Secao.SecaoTransversal.Retangular(U_.ToMm(f.Bx) / 10, U_.ToMm(f.By) / 10);
             var cob = Geometria.Secao.FacesRetangulo.Cobrimentos(Enumerable.Repeat(s.CoverMm / 10, 4).ToArray());
-            var sec = Motor.SecaoBarras.Posicoes(secao, cob, s.StirrupDiameterMm,
-                s.LongDiameterMm, 1, 0, s.LongDiameterMm, nx - 2, ny - 2, s.LongDiameterMm).Barras;
-            var faceX = sec.Where(b => b.Grupo == "canto" || b.Grupo == "faceB").OrderBy(b => b.X).ThenBy(b => b.Y);
-            var faceY = sec.Where(b => b.Grupo == "faceH").OrderBy(b => b.Y).ThenBy(b => b.X);
-            return faceX.Concat(faceY).Select(b => (U_.Mm(b.X * 10), U_.Mm(b.Y * 10))).ToList();
+            var pos = ArmaduraPorLinha.Posicoes(secao, cob, s.StirrupDiameterMm, linhas, s.LongCornerSpacingMm / 10);
+            if (!pos.Definido) { avisos.Add(pos.Erro); return new List<LongitudinalBar>(); }
+            var r = new List<LongitudinalBar>();
+            foreach (LinhaLongitudinal l in linhas)
+            {
+                List<Motor.BarraNaSecao> p = pos.PorLinha[l.Linha];
+                for (int i = 0; i < p.Count; i++)
+                {
+                    bool faceX = l.Arranjo == ArmaduraPorLinha.Cantos || l.Arranjo == ArmaduraPorLinha.Faces24 ||
+                                 l.Arranjo == ArmaduraPorLinha.Face2 || l.Arranjo == ArmaduraPorLinha.Face4 ||
+                                 (l.Arranjo == ArmaduraPorLinha.AoLado && i % 2 == 0);   // o "L": pares no fundo/topo, ímpares nas laterais
+                    r.Add(new LongitudinalBar { X = p[i].X, Y = p[i].Y, Bitola = l.Bitola, Feixe = l.Feixe, Ini = l.Ini, Fim = l.Fim,
+                                                Linha = l.Linha, Arranjo = l.Arranjo, FaceX = faceX });
+                }
+            }
+            return r.Where(b => b.FaceX).OrderBy(b => b.X).ThenBy(b => b.Y)
+                .Concat(r.Where(b => !b.FaceX).OrderBy(b => b.Y).ThenBy(b => b.X)).ToList();
+        }
+
+        /// <summary>
+        /// Filas das longitudinais para os grampos (pés): xs = barras do fundo (cantos e as das faces paralelas a X), ys = barras da
+        /// esquerda (cantos e as das faces paralelas a Y), em ordem; posições iguais (o mesmo arranjo em trechos diferentes) uma vez.
+        /// Com a especificação simples, as mesmas filas de antes da armadura por linha.
+        /// </summary>
+        private static (List<double> Xs, List<double> Ys) TieRows(ColumnBox f, List<LongitudinalBar> longs)
+        {
+            double bCm = U_.ToMm(f.Bx) / 10, hCm = U_.ToMm(f.By) / 10;
+            List<double> Fila(IEnumerable<double> v) => v.OrderBy(x => x).Aggregate(new List<double>(), (acc, x) =>
+            {
+                if (acc.Count == 0 || x - acc[acc.Count - 1] > 1e-6) acc.Add(x);
+                return acc;
+            }).Select(x => U_.Mm(x * 10)).ToList();
+            bool Canto(LongitudinalBar b) => b.Arranjo == ArmaduraPorLinha.Cantos;
+            return (Fila(longs.Where(b => (b.FaceX || Canto(b)) && b.Y < hCm / 2).Select(b => b.X)),
+                    Fila(longs.Where(b => (!b.FaceX || Canto(b)) && b.X < bCm / 2).Select(b => b.Y)));
+        }
+
+        /// <summary>
+        /// As posições ativas em cada trecho da altura com a mesma composição (os trechos entre inícios e fins das linhas; redução
+        /// com a altura): para as verificações por seção.
+        /// </summary>
+        public static IEnumerable<List<LongitudinalBar>> LongitudinalStretches(ColumnBox f, ColumnRebarSpec s)
+        {
+            List<LongitudinalBar> longs = LongitudinalBars(f, s);
+            var cortes = longs.SelectMany(b => new[] { b.Ini, b.Fim }).Distinct().OrderBy(y => y).ToList();
+            for (int i = 0; i + 1 < cortes.Count; i++)
+            {
+                if (cortes[i + 1] - cortes[i] < 1e-6) continue;
+                double meio = (cortes[i] + cortes[i + 1]) / 2;
+                yield return longs.Where(b => b.Ini < meio && b.Fim > meio).ToList();
+            }
+        }
+
+        /// <summary>
+        /// Distâncias entre posições vizinhas ao longo de cada face (mm): entre eixos, livre (descontando os envoltórios) e a maior
+        /// bitola do par. Os cantos entram nas duas faces que eles tocam.
+        /// </summary>
+        public static IEnumerable<(double Dist, double Clear, double Phi)> FaceGaps(IReadOnlyList<LongitudinalBar> trecho)
+        {
+            if (trecho.Count == 0) yield break;
+            double xm = (trecho.Min(b => b.X) + trecho.Max(b => b.X)) / 2, ym = (trecho.Min(b => b.Y) + trecho.Max(b => b.Y)) / 2;
+            bool Canto(LongitudinalBar b) => b.Arranjo == ArmaduraPorLinha.Cantos;
+            var faces = new[]
+            {
+                trecho.Where(b => (b.FaceX || Canto(b)) && b.Y < ym).OrderBy(b => b.X).ToList(),
+                trecho.Where(b => (b.FaceX || Canto(b)) && b.Y > ym).OrderBy(b => b.X).ToList(),
+                trecho.Where(b => (!b.FaceX || Canto(b)) && b.X < xm).OrderBy(b => b.Y).ToList(),
+                trecho.Where(b => (!b.FaceX || Canto(b)) && b.X > xm).OrderBy(b => b.Y).ToList(),
+            };
+            foreach (var face in faces)
+                for (int i = 0; i + 1 < face.Count; i++)
+                {
+                    LongitudinalBar a = face[i], c = face[i + 1];
+                    double d = 10 * Math.Sqrt((c.X - a.X) * (c.X - a.X) + (c.Y - a.Y) * (c.Y - a.Y));
+                    if (d < 1e-6) continue;   // a mesma posição (duas linhas do mesmo arranjo emendadas)
+                    yield return (d, d - (a.EnvelopeMm + c.EnvelopeMm) / 2, Math.Max(a.Bitola, c.Bitola));
+                }
         }
 
         private static List<double> Linspace(double a, double b, int n) =>

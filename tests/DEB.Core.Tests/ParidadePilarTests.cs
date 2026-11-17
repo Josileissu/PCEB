@@ -551,7 +551,15 @@ public class ParidadePilarTests
         var pos = ArmaduraPorLinha.Posicoes(secao, cob, s.StirrupDiameterMm, linhas, 5);
         Assert.True(pos.Definido, pos.Erro);
         var porLinha = pos.PorLinha.Values.SelectMany(x => x).Select(x => (X: x.X, Y: x.Y, Phi: x.Bitola)).ToList();
-        var hoje = ColumnRebarLayout.LongitudinalPositions(f, s).Select(p => (X: p.A * CmPorPe, Y: p.B * CmPorPe)).ToList();
+        // "hoje" = a conta do Revit antes da armadura por linha (ColumnRebarLayout.LongitudinalPositions até 17/11/2026:
+        // SecaoBarras.Posicoes com uma bitola e as intermediárias de cada face), congelada aqui
+        int nx = Math.Max(2, s.LongBarsAlongX), ny = Math.Max(2, s.LongBarsAlongY);
+        var hoje = SecaoBarras.Posicoes(secao, cob, s.StirrupDiameterMm, s.LongDiameterMm, 1, 0, s.LongDiameterMm, nx - 2, ny - 2, s.LongDiameterMm)
+            .Barras.Select(p => (X: p.X, Y: p.Y)).ToList();
+        // e a do Revit agora (pela armadura por linha) é a mesma
+        var agora = ColumnRebarLayout.LongitudinalPositions(f, s).Select(p => (X: p.A * CmPorPe, Y: p.B * CmPorPe)).ToList();
+        Assert.Equal(hoje.Count, agora.Count);
+        foreach (var p in hoje) Assert.Contains(agora, q => Math.Abs(q.X - p.X) < 1e-6 && Math.Abs(q.Y - p.Y) < 1e-6);
         Assert.Equal(hoje.Count, porLinha.Count);
         foreach (var p in hoje)
             Assert.Contains(porLinha, q => Math.Abs(q.X - p.X) < 1e-6 && Math.Abs(q.Y - p.Y) < 1e-6 && q.Phi == s.LongDiameterMm);

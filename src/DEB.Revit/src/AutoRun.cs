@@ -8,6 +8,7 @@ using Autodesk.Revit.UI;
 using Autodesk.Revit.UI.Events;
 using DEB.Revit.Core;
 using DEB.Revit.Precast;
+using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 
 namespace DEB.Revit
@@ -472,6 +473,21 @@ namespace DEB.Revit
                         case 2: sp.LongDiameterMm = 20; sp.LongBarsAlongX = 2; sp.LongBarsAlongY = 3; sp.StirrupDiameterMm = 8; sp.StirrupSpacingMm = 200; break;
                     }
                 }
+            // SD_LINHAS = 1: armadura por linha (D32) com bitola mista, redução com a altura e feixe de 2, para testar o modelo 3D
+            if (Environment.GetEnvironmentVariable("SD_LINHAS") == "1")
+                foreach (ColumnGroup g in groups)
+                {
+                    double hCm = U_.ToMm(g.Representative.Frame.H) / 10, meio = Math.Round(hCm / 2);
+                    g.Spec.ArmaduraPorLinha = new List<LinhaArmaduraPorLinha>
+                    {
+                        new LinhaArmaduraPorLinha { Arranjo = ArmaduraPorLinha.Cantos, Bitola = 20 },
+                        new LinhaArmaduraPorLinha { Arranjo = ArmaduraPorLinha.Faces24, PorFace = 1, Bitola = 16, Fim = meio + 60 },
+                        new LinhaArmaduraPorLinha { Arranjo = ArmaduraPorLinha.Faces24, PorFace = 1, Bitola = 12.5, Ini = meio },
+                        new LinhaArmaduraPorLinha { Arranjo = ArmaduraPorLinha.Faces13, PorFace = 1, Bitola = 12.5, Feixe = 2 },
+                    };
+                    sb.AppendLine($"{g.Mark}: armadura por linha (H = {hCm:0.#} cm): " +
+                                  string.Join(" ; ", g.Spec.ArmaduraPorLinha.Select(l => string.Join("|", l.Celulas()))));
+                }
             foreach (ColumnGroup g in groups)
             {
                 sb.AppendLine($"{g.Mark}: {g.Members.Count} un. | {g.Signature}");
@@ -479,7 +495,10 @@ namespace DEB.Revit
                     sb.AppendLine($"   pilar {m.Id} giro {m.Rotation * 90}° consolos {m.Corbels.Count}");
                 foreach (string w in g.Spec.Check(g.Representative)) sb.AppendLine("   verificação: " + w);
                 foreach (BarDef b in ColumnRebarLayout.Compute(g.Representative.Frame, g.Representative.Corbels, g.Spec))
-                    sb.AppendLine($"   barra {b.Role} Ø{b.DiameterMm} x{b.Count} pts={b.Points.Count}");
+                    sb.AppendLine($"   barra {b.Role} Ø{b.DiameterMm} x{b.Count} pts={b.Points.Count}" +
+                                  (b.Role == BarRole.Longitudinal
+                                      ? FormattableString.Invariant($" x={b.Points[0].A * 30.48:0.##} y={b.Points[0].B * 30.48:0.##} z={b.Points[0].C * 30.48:0.##}–{b.Points[^1].C * 30.48:0.##} cm")
+                                      : ""));
             }
 
             try

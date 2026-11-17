@@ -180,8 +180,15 @@ namespace DEB.Revit.Precast
             {
                 // barra reta: distribui na direção da 2ª barra (o "Modificar barras" ajusta as demais)
                 XYZ axis = (f.ToWorld(first.Points[^1]) - f.ToWorld(first.Points[0])).Normalize();
-                XYZ d = Mid(g[1]) - Mid(first);
-                n = d - axis * d.DotProduct(axis);
+                // a 1ª barra fora do eixo da primeira (armadura por linha: duas linhas do mesmo arranjo, uma sobre a outra, ficam
+                // na mesma posição da seção)
+                n = XYZ.Zero;
+                foreach (BarDef o in g.Skip(1))
+                {
+                    XYZ d = Mid(o) - Mid(first);
+                    n = d - axis * d.DotProduct(axis);
+                    if (n.GetLength() >= 1e-6) break;
+                }
                 if (n.GetLength() < 1e-6) throw new InvalidOperationException("posições coincidentes");
                 // espaçamento pequeno: com a distância até a 2ª barra, as últimas do conjunto (6 ø20 num 50x50) caíam fora
                 // do pilar antes de serem movidas e o Revit não as devolvia; cada barra vai depois para a sua posição

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using APL = DEB.Core.Elementos.Pilar.PreMoldado.ArmaduraPorLinha;
 
 namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 {
@@ -16,13 +17,24 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         public double CoverMm { get; set; } = 25;
 
         // ---- Longitudinal ----
+        // Desde a D32 (17/11/2026) as longitudinais saem da armadura por linha (ArmaduraPorLinha, abaixo), a mesma regra do
+        // template do pilar do CAD. Os três campos simples ficam para ler os modelos salvos antes dela: sem a lista, as linhas
+        // nascem deles (Linhas(), ArmaduraPorLinha.DaArmaduraSimples) e as barras saem iguais às de antes.
         public double LongDiameterMm { get; set; } = 12.5;
-        /// <summary>Barras em cada face paralela a X (inclui os cantos).</summary>
+        /// <summary>Barras em cada face paralela a X (inclui os cantos). Só para modelos sem armadura por linha.</summary>
         public int LongBarsAlongX { get; set; } = 2;
-        /// <summary>Barras em cada face paralela a Y (inclui os cantos).</summary>
+        /// <summary>Barras em cada face paralela a Y (inclui os cantos). Só para modelos sem armadura por linha.</summary>
         public int LongBarsAlongY { get; set; } = 2;
         /// <summary>Cobrimento nas pontas (topo e base) das barras longitudinais.</summary>
         public double LongEndCoverMm { get; set; } = 25;
+        /// <summary>
+        /// Armadura por linha (D32): as linhas da tabela "Longitudinais" do CAD — arranjo, barras por face, bitola (mm), feixe e
+        /// início e fim (cm a partir da base da peça, a exceção às medidas em mm, como no CAD). Null = modelo salvo antes da D32
+        /// (as linhas nascem dos campos simples acima).
+        /// </summary>
+        public List<LinhaArmaduraPorLinha> ArmaduraPorLinha { get; set; }
+        /// <summary>Canto em "L" (arranjo "Ao lado dos cantos"): distância entre eixos, como o "CantoEsp" do CAD (padrão 5 cm).</summary>
+        public double LongCornerSpacingMm { get; set; } = 50;
 
         // ---- Estribos ----
         public double StirrupDiameterMm { get; set; } = 5;
@@ -95,7 +107,27 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         /// <summary>Família de inserto a posicionar no topo (vazio = nenhum). Formato "Família" ou "Família : Tipo".</summary>
         public string InsertFamily { get; set; } = "";
 
-        public ColumnRebarSpec Clone() => (ColumnRebarSpec)MemberwiseClone();
+        public ColumnRebarSpec Clone()
+        {
+            var c = (ColumnRebarSpec)MemberwiseClone();
+            c.ArmaduraPorLinha = ArmaduraPorLinha?.Select(l => l.Copia()).ToList();   // cópia própria das linhas
+            return c;
+        }
+
+        /// <summary>As linhas da armadura por linha: as gravadas, ou as que nascem dos campos simples (modelo salvo antes da D32).</summary>
+        public List<LinhaArmaduraPorLinha> Linhas() =>
+            ArmaduraPorLinha ?? APL.DaArmaduraSimples(LongDiameterMm, LongBarsAlongX, LongBarsAlongY);
+
+        /// <summary>
+        /// Maior bitola longitudinal (mm; feixe: o diâmetro do envoltório), a mesma conta do <see cref="TemplatePilarPreMoldado.BitolaMaxLongitudinal"/>
+        /// do CAD: define onde o tirante, a costura e as pernas das alças param dentro do pilar. Sem linhas válidas: LongDiameterMm.
+        /// </summary>
+        public double MaxLongDiameterMm() =>
+            APL.Ler(Linhas(), 0, 1e9, new List<string>()).Select(l => 20 * Motor.SecaoBarras.RaioFeixe(l.Bitola, l.Feixe)).DefaultIfEmpty(LongDiameterMm).Max();
+
+        /// <summary>Menor bitola das linhas (mm; uma barra), para o espaçamento máximo dos estribos (12 φ). Sem linhas: LongDiameterMm.</summary>
+        public double MinLongDiameterMm() =>
+            APL.Ler(Linhas(), 0, 1e9, new List<string>()).Select(l => l.Bitola).DefaultIfEmpty(LongDiameterMm).Min();
 
         /// <summary>Padrão para o pilar: zona de base = embutimento; espaçamentos dentro dos limites da NBR 6118.</summary>
         public static ColumnRebarSpec Default(ColumnBox frame, double embedmentMm, IList<Corbel> corbels)
@@ -119,24 +151,38 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
             double bx = U_.ToMm(frame.Bx), by = U_.ToMm(frame.By);
             double bMin = Math.Min(bx, by);
 
-            if (LongDiameterMm < 10) w.Add("Ø longitudinal < 10 mm (NBR 6118 18.4.2.1).");
-            if (LongDiameterMm > bMin / 8) w.Add($"Ø longitudinal > 1/8 do menor lado ({bMin / 8:0.#} mm).");
-            if (StirrupDiameterMm < Math.Max(5, LongDiameterMm / 4)) w.Add($"Ø estribo < max(5 mm; Ø long/4 = {LongDiameterMm / 4:0.#} mm) (18.4.3).");
+            // armadura por linha (D32): avisos da leitura, como no CAD, e as bitolas de todas as linhas
+            var avisosLinhas = new List<string>();
+            var linhas = APL.Ler(Linhas(), LongEndCoverMm / 10, U_.ToMm(frame.H) / 10 - LongEndCoverMm / 10, avisosLinhas);
+            w.AddRange(avisosLinhas);
+            double phiMin = MinLongDiameterMm(), phiMax = linhas.Select(l => l.Bitola).DefaultIfEmpty(LongDiameterMm).Max();
+            if (linhas.Count == 0) w.Add("Sem armadura longitudinal: inclua as barras na armadura por linha.");
+            if (phiMin < 10) w.Add("Ø longitudinal < 10 mm (NBR 6118 18.4.2.1).");
+            if (phiMax > bMin / 8) w.Add($"Ø longitudinal > 1/8 do menor lado ({bMin / 8:0.#} mm).");
+            if (StirrupDiameterMm < Math.Max(5, phiMax / 4)) w.Add($"Ø estribo < max(5 mm; Ø long/4 = {phiMax / 4:0.#} mm) (18.4.3).");
 
-            double sMax = Math.Min(Math.Min(200, bMin), 12 * LongDiameterMm);
+            double sMax = Math.Min(Math.Min(200, bMin), 12 * phiMin);
             foreach (var (label, s) in new[] { ("corrente", StirrupSpacingMm), ("topo", TopZoneSpacingMm),
                                                ("base", BaseZoneSpacingMm), ("consolo", CorbelZoneSpacingMm) })
                 if (s > sMax + 1e-6) w.Add($"Espaçamento de estribos ({label}) {s:0} mm > {sMax:0} mm = min(200; menor lado; 12 Ø long).");
 
-            double cover = CoverMm + StirrupDiameterMm + LongDiameterMm / 2;
-            double gapX = (bx - 2 * cover) / Math.Max(1, LongBarsAlongX - 1);
-            double gapY = (by - 2 * cover) / Math.Max(1, LongBarsAlongY - 1);
+            // espaçamentos e taxa em cada trecho da altura com a mesma composição (redução com a altura): o pior trecho
+            double gapMaxFound = 0, clearMin = double.MaxValue, phiClear = phiMax, asMax = 0, asMin = double.MaxValue;
+            foreach (var trecho in ColumnRebarLayout.LongitudinalStretches(frame, this))
+            {
+                foreach (var (dist, folga, phi) in ColumnRebarLayout.FaceGaps(trecho))
+                {
+                    gapMaxFound = Math.Max(gapMaxFound, dist);
+                    if (folga < clearMin) { clearMin = folga; phiClear = phi; }
+                }
+                double asTrecho = trecho.Sum(b => b.Feixe * Math.PI * b.Bitola * b.Bitola / 4);
+                asMax = Math.Max(asMax, asTrecho); asMin = Math.Min(asMin, asTrecho);
+            }
             double gapMax = Math.Min(400, 2 * bMin);
-            if (Math.Max(gapX, gapY) > gapMax + 1e-6)
-                w.Add($"Espaçamento entre barras longitudinais {Math.Max(gapX, gapY):0} mm > {gapMax:0} mm = min(400; 2 × menor lado) (18.4.2.2).");
-            double clear = Math.Min(gapX, gapY) - LongDiameterMm;
-            if (LongBarsAlongX > 1 && LongBarsAlongY > 1 && clear < Math.Max(20, LongDiameterMm))
-                w.Add($"Espaçamento livre entre barras {clear:0} mm < max(20 mm; Ø) (18.4.2.2).");
+            if (gapMaxFound > gapMax + 1e-6)
+                w.Add($"Espaçamento entre barras longitudinais {gapMaxFound:0} mm > {gapMax:0} mm = min(400; 2 × menor lado) (18.4.2.2).");
+            if (clearMin < double.MaxValue && clearMin < Math.Max(20, phiClear))
+                w.Add($"Espaçamento livre entre barras {clearMin:0} mm < max(20 mm; Ø) (18.4.2.2).");
 
             // alça: o vão interno (largura − Ø) tem de comportar o diâmetro de dobra do tipo de barra (o tipo da cordoalha é criado
             // com 5Ø, como o CA-50 abaixo de 20 mm); senão o Revit não resolve a forma ("Não é possível solucionar o formato")
@@ -149,10 +195,10 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
             }
 
             double ac = bx * by;
-            double asTot = LongBarCount * Math.PI * LongDiameterMm * LongDiameterMm / 4;
-            double rho = asTot / ac * 100;
-            if (rho < 0.4) w.Add($"Taxa geométrica ρ = {rho:0.00}% < 0,40% (As,mín, 17.3.5.3.1).");
-            if (rho > 4.0) w.Add($"Taxa geométrica ρ = {rho:0.00}% > 4% (máximo incluindo traspasse, 17.3.5.3.2).");
+            if (asMin == double.MaxValue) asMin = 0;
+            double rhoMin = asMin / ac * 100, rhoMax = asMax / ac * 100;   // o trecho menos e o mais armado
+            if (rhoMin < 0.4) w.Add($"Taxa geométrica ρ = {rhoMin:0.00}% < 0,40% (As,mín, 17.3.5.3.1).");
+            if (rhoMax > 4.0) w.Add($"Taxa geométrica ρ = {rhoMax:0.00}% > 4% (máximo incluindo traspasse, 17.3.5.3.2).");
 
             if (CorbelRebar && corbels.Count > 0)
             {
