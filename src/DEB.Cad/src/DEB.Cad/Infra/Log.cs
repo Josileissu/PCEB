@@ -48,6 +48,13 @@ internal static class Log
 
     public static void Erro(string contexto, Exception ex) => Escrever("ERRO", contexto + ": " + ex);
 
+    /// <summary>Erro com um bloco de detalhes já montado (várias linhas: arquivo, etapa, HRESULT, pilha…), recuado no log.</summary>
+    public static void ErroDetalhado(string contexto, string bloco) =>
+        Escrever("ERRO", contexto + Environment.NewLine + "    " + (bloco ?? "").TrimEnd().Replace(Environment.NewLine, Environment.NewLine + "    "));
+
+    /// <summary>Arquivo de log de hoje (o botão "Abrir log" das janelas).</summary>
+    public static string ArquivoHoje => Path.Combine(PastaLogs, $"deb_{DateTime.Now:yyyyMMdd}.log");
+
     private static void Escrever(string nivel, string msg)
     {
         try
@@ -55,7 +62,7 @@ internal static class Log
             lock (Trava)
             {
                 Directory.CreateDirectory(PastaLogs);
-                var arq = Path.Combine(PastaLogs, $"deb_{DateTime.Now:yyyyMMdd}.log");
+                var arq = ArquivoHoje;
                 File.AppendAllText(arq, $"{DateTime.Now:HH:mm:ss.fff} [{nivel}] {msg}{Environment.NewLine}", Encoding.UTF8);
             }
         }

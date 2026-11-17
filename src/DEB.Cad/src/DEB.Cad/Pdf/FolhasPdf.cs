@@ -13,7 +13,13 @@ internal sealed class FolhaPdf
     public string Arquivo { get; set; }
     /// <summary>Desenho aberto neste CAD (null = arquivo fechado, aberto só para a plotagem).</summary>
     public Document Doc { get; set; }
+    /// <summary>Nome do layout no desenho ("Model" nas folhas desenhadas no Model).</summary>
     public string Layout { get; set; }
+    /// <summary>Nome da folha na lista e no PDF: o layout, ou "Model"/"Model 2"… (uma folha por moldura do Model).</summary>
+    public string Rotulo { get; set; }
+    /// <summary>Folha desenhada no Model (moldura em escala): 1, 2…; 0 = layout.</summary>
+    public int IndiceModelo { get; set; }
+    public bool NoModelo => IndiceModelo > 0;
     public int Ordem { get; set; }
     /// <summary>Retângulo usado para reconhecer o formato e como janela de plotagem (unidades do papel).</summary>
     public Extents2d Caixa { get; set; }
@@ -28,6 +34,8 @@ internal sealed class FolhaPdf
     /// <summary>Resumo do page setup salvo no layout (diagnóstico).</summary>
     public string PageSetupAtual { get; set; } = "";
     public string Erro { get; set; }
+    /// <summary>Falha da leitura (ex.: nenhuma moldura em lugar nenhum), com a causa para o relatório.</summary>
+    public DiagnosticoErroPdf Diagnostico { get; set; }
 
     public string NomeDesenho => Path.GetFileName(Arquivo);
     public double Largura => TemCaixa ? Caixa.MaxPoint.X - Caixa.MinPoint.X : 0;
@@ -67,30 +75,123 @@ internal static class LeitorFolhas
         finally { HostApplicationServices.WorkingDatabase = antigo; }
     }
 
+    /// <summary>
+    /// Folhas do desenho: os layouts com moldura reconhecida; se nenhum layout tiver moldura (DWG só com Model, layouts vazios ou
+    /// só com viewport), as molduras desenhadas no Model, uma folha por moldura. Nada em lugar nenhum: uma linha de erro
+    /// ("nenhuma moldura/carimbo…"). A regra é do núcleo (<see cref="FolhasModeloPdf"/>).
+    /// </summary>
     private static List<FolhaPdf> Ler(Database db, string arquivo, ConfigLotePdf cfg)
     {
         var res = new List<FolhaPdf>();
+        var lidos = new List<LayoutLido>();
+        Layout modelo = null;
         using (var tr = db.TransactionManager.StartTransaction())
         {
+            var invisiveis = LayersInvisiveis(tr, db);
             var dic = (DBDictionary)tr.GetObject(db.LayoutDictionaryId, OpenMode.ForRead);
             foreach (DBDictionaryEntry e in dic)
             {
                 var lay = (Layout)tr.GetObject(e.Value, OpenMode.ForRead);
-                if (lay.ModelType) continue;
-                var f = new FolhaPdf { Arquivo = arquivo, Layout = lay.LayoutName, Ordem = lay.TabOrder, EstiloAtual = lay.CurrentStyleSheet ?? "" };
-                try
+                if (lay.ModelType) { modelo = lay; continue; }
+                var f = new FolhaPdf
                 {
-                    f.PageSetupAtual = FormattableString.Invariant(
-                        $"{lay.PlotConfigurationName} | {lay.CanonicalMediaName} | {lay.PlotRotation} | {lay.PlotType} | papel {lay.PlotPaperSize.X:0.#}x{lay.PlotPaperSize.Y:0.#} | janela {lay.PlotWindowArea.MinPoint.X:0.#},{lay.PlotWindowArea.MinPoint.Y:0.#}-{lay.PlotWindowArea.MaxPoint.X:0.#},{lay.PlotWindowArea.MaxPoint.Y:0.#} | origem {lay.PlotOrigin.X:0.#},{lay.PlotOrigin.Y:0.#} | centrado {lay.PlotCentered} | unid {lay.PlotPaperUnits}");
-                }
-                catch { }
-                try { Reconhecer(tr, db, lay, f, cfg); }
+                    Arquivo = arquivo, Layout = lay.LayoutName, Rotulo = lay.LayoutName, Ordem = lay.TabOrder,
+                    EstiloAtual = lay.CurrentStyleSheet ?? "", PageSetupAtual = PageSetup(lay),
+                };
+                try { Reconhecer(tr, lay, f, cfg, invisiveis); }
                 catch (Exception ex) { f.Erro = ex.Message; Infra.Log.Erro($"ARMPDFLOTE: ler {arquivo} / {lay.LayoutName}", ex); }
+                lidos.Add(new LayoutLido
+                {
+                    Nome = lay.LayoutName,
+                    Vazio = f.Erro == null && !f.TemCaixa,
+                    Reconhecido = f.Reconhecido?.Formato != null,
+                });
                 res.Add(f);
+            }
+
+            var molduras = new List<MolduraReconhecida>();
+            if (modelo != null && FolhasModeloPdf.PrecisaModelo(lidos))
+            {
+                try { molduras = MoldurasDoModelo(tr, modelo, cfg, invisiveis); }
+                catch (Exception ex) { Infra.Log.Erro($"ARMPDFLOTE: ler o Model de {arquivo}", ex); }
+            }
+            var plano = FolhasModeloPdf.Decidir(lidos, molduras);
+            foreach (var f in res) f.Marcada = plano.LayoutsMarcados.Contains(f.Layout);
+            if (plano.UsarModelo)
+            {
+                for (int i = 0; i < molduras.Count; i++)
+                {
+                    var m = molduras[i];
+                    res.Add(new FolhaPdf
+                    {
+                        Arquivo = arquivo, Layout = modelo.LayoutName, Rotulo = FolhasModeloPdf.Rotulo(i + 1, molduras.Count), IndiceModelo = i + 1,
+                        Ordem = -1000 + i, EstiloAtual = modelo.CurrentStyleSheet ?? "", PageSetupAtual = PageSetup(modelo),
+                        Caixa = new Extents2d(m.Caixa.X0, m.Caixa.Y0, m.Caixa.X1, m.Caixa.Y1), TemCaixa = true,
+                        OrigemCaixa = m.Origem + " no Model" + Escala(m.Reconhecido.Fator), Reconhecido = m.Reconhecido, Formato = m.Reconhecido.Formato,
+                    });
+                }
+                Infra.Log.Info($"ARMPDFLOTE: {arquivo}: nenhum layout com moldura; {molduras.Count} folha(s) no Model");
+            }
+            else if (plano.SemMoldura)
+            {
+                var d = ErrosLotePdf.De(CausaErroPdf.SemMoldura, EtapaLotePdf.Ler);
+                res.Add(new FolhaPdf
+                {
+                    Arquivo = arquivo, Layout = modelo?.LayoutName ?? "Model", Rotulo = "(nenhuma folha)", Marcada = false, Ordem = -2000,
+                    Erro = d.Mensagem, Diagnostico = d, Reconhecido = new FormatoReconhecido(),
+                });
+                Infra.Log.Info($"ARMPDFLOTE: {arquivo}: {d.Mensagem}");
             }
             tr.Commit();
         }
         return res.OrderBy(f => f.Ordem).ToList();
+    }
+
+    /// <summary>" (1:50 em cm)" a partir do fator mm de papel por unidade (cm 1:50 = 0,2), quando a escala é redonda.</summary>
+    private static string Escala(double fator)
+    {
+        if (fator <= 0) return "";
+        // a unidade do desenho não é conhecida com certeza: mostra as leituras com escala usual (ex.: "1:5 em mm / 1:50 em cm")
+        var op = new List<string>();
+        foreach (var u in FolhasModeloPdf.Unidades)
+        {
+            double s = u / fator;
+            if (FolhasModeloPdf.Escalas.Any(e => Math.Abs(e - s) < 1e-6))
+                op.Add(FormattableString.Invariant($"1:{s:0.#} em {(u == 1 ? "mm" : u == 10 ? "cm" : "m")}"));
+        }
+        return op.Count > 0 ? " (" + string.Join(" / ", op) + ")" : "";
+    }
+
+    private static string PageSetup(Layout lay)
+    {
+        try
+        {
+            return FormattableString.Invariant(
+                $"{lay.PlotConfigurationName} | {lay.CanonicalMediaName} | {lay.PlotRotation} | {lay.PlotType} | papel {lay.PlotPaperSize.X:0.#}x{lay.PlotPaperSize.Y:0.#} | janela {lay.PlotWindowArea.MinPoint.X:0.#},{lay.PlotWindowArea.MinPoint.Y:0.#}-{lay.PlotWindowArea.MaxPoint.X:0.#},{lay.PlotWindowArea.MaxPoint.Y:0.#} | origem {lay.PlotOrigin.X:0.#},{lay.PlotOrigin.Y:0.#} | centrado {lay.PlotCentered} | unid {lay.PlotPaperUnits} | estilo {lay.CurrentStyleSheet}");
+        }
+        catch { return ""; }
+    }
+
+    /// <summary>
+    /// Candidatos do Model: polilinhas retangulares e blocos (explodidos em memória quando são grandes ou têm, sozinhos, a medida de
+    /// um formato em alguma escala). A escolha das molduras é do núcleo (<see cref="FolhasModeloPdf.Selecionar"/>).
+    /// </summary>
+    private static List<MolduraReconhecida> MoldurasDoModelo(Transaction tr, Layout modelo, ConfigLotePdf cfg, HashSet<string> invisiveis)
+    {
+        var btr = (BlockTableRecord)tr.GetObject(modelo.BlockTableRecordId, OpenMode.ForRead);
+        var bruta = new Coleta();
+        var entidades = new List<Entity>();
+        foreach (ObjectId id in btr)
+        {
+            if (!(tr.GetObject(id, OpenMode.ForRead) is Entity ent) || !ent.Visible || invisiveis.Contains(ent.Layer)) continue;
+            if (!(ent is Polyline) && !(ent is BlockReference)) continue; // só o que pode ser moldura
+            entidades.Add(ent);
+            try { var e = ent.GeometricExtents; if (Valida(e)) bruta.Somar(e); } catch { }
+        }
+        var c = new Coleta { Formatos = cfg.Formatos, Tolerancia = cfg.Tolerancia };
+        foreach (var ent in entidades) Visitar(tr, ent, null, 0, c, invisiveis, bruta, null);
+        return FolhasModeloPdf.Selecionar(c.Candidatos.Select(k => new CandidatoMoldura(
+            new CaixaPdf(k.Caixa.MinPoint.X, k.Caixa.MinPoint.Y, k.Caixa.MaxPoint.X, k.Caixa.MaxPoint.Y), k.Origem)), cfg.Formatos, cfg.Tolerancia);
     }
 
     /// <summary>
@@ -99,10 +200,9 @@ internal static class LeitorFolhas
     /// não plotáveis e, dentro dos blocos grandes (explodidos em memória), só os objetos do estado de visibilidade atual — o
     /// GeometricExtents de um bloco dinâmico no GstarCAD inclui os estados ocultos (carimbo com A0…A0++ no mesmo bloco).
     /// </summary>
-    private static void Reconhecer(Transaction tr, Database db, Layout lay, FolhaPdf f, ConfigLotePdf cfg)
+    private static void Reconhecer(Transaction tr, Layout lay, FolhaPdf f, ConfigLotePdf cfg, HashSet<string> invisiveis)
     {
         var btr = (BlockTableRecord)tr.GetObject(lay.BlockTableRecordId, OpenMode.ForRead);
-        var invisiveis = LayersInvisiveis(tr, db);
         // 1ª passada (rápida): extensão bruta, para saber quais blocos são grandes o bastante para serem a moldura
         var bruta = new Coleta();
         var entidades = new List<Entity>();
@@ -140,6 +240,12 @@ internal static class LeitorFolhas
         public double X0 = double.MaxValue, Y0 = double.MaxValue, X1 = double.MinValue, Y1 = double.MinValue;
         public bool Tem;
         public readonly List<(Extents2d Caixa, string Origem)> Candidatos = new List<(Extents2d, string)>();
+        /// <summary>No Model: formatos para decidir se um bloco tem a medida de uma folha em alguma escala (null = layout).</summary>
+        public List<FormatoFolha> Formatos;
+        public double Tolerancia = 10;
+        /// <summary>Blocos explodidos até agora (compartilhado com as sub-coletas; limite no Model, que pode ter milhares).</summary>
+        public int[] Explosoes = new int[1];
+        public Coleta Filha() => new Coleta { Formatos = Formatos, Tolerancia = Tolerancia, Explosoes = Explosoes };
         public Extents2d Caixa => new Extents2d(X0, Y0, X1, Y1);
         public double Largura => X1 - X0;
         public double Altura => Y1 - Y0;
@@ -163,10 +269,11 @@ internal static class LeitorFolhas
         bool temExt;
         try { ext = ent.GeometricExtents; temExt = Valida(ext); } catch { ext = default; temExt = false; }
 
-        if (ent is BlockReference br && temExt && nivel < 4 && Grande(ext, bruta))
+        if (ent is BlockReference br && temExt && nivel < 4 && Explodir(ext, bruta, c))
         {
+            c.Explosoes[0]++;
             var nome = NomeBloco(tr, br);
-            var sub = new Coleta();
+            var sub = c.Filha();
             var filhos = new DBObjectCollection();
             bool explodiu = true;
             try { br.Explode(filhos); } catch { explodiu = false; }
@@ -204,6 +311,20 @@ internal static class LeitorFolhas
     /// <summary>Bloco que pode conter a moldura: ocupa ao menos 30% da largura ou da altura da extensão bruta.</summary>
     private static bool Grande(Extents3d e, Coleta bruta) =>
         bruta.Tem && (e.MaxPoint.X - e.MinPoint.X >= 0.3 * bruta.Largura || e.MaxPoint.Y - e.MinPoint.Y >= 0.3 * bruta.Altura);
+
+    /// <summary>Limite de blocos explodidos no Model (desenho grande: o resto fica só com a extensão).</summary>
+    private const int MaxExplosoesModelo = 3000;
+
+    /// <summary>
+    /// Explodir o bloco para procurar a moldura? No layout: se for grande. No Model (várias folhas lado a lado, cada uma pequena
+    /// perto do todo): também se a extensão dele, sozinha, tiver a medida de um formato em alguma escala (bloco do carimbo).
+    /// </summary>
+    private static bool Explodir(Extents3d e, Coleta bruta, Coleta c)
+    {
+        if (c.Formatos == null) return Grande(e, bruta);
+        if (c.Explosoes[0] >= MaxExplosoesModelo) return false;
+        return Grande(e, bruta) || FolhasModeloPdf.Reconhecer(e.MaxPoint.X - e.MinPoint.X, e.MaxPoint.Y - e.MinPoint.Y, c.Formatos, c.Tolerancia).Formato != null;
+    }
 
     private static HashSet<string> LayersInvisiveis(Transaction tr, Database db)
     {

@@ -102,6 +102,9 @@ internal sealed class FormPdfLote : Form
         var estilos = PlotadorPdf.EstilosDisponiveis().Where(e => e.EndsWith(".ctb", StringComparison.OrdinalIgnoreCase) || e.EndsWith(".stb", StringComparison.OrdinalIgnoreCase)).ToList();
         _estilo.Items.Add("(o de cada layout)");
         foreach (var e in estilos) _estilo.Items.Add(e);
+        // PCEB.ctb: padrão do plugin, gravado na pasta de estilos do CAD na 1ª exportação que precisar dele
+        if (!estilos.Any(e => string.Equals(e, EstiloPlotagemPadrao.NomeArquivo, StringComparison.OrdinalIgnoreCase)))
+            _estilo.Items.Add(EstiloPlotagemPadrao.NomeArquivo);
         _area.Items.AddRange(new object[] { "Moldura reconhecida (janela)", "Extensão do layout", "Limites do layout" });
         _area.SelectedIndex = (int)cfg.Area;
         SelecionarEstilo(cfg.EstiloPlotagem);
@@ -223,10 +226,15 @@ internal sealed class FormPdfLote : Form
                 try
                 {
                     foreach (var f in leitores[i]())
-                        if (!_folhas.Any(o => string.Equals(o.Arquivo, f.Arquivo, StringComparison.OrdinalIgnoreCase) && o.Layout == f.Layout))
+                        if (!_folhas.Any(o => string.Equals(o.Arquivo, f.Arquivo, StringComparison.OrdinalIgnoreCase) && o.Rotulo == f.Rotulo))
                             _folhas.Add(f);
                 }
-                catch (Exception ex) { erros.Add(Path.GetFileName(nomes[i]) + ": " + ex.Message); Log.Erro("ARMPDFLOTE: ler " + nomes[i], ex); }
+                catch (Exception ex)
+                {
+                    var d = ErrosLotePdf.Classificar(ex, EtapaLotePdf.Ler);
+                    erros.Add(Path.GetFileName(nomes[i]) + ": " + d.Resumo);
+                    Log.ErroDetalhado("ARMPDFLOTE: ler", d.Detalhado(nomes[i], null, DateTime.Now));
+                }
             }
         }
         finally { Cursor = Cursors.Default; }
@@ -238,7 +246,9 @@ internal sealed class FormPdfLote : Form
             if (comum != null) SelecionarEstilo(comum);
         }
         Preencher();
-        if (erros.Count > 0) MessageBox.Show(this, "Não deu para ler:\n" + string.Join("\n", erros), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        if (erros.Count > 0)
+            MessageBox.Show(this, "Não deu para ler:\n" + string.Join("\n", erros.Take(20)) + (erros.Count > 20 ? "\n…" : "") +
+                                  "\n\nDetalhes no log: " + Log.ArquivoHoje, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
     }
 
     private bool _preenchendo;
@@ -276,7 +286,7 @@ internal sealed class FormPdfLote : Form
                 : f.Formato != null && !TemFolha(f.Formato) ? AvisoSemFolha
                 : f.Reconhecido?.Formato != null ? f.OrigemCaixa + (f.Reconhecido.Fator != 1 ? FormattableString.Invariant($" (papel em {(f.Reconhecido.Fator == 10 ? "cm" : f.Reconhecido.Fator == 1000 ? "m" : "pol")})") : "")
                 : "não reconhecido: escolha o formato";
-            int i = _grade.Rows.Add(f.Marcada, f.NomeDesenho + (f.Doc != null ? " (aberto)" : ""), f.Layout, medida, f.Formato?.Nome ?? SemFormato, origem, Path.GetDirectoryName(f.Arquivo));
+            int i = _grade.Rows.Add(f.Marcada, f.NomeDesenho + (f.Doc != null ? " (aberto)" : ""), f.Rotulo ?? f.Layout, medida, f.Formato?.Nome ?? SemFormato, origem, Path.GetDirectoryName(f.Arquivo));
             _grade.Rows[i].Tag = f;
             if (f.Formato == null || !TemFolha(f.Formato)) _grade.Rows[i].Cells["Formato"].Style.BackColor = CorAviso;
         }
@@ -422,7 +432,8 @@ internal sealed class FormPdfLote : Form
         if (sem.Count > 0)
         {
             MessageBox.Show(this, "Escolha o formato das folhas marcadas com \"?\":\n" +
-                                  string.Join("\n", sem.Take(15).Select(f => $"{f.NomeDesenho} / {f.Layout}")), Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                  string.Join("\n", sem.Take(15).Select(f => $"{f.NomeDesenho} / {f.Rotulo}" + (f.Erro != null ? " — " + f.Erro : ""))),
+                Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
         var tipo = ImpressorasPdf.Tipo(_cfg.ImpressoraLote);
@@ -494,30 +505,77 @@ internal sealed class FormRelatorioPdf : Form
         StartPosition = FormStartPosition.CenterParent;
         Size = new Size(860, 480);
         Font = new Font("Segoe UI", 9f);
-        int ok = res.Count(r => r.Pdf != null), puladas = res.Count(r => r.Pulada), erros = res.Count(r => r.Pdf == null && !r.Pulada);
-        var linhas = new List<string>
-        {
-            $"{ok} PDF(s) gerado(s), {erros} erro(s), {puladas} pulado(s)" + (cancelado ? " — lote CANCELADO" : "") + ".", "",
-        };
-        foreach (var r in res)
-        {
-            if (r.Pdf != null) linhas.Add($"OK     {Path.GetFileName(r.Pdf)}   [{r.Folha.Formato?.Nome}]   {Path.GetDirectoryName(r.Pdf)}");
-            else linhas.Add($"{(r.Pulada ? "PULADO" : "ERRO  ")} {r.Folha.NomeDesenho} / {r.Folha.Layout}: {r.Erro}");
-        }
         var caixa = new TextBox
         {
             Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Both, WordWrap = false, Dock = DockStyle.Fill,
-            Font = new Font("Consolas", 9f), Text = string.Join(Environment.NewLine, linhas),
+            Font = new Font("Consolas", 9f), Text = Texto(res, cancelado),
         };
         var pastas = res.Where(r => r.Pdf != null).Select(r => Path.GetDirectoryName(r.Pdf)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var abrir = new Button { Text = "Abrir pasta", Width = 110, Enabled = pastas.Count > 0 };
         abrir.Click += (s, e) => { foreach (var p in pastas.Take(3)) Arquivos.Abrir(p); };
+        var comErro = res.Where(r => r.Diagnostico != null).ToList();
+        var copiar = new Button { Text = "Copiar detalhes do erro", AutoSize = true, Height = 26, Enabled = comErro.Count > 0, Name = "copiar" };
+        copiar.Click += (s, e) =>
+        {
+            try
+            {
+                Clipboard.SetText(DetalhesParaCopiar(res, cancelado));
+                copiar.Text = "Copiado!";
+            }
+            catch (Exception ex) { MessageBox.Show(this, "Não deu para copiar: " + ex.Message + "\n\nOs detalhes estão no log: " + Log.ArquivoHoje, Text); }
+        };
+        var abrirLog = new Button { Text = "Abrir log", Width = 90, Name = "abrirLog" };
+        abrirLog.Click += (s, e) => { if (File.Exists(Log.ArquivoHoje)) Arquivos.Abrir(Log.ArquivoHoje); else Arquivos.Abrir(Log.PastaLogs); };
         var fechar = new Button { Text = "Fechar", Width = 90, DialogResult = DialogResult.OK };
         var botoes = new FlowLayoutPanel { Dock = DockStyle.Bottom, FlowDirection = FlowDirection.RightToLeft, AutoSize = true, Padding = new Padding(6) };
-        botoes.Controls.Add(fechar); botoes.Controls.Add(abrir);
+        botoes.Controls.Add(fechar); botoes.Controls.Add(abrir); botoes.Controls.Add(abrirLog); botoes.Controls.Add(copiar);
         AcceptButton = fechar; CancelButton = fechar;
         Shown += (s, e) => { caixa.SelectionStart = 0; caixa.SelectionLength = 0; fechar.Focus(); };
         Controls.Add(caixa);
         Controls.Add(botoes);
+    }
+
+    /// <summary>Relatório: resumo, causas agrupadas, uma linha por folha (com a mensagem clara) e os avisos.</summary>
+    internal static string Texto(IList<ResultadoFolha> res, bool cancelado)
+    {
+        int ok = res.Count(r => r.Pdf != null), puladas = res.Count(r => r.Pulada), erros = res.Count(r => r.Pdf == null && !r.Pulada);
+        var linhas = new List<string> { $"{ok} PDF(s) gerado(s), {erros} com erro, {puladas} pulado(s)" + (cancelado ? " — lote CANCELADO" : "") + "." };
+        var causas = ErrosLotePdf.ResumoPorCausa(res.Select(r => r.Diagnostico));
+        if (causas.Count > 0)
+        {
+            linhas.Add("");
+            linhas.Add("Por que falharam:");
+            linhas.AddRange(causas.Select(c => "  " + c));
+        }
+        linhas.Add("");
+        foreach (var r in res)
+        {
+            var folha = $"{r.Folha.NomeDesenho} / {r.Folha.Rotulo ?? r.Folha.Layout}";
+            if (r.Pdf != null) linhas.Add($"OK     {Path.GetFileName(r.Pdf)}   [{r.Folha.Formato?.Nome}]   {Path.GetDirectoryName(r.Pdf)}");
+            else if (r.Pulada) linhas.Add($"PULADO {folha}: {r.Erro}");
+            else linhas.Add($"ERRO   {folha}: {r.Erro}" + (r.Diagnostico != null ? $"  [etapa: {ErrosLotePdf.NomeEtapa(r.Diagnostico.Etapa)}]" : ""));
+            foreach (var a in r.Avisos) linhas.Add("       aviso: " + a);
+        }
+        if (res.Any(r => r.Diagnostico != null))
+        {
+            linhas.Add("");
+            linhas.Add("Detalhes técnicos: botão \"Copiar detalhes do erro\" ou o log (" + Log.ArquivoHoje + ").");
+        }
+        return string.Join(Environment.NewLine, linhas);
+    }
+
+    /// <summary>O que vai para a área de transferência: o relatório e o detalhe técnico de cada falha.</summary>
+    internal static string DetalhesParaCopiar(IList<ResultadoFolha> res, bool cancelado)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("DEB - PDFs em lote (ARMPDFLOTE) — plugin " + typeof(FormRelatorioPdf).Assembly.GetName().Version);
+        sb.AppendLine(Texto(res, cancelado));
+        foreach (var r in res.Where(r => r.Diagnostico != null))
+        {
+            sb.AppendLine();
+            sb.AppendLine("----------------------------------------");
+            sb.Append(r.Detalhado());
+        }
+        return sb.ToString();
     }
 }

@@ -63,6 +63,81 @@ public sealed class AutoTestePdf
         finally { doc.CloseAndDiscard(); }
     }
 
+    /// <summary>
+    /// DWG como os recebidos de outro computador (relato do usuário, 17/11/2026): folhas só no Model (duas molduras A1 a 1:50 em
+    /// cm, uma seção 42 × 29,7 dentro da 1ª que NÃO pode virar folha), Layout1 vazio e o page setup do Model e do Layout1
+    /// apontando para impressora, papel e ctb que não existem. O page setup é escrito pelo DXF (o validador do CAD não aceita
+    /// impressora inexistente): DxfOut → troca os grupos 2/4/7 do AcDbPlotSettings → DxfIn → SaveAs.
+    /// </summary>
+    private static void CriarSoModel(string destino)
+    {
+        var dxf1 = Path.ChangeExtension(destino, ".orig.dxf");
+        var dxf2 = Path.ChangeExtension(destino, ".editado.dxf");
+        using (var db = new Database(true, true))
+        {
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var ms = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForWrite);
+                void Ret(double x0, double y0, double l, double a, int cor)
+                {
+                    var pl = new Polyline();
+                    pl.SetDatabaseDefaults(db);
+                    pl.AddVertexAt(0, new Point2d(x0, y0), 0, 0, 0);
+                    pl.AddVertexAt(1, new Point2d(x0 + l, y0), 0, 0, 0);
+                    pl.AddVertexAt(2, new Point2d(x0 + l, y0 + a), 0, 0, 0);
+                    pl.AddVertexAt(3, new Point2d(x0, y0 + a), 0, 0, 0);
+                    pl.Closed = true;
+                    pl.ColorIndex = cor;
+                    ms.AppendEntity(pl); tr.AddNewlyCreatedDBObject(pl, true);
+                }
+                void Txt(double x, double y, string s)
+                {
+                    var t = new DBText { Position = new Point3d(x, y, 0), Height = 100, TextString = s };
+                    t.SetDatabaseDefaults(db);
+                    ms.AppendEntity(t); tr.AddNewlyCreatedDBObject(t, true);
+                }
+                Ret(0, 0, 4205, 2970, 7);          // A1 a 1:50 em cm
+                Ret(5000, 0, 4205, 2970, 7);       // 2ª folha
+                Ret(500, 500, 42, 29.7, 3);        // seção de pilar (A3 a 1:1 em cm, dentro da folha)
+                Txt(200, 2600, "FOLHA 1 - so no Model");
+                Txt(5200, 2600, "FOLHA 2 - so no Model");
+                var ln = new Line(new Point3d(0, 0, 0), new Point3d(4205, 2970, 0));
+                ln.SetDatabaseDefaults(db);
+                ln.ColorIndex = 1; // vermelho: com o PCEB.ctb sai vermelho (exceção da tabela); cor 3 sai preta
+                ms.AppendEntity(ln); tr.AddNewlyCreatedDBObject(ln, true);
+                var ln2 = new Line(new Point3d(5000, 0, 0), new Point3d(9205, 2970, 0));
+                ln2.SetDatabaseDefaults(db);
+                ln2.ColorIndex = 3; // verde: com o PCEB.ctb sai PRETO
+                ms.AppendEntity(ln2); tr.AddNewlyCreatedDBObject(ln2, true);
+                tr.Commit();
+            }
+            db.SalvarDxf(dxf1, 16);
+        }
+        // page setup "de outro computador"
+        var l = File.ReadAllLines(dxf1, Encoding.Default).ToList();
+        var saida = new List<string>();
+        bool dentro = false, viu7 = false;
+        for (int i = 0; i + 1 < l.Count; i += 2)
+        {
+            var cod = l[i].Trim(); var val = l[i + 1];
+            if (cod == "100")
+            {
+                if (dentro && !viu7) { saida.Add("  7"); saida.Add("escritorio_inexistente.ctb"); }
+                dentro = val.Trim() == "AcDbPlotSettings"; viu7 = false;
+            }
+            else if (dentro && cod == "2") val = "Plotter Inexistente.pc3";
+            else if (dentro && cod == "4") val = "ISO_A1_(841.00_x_594.00_MM)";
+            else if (dentro && cod == "7") { val = "escritorio_inexistente.ctb"; viu7 = true; }
+            saida.Add(l[i]); saida.Add(val);
+        }
+        File.WriteAllLines(dxf2, saida, Encoding.Default);
+        using (var db2 = new Database(false, true))
+        {
+            db2.DxfIn(dxf2, Path.ChangeExtension(destino, ".dxfin.log"));
+            db2.SaveAs(destino, DwgVersion.Current);
+        }
+    }
+
     private static string LayoutManagerCorrente(Document d)
     {
         try { return (string)CadApp.GetSystemVariable("CTAB") + (d == CadApp.DocumentManager.MdiActiveDocument ? " (ativo)" : ""); }
@@ -140,6 +215,9 @@ public sealed class AutoTestePdf
 
             var criar = Environment.GetEnvironmentVariable("ARM_PDFLOTE_CRIAR");
             if (!string.IsNullOrEmpty(criar)) { var p = criar.Split('|'); CriarVariosLayouts(p[0], p[1]); L("criado " + p[1]); }
+            var soModel = Environment.GetEnvironmentVariable("ARM_PDFLOTE_CRIARMODEL"); // DWG só com Model e page setup de outro PC
+            if (!string.IsNullOrEmpty(soModel)) { CriarSoModel(soModel); L("criado " + soModel); }
+            L("pasta de estilos: " + (PlotadorPdf.PastaEstilos() ?? "(não achada)"));
             var entrada = Environment.GetEnvironmentVariable("ARM_PDFLOTE_ARQUIVOS") ?? "";
             var arquivos = Directory.Exists(entrada)
                 ? Directory.GetFiles(entrada, "*.dwg").OrderBy(a => a).ToList()
@@ -158,7 +236,26 @@ public sealed class AutoTestePdf
             if (Environment.GetEnvironmentVariable("ARM_PDFLOTE_DIAG") == "1")
                 foreach (var a in arquivos) Diagnostico(a, L);
             foreach (var f in folhas)
-                L(FormattableString.Invariant($"folha {f.NomeDesenho} / {f.Layout}: {f.Largura:0.#} x {f.Altura:0.#} ({f.OrigemCaixa}) → {f.Formato?.Nome ?? "?"} (dif {f.Reconhecido?.Diferenca:0.#}, fator {f.Reconhecido?.Fator}) estilo atual {f.EstiloAtual} {f.Erro} | page setup: {f.PageSetupAtual}"));
+                L(FormattableString.Invariant($"folha {f.NomeDesenho} / {f.Rotulo} (layout {f.Layout}, marcada {f.Marcada}): {f.Largura:0.#} x {f.Altura:0.#} ({f.OrigemCaixa}) → {f.Formato?.Nome ?? "?"} (dif {f.Reconhecido?.Diferenca:0.#}, fator {f.Reconhecido?.Fator}) estilo atual {f.EstiloAtual} {f.Erro} | page setup: {f.PageSetupAtual}"));
+            // ARM_PDFLOTE_FORMATO_ERRADO = nome de um formato que não existe na impressora: força o erro "papel não existe" na 1ª folha
+            var formErrado = Environment.GetEnvironmentVariable("ARM_PDFLOTE_FORMATO_ERRADO");
+            if (!string.IsNullOrEmpty(formErrado) && folhas.Count > 0)
+            {
+                var alvo = folhas.First(f => f.Formato != null);
+                alvo.Formato = new FormatoFolha(formErrado, alvo.Formato.Largura, alvo.Formato.Altura);
+                L($"forçado formato inexistente '{formErrado}' em {alvo.NomeDesenho} / {alvo.Rotulo}");
+            }
+            // ARM_PDFLOTE_TRAVAR = 1: o PDF de destino da última folha fica aberto (exclusivo) durante o lote
+            FileStream trava = null;
+            if (Environment.GetEnvironmentVariable("ARM_PDFLOTE_TRAVAR") == "1")
+            {
+                var ultima = folhas.Last(f => f.Formato != null);
+                var destTrava = ExecutorLotePdf.Destinos(folhas.Where(f => f.Formato != null).ToList(), cfg)[ultima];
+                Directory.CreateDirectory(Path.GetDirectoryName(destTrava));
+                File.WriteAllText(destTrava, "travado");
+                trava = new FileStream(destTrava, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                L("travado " + destTrava);
+            }
 
             var png = Environment.GetEnvironmentVariable("ARM_PDFLOTE_JANELA");
             if (!string.IsNullOrEmpty(png))
@@ -184,7 +281,33 @@ public sealed class AutoTestePdf
             int consultas = 0;
             var (res, cancelado) = ComandosPdf.Executar(folhas.Where(f => f.Formato != null).ToList(), cfg, false,
                 () => cancelarApos > 0 && Directory.Exists(cfg.PastaDestino) && Directory.GetFiles(cfg.PastaDestino, "*.pdf").Length >= cancelarApos && ++consultas > 0);
+            trava?.Dispose();
             if (cancelado) L("CANCELADO");
+            L("---- relatório ----");
+            L(Paleta.FormRelatorioPdf.Texto(res, cancelado));
+            L("---- copiar detalhes ----");
+            L(Paleta.FormRelatorioPdf.DetalhesParaCopiar(res, cancelado));
+            var relPng = Environment.GetEnvironmentVariable("ARM_PDFLOTE_RELATORIO_PNG");
+            if (!string.IsNullOrEmpty(relPng))
+            {
+                using var j = new Paleta.FormRelatorioPdf(res, cancelado);
+                j.Show();
+                System.Windows.Forms.Application.DoEvents();
+                using (var bmp = new System.Drawing.Bitmap(j.Width, j.Height))
+                {
+                    j.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, j.Width, j.Height));
+                    bmp.Save(relPng);
+                }
+                // botão "Copiar detalhes do erro" pelo próprio Click (sem mouse): confere a área de transferência
+                var copiar = j.Controls.Find("copiar", true).FirstOrDefault() as System.Windows.Forms.Button;
+                if (copiar != null && copiar.Enabled)
+                {
+                    copiar.PerformClick();
+                    try { L("área de transferência: " + (System.Windows.Forms.Clipboard.GetText() ?? "").Split('\n').FirstOrDefault()); } catch (Exception ex) { L("clipboard: " + ex.Message); }
+                }
+                j.Close();
+                L("relatório salvo em " + relPng);
+            }
             // desenhos abertos: o layout corrente volta e (sem "gravar no layout") o page setup salvo não muda
             foreach (Document d in CadApp.DocumentManager)
             {
@@ -203,7 +326,7 @@ public sealed class AutoTestePdf
             }
             L(FormattableString.Invariant($"lote em {(DateTime.Now - t0).TotalSeconds:0.#} s"));
             foreach (var r in res)
-                L($"{(r.Pdf != null ? "[OK]" : "[FALHA]")} {r.Folha.NomeDesenho} / {r.Folha.Layout} → {r.Pdf ?? r.Erro} | {r.Info}");
+                L($"{(r.Pdf != null ? "[OK]" : "[FALHA]")} {r.Folha.NomeDesenho} / {r.Folha.Rotulo} → {r.Pdf ?? r.Erro} | {r.Info} | causa {r.Diagnostico?.Causa} | avisos {string.Join("; ", r.Avisos)}");
         }
         catch (Exception ex) { L("ERRO: " + ex); }
         finally

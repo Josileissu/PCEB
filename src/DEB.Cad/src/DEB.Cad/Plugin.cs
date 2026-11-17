@@ -25,6 +25,7 @@ public sealed class Plugin : Rt.IExtensionApplication
         {
             Demo.Iniciar();
             Pdf.Pdf24.RestaurarPendente(); // ARMPDFLOTE interrompido (CAD fechado no meio): devolve a configuração da PDF24
+            Pdf.PlotadorPdf.GarantirPcebAoCarregar(); // PCEB.ctb na pasta de estilos antes da 1ª leitura da lista (o CAD guarda a lista)
             try { Layers.GarantirArquivo(); } catch (Exception ex) { Log.Erro("layers.csv", ex); }
             RecarregarConfig();
             // templates de elementos (docs/TEMPLATES.md)

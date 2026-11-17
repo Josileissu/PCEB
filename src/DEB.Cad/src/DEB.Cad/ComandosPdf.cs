@@ -57,8 +57,15 @@ public sealed class ComandosPdf
         }
         catch (Exception ex)
         {
-            Log.Erro("ARMPDFLOTE", ex);
-            dm.MdiActiveDocument?.Editor.WriteMessage($"\nARMPDFLOTE: erro — {ex.Message} (detalhes em {Log.PastaLogs})\n");
+            // barreira do comando: nada derruba o CAD; mensagem clara + detalhe no log
+            var d = ErrosLotePdf.Classificar(ex, EtapaLotePdf.Configurar);
+            Log.ErroDetalhado("ARMPDFLOTE", d.Detalhado(null, null, DateTime.Now));
+            try
+            {
+                dm.MdiActiveDocument?.Editor.WriteMessage($"\nARMPDFLOTE: {d.Resumo} (detalhes em {Log.ArquivoHoje})\n");
+                MessageBox.Show(d.Resumo + "\n\nDetalhes técnicos no log:\n" + Log.ArquivoHoje, "DEB - PDFs em lote", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch { }
         }
     }
 
