@@ -140,11 +140,14 @@ face 1 = +x, 2 = −y, 3 = −x, 4 = +y; a VISTA n olha a face n (1 e 3 mostram 
     ganchos desenhados + tabela, emendas por traspasse (barras hachuradas, ≥ 45ø e o par com ≥ 9ø), por solda (cordões
     ≥ 5ø e corte a-a ≥ 0,3ø), comprimento das barras (U com r, A1/B1) e notas PT/EN em colunas.
 - **Etapa 5 (2026-10-30)** — `ListasArmaduraPilar.cs`: longitudinais e zonas de estribos em LISTAS (parâmetros tabela).
-  - "Barras longitudinais": arranjo (Cantos = 4, Ao lado dos cantos = 8 em "L", Faces 2 e 4 / 1 e 3, Face 1…4 = barras por
+  - "Armadura por linha (longitudinais)" (parâmetro `Longitudinais`; rótulo "Barras longitudinais" até 17/11/2026): arranjo
+    (Cantos = 4, Ao lado dos cantos = 8 em "L", Faces 2 e 4 / 1 e 3, Face 1…4 = barras por
     face), bitola, feixe (1–3), início/fim (cm da base; vazio = pilar todo). Linhas do mesmo arranjo uma sobre a outra:
     a sobreposição é emenda (cota + nota; aviso se < traspasse da NBR 6118 na mesma seção, mín. 45φ); linha contida em outra
     = aviso. Posições alinhadas pelo maior feixe do arranjo (`PosicoesLinhas`, `RaioFeixe`, `CentrosFeixe`); faces entre o
     "L" (se houver) ou entre os cantos. Quantidade da RA = posições × feixe. Espaçamento livre com o raio do feixe.
+    A leitura e as posições moram em `ArmaduraPorLinha.cs` (D32), a mesma conta do modelo 3D do Revit; o template chama por
+    `LerLongitudinais`/`PosicoesLinhas`.
   - "Zonas de estribos": nome, medida a partir da base/topo, de/até, bitola, espaçamento, grampos; o trecho corrente
     (EstBitola/EstEsp/GramposCorrente) preenche os vãos (`LerZonas`); zonas sobrepostas = aviso, vale a primeira.
   - Elevação: uma coluna por arranjo (e lado A/B das alternadas). Seções (`Cortes`): divididas onde mudam as linhas

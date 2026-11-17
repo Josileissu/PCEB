@@ -8,7 +8,7 @@ Situação: a fazer · em andamento · pausado · aguardando usuário · pronto 
 
 | # | Tarefa | Situação | Branch | Atualizado em |
 |---|---|---|---|---|
-| O-2 | Organização do núcleo: etapas 3 a 6 (D26–D31) — [tarefa](tarefas/O-2.md). Etapas 3 a 6 feitas; arranjo das barras nas seções não retangulares feito no núcleo (D31, branch `feat/arranjo-por-familia`; regra provisória do cobrimento interno a confirmar) e falta decidir a fonte das DLLs de referência dos CADs | aguardando usuário | — | 16/11 |
+| O-2 | Organização do núcleo: etapas 3 a 6 (D26–D32) — [tarefa](tarefas/O-2.md). Etapas 3 a 6 feitas; arranjo das barras nas seções não retangulares feito no núcleo (D31, branch `feat/arranjo-por-familia`; regra provisória do cobrimento interno a confirmar); armadura por linha como forma única das longitudinais do pilar no CAD e no Revit (D32, branch `feat/armadura-por-linha`); falta decidir a fonte das DLLs de referência dos CADs | aguardando usuário | — | 17/11 |
 | P1-9 | Pranchas de formas no Revit (D25) — [tarefa](tarefas/P1-9.md) | em andamento | — | 14/11 |
 | P1-8 | Paginar laje alveolar no Revit (D24) — [tarefa](tarefas/P1-8.md) | pronto p/ revisão | — | 12/11 |
 | P1-1 | Pilar pré-moldado no Revit igual à PP127 — [tarefa](tarefas/P1-1.md) | em andamento | — | 06/11 |

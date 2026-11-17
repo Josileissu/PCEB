@@ -71,8 +71,8 @@ na leitura e no uso. `TemplatePilarPreMoldado.FaceExibida` chama esta tabela.
 
 `SecaoBarras.Posicoes(SecaoTransversal, cobrimentos por ParteSecao, …, aço do estribo, configuração)` → `ArranjoSecao`
 (barras, estribos por parte, avisos, ou `Erro`). Retangular: delega para a função antiga (resultado idêntico; sem estribos
-nem avisos). Chamam: `TemplatePilarPreMoldado.PosicoesBarras` e o modelo 3D do Revit (`ColumnRebarLayout.LongitudinalPositions`),
-só com seção retangular. T, L, I e trapezoidal: arranjo por família (D31, `Motor/ArranjoFamilias.cs`); nenhum template nem
+nem avisos). Chama: `TemplatePilarPreMoldado.PosicoesBarras`, só com seção retangular (o modelo 3D do Revit passou para a
+armadura por linha, D32). T, L, I e trapezoidal: arranjo por família (D31, `Motor/ArranjoFamilias.cs`); nenhum template nem
 comando chama ainda. Seção medida: "arranjo não definido".
 
 ## Arranjo por família (D31)
@@ -125,7 +125,8 @@ Achado: o núcleo põe os ganchos do estribo sempre no canto superior esquerdo; 
 | Grampos nas famílias compostas; espaçamento máximo entre longitudinais por parte | sem resposta do dono |
 | Estribo da retangular no `ArranjoSecao` | o chamador continua fazendo (resultado da retangular não muda) |
 | `SecaoComAba`, subdivisão (`TrechoPeca`), consolo | continuam com `SecaoPoligonal`, `TipoSecao` e face 1…4 |
-| Componentes do motor (`SecaoLongitudinal`, `GramposSecao`, `Arranque`) e as listas do template do pilar (`PosicoesLinhas`) | ainda chamam a função por b × h |
+| Componentes do motor (`SecaoLongitudinal`, `GramposSecao`, `Arranque`) | ainda chamam a função por b × h |
+| Armadura por linha (D32) pela seção | `ArmaduraPorLinha.Posicoes(SecaoTransversal, cobrimentos por parte, …)`: retangular = a conta por b × h (o modelo 3D do Revit chama por aqui); outras famílias = "não definida para esta família" (falta combinar as linhas com o arranjo por família da D31) |
 | Famílias e catálogos de aço | D28: quando uma entrega pedir |
 | Orientação gravada em arquivo | nenhum formato grava `SecaoTransversal` ainda |
 | Laje nervurada (a trapezoidal é a nervura) | não feita |

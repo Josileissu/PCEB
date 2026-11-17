@@ -15,7 +15,8 @@ Decisões do dono de 16/11/2026 (D30 em `00_escopo/escopo_organizado.md`, com a 
 
 | Regra | Função do núcleo (CAD e Revit) | Mesmo número? |
 |---|---|---|
-| Posição das longitudinais na seção | `SecaoBarras.Posicoes` | sim |
+| Longitudinais: armadura por linha (arranjo, bitola, feixe, início e fim; posições na seção) | `ArmaduraPorLinha.Ler` / `ArmaduraPorLinha.Posicoes` (D32) | sim |
+| Onde o tirante, a costura e as alças param: maior bitola longitudinal (envoltório do feixe) | `BitolaMaxLongitudinal` (CAD) = `ColumnRebarSpec.MaxLongDiameterMm` (Revit) | sim |
 | Estribo: medidas externas b − 2c; ganchos 135° (estribo, costura, estribo vertical) | `GeradorEstribo.FechadoPadrao` com gancho de 45° | sim |
 | Estribos: início no cobrimento das pontas; sem repetir na divisa entre zonas | `KitDesenho.EstribosNaZona` / `RepeteNaDivisa` / `FimSemRepetir` (também na viga) | sim (alturas e quantidades) |
 | Estribos: zonas (menor espaçamento onde se sobrepõem; corrente nos vãos) | `TemplatePilarPreMoldado.MontarZonas` (CAD em `LerZonas`, Revit em `StirrupRuns`) | sim |
@@ -69,6 +70,26 @@ alturas. Iguais também: longitudinais (quantidade, posições, 595), grampo (47
 | Pino: posição ao longo do balanço | meio do balanço × centro da almofada | — |
 | Etiqueta da alça no Revit | a família de etiqueta do usuário lê o comprimento do Revit | mudar a família para ler `SD_Comprimento (núcleo)` |
 | Duplo do CAD com deslocamento | o template espelha o par pelo centro (face 3 em −desl): com desl ≠ 0 os dois consolos não ficam alinhados e não viram duplo automático | — |
+
+## Armadura por linha (D32, 17/11/2026)
+As longitudinais dos dois programas saem da armadura por linha (`src/DEB.Core/Elementos/Pilar/PreMoldado/ArmaduraPorLinha.cs`):
+no CAD, a tabela "Longitudinais" do template (rótulo "Armadura por linha (longitudinais)"); no Revit, `ColumnRebarSpec.ArmaduraPorLinha`
+e a tabela da janela de pilares, com as mesmas colunas e os mesmos nomes de arranjo.
+
+| Item | CAD | Revit |
+|---|---|---|
+| Bitola por linha | sim | sim |
+| Início e fim por linha (redução com a altura) | sim | sim; a sobreposição digitada entre duas linhas do mesmo arranjo é o traspasse (as duas barras na mesma posição da seção, como no corte do CAD) |
+| Emenda automática pelo comprimento comercial (`SecaoBarras.Emendadas`, alternadas ou na mesma seção) | sim | **não**: pede entradas que o Revit não tem (fck, comprimento comercial, alternadas × mesma seção) e uma decisão nova (quais barras da seção ficam no grupo alternado) — barra mais longa que o comercial sai inteira, como antes |
+| Aviso "traspasse digitado < o da NBR" entre duas linhas | sim | não (precisa do fck) |
+| Feixe de 2 ou 3 | sim | sim, centros por `CentrosFeixe` (cada barra do feixe é uma barra do Revit) |
+| Canto em "L" | `CantoEsp` | `LongCornerSpacingMm` (padrão 50 mm) |
+
+Modelo salvo antes da D32 (sem a lista): as linhas nascem dos campos simples (`ArmaduraPorLinha.DaArmaduraSimples`: cantos +
+"Faces 2 e 4" + "Faces 1 e 3"); os campos continuam no JSON. Testes: `ArmaduraPorLinhaIgualAoRevitDeHoje` (os 6 casos acima e 4 com
+faces diferentes em x e y: posições, bitolas e trecho iguais à conta do Revit de antes) e `ArmaduraPorLinhaTests`. Na troca, as
+barras de todas as funções e as verificações de 11 especificações simples saíram idênticas às de antes (comparação feita na sessão).
+Saíram das posições das linhas também: as filas dos grampos e as verificações (espaçamentos e taxa por trecho da altura).
 
 ## Revit × núcleo na mesma barra
 `RebarFactory.LogLengthComparison` registra o comprimento que a API do Revit mede (`REBAR_ELEM_LENGTH`) ao lado do comprimento do

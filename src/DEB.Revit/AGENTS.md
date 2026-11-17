@@ -52,7 +52,8 @@ $p = Start-Process "C:\Program Files\Autodesk\Revit 2025\Revit.exe" '"<pasta-mã
 $p.WaitForExit(540000)
 ```
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
-  `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela.
+  `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela. `SD_LINHAS=1`: armadura por linha de
+  teste (cantos ø20, faces 2 e 4 com redução ø16 → ø12,5, faces 1 e 3 em feixe de 2); o log traz x, y e z das longitudinais.
 - `exportarpecas` (`SD_EXPORT` = caminho), `conferir`, `conferireditar`, `furos`: ver `docs/EXPORTAR_PARA_O_CAD.md` e `docs/CONFERIR_PECAS.md`.
   Tarefas `formas*`: `docs/FORMAS.md`. `contarlegendas`: `docs/DETALHES_PADRAO.md`.
 - Sem projeto aberto (`src/Precast/TestModel.cs`): `familias` (relatório de `SD_FAMILIAS`, .rfa separados por `;`) e
@@ -82,7 +83,9 @@ src/
                  ViewFactory, DimensionService, SheetBuilder, GeometryHelper, DetailingConfig/Report
   Precast/       PrecastColumn (ColumnFrame, Corbel, PrecastSurvey: levantamento e grupos),
                  ColumnRebarPresets (modelos salvos); ColumnRebarSpec, ColumnRebarLayout, Loc/Corbel/ColumnBox no núcleo
-                 (DEB.Core/Elementos/Pilar/PreMoldado/Modelo3D: geometria das barras — usada pela prévia E pelo Revit),
+                 (DEB.Core/Elementos/Pilar/PreMoldado/Modelo3D: geometria das barras — usada pela prévia E pelo Revit);
+                 longitudinais pela armadura por linha (D32, `ArmaduraPorLinha.cs`, a mesma do CAD): `ColumnRebarSpec.ArmaduraPorLinha`
+                 (modelo salvo sem ela = linhas dos campos simples), tabela "Armadura por linha" na janela,
                  RebarFactory, PrecastColumnPipeline, UI/ (janela WPF em código, sem XAML)
   Presentation/  PresentationStandard (JSON por elemento em %AppData%\PCEB\DEB.Revit\Padroes),
                  Defaults (padrão de fábrica = PP127), StandardDetailer, SheetComposer (regiões),
