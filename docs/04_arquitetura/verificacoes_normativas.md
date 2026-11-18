@@ -81,6 +81,12 @@ argamassa 0,5·Fd, a seco 0,8·Fd). Enquanto a família não tiver o apoio, C3/C
 | C16 | Armadura no elemento-suporte | barras no pilar com As ≥ As,tir na face do consolo | 9062 7.3.3.14, Fig. 20 | Não atende |
 | C17 | Ancoragem do tirante no pilar | lb pela 6118 (no duplo, passante) | 9062 7.3.5.5 | Não atende |
 
+**Etapa 2 (18/11/2026, `VerificacoesConsolo`)**: implementadas C1 (sem a2 = limite rigoroso, "Conferir"), C2 (informativa,
+a/d ≤ balanço/d), C6/C7 (bitola e espaçamento pela ancoragem), C9 (pelo eixo do tirante), C10, C11 (0,4 ou 0,5 conforme a/d),
+C13 e C15 ("Conferir": leitura da taxa a confirmar no livro de comentários). Uma vez por tipo de consolo no template do CAD e
+por geometria no Revit (substituíram as verificações avulsas do `Check`). Ficam para o apoio na família (PC2): C3, C4, C5; para
+depois: C8 (alça vertical, o catálogo não tem), C12, C14, C16, C17.
+
 ## V — Viga pré-moldada (depois do template P2-8)
 | Cód. | Verificação | Limite | Referência | Falha |
 |---|---|---|---|---|

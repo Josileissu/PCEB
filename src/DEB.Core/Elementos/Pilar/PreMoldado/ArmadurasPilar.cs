@@ -8,6 +8,7 @@ using DEB.Core.Motor;
 using DEB.Core.Normas;
 using DEB.Core.Tabelas;
 using DEB.Core.Documentacao;
+using DEB.Core.Elementos.Consolo;
 using DEB.Core.Normas.Verificacao;
 using VP = DEB.Core.Normas.Verificacao.VerificacoesPilar;
 
@@ -530,6 +531,27 @@ public sealed partial class TemplatePilarPreMoldado
             CobrimentoMm = cob.Take(4).Min() * 10, MaiorBitolaMm = zonas.Max(z => z.Bitola), AgregadoMm = v.Numero("DiamAgregado"),
         };
         foreach (var x in RegrasCobrimento.Verificar(dc)) lista.Add(x, false);
+        foreach (var a in lista.Avisos()) Aviso(r, a);
+        r.Verificacoes.Juntar(lista);
+    }
+
+    /// <summary>
+    /// Consolos (NBR 9062, 7.3; Etapa 2 das verificações): uma vez por tipo usado no pilar, pelas regras únicas do núcleo
+    /// (<see cref="VerificacoesConsolo"/>). Cobrimento do consolo = o menor das faces do pilar.
+    /// </summary>
+    private static void VerificarConsolos(ResultadoTemplate r, ValoresTemplate v, List<ConsoloPilar> consolos, double[] cob)
+    {
+        var lista = new ListaVerificacoes();
+        foreach (var k in consolos.GroupBy(x => x.Tipo).Select(g => g.First()))
+        {
+            var dados = new DadosConsolo
+            {
+                Nome = k.Tipo, B = k.B, A = k.A, H = k.H, H1 = k.H1, Cob = cob.Take(4).Min(),
+                TirN = k.TirN, TirPhi = k.TirPhi, TirAlca = k.Laco, CostN = k.CostN, CostPhi = k.CostPhi, VertN = k.VertN, VertPhi = k.VertPhi,
+                FckMPa = v.Numero("Fck"), FykMPa = TabelasNbr.Fyk(v["LongAco"]),
+            };
+            foreach (var x in VerificacoesConsolo.Verificar(dados)) lista.Add(x);
+        }
         foreach (var a in lista.Avisos()) Aviso(r, a);
         r.Verificacoes.Juntar(lista);
     }

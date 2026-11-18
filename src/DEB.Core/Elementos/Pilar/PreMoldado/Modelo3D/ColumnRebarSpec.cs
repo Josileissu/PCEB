@@ -259,11 +259,24 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
                 double width = U_.ToMm(k.Width);
                 double tieGap = (width - 2 * CoverMm - TieDiameterMm) / Math.Max(1, TieCount - 1) - TieDiameterMm;
                 if (TieCount > 1 && tieGap < 20) w.Add($"Tirante do consolo: espaçamento livre {tieGap:0} mm < 20 mm.");
-                if (TieCount < 2) w.Add("Tirante do consolo com menos de 2 barras.");
-                if (SewCount < 2) w.Add("Costura do consolo com menos de 2 estribos horizontais (NBR 9062: As,cost ≥ 0,4 As,tir).");
-                double asTie = TieCount * Math.PI * TieDiameterMm * TieDiameterMm / 4;
-                double asSew = SewCount * 2 * Math.PI * SewDiameterMm * SewDiameterMm / 4;   // 2 ramos por estribo
-                if (asSew < 0.4 * asTie) w.Add($"Costura {asSew:0} mm² < 0,4 × tirante ({0.4 * asTie:0} mm²) (NBR 9062).");
+                // regras únicas do consolo (NBR 9062 7.3, as mesmas do template do CAD), uma vez por geometria de consolo
+                var consolos = new ListaVerificacoes();
+                foreach (var g in corbels.GroupBy(c => (Math.Round(U_.ToMm(c.Width)), Math.Round(U_.ToMm(c.Projection)),
+                                                        Math.Round(U_.ToMm(c.HeightAtFace)), Math.Round(U_.ToMm(c.TipHeight))))
+                                         .Select(x => x.First()))
+                {
+                    double b = U_.ToMm(g.Width) / 10, a = U_.ToMm(g.Projection) / 10, h = U_.ToMm(g.HeightAtFace) / 10;
+                    var dados = new DadosConsolo
+                    {
+                        Nome = $"{Fmt.Virgula(b, "0.#")}x{Fmt.Virgula(h, "0.#")}x{Fmt.Virgula(a, "0.#")}", B = b, A = a, H = h,
+                        H1 = Math.Min(h, U_.ToMm(g.TipHeight) / 10), Cob = CoverMm / 10,
+                        TirN = TieCount, TirPhi = TieDiameterMm, TirAlca = !TieWeldedBar, CostN = SewCount, CostPhi = SewDiameterMm,
+                        VertN = CorbelStirrupCount, VertPhi = CorbelStirrupDiameterMm, FckMPa = FckMPa, FykMPa = TabelasNbr.Fyk(LongSteel),
+                    };
+                    foreach (var x in VerificacoesConsolo.Verificar(dados)) consolos.Add(x);
+                }
+                w.AddRange(consolos.Avisos());
+                _ultimas.Juntar(consolos);
             }
 
             return w;

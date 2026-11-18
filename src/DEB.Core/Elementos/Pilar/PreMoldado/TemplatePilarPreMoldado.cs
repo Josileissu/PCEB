@@ -247,6 +247,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         // ---------------- consolos nas vistas e as marcas dos cortes de forma na VISTA 2 ----------------
         var cob0 = Cobrimentos(v);
         var consolos = LerConsolos(v, Catalogo, L, r.Avisos);
+        VerificarConsolos(r, v, consolos, cob0);
         DesenharConsolosNasVistas(c, consolos, xs, larguras, cob0);
         // alças (pelo CG), montagem (furo ou alça de topo) e inserto do topo
         var itens = DesenharItensNasVistas(c, v, consolos, xs, larguras, b, h, L, ch);
