@@ -212,4 +212,8 @@ Respostas (D37): HTML, só português; um relatório por grupo de peças iguais;
   (gravados junto com o HTML), aplica as decisões no `PCEB_aceites.json`, regrava os relatórios e o índice
   `Relatórios PCEB\Verificações da obra.html` (selo de cada peça, pendências em aberto e aceitas). "Não atende" não pode ser
   aceito: corrige-se a peça. Como lê a pasta, serve também para os relatórios gravados pelo Revit (pasta do .rvt).
-- Falta: quadro resumido na prancha.
+- **Quadro-resumo na prancha** (18/11/2026): comando `ARMQUADROVERIF` no CAD (botão "Quadro verif."). Lê o relatório do grupo
+  na pasta da obra e desenha, no ponto clicado, uma tabela com o selo, as pendências (código, verificação, valor, limite,
+  situação ou ACEITO + engenheiro) e o nome do relatório completo (`RelatoriosObra.Quadro`). É opcional e posicionado pelo
+  projetista: os templates e as referências visuais não mudaram. A decidir com o usuário: se o quadro passa a sair sozinho
+  nos templates e em que lugar da folha.

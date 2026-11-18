@@ -1,11 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
 using DEB.Cad.Infra;
 using DEB.Cad.Paleta;
+using DEB.Core.Configuracao;
 using DEB.Core.Documentacao;
+using DEB.Core.Motor;
 using DEB.Core.Normas.Verificacao;
 
 [assembly: Rt.CommandClass(typeof(DEB.Cad.ComandosAceites))]
@@ -47,6 +50,38 @@ public sealed class ComandosAceites
             Log.Erro("ARMACEITES", ex);
             try { ed?.WriteMessage($"\nARMACEITES: {ex.Message} (detalhes em {Log.ArquivoHoje})\n"); } catch { }
         }
+    }
+
+    /// <summary>
+    /// ARMQUADROVERIF (D37): quadro-resumo das verificações de um grupo, lido dos relatórios da pasta da obra, no ponto clicado.
+    /// É opcional e fica onde o projetista puser: os templates não mudam.
+    /// </summary>
+    [Rt.CommandMethod("ARMQUADROVERIF")]
+    public void Quadro() => Comandos.Executar("ARMQUADROVERIF", (doc, ed, db, cfg) =>
+    {
+        string pasta = PastaObra(db);
+        var grupos = RelatoriosObra.Ler(pasta);
+        if (grupos.Count == 0) { ed.WriteMessage($"\nARMQUADROVERIF: nenhum relatório de verificação em {pasta}.\n"); return; }
+        var g = grupos[0];
+        if (grupos.Count > 1)
+        {
+            var m = ed.GetString(new PromptStringOptions($"\nMarca ({string.Join(", ", grupos.Select(x => x.Marca))}): ") { AllowSpaces = true });
+            if (m.Status != PromptStatus.OK) return;
+            g = grupos.FirstOrDefault(x => string.Equals(x.Marca, m.StringResult.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (g == null) { ed.WriteMessage($"\nARMQUADROVERIF: não há relatório da marca {m.StringResult}.\n"); return; }
+        }
+        var pt = ed.GetPoint("\nCanto superior esquerdo do quadro:");
+        if (pt.Status != PromptStatus.OK) return;
+        using var tr = db.TransactionManager.StartTransaction();
+        DesenharQuadro(tr, db, cfg, g, pasta, pt.Value.TransformBy(ed.CurrentUserCoordinateSystem));
+        tr.Commit();
+    });
+
+    internal static void DesenharQuadro(Transaction tr, Database db, ConfiguracaoArmadura cfg, RelatorioGrupo g, string pasta, Point3d em)
+    {
+        var r = new ResultadoTemplate { Escala = cfg.EscalaEfetiva(0) };
+        r.Tabelas.Add(RelatoriosObra.Quadro(g, AceitesObra.Ler(pasta), 0, 0, r.Escala));
+        ComandosTemplate.Desenhar(tr, db, cfg, r, em, atualizarRA: false);
     }
 
     /// <summary>
@@ -101,6 +136,18 @@ public sealed class ComandosAceites
             C(ac != null && ac.Engenheiro == "Eng. Teste" && ac.Comentario == "estribos de ramos duplos", "aceite do V1 gravado no arquivo da obra");
             C(pend.First(p => p.Marca == "P1").Aceite == null, "P1 continua em aberto");
             C(File.ReadAllText(Path.Combine(pasta, RelatorioHtml.Subpasta, RelatorioHtml.NomeArquivo("V1"))).Contains("ACEITO"), "relatório do V1 regravado com ACEITO");
+            // quadro-resumo na prancha (ARMQUADROVERIF sem os prompts)
+            var doc = CadApp.DocumentManager.MdiActiveDocument;
+            using (doc.LockDocument())
+            using (var tr = doc.Database.TransactionManager.StartTransaction())
+            {
+                DesenharQuadro(tr, doc.Database, Plugin.Config, RelatoriosObra.Ler(pasta).First(x => x.Marca == "V1"), pasta, new Point3d(0, 0, 0));
+                var ids = ((BlockTableRecord)tr.GetObject(doc.Database.CurrentSpaceId, OpenMode.ForRead)).Cast<ObjectId>().ToList();
+                var tab = ids.Select(id => tr.GetObject(id, OpenMode.ForRead)).OfType<Table>().FirstOrDefault();
+                C(tab != null && tab.Rows.Count == 5 && tab.Cells[0, 0].TextString.Contains("V1: NÃO ATENDE"), "quadro-resumo do V1 desenhado (título + cabeçalho + 2 pendências + rodapé): " + (tab == null ? ids.Count + " objeto(s), sem tabela" : tab.Rows.Count + " linhas, título [" + tab.Cells[0, 0].TextString + "]"));
+                C(tab != null && tab.Cells[3, 4].TextString.StartsWith("ACEITO"), "quadro mostra o aceite do D6: [" + tab?.Cells[3, 4].TextString + "]");
+                tr.Commit();
+            }
             using (var f = new FormAceites(pasta)) C(f.Decisoes()[1].Aceitar && f.Engenheiro == "Eng. Teste", "reabrir mostra o aceite marcado e lembra o engenheiro");
         }
         catch (Exception ex) { C(false, "exceção: " + ex); }

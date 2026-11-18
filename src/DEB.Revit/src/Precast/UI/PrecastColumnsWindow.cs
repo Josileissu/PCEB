@@ -222,7 +222,7 @@ namespace DEB.Revit.Precast.UI
             // dados das verificações (cobrimento G1–G4, espaçamentos, consolo): só entram nas regras, não mudam as barras
             Choice("Classe de agressividade ambiental", ExposureClasses, () => TabelasNbr.Romano(TabelasNbr.Classe(s.ExposureClass)), v => s.ExposureClass = v);
             Num("fck do concreto (MPa)", () => s.FckMPa, v => s.FckMPa = v);
-            Bool("Relação a/c ≤ 0,45 (libera a 2ª redução do cobrimento com fck ≥ 40 MPa)", () => s.WaterCement045, v => s.WaterCement045 = v);
+            Bool("Relação a/c ≤ 0,45 (2ª redução do cobrimento)", () => s.WaterCement045, v => s.WaterCement045 = v);
             Num("Agregado graúdo: dmáx (mm)", () => s.AggregateMm, v => s.AggregateMm = v);
             Choice("Aço das longitudinais", Steels, () => s.LongSteel, v => s.LongSteel = v);
             Choice("Aço dos estribos", Steels, () => s.StirrupSteel, v => s.StirrupSteel = v);

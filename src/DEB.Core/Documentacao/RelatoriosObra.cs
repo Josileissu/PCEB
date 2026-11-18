@@ -264,4 +264,45 @@ public static class RelatoriosObra
         sb.Append("</footer>\n</main>\n</body>\n</html>\n");
         return sb.ToString();
     }
+
+    /// <summary>
+    /// Quadro-resumo das verificações do grupo para a prancha (D37): título com o selo, uma linha por pendência (código,
+    /// verificação, valor, limite, situação ou ACEITO) e o nome do relatório completo. Sem pendência: uma linha só.
+    /// </summary>
+    public static Motor.TabelaTemplate Quadro(RelatorioGrupo g, AceitesObra aceites, double x = 0, double y = 0, double escala = 0)
+    {
+        aceites ??= new AceitesObra();
+        var t = new Motor.TabelaTemplate
+        {
+            Titulo = $"VERIFICAÇÕES NORMATIVAS - {g.Marca}: {RelatorioHtml.Selo(Situacao(g, aceites))}", X = x, Y = y, Escala = escala,
+        };
+        t.Larguras.AddRange(new[] { 5.0, 34.0, 11.0, 14.0, 9.0 });
+        t.Alinhamentos.AddRange(new[] { 1, 0, 1, 1, 1 });
+        var pend = g.Verificacoes.Where(r => r.Situacao != SituacaoVerificacao.Ok)
+                    .OrderByDescending(r => r.Situacao == SituacaoVerificacao.Conferir && aceites.Encontrar(g.Marca, r) != null ? SituacaoVerificacao.Ok : r.Situacao).ToList();
+        int ok = g.Verificacoes.Count - pend.Count;
+        if (pend.Count > 0) t.Linhas.Add(new[] { "CÓD.", "VERIFICAÇÃO", "VALOR", "LIMITE", "SITUAÇÃO" });
+        foreach (var r in pend)
+        {
+            var ac = r.Situacao == SituacaoVerificacao.Conferir ? aceites.Encontrar(g.Marca, r) : null;
+            t.Linhas.Add(new[] { r.Codigo, Quebrar(r.Descricao + " (" + r.Referencia + ")", 52), Quebrar(r.Valor, 16), Quebrar(r.Limite, 21),
+                                 ac != null ? "ACEITO" + Motor.TabelaTemplate.Quebra + ac.Engenheiro : RelatorioHtml.Selo(r.Situacao) });
+        }
+        t.Linhas.Add(new[] { "", (pend.Count == 0 ? $"As {ok} verificações atendem. " : $"Demais {ok} verificações: OK. ") + "Relatório: " + RelatorioHtml.NomeArquivo(g.Marca), "", "", "" });
+        return t;
+    }
+
+    /// <summary>Quebra o texto em linhas de até <paramref name="largura"/> caracteres (nos espaços).</summary>
+    public static string Quebrar(string s, int largura)
+    {
+        var sb = new StringBuilder();
+        int col = 0;
+        foreach (string palavra in (s ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (col > 0 && col + 1 + palavra.Length > largura) { sb.Append(Motor.TabelaTemplate.Quebra); col = 0; }
+            else if (col > 0) { sb.Append(' '); col++; }
+            sb.Append(palavra); col += palavra.Length;
+        }
+        return sb.ToString();
+    }
 }

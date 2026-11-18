@@ -97,4 +97,26 @@ public class RelatoriosObraTests
         Assert.Empty(RelatoriosObra.Pendencias(pasta));
         Assert.Contains("class=\"selo ok\"", RelatoriosObra.GerarIndice(Array.Empty<RelatorioGrupo>(), null));
     });
+
+    [Fact]
+    public void QuadroDaPranchaResumeAsPendencias()
+    {
+        var g = Grupo("P7", V("P1", SituacaoVerificacao.Ok), V("G2", SituacaoVerificacao.Conferir), V("C3", SituacaoVerificacao.NaoAtende, "2,5 cm"));
+        var t = RelatoriosObra.Quadro(g, null, 10, 20, 25);
+        Assert.Equal("VERIFICAÇÕES NORMATIVAS - P7: NÃO ATENDE", t.Titulo);
+        Assert.Equal((10, 20, 25), (t.X, t.Y, t.Escala));
+        Assert.Equal(new[] { "CÓD.", "C3", "G2", "" }, t.Linhas.Select(l => l[0]));   // "Não atende" primeiro
+        Assert.All(t.Linhas, l => Assert.Equal(5, l.Length));
+        Assert.Contains("Demais 1 verificações: OK", t.Linhas.Last()[1]);
+
+        var aceites = new AceitesObra();
+        var r = g.Verificacoes.Single(v => v.Codigo == "G2");
+        aceites.Aceites.Add(new AceitePendencia { Marca = "P7", Codigo = r.Codigo, Descricao = r.Descricao, Valor = r.Valor, Engenheiro = "Eng. Teste" });
+        Assert.StartsWith("ACEITO", RelatoriosObra.Quadro(g, aceites).Linhas.Single(l => l[0] == "G2")[4]);
+
+        var limpo = RelatoriosObra.Quadro(Grupo("P8", V("P1", SituacaoVerificacao.Ok)), null);
+        Assert.Equal("VERIFICAÇÕES NORMATIVAS - P8: OK", limpo.Titulo);
+        Assert.Single(limpo.Linhas);
+        Assert.Equal("um dois" + DEB.Core.Motor.TabelaTemplate.Quebra + "tres", RelatoriosObra.Quebrar("um dois tres", 8));
+    }
 }
