@@ -58,8 +58,9 @@ Uma regra do núcleo (`DEB.Core`, D26) devolve: **código**, grupo, o que confer
 
 ## C — Consolo (pilar)
 Dados que o desenho já tem: b, h (engaste), h1 (face externa), a1 (comprimento), d, tirante (φ, n, ancoragem), costura,
-estribos verticais. **Falta no modelo**: posição do aparelho de apoio (a, a2, afastamento lateral) — vem da viga apoiada ou
-de um campo novo; sem ele, C3/C4/C5 ficam como "Conferir".
+estribos verticais. **Apoio (D36)**: a família do consolo ganha o elemento **apoio** — neoprene, argamassa ou direto — com posição e dimensões;
+de lá saem a, a2 e o afastamento lateral (C1, C3–C5) e o Hd estimado na fase de cálculo (9062 7.3.9: elastômero 0,16·Fd,
+argamassa 0,5·Fd, a seco 0,8·Fd). Enquanto a família não tiver o apoio, C3/C4/C5 ficam como "Conferir".
 | Cód. | Verificação | Limite | Referência | Falha |
 |---|---|---|---|---|
 | C1 | Altura da face externa | h1 ≥ h/2 − a2 (Fig. 17) | 9062 7.3.3.1 | Não atende |
@@ -83,7 +84,7 @@ de um campo novo; sem ele, C3/C4/C5 ficam como "Conferir".
 ## V — Viga pré-moldada (depois do template P2-8)
 | Cód. | Verificação | Limite | Referência | Falha |
 |---|---|---|---|---|
-| V1 | Armadura mínima de flexão | ρmín da Tab. 17.3 (por fck, seção retangular; a tabela é imagem na norma — valores a transcrever e conferir) | 6118 17.3.5.2.1 | Não atende |
+| V1 | Armadura mínima de flexão | ρmín da Tab. 17.3 (%, CA-50, d/h = 0,8): C20–C30 0,150; C35 0,164; C40 0,179; C45 0,194; C50 0,208; C55 0,211; C60 0,219; C65 0,226; C70 0,233; C75 0,239; C80 0,245; C85 0,251; C90 0,256 — transcrita em `TabelasNbr.RhoMinVigaPct`; absoluto 0,15 % | 6118 17.3.5.2.1 | Não atende |
 | V2 | Armadura máxima | As + As' ≤ 4 % Ac fora das emendas | 6118 17.3.5.2.4 | Não atende |
 | V3 | Pele | h > 60 cm: 0,10 % Ac,alma por face, ≤ 5 cm²/m, s ≤ min(20 cm; d/3) | 6118 17.3.5.2.3, 18.3.5 | Não atende |
 | V4 | Espaçamento livre das longitudinais | horizontal ≥ max(20 mm; φ; 1,2·dmáx); vertical ≥ max(20 mm; φ; 0,5·dmáx) | 6118 18.3.2.2 | Não atende |
@@ -104,22 +105,49 @@ de um campo novo; sem ele, C3/C4/C5 ficam como "Conferir".
 | D3 | Estribos horizontais do dente ancorados na face externa e penetrando **1,5·lb** na viga | — | 9062 7.4.5.1 | Não atende |
 | D4 | Estribos verticais no dente | taxa ≥ 0,15 %·b·h (via 7.3.7) | 9062 7.4.5.2 | Não atende |
 | D5 | Regras do consolo no dente (C3, C6, C7, C9–C11) | — | 9062 7.4.5.3 | Não atende |
-| D6 | **Suspensão: posição** | estribos **fechados**, envolvendo a longitudinal, **concentrados na extremidade da viga junto ao dente**; a Fig. 23 indica a faixa (cota "≤ dvig/4" junto a Rsus) — **confirmar a leitura da figura com o livro de comentários da IBRACON** | 9062 7.4.6.2, Fig. 23 | Não atende |
+| D6 | **Suspensão: posição** | estribos **fechados**, envolvendo a longitudinal, **concentrados na extremidade da viga junto ao dente**, no trecho **= cobrimento + dvig/4, arredondado para baixo** (D36), medido a partir da face do dente — é a cota do detalhe da viga | 9062 7.4.6.2, Fig. 23; D36 | Não atende |
 | D7 | Suspensão por barras verticais | no máximo 0,4·Fd (precisa de Fd: Conferir) | 9062 7.4.6.2 | Conferir |
-| D8 | Furos de pino no dente (regra do escritório, D23) | largura < 30 cm → 1 furo; ≥ 30 cm → 2 | D23 | Não atende |
+| D8 | Furos de pino no dente (regra do escritório, D23) | largura < 30 cm → 1 furo; ≥ 30 cm → 2; o furo passa a existir na família da viga (D36) | D23, D36 | Não atende |
 
 ## Fora desta etapa (precisam de esforço — fase de cálculo)
 As,tir, As,cost e Asus pela carga (9062 7.3.5.3–7.3.5.4, 7.3.8, 7.4.6.1); biela (7.3.4, 7.4.7); Hd (7.3.9); As,mín com Nd;
 smáx de estribo e ramos pelo Vd; flechas e fissuras; situações transitórias.
 
-## Perguntas ao usuário
-1. **Cobrimento**: aplicar automaticamente as reduções da NBR 9062 (−5 mm e, com fck ≥ 40 e a/c ≤ 0,45, mais −5 mm) ou só
-   avisar? O padrão do escritório usa qual cobrimento no pilar e na viga?
-2. **Severidade dos limites que dependem de Vd** (V6, V7): começar com "Conferir" no limite rigoroso, como proposto?
-3. **Aparelho de apoio no consolo** (C3–C5): ler da viga apoiada no modelo (Revit) ou criar campo no tipo de consolo?
-4. **Suspensão do dente (D6)**: confirmar no livro impresso de comentários da NBR 9062 a faixa da Fig. 23.
-5. **Tabela 17.3** (V1): transcrever os valores do PDF (a tabela é imagem) e conferir com a apostila de flexão.
+## Respostas do usuário (18/11/2026, D36)
+1. Reduções de cobrimento da NBR 9062 **aplicadas automaticamente e avisadas** (G2 sai como "Conferir" quando o desenho só
+   atende graças a elas, com as reduções escritas na mensagem).
+2. Limites que dependem de Vd: "Conferir" com o limite mais rigoroso.
+3. Elemento **apoio** na família do consolo (neoprene, argamassa, direto); **furo dos pinos** na família da viga.
+4. Suspensão do dente: trecho = cobrimento + dvig/4, arredondado para baixo (D6).
+5. Tabela 17.3 transcrita (V1).
 
-## Ordem proposta
-Etapa 1: tipo de resultado no núcleo + P1–P16 e G1–G9 (juntando as duas cópias, corrigindo P8) com testes.
+## Ordem e situação
+Etapa 1 (**feita**, branch `feat/verificacoes-normativas`): tipo de resultado no núcleo + P1–P16 e G1–G9 (juntando as duas cópias, corrigindo P8) com testes.
 Etapa 2: C1–C17. Etapa 3: painel na prévia do Revit e do CAD. Etapa 4: V e D, depois do template da viga (P2-8).
+
+Etapa 1, o que entrou: `DEB.Core/Normas/Verificacao/` (`ResultadoVerificacao`, `ListaVerificacoes`, `TabelasNbr` com as
+Tabelas 7.2 e 17.3, `RegrasCobrimento` G1–G4, `VerificacoesPilar` P1–P14); o template do CAD (`ArmadurasPilar`) e a armadura do
+Revit (`ColumnRebarSpec.Check`) chamam as mesmas regras; taxa máxima corrigida para 8 % com emendas; parâmetros novos
+"Classe de agressividade" e "a/c ≤ 0,45" no template do pilar (Revit: `ExposureClass`, `FckMPa`, `WaterCement045`,
+`AggregateMm`, `LongSteel`, `StirrupSteel` no modelo de armadura — ainda sem campo na janela, vão na Etapa 3);
+testes em `VerificacoesNormativasTests`. Ficaram para depois: P9 (estribo no cruzamento com vigas, precisa da posição das
+vigas), P15 (pilar vazado), G5–G9 (já parcialmente em `RegrasDobramento`/`RegrasTraspasse`; entram com o relatório).
+
+## Relatórios e memoriais (proposta para discutir)
+Os mesmos `ResultadoVerificacao` alimentam quatro saídas, do mais curto ao mais completo; o modelo do relatório mora no núcleo
+(D26) e os plugins só mandam gravar:
+
+| Nível | Onde aparece | Conteúdo |
+|---|---|---|
+| 1. **Avisos na prévia** | janela do Revit e prévia do CAD (Etapa 3) | selo geral (OK / Conferir / Não atende), contador por grupo, uma linha por falha com a dica |
+| 2. **Relatório de verificação da peça** | arquivo por grupo de peças iguais (HTML para ver e imprimir em PDF pela PDF24; CSV/JSON para dados) | cabeçalho (marca, quantidade, seção, comprimento, materiais, classe de agressividade, cobrimento exigido com as reduções); tabela por grupo: código, verificação, valor, limite, situação, norma; **todas** as verificações, inclusive as OK — o "porquê" de cada número |
+| 3. **Memorial de detalhamento da obra** | um documento por obra | premissas (normas e edições, materiais, classe, cobrimentos, regras do escritório), índice das peças com o selo de cada uma, lista das pendências "Conferir" com **aceite do engenheiro e comentário** (rastreabilidade: quem aceitou, quando, por quê) |
+| 4. **Memorial de cálculo** (fase de cálculo) | idem | cada verificação com fórmula → "onde:" → números substituídos → resultado (formato visto no Gtool3D e no Precast Design); o `ResultadoVerificacao` ganha os campos `Formula` e `Memoria` |
+
+Pontos a decidir com o usuário:
+- **Formato principal**: HTML imprimível (simples, abre em qualquer lugar, vira PDF) ou Word/Excel? Bilíngue como as pranchas
+  (PT/EN) ou só português?
+- **Quadro na prancha**: um quadro resumido de verificações (selo + pendências) na folha da peça, ou só no relatório?
+- **Aceite das pendências**: onde guardar o aceite do engenheiro — no modelo (parâmetro `SD_` na peça, Revit; XData no CAD)
+  ou num arquivo da obra ao lado do modelo?
+- **Granularidade**: um relatório por grupo de peças iguais (como as pranchas) ou um por peça?

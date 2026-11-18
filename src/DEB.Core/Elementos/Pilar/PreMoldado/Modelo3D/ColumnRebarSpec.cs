@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DEB.Core.Normas.Verificacao;
 using APL = DEB.Core.Elementos.Pilar.PreMoldado.ArmaduraPorLinha;
+using VP = DEB.Core.Normas.Verificacao.VerificacoesPilar;
 
 namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 {
@@ -15,6 +17,18 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 
         // ---- Geral ----
         public double CoverMm { get; set; } = 25;
+        /// <summary>Classe de agressividade ambiental ("I" a "IV"): cobrimento exigido, com as reduções da NBR 9062 (verificações G1/G2).</summary>
+        public string ExposureClass { get; set; } = "II";
+        /// <summary>fck (MPa), para o cobrimento reduzido (NBR 9062, 9.2.1.1.2) e o aviso dos concretos C55+.</summary>
+        public double FckMPa { get; set; } = 40;
+        /// <summary>Relação a/c ≤ 0,45 declarada (libera a 2ª redução do cobrimento com fck ≥ 40 MPa).</summary>
+        public bool WaterCement045 { get; set; }
+        /// <summary>Dimensão máxima do agregado graúdo (mm): espaçamento livre (P5) e cobrimento (G4).</summary>
+        public double AggregateMm { get; set; } = 19;
+        /// <summary>Aço das longitudinais (espaçamento dos estribos: 12φ no CA-50, 24φ no CA-25).</summary>
+        public string LongSteel { get; set; } = "CA-50";
+        /// <summary>Aço dos estribos (fyk na alternativa φt &lt; φ/4).</summary>
+        public string StirrupSteel { get; set; } = "CA-50";
 
         // ---- Longitudinal ----
         // Desde a D32 (17/11/2026) as longitudinais saem da armadura por linha (ArmaduraPorLinha, abaixo), a mesma regra do
@@ -156,33 +170,47 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
             var linhas = APL.Ler(Linhas(), LongEndCoverMm / 10, U_.ToMm(frame.H) / 10 - LongEndCoverMm / 10, avisosLinhas);
             w.AddRange(avisosLinhas);
             double phiMin = MinLongDiameterMm(), phiMax = linhas.Select(l => l.Bitola).DefaultIfEmpty(LongDiameterMm).Max();
+            double phiEqMax = linhas.Select(l => l.Bitola * Math.Sqrt(Math.Max(1, l.Feixe))).DefaultIfEmpty(LongDiameterMm).Max();
             if (linhas.Count == 0) w.Add("Sem armadura longitudinal: inclua as barras na armadura por linha.");
-            if (phiMin < 10) w.Add("Ø longitudinal < 10 mm (NBR 6118 18.4.2.1).");
-            if (phiMax > bMin / 8) w.Add($"Ø longitudinal > 1/8 do menor lado ({bMin / 8:0.#} mm).");
-            if (StirrupDiameterMm < Math.Max(5, phiMax / 4)) w.Add($"Ø estribo < max(5 mm; Ø long/4 = {phiMax / 4:0.#} mm) (18.4.3).");
-
-            double sMax = Math.Min(Math.Min(200, bMin), 12 * phiMin);
+            // regras únicas do núcleo (as mesmas do template do CAD; docs/04_arquitetura/verificacoes_normativas.md)
+            var lista = new ListaVerificacoes();
+            lista.Add(VP.DimensaoMinima(bx, by), true);
+            lista.Add(VP.PilarParede(bx, by), true);
+            foreach (var phi in linhas.Select(l => l.Bitola).DefaultIfEmpty(LongDiameterMm).Distinct())
+                lista.Add(VP.BitolaLongitudinal(phi, bMin), true);
             foreach (var (label, s) in new[] { ("corrente", StirrupSpacingMm), ("topo", TopZoneSpacingMm),
                                                ("base", BaseZoneSpacingMm), ("consolo", CorbelZoneSpacingMm) })
-                if (s > sMax + 1e-6) w.Add($"Espaçamento de estribos ({label}) {s:0} mm > {sMax:0} mm = min(200; menor lado; 12 Ø long).");
+            {
+                lista.Add(VP.BitolaEstribo(StirrupDiameterMm, phiEqMax, s, TabelasNbr.Fyk(StirrupSteel)), true);
+                lista.Add(VP.EspacamentoEstribos(s, bMin, phiMin, LongSteel, label), true);
+            }
+            lista.Add(VP.ConcretoAltaResistencia(FckMPa), true);
 
-            // espaçamentos e taxa em cada trecho da altura com a mesma composição (redução com a altura): o pior trecho
-            double gapMaxFound = 0, clearMin = double.MaxValue, phiClear = phiMax, asMax = 0, asMin = double.MaxValue;
+            // espaçamentos e taxa em cada trecho da altura com a mesma composição (redução com a altura e emendas): o pior trecho
+            double gapMaxFound = 0, clearMin = double.MaxValue, asMax = 0, asMin = double.MaxValue;
             foreach (var trecho in ColumnRebarLayout.LongitudinalStretches(frame, this))
             {
                 foreach (var (dist, folga, phi) in ColumnRebarLayout.FaceGaps(trecho))
                 {
                     gapMaxFound = Math.Max(gapMaxFound, dist);
-                    if (folga < clearMin) { clearMin = folga; phiClear = phi; }
+                    clearMin = Math.Min(clearMin, folga);
                 }
                 double asTrecho = trecho.Sum(b => b.Feixe * Math.PI * b.Bitola * b.Bitola / 4);
                 asMax = Math.Max(asMax, asTrecho); asMin = Math.Min(asMin, asTrecho);
             }
-            double gapMax = Math.Min(400, 2 * bMin);
-            if (gapMaxFound > gapMax + 1e-6)
-                w.Add($"Espaçamento entre barras longitudinais {gapMaxFound:0} mm > {gapMax:0} mm = min(400; 2 × menor lado) (18.4.2.2).");
-            if (clearMin < double.MaxValue && clearMin < Math.Max(20, phiClear))
-                w.Add($"Espaçamento livre entre barras {clearMin:0} mm < max(20 mm; Ø) (18.4.2.2).");
+            if (gapMaxFound > 0) lista.Add(VP.EspacamentoEixos(gapMaxFound, bMin), true);
+            if (clearMin < double.MaxValue) lista.Add(VP.EspacamentoLivre(clearMin, phiEqMax, AggregateMm), true);
+            double ac = bx * by;
+            if (asMin == double.MaxValue) asMin = 0;
+            lista.Add(VP.TaxaMinima(asMin, ac), true);
+            lista.Add(VP.TaxaMaxima(asMax, ac), true);
+            var dc = new DadosCobrimento
+            {
+                Classe = TabelasNbr.Classe(ExposureClass), Elemento = ElementoCobrimento.VigaPilar, PreMoldado = true, FckMPa = FckMPa,
+                AguaCimentoAte045 = WaterCement045, CobrimentoMm = CoverMm, MaiorBitolaMm = StirrupDiameterMm, AgregadoMm = AggregateMm,
+            };
+            foreach (var x in RegrasCobrimento.Verificar(dc)) lista.Add(x, true);
+            w.AddRange(lista.Avisos());
 
             // alça: o vão interno (largura − Ø) tem de comportar o diâmetro de dobra do tipo de barra (o tipo da cordoalha é criado
             // com 5Ø, como o CA-50 abaixo de 20 mm); senão o Revit não resolve a forma ("Não é possível solucionar o formato")
@@ -193,12 +221,6 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
                     w.Add($"Alça Ø{LiftDiameterMm:0.#}: largura {LiftWidthMm:0} mm não comporta o pino de dobramento ({mandrel:0} mm; " +
                           $"largura mínima {mandrel + LiftDiameterMm:0} mm, NBR 6118 tab. 9.1).");
             }
-
-            double ac = bx * by;
-            if (asMin == double.MaxValue) asMin = 0;
-            double rhoMin = asMin / ac * 100, rhoMax = asMax / ac * 100;   // o trecho menos e o mais armado
-            if (rhoMin < 0.4) w.Add($"Taxa geométrica ρ = {rhoMin:0.00}% < 0,40% (As,mín, 17.3.5.3.1).");
-            if (rhoMax > 4.0) w.Add($"Taxa geométrica ρ = {rhoMax:0.00}% > 4% (máximo incluindo traspasse, 17.3.5.3.2).");
 
             if (CorbelRebar && corbels.Count > 0)
             {

@@ -93,8 +93,10 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         P(G5, "CobFace4", "Face 4", "3.5", "cm", min: 1, max: 15),
         P(G5, "CobTopo", "Topo", "3.5", "cm", min: 1, max: 15),
         P(G5, "CobBase", "Base", "3.5", "cm", min: 1, max: 15),
+        P(G5, "ClasseAgressividade", "Classe de agressividade (NBR 6118)", "II", tipo: TipoParametro.Opcao, opcoes: new[] { "I", "II", "III", "IV" }),
 
         P(G6, "Fck", "fck (28 dias)", "40", "MPa", min: 10),
+        P(G6, "AguaCimento045", "a/c ≤ 0,45 (reduz o cobrimento, NBR 9062)", "Não", tipo: TipoParametro.Opcao, opcoes: new[] { "Sim", "Não" }),
         P(G6, "FcjSaque", "fcj no saque", "30", "MPa", min: 5),
         P(G6, "FcjMontagem", "fcj na montagem", "35", "MPa", min: 5),
         P(G6, "PesoEspecifico", "Peso específico do concreto", "2500", "kgf/m³", min: 1000),

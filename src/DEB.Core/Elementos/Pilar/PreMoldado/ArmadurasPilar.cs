@@ -8,6 +8,8 @@ using DEB.Core.Motor;
 using DEB.Core.Normas;
 using DEB.Core.Tabelas;
 using DEB.Core.Documentacao;
+using DEB.Core.Normas.Verificacao;
+using VP = DEB.Core.Normas.Verificacao.VerificacoesPilar;
 
 namespace DEB.Core.Elementos.Pilar.PreMoldado;
 
@@ -280,7 +282,7 @@ public sealed partial class TemplatePilarPreMoldado
 
         // ---------------- seções: uma por composição diferente (linhas ativas, estribo, grampos, U), de cima para baixo ----------------
         var cortes = Cortes(linhas, zonas, us, yIni, yFim);
-        VerificarArmadura(r, b, h, linhas, zonas);
+        VerificarArmadura(r, v, b, h, cob, linhas, zonas);
 
         double yS = L + 10 * hv;
         foreach (var corte in cortes)
@@ -493,38 +495,56 @@ public sealed partial class TemplatePilarPreMoldado
         }
     }
 
-    /// <summary>Verificações da NBR 6118 que valem para o pilar todo (bitolas e espaçamento dos estribos; avisos, não bloqueiam).</summary>
-    private static void VerificarArmadura(ResultadoTemplate r, double b, double h, List<LinhaLongitudinal> linhas, List<ZonaEstribo> zonas)
+    /// <summary>
+    /// Verificações que valem para o pilar todo, pelas regras únicas do núcleo (<see cref="VP"/>, <see cref="RegrasCobrimento"/>;
+    /// docs/04_arquitetura/verificacoes_normativas.md). Avisos, não bloqueiam.
+    /// </summary>
+    private static void VerificarArmadura(ResultadoTemplate r, ValoresTemplate v, double b, double h, double[] cob,
+                                          List<LinhaLongitudinal> linhas, List<ZonaEstribo> zonas)
     {
-        double menor = Math.Min(b, h);
+        var lista = new ListaVerificacoes();
+        double bMm = b * 10, hMm = h * 10, menor = Math.Min(bMm, hMm);
+        string aco = v["LongAco"], acoEst = v["EstAco"];
+        double fck = v.Numero("Fck");
+        lista.Add(VP.DimensaoMinima(bMm, hMm), true);
+        lista.Add(VP.PilarParede(bMm, hMm), true);
         foreach (var phi in linhas.Select(x => x.Bitola).Distinct())
+            lista.Add(VP.BitolaLongitudinal(phi, menor), true);
+        double phiEqMax = linhas.Max(x => x.Bitola * Math.Sqrt(Math.Max(1, x.Feixe))), phiMin = linhas.Min(x => x.Bitola);
+        foreach (var z in zonas.GroupBy(z => (z.Bitola, z.Esp)).Select(g => g.First()))
         {
-            if (phi < 10) Aviso(r, $"Longitudinal ø{Num(phi, "0.0")} < 10 mm (NBR 6118, 18.4.2.1).");
-            if (phi > menor * 10 / 8) Aviso(r, $"Longitudinal ø{Num(phi, "0.0")} > 1/8 da menor dimensão (NBR 6118, 18.4.2.1).");
+            lista.Add(VP.BitolaEstribo(z.Bitola, phiEqMax, z.Esp * 10, TabelasNbr.Fyk(acoEst)), true);
+            lista.Add(VP.EspacamentoEstribos(z.Esp * 10, menor, phiMin, aco), true);
         }
-        double phiMax = linhas.Max(x => x.Bitola), phiMin = linhas.Min(x => x.Bitola);
-        foreach (var pt in zonas.Select(z => z.Bitola).Distinct())
-            if (pt < 5 || pt < phiMax / 4) Aviso(r, $"Estribo ø{Num(pt, "0.0")}: menor que 5 mm ou φ/4 = {Num(phiMax / 4, "0.0#")} mm (NBR 6118, 18.4.3).");
-        double sMax = Math.Min(20, Math.Min(menor, 12 * phiMin / 10));
-        foreach (var z in zonas.Where(z => z.Esp > sMax + 1e-6).GroupBy(z => z.Esp))
-            Aviso(r, $"Espaçamento dos estribos {Num(z.Key, "0.#")} cm > {Num(sMax, "0.#")} cm (mín. de 20 cm, menor dimensão e 12φ; NBR 6118, 18.4.3).");
+        lista.Add(VP.ConcretoAltaResistencia(fck), true);
         // pelo menos uma barra em cada vértice, no pilar todo
         double yIni = zonas.Min(z => z.Y1), yFim = zonas.Max(z => z.Y2), y = yIni;
         foreach (var l in linhas.Where(l => l.Arranjo == ArrCantos).OrderBy(l => l.Ini))
             if (l.Ini <= y + 1e-6) y = Math.Max(y, l.Fim);
-        if (y < yFim - 1e-6)
-            Aviso(r, $"Sem barras de canto de {Num(y, "0.#")} a {Num(yFim, "0.#")} cm: é preciso uma barra em cada vértice (NBR 6118, 18.4.2.1).");
+        lista.Add(VP.Vertices(y, yFim), true);
+        // cobrimento das faces (cob: faces 3, 2, 1, 4, topo, base) com as reduções do pré-moldado aplicadas e avisadas
+        var dc = new DadosCobrimento
+        {
+            Classe = TabelasNbr.Classe(v["ClasseAgressividade"]), Elemento = ElementoCobrimento.VigaPilar, PreMoldado = true,
+            FckMPa = fck, AguaCimentoAte045 = v.SimNao("AguaCimento045"),
+            CobrimentoMm = cob.Take(4).Min() * 10, MaiorBitolaMm = zonas.Max(z => z.Bitola), AgregadoMm = v.Numero("DiamAgregado"),
+        };
+        foreach (var x in RegrasCobrimento.Verificar(dc)) lista.Add(x, true);
+        foreach (var a in lista.Avisos()) Aviso(r, a);
     }
 
-    /// <summary>Verificações de cada seção: espaçamento entre barras e grampos para barras longe do canto (NBR 6118).</summary>
+    /// <summary>
+    /// Verificações de cada seção (cada composição diferente, inclusive os trechos de emenda): espaçamentos, taxa geométrica e
+    /// grampos para barras longe do canto — regras únicas do núcleo (<see cref="VP"/>).
+    /// </summary>
     private static void VerificarSecao(ResultadoTemplate r, double b, double h, List<BarraNaSecao> barras, double phiT, bool grampos, double diamAg)
     {
         if (barras.Count < 2) return;
+        var lista = new ListaVerificacoes();
         double menor = Math.Min(b, h);
-        // feixe: diâmetro equivalente φ√n (NBR 6118, 17.3.5.2.3)
+        // feixe: diâmetro equivalente φ√n
         double Eq(BarraNaSecao x) => x.Bitola * Math.Sqrt(x.Feixe);
         double phiMax = barras.Max(Eq);
-        double livreMin = Math.Max(2, Math.Max(phiMax / 10, 1.2 * diamAg / 10));
         double pior = double.MaxValue, maiorEixo = 0;
         foreach (var a in barras)
         {
@@ -533,14 +553,17 @@ public sealed partial class TemplatePilarPreMoldado
             pior = Math.Min(pior, viz.d - RaioFeixe(a.Bitola, a.Feixe) - RaioFeixe(viz.x.Bitola, viz.x.Feixe));
             maiorEixo = Math.Max(maiorEixo, viz.d);
         }
-        if (pior < livreMin - 1e-6)
-            Aviso(r, $"Espaçamento livre entre barras {Num(pior, "0.0#")} cm < {Num(livreMin, "0.0#")} cm (NBR 6118, 18.4.2.2).");
-        if (maiorEixo > Math.Min(2 * menor, 40) + 1e-6)
-            Aviso(r, $"Espaçamento entre eixos {Num(maiorEixo, "0.#")} cm > {Num(Math.Min(2 * menor, 40), "0.#")} cm (NBR 6118, 18.4.2.2).");
+        lista.Add(VP.EspacamentoLivre(pior * 10, phiMax, diamAg), true);
+        lista.Add(VP.EspacamentoEixos(maiorEixo * 10, menor * 10), true);
+        // taxa geométrica da seção (nas emendas as duas barras estão na seção: P8 conta a sobreposição)
+        double asMm2 = barras.Sum(x => x.Feixe * Math.PI * x.Bitola * x.Bitola / 4), acMm2 = b * h * 100;
+        lista.Add(VP.TaxaMinima(asMm2, acMm2), true);
+        lista.Add(VP.TaxaMaxima(asMm2, acMm2), true);
         // proteção contra flambagem: barras a mais de 20 φt de um canto pedem grampo
         var cantos = barras.Where(x => x.Arranjo == ArrCantos).ToList();
-        if (cantos.Count == 0 || grampos) return;
-        bool longe = barras.Where(x => x.Arranjo != ArrCantos).Any(x => cantos.Min(cn => Math.Max(Math.Abs(cn.X - x.X), Math.Abs(cn.Y - x.Y))) > 20 * phiT / 10 + 1e-6);
-        if (longe) Aviso(r, "Há barras a mais de 20φt do canto sem grampos suplementares (NBR 6118, 18.2.4).");
+        if (cantos.Count > 0 && !grampos)
+            lista.Add(VP.ProtecaoFlambagem(barras.Where(x => x.Arranjo != ArrCantos)
+                .Any(x => cantos.Min(cn => Math.Max(Math.Abs(cn.X - x.X), Math.Abs(cn.Y - x.Y))) > 20 * phiT / 10 + 1e-6)), true);
+        foreach (var m in lista.Avisos()) Aviso(r, m);
     }
 }
