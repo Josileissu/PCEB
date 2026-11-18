@@ -161,6 +161,9 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 
         private ListaVerificacoes _ultimas = new ListaVerificacoes();
 
+        /// <summary>Resultados do último <see cref="Check"/> (para o <see cref="PainelVerificacoes"/> sem conferir duas vezes).</summary>
+        internal ListaVerificacoes UltimasVerificacoes => _ultimas;
+
         /// <summary>Todas as verificações normativas (inclusive as OK), para o relatório do grupo (D37).</summary>
         public ListaVerificacoes Verificacoes(ColumnBox frame, IList<Corbel> corbels)
         {

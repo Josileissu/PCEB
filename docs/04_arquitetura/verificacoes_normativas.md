@@ -141,7 +141,7 @@ Etapa 1, o que entrou: `DEB.Core/Normas/Verificacao/` (`ResultadoVerificacao`, `
 Tabelas 7.2 e 17.3, `RegrasCobrimento` G1–G4, `VerificacoesPilar` P1–P14); o template do CAD (`ArmadurasPilar`) e a armadura do
 Revit (`ColumnRebarSpec.Check`) chamam as mesmas regras; taxa máxima corrigida para 8 % com emendas; parâmetros novos
 "Classe de agressividade" e "a/c ≤ 0,45" no template do pilar (Revit: `ExposureClass`, `FckMPa`, `WaterCement045`,
-`AggregateMm`, `LongSteel`, `StirrupSteel` no modelo de armadura — ainda sem campo na janela, vão na Etapa 3);
+`AggregateMm`, `LongSteel`, `StirrupSteel` no modelo de armadura — campos na janela desde a Etapa 3);
 testes em `VerificacoesNormativasTests`. Ficaram para depois: P9 (estribo no cruzamento com vigas, precisa da posição das
 vigas), P15 (pilar vazado), G5–G9 (já parcialmente em `RegrasDobramento`/`RegrasTraspasse`; entram com o relatório).
 
@@ -157,6 +157,15 @@ Os mesmos `ResultadoVerificacao` alimentam quatro saídas, do mais curto ao mais
 | 4. **Memorial de cálculo** (fase de cálculo) | idem | cada verificação com fórmula → "onde:" → números substituídos → resultado (formato visto no Gtool3D e no Precast Design); o `ResultadoVerificacao` ganha os campos `Formula` e `Memoria` |
 
 Respostas (D37): HTML, só português; um relatório por grupo de peças iguais; aceite das pendências num arquivo da obra.
+
+### Nível 1 no Revit (Etapa 3, 18/11/2026, branch `feat/etapa3-janela-revit`)
+- Núcleo: `PainelVerificacoes.De(spec, pilar, consolos)` (`Modelo3D/PainelVerificacoes.cs`), sem gravar arquivo: as mesmas regras do
+  `Check` e do relatório, sem linhas repetidas; selo = o pior resultado; avisos sem código (leitura da armadura por linha, alça,
+  tirante) contam como "a conferir". Testes em `PainelVerificacoesTests` (inclui modelo salvo sem os campos novos).
+- Janela dos pilares: campos novos em "Geral" (classe de agressividade, fck, a/c ≤ 0,45, dmáx do agregado, aço das longitudinais e
+  dos estribos; gravados nos modelos de armadura); painel fixo embaixo da coluna da direita com selo colorido, contador e uma linha
+  por pendência (código, mensagem, dica), atualizado junto com a prévia; o item de cada grupo na lista mostra o selo.
+- Falta: conferir a janela no Revit (o `precast` do AutoRun grava `janela.png`); prévia do CAD.
 
 ### Nível 2 implementado (18/11/2026)
 - Núcleo: `DEB.Core/Documentacao/RelatorioVerificacao.cs` — `RelatorioGrupo` (marca, elemento, dados, verificações),
