@@ -4,10 +4,18 @@ Pedido do usuário (18/11/2026): a família do consolo ganha o elemento **apoio*
 viga pré-moldada ganha o **furo dos pinos**. Serve às verificações do consolo (C1, C3–C5) e do dente (D8), à prancha e, na fase
 de cálculo, ao Hd (NBR 9062 7.3.9). Parâmetros novos com o prefixo `PCEB_` (D38).
 
-Família de origem (do usuário, no Drive — **nunca editar o original**): `S:\Meu Drive\Arquivos\Familias Revit\Estrutura\Concreto\Viga Pré-Moldada.rfa`
-(consolo "Consolo" aninhado e compartilhado). Feita no PC2 em 18/11/2026 pela tarefa `familiaspceb` (abaixo), sobre uma cópia;
-resultado `desenvolvedor\familias_PCEB\Viga Pré-Moldada - PCEB.rfa` (fora do Git), **aguardando o aceite do usuário** para
-substituir a do Drive. As variantes "Viga Pré-Moldada - …" da mesma pasta ainda não foram feitas.
+Famílias do usuário no Drive (`S:\Meu Drive\Arquivos\Familias Revit\Estrutura\Concreto`; consolo "Consolo" aninhado e compartilhado).
+Feitas no PC2 em 18/11/2026 pela tarefa `familiaspceb` sobre cópias, **cada uma no formato do original** (2025 ou 2026: família
+salva no 2026 não abre no 2025); originais guardados em `desenvolvedor\_backup\familias_drive_2026-11-18` (fora do Git).
+
+| Família | Situação |
+|---|---|
+| Viga Pré-Moldada (2025) | aceita pelo usuário (ele desceu os furos a partir do plano do topo e pôs 110 mm) e **no Drive** |
+| … aba laje e com recorte central na aba (2025) | conferida e **no Drive** |
+| … painel e aba inferior no painel (2025) | conferida e **no Drive** |
+| … aba laje e aba superior (2026) | conferida e **no Drive** |
+| … aba laje (2025); … aba superior e fechamento consolo (2025); … aba esq e dir laje (2026) | apoio e parâmetros pela API (`SD_SEMFUROS=1`), **furos à mão pelo usuário** (o travamento implícito do esboço não pegou nelas); em `desenvolvedor\familias_PCEB\para_furar_a_mao` |
+| "Sem consolo e nicho para apoio" (5) | nada por enquanto (decisão do usuário) |
 
 ## Decisões do usuário na construção (18/11/2026)
 - **Tipo do apoio por número** (fórmula do Revit não compara texto): `PCEB_ApoioTipo` = 1 neoprene, 2 argamassa, 3 direto; o texto

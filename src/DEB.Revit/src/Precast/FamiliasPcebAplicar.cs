@@ -72,7 +72,8 @@ namespace DEB.Revit.Precast
 
                 // 2) viga: parâmetros e ligação com o consolo; 3) furos
                 ParametrosViga(viga, log);
-                FurosNaViga(app, viga, Path.GetDirectoryName(saida), log);
+                if (Environment.GetEnvironmentVariable("SD_SEMFUROS") == "1") log.AppendLine("Furos: não criados (SD_SEMFUROS=1; o usuário desenha à mão).");
+                else FurosNaViga(app, viga, Path.GetDirectoryName(saida), log);
                 // 4) conferência
                 FlexViga(viga, log);
 
@@ -284,16 +285,24 @@ namespace DEB.Revit.Precast
         {
             FamilyManager fm = viga.FamilyManager;
             View planta = Vista(viga, ViewType.FloorPlan, "Ref. Level");
-            ReferencePlane pontaE = Plano(viga, "2"), pontaD = Plano(viga, "3"), fundo = Plano(viga, "Bottom");
-            ReferencePlane centro = Plano(viga, "Center (Front/Back)");
+            ReferencePlane pontaE = Plano(viga, "2"), pontaD = Plano(viga, "3");
+            // eixo da alma: plano novo no meio das faces cotadas por "b" (nas variantes a alma não é simétrica ao "Center (Front/Back)")
+            var ladosB = PlanosDaCota(viga, "b").OrderBy(p => p.GetPlane().Origin.Y).ToList();
+            ReferencePlane centro = null;
             // vazios a partir do plano do topo, descendo h (ajuste do usuário, 18/11/2026)
-            ReferencePlane topo = PlanosDaCota(viga, "h").OrderBy(p => p.GetPlane().Origin.Z).Last();
+            // altura: cota rotulada "h" ou "Altura" (variantes); topo: o plano "Topo" ou o de cima dessa cota
+            Dimension cotaAltura = new FilteredElementCollector(viga).OfClass(typeof(Dimension)).Cast<Dimension>()
+                .First(x => { try { string n = x.FamilyLabel?.Definition.Name; return n == "h" || n == "Altura"; } catch { return false; } });
+            FamilyParameter pAltura = cotaAltura.FamilyLabel;
+            ReferencePlane topo = new FilteredElementCollector(viga).OfClass(typeof(ReferencePlane)).Cast<ReferencePlane>().FirstOrDefault(p => p.Name == "Topo")
+                ?? cotaAltura.References.Cast<Reference>().Select(r => viga.GetElement(r)).OfType<ReferencePlane>().OrderBy(p => p.GetPlane().Origin.Z).Last();
+            log.AppendLine($"  altura = {pAltura.Definition.Name}, topo = \"{topo.Name}\"");
             double xE = pontaE.GetPlane().Origin.X, xD = pontaD.GetPlane().Origin.X, zF = topo.GetPlane().Origin.Z;
             double r = Ft(16), dist = Ft(110), s = Ft(50);
             double xIni = xE - Ft(300), xFim = xD + Ft(300);
             FamilyParameter pDia = fm.get_Parameter("PCEB_FuroDiametro");
 
-            Extrusion gerber = new FilteredElementCollector(viga).OfClass(typeof(Extrusion)).Cast<Extrusion>().First(x => !x.IsSolid);
+            Extrusion gerber = new FilteredElementCollector(viga).OfClass(typeof(Extrusion)).Cast<Extrusion>().First(x => !x.IsSolid && x.Parameters.Cast<Parameter>().Any(p => fm.GetAssociatedFamilyParameter(p)?.Definition.Name == "Viga_com_gerber"));
             Parameter corteGerber = gerber.Parameters.Cast<Parameter>().FirstOrDefault(p => fm.GetAssociatedFamilyParameter(p)?.Definition.Name == "Viga_com_gerber");
             BuiltInParameter bipCorte = (corteGerber?.Definition as InternalDefinition)?.BuiltInParameter ?? BuiltInParameter.INVALID;
 
@@ -315,9 +324,14 @@ namespace DEB.Revit.Precast
             {
                 foreach (var (lado, x) in new[] { ("E", xE + dist), ("D", xD - dist) })
                     px[lado] = (PX(x, $"PCEB furo {lado}"), PX(x - r, $"PCEB furo {lado} face -X"), PX(x + r, $"PCEB furo {lado} face +X"));
-                py["0"] = (centro, PY(-r, "PCEB furo eixo face -Y"), PY(r, "PCEB furo eixo face +Y"));
-                py["1"] = (PY(-s, "PCEB furos linha 1"), PY(-s - r, "PCEB furos linha 1 face -Y"), PY(-s + r, "PCEB furos linha 1 face +Y"));
-                py["2"] = (PY(s, "PCEB furos linha 2"), PY(s - r, "PCEB furos linha 2 face -Y"), PY(s + r, "PCEB furos linha 2 face +Y"));
+                double y0 = (ladosB[0].GetPlane().Origin.Y + ladosB[1].GetPlane().Origin.Y) / 2;
+                centro = PY(y0, "PCEB eixo da alma");
+                viga.Regenerate();
+                Cota(viga, planta, Line.CreateBound(new XYZ(xE - Ft(150), y0 - Ft(400), 0), new XYZ(xE - Ft(150), y0 + Ft(400), 0)),
+                     ladosB[0].GetReference(), centro.GetReference(), ladosB[1].GetReference()).AreSegmentsEqual = true;
+                py["0"] = (centro, PY(y0 - r, "PCEB furo eixo face -Y"), PY(y0 + r, "PCEB furo eixo face +Y"));
+                py["1"] = (PY(y0 - s, "PCEB furos linha 1"), PY(y0 - s - r, "PCEB furos linha 1 face -Y"), PY(y0 - s + r, "PCEB furos linha 1 face +Y"));
+                py["2"] = (PY(y0 + s, "PCEB furos linha 2"), PY(y0 + s - r, "PCEB furos linha 2 face -Y"), PY(y0 + s + r, "PCEB furos linha 2 face +Y"));
                 viga.Regenerate();
 
                 double yc = Ft(450);
@@ -352,16 +366,22 @@ namespace DEB.Revit.Precast
             {
                 if (topo.Name == "Plano de referência" || topo.Name == "Reference Plane") topo.Name = "Topo";
                 SketchPlane sp = SketchPlane.Create(viga, topo.Id);
-                foreach (var (lado, x) in new[] { ("E", xE + dist), ("D", xD - dist) })
+                // o vazio nasce ONDE OS PLANOS FICARAM depois das fórmulas (entre furos = b/2, distâncias, diâmetro): só assim as
+                // linhas do esboço caem sobre os planos e o Revit as prende
+                double X(ReferencePlane p) => p.GetPlane().Origin.X;
+                double Y(ReferencePlane p) => p.GetPlane().Origin.Y;
+                double rr = (Y(py["0"].mais) - Y(py["0"].menos)) / 2;
+                foreach (string lado in new[] { "E", "D" })
                 {
-                    Extrusion um = Vazio(viga, sp, new[] { new XYZ(x, 0, zF) }, r);
-                    Extrusion dois = Vazio(viga, sp, new[] { new XYZ(x, -s, zF), new XYZ(x, s, zF) }, r);
+                    double x = X(px[lado].c);
+                    Extrusion um = Vazio(viga, sp, new[] { new XYZ(x, Y(py["0"].c), zF) }, rr);
+                    Extrusion dois = Vazio(viga, sp, new[] { new XYZ(x, Y(py["1"].c), zF), new XYZ(x, Y(py["2"].c), zF) }, rr);
                     _marca["PCEB furo " + lado + "1"] = um.Id;
                     _marca["PCEB furo " + lado + "2"] = dois.Id;
                     viga.Regenerate();
                     foreach (Extrusion ex in new[] { um, dois })
                     {
-                        fm.AssociateElementParameterToFamilyParameter(ex.get_Parameter(BuiltInParameter.EXTRUSION_END_PARAM), fm.get_Parameter("h"));
+                        fm.AssociateElementParameterToFamilyParameter(ex.get_Parameter(BuiltInParameter.EXTRUSION_END_PARAM), pAltura);
                         if (bipCorte != BuiltInParameter.INVALID)
                             fm.AssociateElementParameterToFamilyParameter(ex.get_Parameter(bipCorte), fm.get_Parameter(ex == um ? "PCEB_FuroUnico" : "PCEB_FuroDuplo"));
                     }
@@ -420,14 +440,14 @@ namespace DEB.Revit.Precast
                     {
                         fm.Set(fm.get_Parameter("b"), Ft(k.b));
                         fm.Set(fm.get_Parameter("PCEB_ApoioTipo"), k.tipo);
-                        if (k.b == 400) { fm.Set(fm.get_Parameter("PCEB_FuroDistE"), Ft(100)); fm.Set(fm.get_Parameter("PCEB_FuroDistD"), Ft(150)); fm.Set(fm.get_Parameter("PCEB_FuroDiametro"), Ft(40)); fm.Set(fm.get_Parameter("h"), Ft(600)); }
+                        if (k.b == 400) { fm.Set(fm.get_Parameter("PCEB_FuroDistE"), Ft(100)); fm.Set(fm.get_Parameter("PCEB_FuroDistD"), Ft(150)); fm.Set(fm.get_Parameter("PCEB_FuroDiametro"), Ft(40)); fm.Set(fm.get_Parameter("h") ?? fm.get_Parameter("Altura"), Ft(600)); }
                         viga.Regenerate();
                         FamilyType ft = fm.CurrentType;
                         string v(string n) { FamilyParameter p = fm.get_Parameter(n); return p == null ? "?" : p.StorageType == StorageType.Double ? Math.Round(Mm(ft.AsDouble(p) ?? 0)).ToString(CultureInfo.InvariantCulture) : p.StorageType == StorageType.String ? ft.AsString(p) : (ft.AsInteger(p) ?? 0).ToString(); }
                         log.AppendLine($"  b={k.b} tipo={k.tipo}: {v("PCEB_Apoio")}, esp={v("PCEB_ApoioEspessura")}, e_neoprene={v("e_neoprene")}, dz_folga={v("dz_folga_consolo")}, " +
                                        $"furos={v("PCEB_FuroQtd")}, entre={v("PCEB_FuroEntreFuros")}");
                         var furos = _marca.Where(kv => kv.Key.StartsWith("PCEB furo")).OrderBy(kv => kv.Key)
-                            .Select(kv => { var ex = (Extrusion)viga.GetElement(kv.Value); int corta = ex.get_Parameter(BuiltInParameter.VOID_CUTS_GEOMETRY)?.AsInteger() ?? -1; BoundingBoxXYZ bb = ex.get_BoundingBox(null); return $"{kv.Key.Substring(10)}{(corta == 1 ? "" : "(não corta)")} x {Mm(bb.Min.X):0}..{Mm(bb.Max.X):0} y {Mm(bb.Min.Y):0}..{Mm(bb.Max.Y):0}"; });
+                            .Select(kv => { var ex = (Extrusion)viga.GetElement(kv.Value); int corta = ex.get_Parameter(BuiltInParameter.VOID_CUTS_GEOMETRY)?.AsInteger() ?? -1; BoundingBoxXYZ bb = ex.get_BoundingBox(null); if (bb == null) return $"{kv.Key.Substring(10)} SEM GEOMETRIA"; return $"{kv.Key.Substring(10)}{(corta == 1 ? "" : "(não corta)")} x {Mm(bb.Min.X):0}..{Mm(bb.Max.X):0} y {Mm(bb.Min.Y):0}..{Mm(bb.Max.Y):0}"; });
                         log.AppendLine("    furos: " + string.Join("  ", furos));
                         foreach (FamilyInstance fi in new FilteredElementCollector(viga).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Where(f => f.Symbol.Family.Name == "Consolo"))
                         {
