@@ -34,6 +34,16 @@ public static class ConversorVigaPeca
         v["L"] = N(p.L);
         v["ExtE"] = extE;
         v["ExtD"] = extD;
+        if (p.Furos != null)
+        {
+            // furos dos pinos da família (PCEB_Furo*, D36): a quantidade do modelo vale nas duas pontas com dente
+            v["FurosModo"] = TemplateVigaPreMoldada.FurosDigitados;
+            v["FurosE"] = (p.DenteE != null ? p.Furos.Quantidade : 0).ToString(CultureInfo.InvariantCulture);
+            v["FurosD"] = (p.DenteD != null ? p.Furos.Quantidade : 0).ToString(CultureInfo.InvariantCulture);
+            if (p.Furos.DistE > 0) v["FuroDistE"] = N(p.Furos.DistE);
+            if (p.Furos.DistD > 0) v["FuroDistD"] = N(p.Furos.DistD);
+            if (p.Furos.Diametro > 0) v["FuroDiam"] = N(p.Furos.Diametro);
+        }
         // aba (L / T invertido): a geometria vem do modelo; a armadura da aba fica a do PADRÃO do usuário
         // ressalto sobre a alma: geometria do modelo; a armadura (ressalto e ligação com a capa) fica a do PADRÃO do usuário
         if (p.Ressalto == null) v["Ressalto"] = TemplateVigaPreMoldada.RessaltoSem;

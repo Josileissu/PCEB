@@ -31,6 +31,41 @@ public sealed class ConsoloPeca
 
     public double Largura => Fim - Inicio;
     public double AlturaFace => Topo - Base;
+    /// <summary>Aparelho de apoio da viga sobre o consolo (família com PCEB_Apoio*, D36); null = o modelo não informa.</summary>
+    public ApoioPeca Apoio { get; set; }
+}
+
+/// <summary>
+/// Aparelho de apoio sobre o consolo (D36): tipo (1 neoprene, 2 argamassa, 3 direto) e medidas em cm. Afastamento = da ponta do
+/// consolo até a face externa do apoio (a2 da NBR 9062, 7.3.3.4).
+/// </summary>
+public sealed class ApoioPeca
+{
+    public const int Neoprene = 1, Argamassa = 2, Direto = 3;
+    public int Tipo { get; set; } = Neoprene;
+    public double Comprimento { get; set; }
+    public double Largura { get; set; }
+    public double Espessura { get; set; }
+    public double Afastamento { get; set; }
+    public string NomeTipo => Tipo == Argamassa ? "argamassa" : Tipo == Direto ? "direto" : "neoprene";
+
+    /// <summary>Opções da coluna "Apoio" da tabela de consolos do template (a 1ª = sem informação).</summary>
+    public static readonly string[] Opcoes = { "—", "Neoprene", "Argamassa", "Direto" };
+    public static string Texto(int tipo) => tipo >= 1 && tipo <= 3 ? Opcoes[tipo] : Opcoes[0];
+    public static int TipoDoTexto(string s)
+    {
+        for (int i = 1; i < Opcoes.Length; i++) if (string.Equals((s ?? "").Trim(), Opcoes[i], StringComparison.OrdinalIgnoreCase)) return i;
+        return 0;
+    }
+}
+
+/// <summary>Furos verticais dos pinos nos dentes da viga (D36, família com PCEB_Furo*): por ponta, cm; diâmetro em mm.</summary>
+public sealed class FurosPeca
+{
+    public int Quantidade { get; set; }
+    public double DistE { get; set; }
+    public double DistD { get; set; }
+    public double Diametro { get; set; }
 }
 
 /// <summary>Nível do modelo que corta o pilar (nome e cota em m).</summary>
@@ -151,7 +186,8 @@ public sealed class VigaPeca
     /// <summary>Dente nas pontas esquerda e direita; null = ponta reta.</summary>
     public DentePeca DenteE { get; set; }
     public DentePeca DenteD { get; set; }
-
+    /// <summary>Furos dos pinos (família com PCEB_Furo*); null = o modelo não informa (o template decide pela largura).</summary>
+    public FurosPeca Furos { get; set; }
     public int Quantidade => Math.Max(1, Elementos.Count);
 }
 
@@ -208,10 +244,17 @@ public sealed class ArquivoPecas
             }
             var cs = ValorJson.NovaLista();
             foreach (var c in p.Consolos)
-                cs.Adicionar(ValorJson.NovoObjeto().Definir("face", c.Face)
+            {
+                var jc = ValorJson.NovoObjeto().Definir("face", c.Face)
                     .Definir("inicio", R(c.Inicio)).Definir("fim", R(c.Fim))
                     .Definir("base", R(c.Base)).Definir("topo", R(c.Topo))
-                    .Definir("balanco", R(c.Balanco)).Definir("altura_ponta", R(c.AlturaPonta)));
+                    .Definir("balanco", R(c.Balanco)).Definir("altura_ponta", R(c.AlturaPonta));
+                if (c.Apoio != null)
+                    jc.Definir("apoio", ValorJson.NovoObjeto().Definir("tipo", c.Apoio.Tipo)
+                        .Definir("comprimento", R(c.Apoio.Comprimento)).Definir("largura", R(c.Apoio.Largura))
+                        .Definir("espessura", R(c.Apoio.Espessura)).Definir("afastamento", R(c.Apoio.Afastamento)));
+                cs.Adicionar(jc);
+            }
             jp.Definir("consolos", cs);
             pilares.Adicionar(jp);
         }
@@ -227,6 +270,9 @@ public sealed class ArquivoPecas
                 .Definir("elementos", els)
                 .Definir("b", R(p.B)).Definir("h", R(p.H)).Definir("l", R(p.L))
                 .Definir("dente_esquerda", Dente(p.DenteE)).Definir("dente_direita", Dente(p.DenteD));
+            if (p.Furos != null)
+                jv.Definir("furos", ValorJson.NovoObjeto().Definir("quantidade", p.Furos.Quantidade)
+                    .Definir("dist_esquerda", R(p.Furos.DistE)).Definir("dist_direita", R(p.Furos.DistD)).Definir("diametro", R(p.Furos.Diametro)));
             if (p.Aba != null)
                 jv.Definir("aba", ValorJson.NovoObjeto().Definir("lado", p.Aba.Lado)
                     .Definir("largura", R(p.Aba.Largura)).Definir("altura", R(p.Aba.Altura))
@@ -313,6 +359,17 @@ public sealed class ArquivoPecas
                     Balanco = LeitorJson.Num(jc, "balanco", 0, cc),
                 };
                 c.AlturaPonta = LeitorJson.Num(jc, "altura_ponta", c.AlturaFace, cc);
+                if (LeitorJson.Presente(jc, "apoio"))
+                {
+                    string ca = $"{cc}.apoio";
+                    var ja = LeitorJson.Objeto(jc["apoio"], ca);
+                    c.Apoio = new ApoioPeca
+                    {
+                        Tipo = LeitorJson.Int(ja, "tipo", ApoioPeca.Neoprene, ca),
+                        Comprimento = LeitorJson.Num(ja, "comprimento", 0, ca), Largura = LeitorJson.Num(ja, "largura", 0, ca),
+                        Espessura = LeitorJson.Num(ja, "espessura", 0, ca), Afastamento = LeitorJson.Num(ja, "afastamento", 0, ca),
+                    };
+                }
                 if (c.Face < 1 || c.Face > 4) throw new FormatException($"{cc}.face: use 1 a 4.");
                 p.Consolos.Add(c);
             }
@@ -335,6 +392,16 @@ public sealed class ArquivoPecas
                 B = LeitorJson.Num(jv, "b", 0, cv), H = LeitorJson.Num(jv, "h", 0, cv), L = LeitorJson.Num(jv, "l", 0, cv),
                 DenteE = Dente("dente_esquerda"), DenteD = Dente("dente_direita"),
             };
+            if (LeitorJson.Presente(jv, "furos"))
+            {
+                string cf = $"{cv}.furos";
+                var jf = LeitorJson.Objeto(jv["furos"], cf);
+                v.Furos = new FurosPeca
+                {
+                    Quantidade = LeitorJson.Int(jf, "quantidade", 0, cf), DistE = LeitorJson.Num(jf, "dist_esquerda", 0, cf),
+                    DistD = LeitorJson.Num(jf, "dist_direita", 0, cf), Diametro = LeitorJson.Num(jf, "diametro", 0, cf),
+                };
+            }
             if (v.B <= 0 || v.H <= 0 || v.L <= 0) throw new FormatException($"{cv}: b, h e l têm de ser maiores que zero.");
             if (LeitorJson.Presente(jv, "aba"))
             {

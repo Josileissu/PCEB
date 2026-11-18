@@ -50,6 +50,8 @@ public sealed class ConsoloPilar
     public double AlmA { get; set; }
     public double AlmB { get; set; }
     public double AlmE { get; set; }
+    /// <summary>Aparelho de apoio sobre este consolo (colunas "Apoio" da tabela; D36); null = sem informação.</summary>
+    public DEB.Core.Intercambio.ApoioPeca Apoio { get; set; }
 
     /// <summary>
     /// Consolos opostos desta linha estão em nível (<see cref="BarrasConsolo.ParesEmNivel"/>, D30): formam um duplo mesmo que o

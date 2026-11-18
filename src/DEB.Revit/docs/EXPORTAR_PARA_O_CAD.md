@@ -35,3 +35,10 @@ outro grupo) e "Não exportar este grupo" (Extensible Storage, schema `DEB_Confe
 vale nas próximas conferências; ⊘ na lista). AutoRun `conferireditar`: grava VT1/PT1 e um "não exportar", levanta de novo, exporta e
 DESFAZ tudo (TransactionGroup.RollBack) → `logs/conferireditar_*/resultado.txt` + PNG. Testado no Teste_PM. Falta: função dos
 trechos (sem uso no CAD até o JSON v2), "Selecionar no modelo" e voltar para "a conferir" quando a geometria muda.
+
+## Apoio e furos (D36, 18/11/2026)
+- Consolo: `apoio` = {tipo 1 neoprene/2 argamassa/3 direto, comprimento, largura, espessura, afastamento (a2)} em cm, lido dos
+  `PCEB_Apoio*` da viga em que o consolo está aninhado (`PieceReview.Apoio`). No CAD vira as colunas do apoio na tabela "Consolos".
+- Viga: `furos` = {quantidade, dist_esquerda, dist_direita, diametro (mm)} dos `PCEB_Furo*` do tipo; no CAD, "Quantidade de furos
+  de pino" = Digitada, `FurosE/D` (só nas pontas com dente), `FuroDistE/D` e `FuroDiam`. Família sem esses parâmetros: nada muda.
+- Falta testar no PC2 que os furos verticais no dente não atrapalham o levantamento da viga (cortes da seção).

@@ -58,19 +58,23 @@ public static class ConversorPilarPeca
             if (duplo != null)
             {
                 usados.Add(par);
-                linhas.Add(new[] { duplo.Nome, c.Face % 2 == 1 ? "1 e 3" : "2 e 4", N(c.Topo), N(desl) });
+                linhas.Add(ComApoio(new[] { duplo.Nome, c.Face % 2 == 1 ? "1 e 3" : "2 e 4", N(c.Topo), N(desl) }, c.Apoio ?? par.Apoio));
                 continue;
             }
             var simples = catalogo.FirstOrDefault(t => !t.Duplo && Casa(t, c));
             // o arquivo de peças usa a face interna (1 = +x); o template recebe o número apresentado (1 = oeste)
             int fx = Elementos.Pilar.PreMoldado.TemplatePilarPreMoldado.FaceExibida(c.Face);
-            if (simples != null) { linhas.Add(new[] { simples.Nome, fx.ToString(CultureInfo.InvariantCulture), N(c.Topo), N(desl) }); continue; }
+            if (simples != null) { linhas.Add(ComApoio(new[] { simples.Nome, fx.ToString(CultureInfo.InvariantCulture), N(c.Topo), N(desl) }, c.Apoio)); continue; }
             faltantes?.Add((c, par != null));
             avisos.Add($"{p.Marca}: consolo da face {fx} com topo a {N(c.Topo)} cm da base ({Resumo(c)}) não está no catálogo " +
                        "(ARMCONSOLOS) e ficou de fora.");
         }
         return linhas;
     }
+
+    /// <summary>Acrescenta as colunas do apoio (D36) quando o modelo informa; sem apoio, a linha fica com as 4 colunas de antes.</summary>
+    private static string[] ComApoio(string[] l, ApoioPeca a) => a == null ? l
+        : l.Concat(new[] { ApoioPeca.Texto(a.Tipo), N(a.Comprimento), N(a.Largura), N(a.Espessura), N(a.Afastamento) }).ToArray();
 
     /// <summary>
     /// Deslocamento lateral do centro do consolo em relação ao centro da face, na convenção do template:

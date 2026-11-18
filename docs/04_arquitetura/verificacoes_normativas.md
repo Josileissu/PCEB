@@ -87,6 +87,12 @@ C13 e C15 ("Conferir": leitura da taxa a confirmar no livro de comentários). Um
 por geometria no Revit (substituíram as verificações avulsas do `Check`). Ficam para o apoio na família (PC2): C3, C4, C5; para
 depois: C8 (alça vertical, o catálogo não tem), C12, C14, C16, C17.
 
+**Apoio (18/11/2026)**: o aparelho de apoio vem da família da viga (`PCEB_Apoio*`, PC2) pelo levantamento do Revit, entra no
+arquivo de peças (`consolos[].apoio`) e na tabela "Consolos" do pilar (colunas Apoio, comprimento, largura, espessura, a2). Com ele:
+C1 com o a2 real (falha = "Não atende"), C2 com a = face do pilar → centro do apoio, **C3** (a2 mínimo pela ancoragem do tirante),
+**C4** (afastamento lateral > cobrimento → "Conferir" o fendilhamento), **C5** (alças: c ≤ a2 ≤ c + 3φ) e C10 com "≤ a".
+Atenção: o a2 padrão da família (25 mm) não atende o C3 do consolo do P61 (tirante ø16 com barra soldada, c = 3,5: mínimo 5,1 cm).
+
 ## V — Viga pré-moldada (depois do template P2-8)
 | Cód. | Verificação | Limite | Referência | Falha |
 |---|---|---|---|---|

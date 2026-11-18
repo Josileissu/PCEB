@@ -77,6 +77,13 @@ public sealed partial class TemplatePilarPreMoldado
                 },
                 new ColunaTabela { Nome = "Dist", Rotulo = "Base → topo (cm)", Tipo = TipoParametro.Numero, Padrao = "300", Largura = 110 },
                 new ColunaTabela { Nome = "Desl", Rotulo = "Deslocamento (cm)", Tipo = TipoParametro.Numero, Padrao = "0", Largura = 110 },
+                // aparelho de apoio da viga (D36; vem do Revit na importação): verificações C1–C5 da NBR 9062
+                new ColunaTabela { Nome = "Apoio", Rotulo = "Apoio", Tipo = TipoParametro.Opcao, Opcoes = DEB.Core.Intercambio.ApoioPeca.Opcoes.ToList(),
+                    Padrao = DEB.Core.Intercambio.ApoioPeca.Opcoes[0], Largura = 95 },
+                new ColunaTabela { Nome = "ApoioComp", Rotulo = "Apoio: comprimento (cm)", Tipo = TipoParametro.Numero, Padrao = "", Largura = 90 },
+                new ColunaTabela { Nome = "ApoioLarg", Rotulo = "Apoio: largura (cm)", Tipo = TipoParametro.Numero, Padrao = "", Largura = 90 },
+                new ColunaTabela { Nome = "ApoioEsp", Rotulo = "Apoio: espessura (cm)", Tipo = TipoParametro.Numero, Padrao = "", Largura = 90 },
+                new ColunaTabela { Nome = "ApoioA2", Rotulo = "Apoio: a2, ponta → apoio (cm)", Tipo = TipoParametro.Numero, Padrao = "", Largura = 110 },
             },
         };
     }
@@ -136,6 +143,13 @@ public sealed partial class TemplatePilarPreMoldado
                 PinoN = t.PinoN, PinoPhi = t.PinoPhi, PinoAcima = t.PinoAcima, PinoEmb = t.PinoEmb, PinoPe = t.PinoPe,
                 AlmA = t.AlmA, AlmB = t.AlmB, AlmE = t.AlmE,
             };
+            int tipoApoio = DEB.Core.Intercambio.ApoioPeca.TipoDoTexto(ValoresTemplate.Celula(l, 4));
+            if (tipoApoio > 0)
+                c.Apoio = new DEB.Core.Intercambio.ApoioPeca
+                {
+                    Tipo = tipoApoio, Comprimento = ValoresTemplate.NumeroCelula(l, 5), Largura = ValoresTemplate.NumeroCelula(l, 6),
+                    Espessura = ValoresTemplate.NumeroCelula(l, 7), Afastamento = ValoresTemplate.NumeroCelula(l, 8),
+                };
             if (c.ZTopo - c.H < 0 || c.ZTopo > L) { avisos.Add($"Consolo {k}: fora do pilar (topo a {Num(c.ZTopo, "0.#")} cm da base)."); continue; }
             r.Add(c);
         }

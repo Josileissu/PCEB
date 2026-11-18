@@ -262,7 +262,8 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
                 // regras únicas do consolo (NBR 9062 7.3, as mesmas do template do CAD), uma vez por geometria de consolo
                 var consolos = new ListaVerificacoes();
                 foreach (var g in corbels.GroupBy(c => (Math.Round(U_.ToMm(c.Width)), Math.Round(U_.ToMm(c.Projection)),
-                                                        Math.Round(U_.ToMm(c.HeightAtFace)), Math.Round(U_.ToMm(c.TipHeight))))
+                                                        Math.Round(U_.ToMm(c.HeightAtFace)), Math.Round(U_.ToMm(c.TipHeight)),
+                                                        c.Apoio?.Tipo, c.Apoio?.Comprimento, c.Apoio?.Largura, c.Apoio?.Afastamento))
                                          .Select(x => x.First()))
                 {
                     double b = U_.ToMm(g.Width) / 10, a = U_.ToMm(g.Projection) / 10, h = U_.ToMm(g.HeightAtFace) / 10;
@@ -272,6 +273,7 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
                         H1 = Math.Min(h, U_.ToMm(g.TipHeight) / 10), Cob = CoverMm / 10,
                         TirN = TieCount, TirPhi = TieDiameterMm, TirAlca = !TieWeldedBar, CostN = SewCount, CostPhi = SewDiameterMm,
                         VertN = CorbelStirrupCount, VertPhi = CorbelStirrupDiameterMm, FckMPa = FckMPa, FykMPa = TabelasNbr.Fyk(LongSteel),
+                        Apoio = g.Apoio,
                     };
                     foreach (var x in VerificacoesConsolo.Verificar(dados)) consolos.Add(x);
                 }

@@ -542,13 +542,13 @@ public sealed partial class TemplatePilarPreMoldado
     private static void VerificarConsolos(ResultadoTemplate r, ValoresTemplate v, List<ConsoloPilar> consolos, double[] cob)
     {
         var lista = new ListaVerificacoes();
-        foreach (var k in consolos.GroupBy(x => x.Tipo).Select(g => g.First()))
+        foreach (var k in consolos.GroupBy(x => (x.Tipo, x.Apoio?.Tipo, x.Apoio?.Comprimento, x.Apoio?.Largura, x.Apoio?.Afastamento)).Select(g => g.First()))
         {
             var dados = new DadosConsolo
             {
                 Nome = k.Tipo, B = k.B, A = k.A, H = k.H, H1 = k.H1, Cob = cob.Take(4).Min(),
                 TirN = k.TirN, TirPhi = k.TirPhi, TirAlca = k.Laco, CostN = k.CostN, CostPhi = k.CostPhi, VertN = k.VertN, VertPhi = k.VertPhi,
-                FckMPa = v.Numero("Fck"), FykMPa = TabelasNbr.Fyk(v["LongAco"]),
+                FckMPa = v.Numero("Fck"), FykMPa = TabelasNbr.Fyk(v["LongAco"]), Apoio = k.Apoio,
             };
             foreach (var x in VerificacoesConsolo.Verificar(dados)) lista.Add(x);
         }

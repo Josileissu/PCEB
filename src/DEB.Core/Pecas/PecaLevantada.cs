@@ -40,6 +40,8 @@ public sealed class PecaLevantada
     public List<ConsoloLevantado> Consolos { get; set; } = new List<ConsoloLevantado>();
     /// <summary>Viga: aberturas na alma (furos passantes e nichos), fora da subdivisão em trechos.</summary>
     public List<AberturaPeca> Aberturas { get; set; } = new List<AberturaPeca>();
+    /// <summary>Furos dos pinos (viga com PCEB_Furo*, D36); null = a família não tem.</summary>
+    public DEB.Core.Intercambio.FurosPeca Furos { get; set; }
     /// <summary>Pilar: seção do pilar sem os consolos (largura em x = face 2/4, em y = face 1/3), cm.</summary>
     public double Bx { get; set; }
     public double By { get; set; }
@@ -64,6 +66,8 @@ public sealed class ConsoloLevantado
     public double S0 { get; set; }
     public double S1 { get; set; }
     public SecaoPoligonal Perfil { get; set; }
+    /// <summary>Aparelho de apoio sobre o consolo (PCEB_Apoio* da viga, D36); null = a família não tem.</summary>
+    public DEB.Core.Intercambio.ApoioPeca Apoio { get; set; }
     public PerfilConsolo.Medidas Medidas => PerfilConsolo.Medir(Perfil.Contorno.Select(p => (p.Y, p.Z)));
     public double Largura => S1 - S0;
 }

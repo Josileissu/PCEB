@@ -260,7 +260,8 @@ namespace DEB.Revit.Precast
                 ZBottom = atFace.Count > 0 ? atFace.Min(p => p.C) : cMin,
                 ZTop = cMax,
                 Projection = proj,
-                TipHeight = U_.Mm(med.AlturaPonta * 10)
+                TipHeight = U_.Mm(med.AlturaPonta * 10),
+                Apoio = PieceReview.Apoio(fi),
             };
         }
 

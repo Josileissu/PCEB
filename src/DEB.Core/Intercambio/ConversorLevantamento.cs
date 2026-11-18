@@ -158,6 +158,7 @@ public static class ConversorLevantamento
             {
                 Face = c.Face, Inicio = R(c.S0), Fim = R(c.S1),
                 Base = R(m.BaseNaFace), Topo = R(c.Perfil.ZMax), Balanco = R(m.Balanco), AlturaPonta = R(m.AlturaPonta),
+                Apoio = c.Apoio,
             });
         }
         return p;
@@ -260,6 +261,7 @@ public static class ConversorLevantamento
             B = R(i0.B), H = R(i0.H), L = R(r.Comprimento),
             DenteE = denteE ? Dente(j[0]) : null,
             DenteD = denteD ? Dente(j[j.Count - 1]) : null,
+            Furos = r.Furos,
             Elementos = Elementos(g),
         };
         // a chave da aba também carrega o ressalto: viga só com ressalto não tem aba (antes saía uma aba de largura 0, recusada na leitura)

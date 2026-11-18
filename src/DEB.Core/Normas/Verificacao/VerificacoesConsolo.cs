@@ -27,6 +27,8 @@ public sealed class DadosConsolo
     public double VertPhi { get; set; }
     public double FckMPa { get; set; } = 40;
     public double FykMPa { get; set; } = 500;
+    /// <summary>Aparelho de apoio (D36); null = sem informação (C1 com a2 = 0, C3–C5 não entram).</summary>
+    public DEB.Core.Intercambio.ApoioPeca Apoio { get; set; }
 
     /// <summary>Altura útil no engastamento (cm): até o centro do tirante, na 1ª camada abaixo do cobrimento.</summary>
     public double D => H - Cob - TirPhi / 20;
@@ -58,16 +60,46 @@ public static class VerificacoesConsolo
         double asCost = c.CostN * 2 * Math.PI * c.CostPhi * c.CostPhi / 400;    // estribos horizontais de 2 ramos, cm²
         double asVert = c.VertN * 2 * Math.PI * c.VertPhi * c.VertPhi / 400;
 
+        var ap = c.Apoio;
+        double a2 = ap?.Afastamento ?? 0;
         // C1: face externa h1 ≥ h/2 − a2 (7.3.3.1). Sem o apoio, a2 = 0 (limite mais rigoroso) e a falha fica "Conferir".
-        r.Add(R(c, "C1", "Altura da face externa do consolo", $"h1 = {N(c.H1)} cm", $"≥ h/2 − a2 = {N(c.H / 2)} cm (sem a2)",
-                c.H1 < c.H / 2 - 1e-6, "NBR 9062, 7.3.3.1", SituacaoVerificacao.Conferir,
-                "Com o aparelho de apoio (a2) o limite cai; a família do consolo ainda não traz o apoio."));
+        r.Add(R(c, "C1", "Altura da face externa do consolo", $"h1 = {N(c.H1)} cm",
+                ap == null ? $"≥ h/2 − a2 = {N(c.H / 2)} cm (sem a2)" : $"≥ h/2 − a2 = {N(c.H / 2)} − {N(a2)} = {N(c.H / 2 - a2)} cm",
+                c.H1 < c.H / 2 - a2 - 1e-6, "NBR 9062, 7.3.3.1", ap == null ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende,
+                ap == null ? "Sem o aparelho de apoio (a2) o limite é o mais rigoroso." : ""));
 
-        // C2: classificação pelo balanço (a carga fica dentro dele: a/d ≤ balanço/d) — informativa
-        double ad = d > 0 ? c.A / d : 0;
+        // C2: classificação; com o apoio, a = distância da face do pilar ao centro do apoio
+        double a = ap != null && ap.Comprimento > 0 ? c.A - a2 - ap.Comprimento / 2 : c.A;
+        double ad = d > 0 ? a / d : 0;
         string classe = ad <= 0.5 ? "muito curto" : ad <= 1 ? "curto" : ad <= 2 ? "consolo (a/d ≤ 2)" : "viga (a/d > 2: NBR 6118)";
-        r.Add(R(c, "C2", $"Classificação pelo balanço ({classe})", $"balanço/d = {N(c.A, "0.#")}/{N(d, "0.#")} = {N(ad, "0.00")}",
+        r.Add(ap != null && ap.Comprimento > 0
+            ? R(c, "C2", $"Classificação ({classe}); a = da face do pilar ao centro do apoio", $"a/d = {N(a)}/{N(d)} = {N(ad, "0.00")}",
+                "≤ 0,5 muito curto; ≤ 1 curto; ≤ 2 consolo", false, "NBR 9062, 7.3.2 e 7.3.5.1")
+            : R(c, "C2", $"Classificação pelo balanço ({classe})", $"balanço/d = {N(c.A)}/{N(d)} = {N(ad, "0.00")}",
                 "a carga fica dentro do balanço: a/d ≤ este valor", false, "NBR 9062, 7.3.2 e 7.3.5.1"));
+
+        if (ap != null)
+        {
+            // C3: distância a2 mínima pela ancoragem do tirante (7.3.3.4)
+            double phi = c.TirPhi / 10, mult = !c.TirAlca ? 1 : c.TirPhi < 20 ? 3.5 : 5;
+            double a2min = c.Cob + mult * phi;
+            string como = !c.TirAlca ? "c + φ (barra transversal soldada)" : c.TirPhi < 20 ? "c + 3,5φ (alças horizontais, φ < 20)" : "c + 5φ (alças horizontais, φ ≥ 20)";
+            r.Add(R(c, "C3", $"Distância a2 da face externa do apoio à ponta do consolo ({ap.NomeTipo})", $"a2 = {N(a2)} cm",
+                    $"≥ {como} = {N(a2min)} cm", a2 < a2min - 1e-6, "NBR 9062, 7.3.3.4"));
+            // C4: afastamento lateral do apoio maior que o cobrimento → armar o fendilhamento (7.3.3.3)
+            if (ap.Largura > 0)
+            {
+                double lateral = (c.B - ap.Largura) / 2;
+                r.Add(R(c, "C4", "Afastamento lateral do apoio", $"{N(lateral)} cm", $"≤ cobrimento = {N(c.Cob)} cm (acima: armar o fendilhamento)",
+                        lateral > c.Cob + 1e-6, "NBR 9062, 7.3.3.3", SituacaoVerificacao.Conferir,
+                        "Armar para a força de fendilhamento (blocos parcialmente carregados, NBR 6118) ou conferir se já está prevista."));
+            }
+            // C5: alças horizontais sem armadura de fendilhamento no plano das alças só com c ≤ a2 ≤ c + 3φ (7.3.3.5)
+            if (c.TirAlca)
+                r.Add(R(c, "C5", "Alças do tirante sem armadura contra o fendilhamento horizontal", $"a2 = {N(a2)} cm",
+                        $"entre c = {N(c.Cob)} e c + 3φ = {N(c.Cob + 3 * phi)} cm", a2 < c.Cob - 1e-6 || a2 > c.Cob + 3 * phi + 1e-6,
+                        "NBR 9062, 7.3.3.5", SituacaoVerificacao.Conferir, "Fora da faixa: prever armadura contra o fendilhamento no plano das alças."));
+        }
 
         // C6/C7: bitola e espaçamento do tirante conforme a ancoragem na ponta
         double phiMax = Math.Min((c.TirAlca ? bMin / 8 : bMin / 6) * 10, 25);
@@ -92,8 +124,10 @@ public static class VerificacoesConsolo
             double phiCostMax = bMin / 15 * 10;
             r.Add(R(c, "C10", "Bitola da costura", $"ø{N(c.CostPhi)}", $"≤ b/15 = {N(phiCostMax)} mm", c.CostPhi > phiCostMax + 1e-6, "NBR 9062, 7.3.3.12"));
             double espCost = 2.0 / 3 * d / c.CostN;
-            r.Add(R(c, "C10", "Espaçamento vertical da costura (em 2/3 d)", $"{N(espCost)} cm", "≤ 10 cm e ≤ a",
-                    espCost > 10 + 1e-6, "NBR 9062, 7.3.3.12", dica: "O limite \"≤ a\" depende da posição da carga (apoio)."));
+            double espMaxCost = ap != null && ap.Comprimento > 0 ? Math.Min(10, a) : 10;
+            r.Add(R(c, "C10", "Espaçamento vertical da costura (em 2/3 d)", $"{N(espCost)} cm",
+                    ap != null && ap.Comprimento > 0 ? $"≤ mín(10 cm; a) = {N(espMaxCost)} cm" : "≤ 10 cm e ≤ a",
+                    espCost > espMaxCost + 1e-6, "NBR 9062, 7.3.3.12", dica: ap == null ? "O limite \"≤ a\" depende da posição da carga (apoio)." : ""));
         }
 
         // C11: costura mínima (As,cost/s ≥ 0,4·As,tir/d para curto; 0,5 para muito curto), distribuída em 2/3 d

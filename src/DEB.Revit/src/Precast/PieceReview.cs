@@ -212,6 +212,7 @@ namespace DEB.Revit.Precast
 
             var xs = info.Vertices.Select(v => Cm((v - info.Origin).DotProduct(along))).ToList();
             var corbelRefs = new List<List<SolidRef>>();
+            if (beam) p.Furos = Furos(fi);
             if (!beam)
             {
                 p.Bx = Cm(info.LengthX);
@@ -240,6 +241,7 @@ namespace DEB.Revit.Precast
                                               : Corbel(info, cs, out aviso);
                     if (aviso != null) p.Avisos.Add($"consolo {c.Id.Value}: {aviso}");
                     if (k == null) continue;
+                    k.Apoio = Apoio(c);
                     p.Consolos.Add(k);
                     xs.AddRange(GeometryHelper.GetVertices(cr).Select(v => Cm((v - info.Origin).DotProduct(along))));
                     // o corte passa pela peça e pelo consolo juntos
@@ -386,6 +388,48 @@ namespace DEB.Revit.Precast
         }
 
         private static double Cm(double ft) => U.ToMm(ft) / 10.0;
+
+        /// <summary>Parâmetro da instância ou, na falta, do tipo.</summary>
+        private static Parameter Param(FamilyInstance fi, string nome) => fi?.LookupParameter(nome) ?? fi?.Symbol?.LookupParameter(nome);
+
+        private static double? Comprimento(FamilyInstance fi, string nome)
+        {
+            Parameter q = Param(fi, nome);
+            return q != null && q.StorageType == StorageType.Double && q.HasValue ? Round(Cm(q.AsDouble())) : (double?)null;
+        }
+
+        /// <summary>
+        /// Aparelho de apoio sobre o consolo (D36): os PCEB_Apoio* são da viga em que o consolo está aninhado (o consolo recebe as
+        /// medidas por parâmetros ligados); sem eles, null.
+        /// </summary>
+        internal static DEB.Core.Intercambio.ApoioPeca Apoio(FamilyInstance corbel)
+        {
+            var viga = corbel.SuperComponent as FamilyInstance ?? corbel;
+            Parameter tipo = Param(viga, "PCEB_ApoioTipo");
+            if (tipo == null || tipo.StorageType != StorageType.Integer) return null;
+            return new DEB.Core.Intercambio.ApoioPeca
+            {
+                Tipo = tipo.AsInteger(),
+                Comprimento = Comprimento(viga, "PCEB_ApoioComprimento") ?? 0,
+                Largura = Comprimento(viga, "PCEB_ApoioLargura") ?? 0,
+                Espessura = Comprimento(viga, "PCEB_ApoioEspessura") ?? 0,
+                Afastamento = Comprimento(viga, "PCEB_ApoioAfastamento") ?? 0,
+            };
+        }
+
+        /// <summary>Furos dos pinos nos dentes da viga (D36): PCEB_FuroQtd, PCEB_FuroDistE/D (cm) e PCEB_FuroDiametro (mm); sem eles, null.</summary>
+        private static DEB.Core.Intercambio.FurosPeca Furos(FamilyInstance viga)
+        {
+            Parameter qtd = Param(viga, "PCEB_FuroQtd");
+            if (qtd == null || qtd.StorageType != StorageType.Integer) return null;
+            return new DEB.Core.Intercambio.FurosPeca
+            {
+                Quantidade = qtd.AsInteger(),
+                DistE = Comprimento(viga, "PCEB_FuroDistE") ?? 0,
+                DistD = Comprimento(viga, "PCEB_FuroDistD") ?? 0,
+                Diametro = Math.Round((Comprimento(viga, "PCEB_FuroDiametro") ?? 0) * 10, 1),
+            };
+        }
         private static double Round(double cm) => Math.Round(cm, 2);
     }
 }
