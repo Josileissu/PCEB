@@ -43,7 +43,17 @@ internal static class PlotadorPdf
         {
             string local;
             try { local = v.GetLocaleMediaName(ps, c); } catch (Exception ex) { local = "(erro: " + ex.Message + ")"; }
-            res.Add(c + " = " + local);
+            // tamanho e margens que o CAD considera para a folha (diagnóstico da margem de 3 mm, 18/11/2026)
+            string medida = "";
+            try
+            {
+                v.SetCanonicalMediaName(ps, c);
+                v.SetPlotPaperUnits(ps, PlotPaperUnit.Millimeters);
+                var t = ps.PlotPaperSize; var m = ps.PlotPaperMargins;
+                medida = FormattableString.Invariant($" | {t.X:0.##}x{t.Y:0.##} mm, margens {m.MinPoint.X:0.##} {m.MinPoint.Y:0.##} {m.MaxPoint.X:0.##} {m.MaxPoint.Y:0.##}");
+            }
+            catch (Exception ex) { medida = " | (medida: " + ex.Message + ")"; }
+            res.Add(c + " = " + local + medida);
         }
         tr.Commit();
         return res;
@@ -185,8 +195,20 @@ internal static class PlotadorPdf
         }
         else if (cfg.Area == AreaPlotLote.Layout && !ps.ModelType) v.SetPlotType(ps, PlotType.Layout);
         else v.SetPlotType(ps, PlotType.Extents);
-        v.SetUseStandardScale(ps, true);
-        v.SetStdScaleType(ps, StdScaleType.ScaleToFit);
+        // moldura reconhecida: escala EXATA (a moldura do tamanho do papel). Com "ajustar à folha" o CAD encolhia o desenho para a
+        // área imprimível dele — o GstarCAD reserva 3,2 mm de cada lado nos papéis personalizados da PDF24 (o driver diz 0) e o PDF
+        // saía a 98,9 % (relato do usuário, 18/11/2026). Sem moldura (área = layout/extensão), continua ajustando.
+        double ladoCaixa = Math.Max(f.Largura, f.Altura), ladoPapel = Math.Max(f.Formato.Largura, f.Formato.Altura);
+        if (f.TemCaixa && ladoCaixa > 0 && ladoPapel > 0 && (cfg.Area == AreaPlotLote.Moldura || f.NoModelo))
+        {
+            v.SetUseStandardScale(ps, false);
+            v.SetCustomPrintScale(ps, new CustomScale(ladoPapel, ladoCaixa));
+        }
+        else
+        {
+            v.SetUseStandardScale(ps, true);
+            v.SetStdScaleType(ps, StdScaleType.ScaleToFit);
+        }
         // folha deitada x desenho deitado: gira 90° quando as orientações não batem. Orientação do papel REAL da impressora (a
         // folha do .pc3 é gravada deitada mesmo para o A4 em pé da lista); sem medida, a do formato
         var papel = ps.PlotPaperSize;
