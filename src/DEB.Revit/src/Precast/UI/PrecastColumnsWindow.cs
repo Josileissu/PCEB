@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
+using DEB.Core.Normas.Verificacao;
 
 namespace DEB.Revit.Precast.UI
 {
@@ -17,6 +18,9 @@ namespace DEB.Revit.Precast.UI
     internal sealed class PrecastColumnsWindow : Window
     {
         private static readonly double[] Diameters = { 4.2, 5, 6.3, 8, 10, 12.5, 16, 20, 25, 32 };
+        /// <summary>Classes de agressividade e aços aceitos pelas regras do núcleo (TabelasNbr.Classe e TabelasNbr.Fyk).</summary>
+        private static readonly string[] ExposureClasses = { "I", "II", "III", "IV" };
+        private static readonly string[] Steels = { "CA-25", "CA-50", "CA-60" };
 
         private readonly List<ColumnGroup> _groups;
         private readonly HashSet<ColumnGroup> _include;
@@ -110,12 +114,17 @@ namespace DEB.Revit.Precast.UI
             DockPanel.SetDock(top, Dock.Top);
             right.Children.Add(top);
 
+            // painel de verificações embaixo, sempre à vista (rolagem própria): muda junto com os campos e com a prévia
+            var checksBox = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
+            var checksTitle = new TextBlock { Text = "Verificações (NBR 6118 / NBR 9062)", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) };
+            DockPanel.SetDock(checksTitle, Dock.Top);
+            checksBox.Children.Add(checksTitle);
+            checksBox.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 260, Content = _checks });
+            DockPanel.SetDock(checksBox, Dock.Bottom);
+            right.Children.Add(checksBox);
+
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var stack = new StackPanel();
-            stack.Children.Add(_fields);
-            stack.Children.Add(new TextBlock { Text = "Verificações (NBR 6118 / NBR 9062)", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 4) });
-            stack.Children.Add(_checks);
-            scroll.Content = stack;
+            scroll.Content = _fields;
             right.Children.Add(scroll);
             Grid.SetColumn(right, 2);
             root.Children.Add(right);
@@ -153,7 +162,7 @@ namespace DEB.Revit.Precast.UI
         private UIElement ItemContent(ColumnGroup g)
         {
             PrecastColumn r = g.Representative;
-            int warnings = g.Spec.Check(r).Count;
+            PainelVerificacoes painel = PainelVerificacoes.De(g.Spec, r.Frame, r.Corbels);
             var cb = new CheckBox { IsChecked = _include.Contains(g), VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 6, 0) };
             cb.Checked += (s, e) => _include.Add(g);
             cb.Unchecked += (s, e) => _include.Remove(g);
@@ -176,8 +185,9 @@ namespace DEB.Revit.Precast.UI
             });
             text.Children.Add(new TextBlock
             {
-                Text = warnings == 0 ? "✓ verificações OK" : $"⚠ {warnings} aviso(s)",
-                Foreground = warnings == 0 ? Brushes.SeaGreen : Brushes.DarkOrange
+                Text = painel.Geral == SituacaoVerificacao.Ok ? "✓ verificações OK"
+                     : $"⚠ {PainelVerificacoes.Texto(painel.Geral)}: {painel.Conferir} a conferir · {painel.NaoAtende} não atende",
+                Foreground = SealBrush(painel.Geral)
             });
 
             var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(2, 4, 2, 4) };
@@ -209,6 +219,13 @@ namespace DEB.Revit.Precast.UI
             ColumnRebarSpec s = g.Spec;
             Section("Geral");
             Num("Cobrimento (mm)", () => s.CoverMm, v => s.CoverMm = v);
+            // dados das verificações (cobrimento G1–G4, espaçamentos, consolo): só entram nas regras, não mudam as barras
+            Choice("Classe de agressividade ambiental", ExposureClasses, () => TabelasNbr.Romano(TabelasNbr.Classe(s.ExposureClass)), v => s.ExposureClass = v);
+            Num("fck do concreto (MPa)", () => s.FckMPa, v => s.FckMPa = v);
+            Bool("Relação a/c ≤ 0,45 (libera a 2ª redução do cobrimento com fck ≥ 40 MPa)", () => s.WaterCement045, v => s.WaterCement045 = v);
+            Num("Agregado graúdo: dmáx (mm)", () => s.AggregateMm, v => s.AggregateMm = v);
+            Choice("Aço das longitudinais", Steels, () => s.LongSteel, v => s.LongSteel = v);
+            Choice("Aço dos estribos", Steels, () => s.StirrupSteel, v => s.StirrupSteel = v);
 
             Section("Armadura por linha (longitudinais)");
             // modelo salvo antes da D32: as linhas nascem dos campos simples (as mesmas barras) e passam a ser as editadas
@@ -273,16 +290,35 @@ namespace DEB.Revit.Precast.UI
             if (Current != null) RefreshItem(Current);
         }
 
+        /// <summary>
+        /// Painel de verificações (etapa 3): selo geral, contagem e uma linha por pendência, das regras do núcleo
+        /// (<see cref="PainelVerificacoes"/>, as mesmas do relatório do grupo); atualizado junto com a prévia.
+        /// </summary>
         private void UpdateChecks()
         {
             _checks.Children.Clear();
             ColumnGroup g = Current;
             if (g == null) return;
-            List<string> w = g.Spec.Check(g.Representative);
-            if (w.Count == 0)
-                _checks.Children.Add(new TextBlock { Text = "✓ Nenhum problema encontrado.", Foreground = Brushes.SeaGreen });
-            foreach (string m in w)
-                _checks.Children.Add(new TextBlock { Text = "⚠ " + m, Foreground = Brushes.DarkOrange, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 3) });
+            PainelVerificacoes p = PainelVerificacoes.De(g.Spec, g.Representative.Frame, g.Representative.Corbels);
+
+            var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            head.Children.Add(new Border
+            {
+                Background = SealBrush(p.Geral), CornerRadius = new CornerRadius(3), Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock { Text = PainelVerificacoes.Texto(p.Geral).ToUpperInvariant(), Foreground = Brushes.White, FontWeight = FontWeights.Bold }
+            });
+            head.Children.Add(new TextBlock { Text = p.Contagem, VerticalAlignment = VerticalAlignment.Center });
+            _checks.Children.Add(head);
+
+            if (p.Geral == SituacaoVerificacao.Ok)
+                _checks.Children.Add(new TextBlock { Text = "✓ Nenhuma pendência.", Foreground = Brushes.SeaGreen });
+            foreach (ResultadoVerificacao r in p.Pendencias)
+            {
+                string vl = r.Valor.Length > 0 && r.Limite.Length > 0 ? $": {r.Valor} (limite {r.Limite})" : r.Valor.Length > 0 ? $": {r.Valor}" : "";
+                CheckLine(r.Codigo, $"{r.Descricao}{vl} ({r.Referencia}).", r.Dica, SealBrush(r.Situacao));
+            }
+            foreach (string m in p.OutrosAvisos) CheckLine("—", m, "", SealBrush(SituacaoVerificacao.Conferir));
 
             // armadura por linha: barras por bitola (feixe = cada barra) e a taxa do trecho menos e do mais armado
             ColumnRebarSpec s = g.Spec;
@@ -300,6 +336,26 @@ namespace DEB.Revit.Precast.UI
                 Foreground = Brushes.DimGray, Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap
             });
         }
+
+        /// <summary>Uma pendência do painel: código (na cor da situação), mensagem e, abaixo, a dica.</summary>
+        private void CheckLine(string code, string message, string tip, Brush color)
+        {
+            var g = new Grid { Margin = new Thickness(0, 0, 0, 4) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var c = new TextBlock { Text = code, FontWeight = FontWeights.Bold, Foreground = color };
+            var text = new StackPanel();
+            text.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
+            if (!string.IsNullOrWhiteSpace(tip))
+                text.Children.Add(new TextBlock { Text = tip, TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Brushes.DimGray });
+            Grid.SetColumn(text, 1);
+            g.Children.Add(c);
+            g.Children.Add(text);
+            _checks.Children.Add(g);
+        }
+
+        private static Brush SealBrush(SituacaoVerificacao s) =>
+            s == SituacaoVerificacao.NaoAtende ? Brushes.Firebrick : s == SituacaoVerificacao.Conferir ? Brushes.DarkOrange : Brushes.SeaGreen;
 
         private void Section(string title) =>
             _fields.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 4) });
@@ -347,6 +403,16 @@ namespace DEB.Revit.Precast.UI
             c.Checked += (s, e) => { set(true); Changed(); };
             c.Unchecked += (s, e) => { set(false); Changed(); };
             _fields.Children.Add(c);
+        }
+
+        /// <summary>Lista fechada (classe de agressividade, aço). Valor gravado fora da lista: fica como está até o usuário escolher.</summary>
+        private void Choice(string label, string[] options, Func<string> get, Action<string> set)
+        {
+            var cb = new ComboBox { Width = 80 };
+            foreach (string o in options) cb.Items.Add(o);
+            cb.SelectedItem = options.FirstOrDefault(o => string.Equals(o, (get() ?? "").Replace(" ", ""), StringComparison.OrdinalIgnoreCase));
+            cb.SelectionChanged += (s, e) => { if (cb.SelectedItem is string v) { set(v); Changed(); } };
+            _fields.Children.Add(Row(label, cb));
         }
 
         private void Str(string label, Func<string> get, Action<string> set)
