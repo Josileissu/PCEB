@@ -239,7 +239,13 @@ internal static class PaletaArmadura
             var geo = GeometriaBarra.Ler(pl, cpu);
             d.AjustarSegmentos(geo.Count);
             bool comGanchos = d.Estribo && ServicoEstribo.ComGanchos(pl, d);
-            r.Add(new PropriedadesBarra(pl.ObjectId, d, geo, cfg, comGanchos, comGanchos ? ServicoEstribo.Posicao(pl) : null));
+            // indicações não somam na barra: só as faixas que somam travam a quantidade (relato do usuário, 18/11/2026)
+            bool faixasSomam = d.Faixas.Any(hf =>
+            {
+                var fid = XDataCad.IdDoHandle(db, hf);
+                return !fid.IsNull && !fid.IsErased && tr.GetObject(fid, OpenMode.ForRead) is Entity fe && ServicoFaixa.Ler(fe).SomaQuantidade;
+            });
+            r.Add(new PropriedadesBarra(pl.ObjectId, d, geo, cfg, comGanchos, comGanchos ? ServicoEstribo.Posicao(pl) : null, faixasSomam));
         }
         tr.Commit();
         return r;

@@ -48,11 +48,14 @@ internal sealed class PropriedadesBarra : IPropriedadesCondicionais
     private readonly ConfiguracaoArmadura _cfg;
 
     private readonly bool _comGanchos;
+    /// <summary>Alguma faixa da barra soma na quantidade (as indicações não somam).</summary>
+    private readonly bool _faixasSomam;
     private readonly Core.Estribos.PosicaoGanchos? _posicao;
 
     internal PropriedadesBarra(ObjectId id, DadosArmadura d, List<GeoSegmento> geo, ConfiguracaoArmadura cfg,
-        bool estriboComGanchos = false, Core.Estribos.PosicaoGanchos? posicaoGanchos = null)
+        bool estriboComGanchos = false, Core.Estribos.PosicaoGanchos? posicaoGanchos = null, bool faixasSomam = false)
     {
+        _faixasSomam = faixasSomam;
         Id = id;
         D = d;
         _cfg = cfg;
@@ -134,13 +137,13 @@ internal sealed class PropriedadesBarra : IPropriedadesCondicionais
     }
 
     [Category(GArmadura), DisplayName("Quantidade"),
-     Description("Com faixas, a quantidade é a soma delas (edite as faixas).")]
+     Description("Com faixas, a quantidade é a soma delas (edite as faixas). As indicações não somam: com elas a quantidade é livre.")]
     public int Quantidade
     {
         get => D.Quantidade;
         set
         {
-            if (D.TemFaixas) throw new ArgumentException("Esta barra tem faixas: a quantidade é a soma delas.");
+            if (_faixasSomam) throw new ArgumentException("Esta barra tem faixas: a quantidade é a soma delas.");
             if (value < 1) throw new ArgumentException("A quantidade mínima é 1.");
             D.Quantidade = value;
             Mudar(c => c.D.Quantidade = value);
