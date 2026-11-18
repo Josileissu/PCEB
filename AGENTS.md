@@ -37,7 +37,8 @@ próprio (ver o AGENTS.md de cada plugin). `dotnet` não está no PATH.
 - **Fora do Git**: normas, livros, artigos, padrões do escritório (`docs/02_biblioteca/*`), SDKs baixados,
   `info_auxiliar/` e `auxiliar_cad/` do DEB.Cad.
 - **Robustez**: um comando que falha não pode fechar o Revit/CAD nem perder trabalho (`docs/00_escopo/robustez_e_estabilidade.md`).
-- **Identificadores gravados em arquivos de clientes não mudam** (XData `ARMADURA_BR`, comandos `ARM*`, parâmetros `SD_`).
+- **Identificadores gravados em arquivos de clientes não mudam** (XData `ARMADURA_BR`, comandos `ARM*`) — exceto os parâmetros do
+  Revit: `SD_` passa a `PCEB_` com migração (D38); parâmetro novo já nasce `PCEB_`.
 - Regras de detalhamento: o DEB.Cad é a referência (decisão D7); serão extraídas para um núcleo comum (etapa 5).
 - Instalador só quando o usuário pedir (não gerar Setup nem mudar as versões por conta própria; elas ficam em `Directory.Build.props`, na raiz: `VersaoCad` e `VersaoRevit`).
 - **Testes sem mouse/teclado reais** (SetCursorPos, SendInput): o usuário usa o computador ao mesmo tempo e um clique

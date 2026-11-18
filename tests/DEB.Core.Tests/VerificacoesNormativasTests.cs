@@ -112,3 +112,26 @@ public class VerificacoesNormativasTests
         Assert.StartsWith("Não atende (P1)", l.Avisos().Last());
     }
 }
+
+/// <summary>Suspensão do dente Gerber concentrada no trecho cobrimento + dvig/4 (D36, NBR 9062 7.4.6.2).</summary>
+public class SuspensaoDenteTests
+{
+    [Theory]
+    [InlineData(2.5, 46.07, 14)]    // 2,5 + 11,52 = 14,02 → 14
+    [InlineData(3.0, 72.0, 21)]     // 3 + 18 = 21 (exato fica)
+    [InlineData(2.5, 70.0, 20)]     // 2,5 + 17,5 = 20
+    public void TrechoArredondadoParaBaixo(double cob, double dvig, double esperado) =>
+        Assert.Equal(esperado, DEB.Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.TrechoSuspensao(cob, dvig), 6);
+
+    [Fact]
+    public void EstribosNoTrechoComOMesmoEspacamentoAteOEstriboDaAlma()
+    {
+        var t = new DEB.Core.Elementos.Viga.PreMoldada.TipoDente { Comprimento = 25, SuspQtd = 3, SuspBitola = 10 };
+        var xs = DEB.Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.PosicoesSuspensao(t, 2.5, true, 500, 20);
+        Assert.Equal(3, xs.Count);
+        Assert.Equal(28, xs[0], 6);                                   // face 25 + cobrimento 2,5 + φ/2
+        double e = xs[1] - xs[0];
+        Assert.Equal(e, xs[2] - xs[1], 6);
+        Assert.Equal(25 + 20, xs[2] + e, 6);                          // o próximo passo cai no 1º estribo da alma, no fim do trecho
+    }
+}

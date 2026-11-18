@@ -86,7 +86,7 @@ public sealed partial class TemplateVigaPreMoldada
             if (w <= 0 || alt <= 0) { avisos.Add($"Abertura {k}: informe a largura e a altura."); continue; }
             if (a.X0 < 0 || a.X1 > L) { avisos.Add($"Abertura {k}: fora da viga (de {Num(a.X0, "0.#")} a {Num(a.X1, "0.#")} cm)."); continue; }
             if (a.Z < 0 || a.Z1 > h) { avisos.Add($"Abertura {k}: fora da altura da viga (fundo {Num(a.Z, "0.#")}, topo {Num(a.Z1, "0.#")} cm)."); continue; }
-            double li = e.TemDente ? e.CompDente + ExtensaoSuspensao(e) : 0, lf = L - (d.TemDente ? d.CompDente + ExtensaoSuspensao(d) : 0);
+            double li = FimSuspensao(e), lf = L - FimSuspensao(d);
             if (a.X0 < li || a.X1 > lf) avisos.Add($"Abertura {k}: na região do dente ou da suspensão — conferir.");
             a.Reforcada = !(circ && w <= semRef + 1e-6);
             r.Add(a);

@@ -29,16 +29,39 @@ public sealed partial class TemplateVigaPreMoldada
         return esquerda ? xs : xs.Select(x => L - x).ToList();
     }
 
-    /// <summary>x (eixo) da suspensão: a partir da face do recorte (a cobrimento), a cada SuspEsp, para dentro da viga.</summary>
-    public static List<double> PosicoesSuspensao(TipoDente t, double cobPontas, bool esquerda, double L)
+    /// <summary>
+    /// Trecho da suspensão a partir da face do recorte (cm): cobrimento + dvig/4, arredondado para baixo (cm inteiro) — pedido do
+    /// usuário (18/11/2026, D36): a suspensão fica concentrada junto ao dente (NBR 9062 7.4.6.2, Fig. 23) e a cota do detalhe vai do
+    /// dente até o fim desse trecho.
+    /// </summary>
+    public static double TrechoSuspensao(double cobPontas, double dvig) => dvig <= 0 ? 0 : Math.Floor(cobPontas + dvig / 4 + 1e-9);
+
+    /// <summary>
+    /// x (eixo) da suspensão. Com o trecho (D36): a primeira a cobrimento da face do recorte e as demais com o mesmo espaçamento
+    /// até o primeiro estribo da alma, que fica no fim do trecho. Sem o trecho: a cada SuspEsp (regra antiga).
+    /// </summary>
+    public static List<double> PosicoesSuspensao(TipoDente t, double cobPontas, bool esquerda, double L, double trecho = 0)
     {
         double x0 = t.Comprimento + cobPontas + t.SuspBitola / 20;
-        var xs = Enumerable.Range(0, Math.Max(0, t.SuspQtd)).Select(i => x0 + i * t.SuspEsp).ToList();
+        int n = Math.Max(0, t.SuspQtd);
+        double e = trecho > 0 && n > 0 ? (trecho - cobPontas - t.SuspBitola / 20) / n : t.SuspEsp;
+        var xs = Enumerable.Range(0, n).Select(i => x0 + i * e).ToList();
         return esquerda ? xs : xs.Select(x => L - x).ToList();
     }
 
-    /// <summary>Comprimento ocupado pela suspensão a partir da face do recorte (os estribos normais começam depois).</summary>
-    public static double ExtensaoSuspensao(ExtremidadeViga x) => x.TemDente && x.Dente.SuspQtd > 0 ? x.Dente.SuspQtd * x.Dente.SuspEsp : 0;
+    /// <summary>Fim da região do dente e da suspensão, medido da ponta (cm).</summary>
+    public static double FimSuspensao(ExtremidadeViga x) =>
+        !x.TemDente ? 0 : x.CompDente + (x.Dente.SuspQtd <= 0 ? 0 : x.TrechoSuspensao > 0 ? x.TrechoSuspensao : x.Dente.SuspQtd * x.Dente.SuspEsp);
+
+    /// <summary>
+    /// Quanto a suspensão empurra o primeiro estribo da alma (somado a face do recorte + cobrimento + φ/2). Com o trecho (D36) o
+    /// eixo do primeiro estribo da alma cai exatamente no fim do trecho, e a cota da suspensão fica igual ao trecho.
+    /// </summary>
+    public static double ExtensaoSuspensao(ExtremidadeViga x, double cobPontas, double phiEst)
+    {
+        if (!x.TemDente || x.Dente.SuspQtd <= 0) return 0;
+        return x.TrechoSuspensao > 0 ? Math.Max(0, x.TrechoSuspensao - cobPontas - phiEst / 2) : x.Dente.SuspQtd * x.Dente.SuspEsp;
+    }
 
     /// <summary>
     /// Estribos Gerber e suspensão na elevação das armaduras: as linhas dentro da forma e, como nas pranchas do escritório
@@ -58,12 +81,12 @@ public sealed partial class TemplateVigaPreMoldada
         var g = PosicoesGerber(t, cob, esquerda, L);
         foreach (var xx in g) c.Linha(xx, yT - t.Altura + cobF, xx, yT - cobT, "ARM-BARRA-DETALHE");
         if (g.Count > 0) c.R.Faixas.Add(FaixaContada("gerber" + suf, X(0), X(x.CompDente), yF, g.Count, yF + 0.8 * hv, c.escV, cfg));
-        var s = PosicoesSuspensao(t, cob, esquerda, L);
+        var s = PosicoesSuspensao(t, cob, esquerda, L, x.TrechoSuspensao);
         foreach (var xx in s) c.Linha(xx, yB + cobF, xx, yT - cobT, "ARM-BARRA-DETALHE");
         if (s.Count > 0)
         {
             // até onde começa a faixa dos estribos da alma (ZonasEstribos), para a cadeia de cotas não ter folga
-            double fim = x.CompDente + ExtensaoSuspensao(x) + cob + v.Numero("EstBitola") / 20;
+            double fim = x.CompDente + ExtensaoSuspensao(x, cob, v.Numero("EstBitola") / 10) + cob + v.Numero("EstBitola") / 20;
             c.R.Faixas.Add(FaixaContada("suspensao" + suf, X(x.CompDente), X(fim), yF, s.Count, yF - 2.4 * hv, c.escV, cfg));
         }
     }

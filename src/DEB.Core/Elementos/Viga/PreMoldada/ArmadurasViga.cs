@@ -170,17 +170,18 @@ public sealed partial class TemplateVigaPreMoldada
         double fretE = 0, double fretD = 0)
     {
         double cob = v.Numero("CobPontas"), phi = v.Numero("EstBitola") / 10;
-        double x0 = (e.TemDente ? e.CompDente : 0) + cob + phi / 2 + ExtensaoSuspensao(e),
-               x1 = L - (d.TemDente ? d.CompDente : 0) - cob - phi / 2 - ExtensaoSuspensao(d);
+        double x0 = (e.TemDente ? e.CompDente : 0) + cob + phi / 2 + ExtensaoSuspensao(e, cob, phi),
+               x1 = L - (d.TemDente ? d.CompDente : 0) - cob - phi / 2 - ExtensaoSuspensao(d, cob, phi);
         double lz = Math.Max(0, v.Numero("EstZonaPonta")), espP = v.Numero("EstEspPonta"), espV = v.Numero("EstEspVao");
         // fretagem da protensão: a zona da ponta cobre o comprimento de transferência (a suspensão do dente também ajuda)
         double lzE = Math.Max(lz, fretE - x0), lzD = Math.Max(lz, fretD - (L - x1));
         var r = new List<ZonaEstriboViga>();
         if (x1 - x0 < 1) return r;
-        // vão menor que um espaçamento: uma zona só (viga curta, ou a suspensão do dente ocupou o lugar)
+        // vão curto demais para ter estribos próprios (menos que um espaçamento do vão mais um da ponta): uma zona só, com o
+        // espaçamento da ponta — senão o 1º estribo da ponta D cai a poucos cm do último do vão (viga curta, ou dente com suspensão)
         if (lzE <= 0 && lzD <= 0)
             r.Add(new ZonaEstriboViga { Nome = "vão", X1 = x0, X2 = x1, Esp = espV });
-        else if (lzE + lzD >= x1 - x0 - Math.Max(espV, espP) - 1e-6)
+        else if (lzE + lzD >= x1 - x0 - (espV + espP) - 1e-6)
             r.Add(new ZonaEstriboViga { Nome = "ponta", X1 = x0, X2 = x1, Esp = espP });
         else
         {

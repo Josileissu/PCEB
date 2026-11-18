@@ -22,6 +22,11 @@ public sealed class ExtremidadeViga
     public double AlturaPonta(double h) => TemDente ? Dente.Altura : h;
     public double Recorte(double h) => TemDente ? h - Dente.Altura : 0;
     public double CompDente => TemDente ? Dente.Comprimento : 0;
+    /// <summary>
+    /// Trecho da suspensão, da face do recorte (cm): cobrimento + dvig/4, arredondado para baixo (D36, NBR 9062 7.4.6.2) — é a cota
+    /// do detalhe da viga. 0 = regra antiga (quantidade × espaçamento do catálogo).
+    /// </summary>
+    public double TrechoSuspensao { get; set; }
 }
 
 /// <summary>
@@ -145,12 +150,35 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         string nome = v["Ext" + k];
         int furos = v["FurosModo"] == FurosDigitados ? Math.Max(0, v.Inteiro("Furos" + k)) : FurosPorLargura(v.Numero("B"));
         var e = new ExtremidadeViga { Furos = furos, DistFuro = v.Numero("FuroDist" + k) };
+        e.TrechoSuspensao = TrechoSuspensao(v.Numero("CobPontas"), AlturaUtil(v));
         if (!string.IsNullOrWhiteSpace(nome) && !nome.Equals(Reta, StringComparison.OrdinalIgnoreCase))
         {
             e.Dente = TipoDente.Obter(catalogo, nome);
             if (e.Dente == null) avisos.Add($"Ponta {lado}: dente \"{nome}\" não está no catálogo; desenhada reta.");
+            else if (e.Dente.SuspQtd > 0 && e.Dente.SuspBitola > 0 && e.TrechoSuspensao > 0)
+            {
+                // suspensão concentrada no trecho (D36): os estribos cabem com o espaçamento livre mínimo (NBR 6118, 18.3.2.2)?
+                double phi = e.Dente.SuspBitola / 10, cob = v.Numero("CobPontas");
+                double esp = (e.TrechoSuspensao - cob - phi / 2) / e.Dente.SuspQtd, livre = esp - phi, minimo = Math.Max(2, phi);
+                if (livre < minimo - 1e-6)
+                    avisos.Add($"Conferir (D6): suspensão da ponta {lado}: {e.Dente.SuspQtd} estribos ø{Num(e.Dente.SuspBitola, "0.#")} no trecho de " +
+                               $"{Num(e.TrechoSuspensao, "0")} cm (cobrimento + dvig/4) ficam a {Num(esp, "0.0")} cm, com {Num(livre, "0.0")} cm livres " +
+                               $"(mínimo {Num(minimo, "0.0")} cm, NBR 6118 18.3.2.2); use menos estribos de bitola maior ou ramos duplos.");
+            }
         }
         return e;
+    }
+
+    /// <summary>
+    /// Altura útil da viga (cm) para a suspensão do dente: h − cobrimento do fundo − estribo − metade da maior barra inferior
+    /// (sem barra inferior na lista, 1,6 cm).
+    /// </summary>
+    public static double AlturaUtil(ValoresTemplate v)
+    {
+        double phiInf = v.Tabela("Longitudinais")
+            .Where(l => ValoresTemplate.Celula(l, 0).StartsWith("Inf", StringComparison.OrdinalIgnoreCase))
+            .Select(l => ValoresTemplate.NumeroCelula(l, 2)).DefaultIfEmpty(16).Max();
+        return v.Numero("H") - v.Numero("CobFundo") - v.Numero("EstBitola") / 10 - phiInf / 20;
     }
 
     private static string Num(double v, string f) => KitDesenho.Num(v, f);

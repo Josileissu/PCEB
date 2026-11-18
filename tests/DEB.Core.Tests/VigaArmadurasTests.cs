@@ -60,7 +60,10 @@ public class VigaArmadurasTests
         var d = TemplateVigaPreMoldada.LerExtremidade(v, false, TemplateVigaPreMoldada.CatalogoDentes, new List<string>());
         var zonas = TemplateVigaPreMoldada.ZonasEstribos(v, cfg, 767, e, d);
         Assert.Equal(3, zonas.Count);
-        Assert.Equal(25 + 2.5 + 0.315 + 5 * 5, zonas[0].X1, 6);  // depois da suspensão do dente (5 c/5 a partir da face, a cobrimento)
+        // depois da suspensão do dente (D36): o 1º estribo da alma no fim do trecho = cobrimento + dvig/4, arredondado para baixo
+        double trecho = System.Math.Floor(2.5 + TemplateVigaPreMoldada.AlturaUtil(v) / 4);
+        Assert.Equal(e.TrechoSuspensao, trecho, 6);
+        Assert.Equal(25 + trecho, zonas[0].X1, 6);
         Assert.Equal(100, zonas[0].X2 - zonas[0].X1, 6);
         Assert.Equal(zonas[0].X2, zonas[1].X1, 6);
         // sem estribo repetido na divisa (D30, a regra do pilar): a ponta E tem 100 c/10 = ⌊10⌋ + 1 = 11 posições, mas a 11ª cairia
