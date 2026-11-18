@@ -97,6 +97,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                 P(G4, "CobTopo", "Topo", "2.5", "cm", min: 1, max: 15),
                 P(G4, "CobLateral", "Laterais", "2.5", "cm", min: 1, max: 15),
                 P(G4, "CobPontas", "Pontas", "2.5", "cm", min: 1, max: 15),
+                P(G4, "ClasseAgressividade", "Classe de agressividade (NBR 6118)", "II", tipo: TipoParametro.Opcao, opcoes: new[] { "I", "II", "III", "IV" }),
 
                 P(G5, "Alcas", "Alças de içamento", "Sim", tipo: TipoParametro.SimNao),
                 P(G5, "AlcaPct", "Distância às pontas", "20", "% do comprimento", min: 5, max: 45,
@@ -112,6 +113,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
                 P(G5, "AlcaEntre", "Distância entre as pernas", "10", "cm", min: 4),
 
                 P(G6, "Fck", "fck (28 dias)", "40", "MPa", min: 10),
+                P(G6, "AguaCimento045", "a/c ≤ 0,45 (reduz o cobrimento, NBR 9062)", "Não", tipo: TipoParametro.Opcao, opcoes: new[] { "Sim", "Não" }),
                 P(G6, "FcjSaque", "fcj no saque", "30", "MPa", min: 5),
                 P(G6, "FcjMontagem", "fcj na montagem", "35", "MPa", min: 0),
                 P(G6, "PesoEspecifico", "Peso específico do concreto", "2500", "kgf/m³", min: 1000),
@@ -203,6 +205,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         ValidarExtremidades(r, b, h, L, e, d, v.Numero("FuroDiam") / 10);
         ValidarCantoneiras(v, b, h, e, d, r.Avisos);
         var aba = LerAba(v, h, L, e, d, r.Avisos);   // VP-4: aba de apoio de laje (L / T invertido)
+        DadosParaRelatorio(r, v, e, d, aba);
         var ress = LerRessalto(v, b, h, r.Avisos);   // VP-4: ressalto sobre a alma (ligação com a capa)
         var abs = LerAberturas(v, h, L, e, d, r.Avisos);   // aberturas na alma (2026-11-11)
         int qtd = Math.Max(1, v.Inteiro("Quantidade"));
@@ -267,6 +270,7 @@ public sealed partial class TemplateVigaPreMoldada : ITemplateArmadura
         VerificarCordoalhas(cords, b, h, v.Numero("CobLateral"), v.Numero("CobFundo"), v.Numero("CobTopo"), v.Numero("EstBitola"),
             prot ? v.Numero("FcjSaque") : 99, e, d, r.Avisos);
         VerificarPassivasComCordoalhas(cords, longs, b, h, v.Numero("CobFundo"), v.Numero("CobTopo"), v.Numero("CobLateral"), v.Numero("EstBitola"), r.Avisos);
+        VerificarViga(r, v, b, h, L, e, d, longs, zonas, aba);   // verificações normativas (V, D, G): só avisos e relatório
         CordoalhasEmElevacao(c, cords.Where(g => !Superior(g, h)).ToList(), h, L, e, d, yArm - 2 * hv);
 
         // ---------------- seções de forma e de armadura (coluna à direita das vistas) ----------------

@@ -133,7 +133,9 @@ public class RegressaoVisualTests
             $"DETALHAMENTO {T(r.Detalhamento)} escala {N(r.Escala)} RA {(r.PosicaoRA is { } ra ? P(ra) : "-")} " +
             $"detalhes [{string.Join("; ", r.DetalhesBiblioteca)}] coluna {(r.ColunaDetalhes is { } cd ? P(cd) : "-")}",
         };
-        foreach (var a in r.Avisos) l.Add("AVISO " + T(a));
+        // os avisos das verificações normativas (ResultadoTemplate.Verificacoes) não são desenho: ficam de fora (testados à parte)
+        var verif = new HashSet<string>(r.Verificacoes.Select(x => x.Mensagem));
+        foreach (var a in r.Avisos.Where(a => !verif.Contains(a))) l.Add("AVISO " + T(a));
         foreach (var c in r.Contornos)
             l.Add($"CONTORNO {c.Layer} {(c.Fechado ? "fechado" : "aberto")} {Ps(c.Vertices)}" + (c.Bulges.Any(b => b != 0) ? " bulges " + string.Join(" ", c.Bulges.Select(N)) : ""));
         foreach (var c in r.Circulos) l.Add($"CIRCULO {c.Layer} {N(c.X)},{N(c.Y)} r {N(c.Raio)}");

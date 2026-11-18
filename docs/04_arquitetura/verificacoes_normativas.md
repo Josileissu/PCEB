@@ -93,6 +93,14 @@ C1 com o a2 real (falha = "Não atende"), C2 com a = face do pilar → centro do
 **C4** (afastamento lateral > cobrimento → "Conferir" o fendilhamento), **C5** (alças: c ≤ a2 ≤ c + 3φ) e C10 com "≤ a".
 Atenção: o a2 padrão da família (25 mm) não atende o C3 do consolo do P61 (tirante ø16 com barra soldada, c = 3,5: mínimo 5,1 cm).
 
+**Etapa 4, consolo (18/11/2026)**: **C12** informativa (d ≤ 4a: a costura é obrigatória; d > 4a: dispensa possível se d > 4(a + a0),
+a0 pela Fig. 19); **C14** OK quando a/d ≤ 2 — o tipo de consolo tem um só tirante (n, φ) da ponta ao pilar, então não há redução
+de seção no desenho; **C16** (pilar do template do CAD): barras longitudinais que passam por toda a altura do consolo, na fileira
+junto à face dele (cantos inclusive), com As ≥ As,tir; **C17**: duplo/em nível = passante (OK); consolo sozinho = trecho reto no
+pilar até a face oposta (o mesmo `BarrasConsolo.FimNoPilar` do detalhe) contra 0,7·lb (perna/gancho/laço) com **má aderência**
+(a posição de concretagem não é conhecida); entre o lb,mín e esse valor, "Conferir" (depende de As,calc/As,ef). C16/C17 ainda não
+estão na armadura do Revit (`ColumnRebarSpec`). Fora: C8 (o catálogo não tem alça vertical).
+
 ## V — Viga pré-moldada (depois do template P2-8)
 | Cód. | Verificação | Limite | Referência | Falha |
 |---|---|---|---|---|
@@ -121,6 +129,26 @@ Atenção: o a2 padrão da família (25 mm) não atende o C3 do consolo do P61 (
 | D7 | Suspensão por barras verticais | no máximo 0,4·Fd (precisa de Fd: Conferir) | 9062 7.4.6.2 | Conferir |
 | D8 | Furos de pino no dente (regra do escritório, D23) | largura < 30 cm → 1 furo; ≥ 30 cm → 2; o furo passa a existir na família da viga (D36) | D23, D36 | Não atende |
 
+**Etapa 4, viga e dente (18/11/2026, `VerificacoesViga`, `VerificacoesDente`; template da viga em `VerificacaoViga.cs`)**:
+- Parâmetros novos do template da viga, com os nomes e padrões do pilar: `ClasseAgressividade` (II), `AguaCimento045` (Não),
+  `DiamAgregado` (19 mm). O aviso antigo "h > 60 sem pele" virou a V3.
+- **V1** no meio do vão (inferiores, Ac = b·h da alma); protendida ou com aba: falha = "Conferir". **V2** em cada composição.
+  **V3** área por face (0,10 % b·h, até 5 cm²/m) e maior distância vertical entre as barras da face. **V4** horizontal na camada e
+  vertical entre camadas (barras sobrepostas na mesma camada aparecem aqui). **V5**, **V6** (por zona), **V7** (ramos = b − 2c − φt),
+  **V8** (zona de maior espaçamento; fctm pela 8.2.5). **V11** só nas pontas retas: fração da inferior do vão que chega ao apoio
+  ≥ 1/3 ("Conferir"; o comprimento além da face do apoio depende do apoio). **G1–G4** pelas faces (fundo, topo, laterais), com a
+  Tab. 7.2 de **protendido** (30/35/45/55 mm, mínimo 25 mm na 9062) quando a viga é protendida.
+- Dente: **D1** (soldada de mesmo φ: o template sempre desenha), **D2** (do 1º estribo de suspensão + (dvig − d) ao fim do tirante
+  ≥ lb de má aderência; entre lb,mín e lb, "Conferir"), **D3** (grampo e costura: U fechado na ponta, penetração além da face do
+  dente ≥ 1,5·lb de má aderência — a Fig. 23 define Lb com má aderência), **D4** (mesma leitura do C15, "Conferir"), **D5** = C2, C6/C7,
+  C9, C10, C11, C12 com o dente como consolo (costura = os U de baixo; o grampo não entra), **D6** (posições desenhadas dentro de
+  cobrimento + dvig/4 a partir da face, e o espaçamento livre — este já era aviso da leitura da ponta), **D7** sempre "Conferir"
+  (o desenho só tem estribos fechados; o limite 0,4·Fd vale se forem usadas barras verticais), **D8** (furos desenhados × b).
+- Fora: **V9** (a aba do template é apoio de laje/consolo corrido, não mesa colaborante), **V10** (o template não sabe que vigas se
+  apoiam nela), **V12** (precisa do aparelho de apoio da viga), **C1/C3–C5 no dente** (sem aparelho de apoio na viga).
+- Os avisos de verificação não entram na regressão visual (`RegressaoVisualTests` ignora os avisos que são mensagens de
+  `ResultadoTemplate.Verificacoes`): não são desenho. O padrão da viga 20 × 75 (2 ø10 de pele por face) não atende a V3 (22,6 cm > 20 cm).
+
 ## Fora desta etapa (precisam de esforço — fase de cálculo)
 As,tir, As,cost e Asus pela carga (9062 7.3.5.3–7.3.5.4, 7.3.8, 7.4.6.1); biela (7.3.4, 7.4.7); Hd (7.3.9); As,mín com Nd;
 smáx de estribo e ramos pelo Vd; flechas e fissuras; situações transitórias.
@@ -135,7 +163,8 @@ smáx de estribo e ramos pelo Vd; flechas e fissuras; situações transitórias.
 
 ## Ordem e situação
 Etapa 1 (**feita**, branch `feat/verificacoes-normativas`): tipo de resultado no núcleo + P1–P16 e G1–G9 (juntando as duas cópias, corrigindo P8) com testes.
-Etapa 2: C1–C17. Etapa 3: painel na prévia do Revit e do CAD. Etapa 4: V e D, depois do template da viga (P2-8).
+Etapa 2: C1–C17. Etapa 3: painel na prévia do Revit e do CAD. Etapa 4: V e D (**feita** no template da viga do CAD, branch
+`feat/verificacoes-viga-dente`; o Revit ainda não chama).
 
 Etapa 1, o que entrou: `DEB.Core/Normas/Verificacao/` (`ResultadoVerificacao`, `ListaVerificacoes`, `TabelasNbr` com as
 Tabelas 7.2 e 17.3, `RegrasCobrimento` G1–G4, `VerificacoesPilar` P1–P14); o template do CAD (`ArmadurasPilar`) e a armadura do
@@ -175,7 +204,6 @@ Respostas (D37): HTML, só português; um relatório por grupo de peças iguais;
 - Arquivo: `<pasta da obra>\Relatórios PCEB\Verificação - <marca>.html`.
 - CAD: `ARMTEMPLATE` grava na pasta do DWG (desenho sem nome: Documentos\PCEB); `ARMIMPORTARPECAS`, na pasta do arquivo de peças.
 - Revit: o detalhamento dos pilares grava um por grupo na pasta do .rvt (testar no PC2).
-- Só o pilar pré-moldado preenche as verificações por enquanto (`ResultadoTemplate.Verificacoes`/`DadosRelatorio`).
 - **Tela do aceite** (18/11/2026): comando `ARMACEITES` no CAD (botão "Aceites" da paleta, grupo Geral). Lista as pendências
   "Conferir" de todos os relatórios da pasta da obra (a do DWG, ou outra escolhida na janela); o engenheiro marca, comenta e
   grava. O núcleo (`DEB.Core/Documentacao/RelatoriosObra.cs`) guarda os dados de cada grupo em `Relatórios PCEB\dados\<marca>.json`
@@ -183,3 +211,4 @@ Respostas (D37): HTML, só português; um relatório por grupo de peças iguais;
   `Relatórios PCEB\Verificações da obra.html` (selo de cada peça, pendências em aberto e aceitas). "Não atende" não pode ser
   aceito: corrige-se a peça. Como lê a pasta, serve também para os relatórios gravados pelo Revit (pasta do .rvt).
 - Falta: quadro resumido na prancha.
+  relatório de qualquer template que preencha `ElementoRelatorio`.

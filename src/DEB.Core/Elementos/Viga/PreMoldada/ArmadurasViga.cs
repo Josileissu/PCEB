@@ -99,6 +99,7 @@ public sealed partial class TemplateVigaPreMoldada
         },
         P(G7, "InfSoldada", "Inferior com barra transversal soldada nas pontas", "Sim", tipo: TipoParametro.SimNao,
           descricao: "NBR 9062 7.4/7.5: ancoragem da armadura inferior com barra transversal soldada (como nas pranchas 316 e 702)."),
+        P(G7, "DiamAgregado", "Diâmetro máximo do agregado", "19", "mm", min: 4),
         P(G8, "EstAco", "Aço", "CA-50", tipo: TipoParametro.Opcao, opcoes: new[] { "CA-50", "CA-60" }),
         P(G8, "EstBitola", "Bitola", "6.3", "mm", TipoParametro.Bitola, 5, 16),
         P(G8, "EstTipo", "Tipo", EstFechado, tipo: TipoParametro.Opcao, opcoes: new[] { EstFechado, EstAberto }),
@@ -154,9 +155,7 @@ public sealed partial class TemplateVigaPreMoldada
                 Ini = ini, Fim = fim,
             });
         }
-        double h = v.Numero("H");
-        if (h > 60 && !r.Any(x => x.Pele))
-            avisos.Add($"Viga com h = {Num(h, "0.#")} cm > 60 cm sem armadura de pele (NBR 6118, 17.3.5.2.3): conferir.");
+        // pele em viga com h > 60 cm: regra V3 das verificações (VerificacoesViga.Pele)
         return r;
     }
 
