@@ -174,8 +174,8 @@ namespace DEB.Revit
             };
             formas.AddItem(Btn("DEB_FormasDados", "Atualizar\ndados", typeof(Formas.AtualizarDadosFormasCommand),
                 "Cria os parâmetros SD_ das pranchas de formas e grava os textos calculados (seção, níveis, comprimento, elevação, dados das lajes).",
-                "Pilares: SD_Secao, SD_NivelTopo, SD_NivelTopoBloco, SD_NivelBase (\"12,00 m (907,80)\") e SD_ComprimentoTotal. Vigas: SD_Secao e " +
-                "SD_Elevacao (\"e=-29.5\"). Lajes com marca: altura, elevação, nível, tipo e peso próprio (estes dois só se vazios). Esforços, " +
+                "Pilares: PCEB_Secao, PCEB_NivelTopo, PCEB_NivelTopoBloco, PCEB_NivelBase (\"12,00 m (907,80)\") e PCEB_ComprimentoTotal. Vigas: PCEB_Secao e " +
+                "PCEB_Elevacao (\"e=-29.5\"). Lajes com marca: altura, elevação, nível, tipo e peso próprio (estes dois só se vazios). Esforços, " +
                 "sobrecargas e observações digitados nunca são alterados. Rode de novo depois de mexer no modelo.", "D"));
             formas.AddItem(Btn("DEB_FormasCargas", "Cargas\n(CSV)", typeof(Formas.CargasCsvFormasCommand),
                 "Importa ou exporta os esforços na fundação dos pilares (Marca;Fz_Max;Fz_Min;Mx_Pos;…;Fy_Neg).",
@@ -197,7 +197,7 @@ namespace DEB.Revit
                 "Os cortes que já existem no modelo não são alterados; os do comando são reaproveitados ao rodar de novo.", "CT"));
             formas.AddItem(Btn("DEB_FormasSecoes", "Seções\nconsideradas", typeof(Formas.SecoesFormasCommand),
                 "Folha com as seções de vigas e pilares usadas no modelo (tabela por tipo: seção, quantidade, material).",
-                "Usa SD_Secao gravado pelo \"Atualizar dados\".", "SC"));
+                "Usa PCEB_Secao gravado pelo \"Atualizar dados\".", "SC"));
             formas.AddItem(Btn("DEB_FormasAnotarCorte", "Anotar\ncorte", typeof(Formas.AnotarCorteCommand),
                 "Cota, nomeia e põe cotas de nível no corte ativo (ou nos cortes escolhidos), no padrão do escritório: geral, caixa de elevador ou escada.",
                 "Só o que está cortado ou visível é anotado (peça escondida atrás de outra ou de fase posterior fica de fora). Rodar de novo refaz " +

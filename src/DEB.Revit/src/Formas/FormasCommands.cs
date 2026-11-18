@@ -42,7 +42,7 @@ namespace DEB.Revit.Formas
                 MainContent = "Colunas: " + DEB.Core.Formas.CsvCargas.Cabecalho + "\nSeparador \";\", vírgula ou ponto decimal; célula vazia não altera o valor do pilar.",
                 CommonButtons = TaskDialogCommonButtons.Cancel,
             };
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Importar CSV…", "Grava SD_Fz_Max… nos pilares com a mesma marca.");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Importar CSV…", "Grava PCEB_Fz_Max… nos pilares com a mesma marca.");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Exportar CSV…", "Grava os esforços do modelo (para editar no Excel e importar de novo).");
             TaskDialogResult r = td.Show();
             var log = new PieceLog(Title);

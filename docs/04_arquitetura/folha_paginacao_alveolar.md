@@ -132,7 +132,7 @@ Entrada: lista de peças `{marca, contorno em planta (polígono), laje, nível}`
   - vigas e consolos sob os painéis: hoje a vista liga as linhas ocultas de propósito (`PlantaFormas.LinhasOcultas`); para esta
     folha elas saem;
   - cores: sobreposição por elemento na vista (`SetSurfaceForegroundPatternId` sólido + cor RGB do grupo) ou um parâmetro
-    `SD_GrupoPaginacao` com um filtro de vista por grupo (melhor se o usuário quiser mudar a cor depois);
+    `PCEB_GrupoPaginacao` com um filtro de vista por grupo (melhor se o usuário quiser mudar a cor depois);
   - marcas: escrever a marca nova no parâmetro Marca (o identificador de painel já mostra).
 - **Quadro**: hoje é uma tabela resumida (tipo × comprimento × quantidade), que não mostra os recortes. Proposta: **vista de
   desenho** gerada (linhas de detalhe, região preenchida com a cor, cotas e textos), marcada com Extensible Storage e refeita sem

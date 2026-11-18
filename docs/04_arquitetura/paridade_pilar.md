@@ -68,7 +68,7 @@ alturas. Iguais também: longitudinais (quantidade, posições, 595), grampo (47
 | Alças: perto de consolo | CAD avisa; Revit desloca a alça o mínimo | — |
 | Alças: as 2 cordoalhas do ponto | coladas uma na outra (decisão do usuário): no Revit, eixos a uma bitola; o CAD só dá a quantidade | — |
 | Pino: posição ao longo do balanço | meio do balanço × centro da almofada | — |
-| Etiqueta da alça no Revit | a família de etiqueta do usuário lê o comprimento do Revit | mudar a família para ler `SD_Comprimento (núcleo)` |
+| Etiqueta da alça no Revit | a família de etiqueta do usuário lê o comprimento do Revit | mudar a família para ler `PCEB_Comprimento (núcleo)` |
 | Duplo do CAD com deslocamento | o template espelha o par pelo centro (face 3 em −desl): com desl ≠ 0 os dois consolos não ficam alinhados e não viram duplo automático | — |
 
 ## Armadura por linha (D32, 17/11/2026)
@@ -94,5 +94,5 @@ Saíram das posições das linhas também: as filas dos grampos e as verificaç�
 ## Revit × núcleo na mesma barra
 `RebarFactory.LogLengthComparison` registra o comprimento que a API do Revit mede (`REBAR_ELEM_LENGTH`) ao lado do comprimento do
 núcleo. Desde a D30 as tabelas, o peso e os rótulos de texto do Revit usam o comprimento do núcleo: parâmetros
-`SD_Comprimento (núcleo)` e `SD_Comprimento total (núcleo)` (GUIDs `…5e03`/`…5e04`), gravados quando o plugin cria a barra.
+`PCEB_Comprimento (núcleo)` e `PCEB_Comprimento total (núcleo)` (GUIDs `…5e03`/`…5e04`), gravados quando o plugin cria a barra.
 São valores gravados: barra editada à mão no Revit só se atualiza rodando o comando de novo.

@@ -12,7 +12,7 @@ namespace DEB.Revit.Formas
     /// <summary>
     /// "Atualizar dados das pranchas" (D25, etapa 1): calcula e grava os textos/números SD_ que os identificadores e as tabelas
     /// mostram — seção, níveis e comprimento dos pilares, seção e elevação das vigas, dados das lajes — e a ordem natural das
-    /// marcas (SD_Ordem). Os valores digitados ou importados (esforços, sobrecargas, observação) nunca são tocados; o peso próprio
+    /// marcas (PCEB_Ordem). Os valores digitados ou importados (esforços, sobrecargas, observação) nunca são tocados; o peso próprio
     /// e o tipo da laje só são preenchidos quando estão vazios. Precisa de transação.
     /// </summary>
     internal sealed class DadosFormas
@@ -66,9 +66,9 @@ namespace DEB.Revit.Formas
             }
             if (semSecao.Count > 0)
                 _log.Warn($"Seção não encontrada (pilar circular ou família sem os parâmetros {string.Join("/", _cfg.ParametrosLargura)} e " +
-                          $"{string.Join("/", _cfg.ParametrosAltura)}): SD_Secao vazio em {Lista(semSecao)}.");
+                          $"{string.Join("/", _cfg.ParametrosAltura)}): PCEB_Secao vazio em {Lista(semSecao)}.");
 
-            // ordem natural das marcas; os de fora do filtro saem da tabela (SD_Ordem = 0)
+            // ordem natural das marcas; os de fora do filtro saem da tabela (PCEB_Ordem = 0)
             Dictionary<string, int> pos = ComparadorNatural.Posicoes(pilares.Select(ModeloFormas.Marca));
             var tratados = new HashSet<ElementId>(pilares.Select(c => c.Id));
             foreach (FamilyInstance c in todos)
@@ -105,7 +105,7 @@ namespace DEB.Revit.Formas
                 Texto(b, ParametrosFormas.Secao, secao);
                 Level lvl = ModeloFormas.NivelDaViga(_doc, b);
                 double? topo = ModeloFormas.TopoDaViga(b, _cfg);
-                if (lvl == null || topo == null) { _log.Warn($"Viga {Nome(b)}: sem nível de referência ou eixo; SD_Elevacao não calculado."); continue; }
+                if (lvl == null || topo == null) { _log.Warn($"Viga {Nome(b)}: sem nível de referência ou eixo; PCEB_Elevacao não calculado."); continue; }
                 Texto(b, ParametrosFormas.Elevacao, TextosFormas.Elevacao(U.ToMm(topo.Value - lvl.ProjectElevation) / 10));
             }
             if (semSecao.Count > 0) _log.Warn($"Seção não encontrada nas vigas: {Lista(semSecao)}.");

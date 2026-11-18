@@ -48,19 +48,19 @@ elevador em alvenaria estrutural.
 
 | Categoria | Parâmetro | Tipo | Origem |
 |---|---|---|---|
-| Pilar | `SD_Secao` | texto | calculado do tipo (`40x40`) |
-| Pilar | `SD_NivelTopo`, `SD_NivelTopoBloco`, `SD_NivelBase` | texto | calculado (`12,00 m (907,80)`) |
-| Pilar | `SD_ComprimentoTotal` | texto | calculado (`13,20 m`) |
-| Pilar | `SD_Fz_Max`, `SD_Fz_Min` | número (tf) | importado (CSV) ou digitado |
-| Pilar | `SD_Mx_Pos`, `SD_Mx_Neg`, `SD_My_Pos`, `SD_My_Neg` | número (tf.m) | importado ou digitado |
-| Pilar | `SD_Fx_Pos`, `SD_Fx_Neg`, `SD_Fy_Pos`, `SD_Fy_Neg` | número (tf) | importado ou digitado |
-| Pilar, fundação | `SD_Observacao` | texto | digitado (`Ø A DEFINIR`) |
-| Viga | `SD_Secao`, `SD_Elevacao` | texto | calculado (`30x50`, `e=-29.5`) |
-| Laje (piso) | `SD_Laje_Tipo` | texto | calculado do tipo / digitado |
-| Laje (piso) | `SD_Laje_Altura`, `SD_Laje_Elevacao`, `SD_Laje_Nivel` | número (cm) | calculado |
-| Laje (piso) | `SD_Laje_PesoProprio`, `SD_Laje_Adicional`, `SD_Laje_Acidental`, `SD_Laje_Localizada` | número (kgf/m²) | calculado (peso próprio, por tabela do tipo) / digitado |
-| Escada (lance) | `SD_Escada`, `SD_Lance`, `SD_Volume`, `SD_Peso` | texto / número | calculado da geometria |
-| Parede (alvenaria) | `SD_Parede`, `SD_Alv_Inteiro`, `SD_Alv_Meio`, `SD_Alv_Canaleta`, `SD_Alv_CanaletaJ`, `SD_Alv_L`, `SD_Alv_Argamassa`, `SD_Alv_Graute` | texto / número | calculado da modulação |
+| Pilar | `PCEB_Secao` | texto | calculado do tipo (`40x40`) |
+| Pilar | `PCEB_NivelTopo`, `PCEB_NivelTopoBloco`, `PCEB_NivelBase` | texto | calculado (`12,00 m (907,80)`) |
+| Pilar | `PCEB_ComprimentoTotal` | texto | calculado (`13,20 m`) |
+| Pilar | `PCEB_Fz_Max`, `PCEB_Fz_Min` | número (tf) | importado (CSV) ou digitado |
+| Pilar | `PCEB_Mx_Pos`, `PCEB_Mx_Neg`, `PCEB_My_Pos`, `PCEB_My_Neg` | número (tf.m) | importado ou digitado |
+| Pilar | `PCEB_Fx_Pos`, `PCEB_Fx_Neg`, `PCEB_Fy_Pos`, `PCEB_Fy_Neg` | número (tf) | importado ou digitado |
+| Pilar, fundação | `PCEB_Observacao` | texto | digitado (`Ø A DEFINIR`) |
+| Viga | `PCEB_Secao`, `PCEB_Elevacao` | texto | calculado (`30x50`, `e=-29.5`) |
+| Laje (piso) | `PCEB_Laje_Tipo` | texto | calculado do tipo / digitado |
+| Laje (piso) | `PCEB_Laje_Altura`, `PCEB_Laje_Elevacao`, `PCEB_Laje_Nivel` | número (cm) | calculado |
+| Laje (piso) | `PCEB_Laje_PesoProprio`, `PCEB_Laje_Adicional`, `PCEB_Laje_Acidental`, `PCEB_Laje_Localizada` | número (kgf/m²) | calculado (peso próprio, por tabela do tipo) / digitado |
+| Escada (lance) | `PCEB_Escada`, `PCEB_Lance`, `PCEB_Volume`, `PCEB_Peso` | texto / número | calculado da geometria |
+| Parede (alvenaria) | `PCEB_Parede`, `PCEB_Alv_Inteiro`, `PCEB_Alv_Meio`, `PCEB_Alv_Canaleta`, `PCEB_Alv_CanaletaJ`, `PCEB_Alv_L`, `PCEB_Alv_Argamassa`, `PCEB_Alv_Graute` | texto / número | calculado da modulação |
 
 Os textos calculados são gravados por um comando "Atualizar dados das pranchas" (o identificador do Revit não faz conta);
 rodar de novo depois de mexer no modelo. Valores digitados/importados nunca são sobrescritos.

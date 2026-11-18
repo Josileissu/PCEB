@@ -10,7 +10,7 @@ using DEB.Revit.Presentation;
 namespace DEB.Revit.Formas
 {
     /// <summary>
-    /// Cargas na fundação por CSV (D25, etapa 1): importar grava SD_Fz_Max… nos pilares pela Marca (célula vazia não mexe; marcas
+    /// Cargas na fundação por CSV (D25, etapa 1): importar grava PCEB_Fz_Max… nos pilares pela Marca (célula vazia não mexe; marcas
     /// que não existem no modelo vão para o relatório); exportar grava o mesmo formato com os valores do modelo. A leitura e a
     /// escrita do arquivo estão no núcleo (<see cref="CsvCargas"/>).
     /// </summary>

@@ -16,12 +16,12 @@ public sealed class CargaFundacao
 
 /// <summary>
 /// CSV das cargas na fundação (pranchas de formas): <c>Marca;Fz_Max;Fz_Min;Mx_Pos;Mx_Neg;My_Pos;My_Neg;Fx_Pos;Fx_Neg;Fy_Pos;Fy_Neg</c>.
-/// Separador ";" (ou tabulação), vírgula ou ponto decimal. Com cabeçalho, as colunas valem pelo nome (com ou sem "SD_", em qualquer
+/// Separador ";" (ou tabulação), vírgula ou ponto decimal. Com cabeçalho, as colunas valem pelo nome (com ou sem "PCEB_" (ou o antigo "SD_"), em qualquer
 /// ordem); sem cabeçalho, pela posição. Célula vazia = não mexe no valor do modelo.
 /// </summary>
 public static class CsvCargas
 {
-    /// <summary>Colunas de esforço; o parâmetro do Revit é "SD_" + coluna.</summary>
+    /// <summary>Colunas de esforço; o parâmetro do Revit é "PCEB_" + coluna (D38).</summary>
     public static readonly string[] Colunas = { "Fz_Max", "Fz_Min", "Mx_Pos", "Mx_Neg", "My_Pos", "My_Neg", "Fx_Pos", "Fx_Neg", "Fy_Pos", "Fy_Neg" };
 
     public static string Cabecalho => "Marca;" + string.Join(";", Colunas);
@@ -44,7 +44,7 @@ public static class CsvCargas
                 string Nome(string c) => (c ?? "").Trim().TrimStart('﻿');
                 if (reg.Any(c => Nome(c).Equals("Marca", StringComparison.OrdinalIgnoreCase)))
                 {
-                    var nomes = reg.Select(c => Nome(c).StartsWith("SD_", StringComparison.OrdinalIgnoreCase) ? Nome(c).Substring(3) : Nome(c)).ToList();
+                    var nomes = reg.Select(c => SemPrefixo(Nome(c))).ToList();
                     colMarca = nomes.FindIndex(c => c.Equals("Marca", StringComparison.OrdinalIgnoreCase));
                     for (int k = 0; k < Colunas.Length; k++)
                         mapa[k] = nomes.FindIndex(c => c.Equals(Colunas[k], StringComparison.OrdinalIgnoreCase));
@@ -97,4 +97,9 @@ public static class CsvCargas
             s = s.Replace(',', '.');
         return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v) && !double.IsNaN(v) && !double.IsInfinity(v);
     }
+
+    /// <summary>Tira o prefixo do parâmetro do cabeçalho: "PCEB_Fz_Max" → "Fz_Max" (aceita também planilhas antigas com "SD_").</summary>
+    private static string SemPrefixo(string n) =>
+        n.StartsWith("PCEB_", StringComparison.OrdinalIgnoreCase) ? n.Substring(5)
+        : n.StartsWith("SD_", StringComparison.OrdinalIgnoreCase) ? n.Substring(3) : n;
 }

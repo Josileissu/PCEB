@@ -17,13 +17,13 @@ namespace DEB.Revit.Presentation
     /// </summary>
     internal static class RebarData
     {
-        public const string SteelParam = "SD_Aço";
-        public const string WeightParam = "SD_Peso (kg)";
+        public const string SteelParam = "PCEB_Aço";
+        public const string WeightParam = "PCEB_Peso (kg)";
         private static readonly Guid SteelGuid = new Guid("5f0c3a8e-6b1d-4c2a-9e47-1d2b3c4d5e01");
         private static readonly Guid WeightGuid = new Guid("5f0c3a8e-6b1d-4c2a-9e47-1d2b3c4d5e02");
         // comprimento pelo núcleo (D30): GUIDs fixos novos, na sequência dos dois acima (nunca mudar)
-        public const string CoreLengthParam = "SD_Comprimento (núcleo)";
-        public const string CoreTotalParam = "SD_Comprimento total (núcleo)";
+        public const string CoreLengthParam = "PCEB_Comprimento (núcleo)";
+        public const string CoreTotalParam = "PCEB_Comprimento total (núcleo)";
         private static readonly Guid CoreLengthGuid = new Guid("5f0c3a8e-6b1d-4c2a-9e47-1d2b3c4d5e03");
         private static readonly Guid CoreTotalGuid = new Guid("5f0c3a8e-6b1d-4c2a-9e47-1d2b3c4d5e04");
 
@@ -82,7 +82,7 @@ namespace DEB.Revit.Presentation
         /// <summary>
         /// Partição, aço, comprimento e peso de cada barra. Precisa de transação.
         /// <paramref name="coreLengthsCm"/> = comprimento unitário do núcleo por conjunto (RebarFactory.CoreLengthsCm): grava
-        /// SD_Comprimento e SD_Comprimento total (unitário × quantidade de barras do conjunto) e calcula o peso por ele, como o
+        /// PCEB_Comprimento e PCEB_Comprimento total (unitário × quantidade de barras do conjunto) e calcula o peso por ele, como o
         /// CAD. Conjunto sem comprimento do núcleo (não veio do plugin): os dois ficam vazios e o peso sai do comprimento do Revit.
         /// </summary>
         /// <returns>conjuntos que receberam o comprimento do núcleo</returns>

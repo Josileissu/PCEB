@@ -30,39 +30,39 @@ namespace DEB.Revit.Formas
         private static ForgeTypeId Texto => SpecTypeId.String.Text;
         private static ForgeTypeId Numero => SpecTypeId.Number;
 
-        // GUIDs fixos (8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN). NÃO ALTERAR.
-        public static readonly Def Secao = D("SD_Secao", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0001", Texto, Cat.Pilar, Cat.Viga);
-        public static readonly Def NivelTopo = D("SD_NivelTopo", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0002", Texto, Cat.Pilar);
-        public static readonly Def NivelTopoBloco = D("SD_NivelTopoBloco", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0003", Texto, Cat.Pilar);
-        public static readonly Def NivelBase = D("SD_NivelBase", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0004", Texto, Cat.Pilar);
-        public static readonly Def ComprimentoTotal = D("SD_ComprimentoTotal", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0005", Texto, Cat.Pilar);
+        // GUIDs fixos (8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN). NÃO ALTERAR. Os nomes passaram de SD_ para PCEB_ (D38); o GUID é o mesmo.
+        public static readonly Def Secao = D("PCEB_Secao", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0001", Texto, Cat.Pilar, Cat.Viga);
+        public static readonly Def NivelTopo = D("PCEB_NivelTopo", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0002", Texto, Cat.Pilar);
+        public static readonly Def NivelTopoBloco = D("PCEB_NivelTopoBloco", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0003", Texto, Cat.Pilar);
+        public static readonly Def NivelBase = D("PCEB_NivelBase", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0004", Texto, Cat.Pilar);
+        public static readonly Def ComprimentoTotal = D("PCEB_ComprimentoTotal", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0005", Texto, Cat.Pilar);
         /// <summary>Esforços na fundação (tf, tf.m), na ordem de <see cref="CsvCargas.Colunas"/>.</summary>
         public static readonly Def[] Esforcos =
         {
-            D("SD_Fz_Max", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0006", Numero, Cat.Pilar),
-            D("SD_Fz_Min", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0007", Numero, Cat.Pilar),
-            D("SD_Mx_Pos", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0008", Numero, Cat.Pilar),
-            D("SD_Mx_Neg", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0009", Numero, Cat.Pilar),
-            D("SD_My_Pos", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000a", Numero, Cat.Pilar),
-            D("SD_My_Neg", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000b", Numero, Cat.Pilar),
-            D("SD_Fx_Pos", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000c", Numero, Cat.Pilar),
-            D("SD_Fx_Neg", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000d", Numero, Cat.Pilar),
-            D("SD_Fy_Pos", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000e", Numero, Cat.Pilar),
-            D("SD_Fy_Neg", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000f", Numero, Cat.Pilar),
+            D("PCEB_Fz_Max", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0006", Numero, Cat.Pilar),
+            D("PCEB_Fz_Min", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0007", Numero, Cat.Pilar),
+            D("PCEB_Mx_Pos", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0008", Numero, Cat.Pilar),
+            D("PCEB_Mx_Neg", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0009", Numero, Cat.Pilar),
+            D("PCEB_My_Pos", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000a", Numero, Cat.Pilar),
+            D("PCEB_My_Neg", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000b", Numero, Cat.Pilar),
+            D("PCEB_Fx_Pos", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000c", Numero, Cat.Pilar),
+            D("PCEB_Fx_Neg", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000d", Numero, Cat.Pilar),
+            D("PCEB_Fy_Pos", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000e", Numero, Cat.Pilar),
+            D("PCEB_Fy_Neg", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d000f", Numero, Cat.Pilar),
         };
-        public static readonly Def Observacao = D("SD_Observacao", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0010", Texto, Cat.Pilar, Cat.Fundacao);
-        public static readonly Def Elevacao = D("SD_Elevacao", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0011", Texto, Cat.Viga);
-        public static readonly Def LajeTipo = D("SD_Laje_Tipo", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0012", Texto, Cat.Laje);
-        public static readonly Def LajeAltura = D("SD_Laje_Altura", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0013", Numero, Cat.Laje);
-        public static readonly Def LajeElevacao = D("SD_Laje_Elevacao", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0014", Numero, Cat.Laje);
-        public static readonly Def LajeNivel = D("SD_Laje_Nivel", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0015", Numero, Cat.Laje);
-        public static readonly Def LajePesoProprio = D("SD_Laje_PesoProprio", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0016", Numero, Cat.Laje);
-        public static readonly Def LajeAdicional = D("SD_Laje_Adicional", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0017", Numero, Cat.Laje);
-        public static readonly Def LajeAcidental = D("SD_Laje_Acidental", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0018", Numero, Cat.Laje);
-        public static readonly Def LajeLocalizada = D("SD_Laje_Localizada", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0019", Numero, Cat.Laje);
+        public static readonly Def Observacao = D("PCEB_Observacao", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0010", Texto, Cat.Pilar, Cat.Fundacao);
+        public static readonly Def Elevacao = D("PCEB_Elevacao", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0011", Texto, Cat.Viga);
+        public static readonly Def LajeTipo = D("PCEB_Laje_Tipo", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0012", Texto, Cat.Laje);
+        public static readonly Def LajeAltura = D("PCEB_Laje_Altura", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0013", Numero, Cat.Laje);
+        public static readonly Def LajeElevacao = D("PCEB_Laje_Elevacao", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0014", Numero, Cat.Laje);
+        public static readonly Def LajeNivel = D("PCEB_Laje_Nivel", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0015", Numero, Cat.Laje);
+        public static readonly Def LajePesoProprio = D("PCEB_Laje_PesoProprio", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0016", Numero, Cat.Laje);
+        public static readonly Def LajeAdicional = D("PCEB_Laje_Adicional", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0017", Numero, Cat.Laje);
+        public static readonly Def LajeAcidental = D("PCEB_Laje_Acidental", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0018", Numero, Cat.Laje);
+        public static readonly Def LajeLocalizada = D("PCEB_Laje_Localizada", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d0019", Numero, Cat.Laje);
         /// <summary>Posição da marca na ordem natural (P2 antes de P10): as tabelas ordenam por ele (o Revit ordena texto caractere a
         /// caractere) e filtram por ele (&gt; 0 = peça que o comando tratou). Coluna escondida nas tabelas.</summary>
-        public static readonly Def Ordem = D("SD_Ordem", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d001a", SpecTypeId.Int.Integer, Cat.Pilar, Cat.Laje);
+        public static readonly Def Ordem = D("PCEB_Ordem", "8e2a5c10-4b7d-4e61-9f3a-0a1b2c3d001a", SpecTypeId.Int.Integer, Cat.Pilar, Cat.Laje);
 
         public static IEnumerable<Def> Todos =>
             new[] { Secao, NivelTopo, NivelTopoBloco, NivelBase, ComprimentoTotal }

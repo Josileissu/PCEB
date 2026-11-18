@@ -6,7 +6,7 @@ using Xunit;
 
 namespace DEB.Core.Tests;
 
-/// <summary>Pranchas de formas (D25): textos calculados dos parâmetros SD_, ordem natural das marcas e CSV das cargas na fundação.</summary>
+/// <summary>Pranchas de formas (D25): textos calculados dos parâmetros PCEB_, ordem natural das marcas e CSV das cargas na fundação.</summary>
 public class FormasTests
 {
     [Theory]
@@ -80,7 +80,7 @@ public class FormasTests
     public void CsvComColunasEmOutraOrdemEComPrefixo()
     {
         var avisos = new List<string>();
-        var c = CsvCargas.Ler("SD_Fz_Min;Marca;SD_Fz_Max\n5;P3;9\n", avisos);
+        var c = CsvCargas.Ler("PCEB_Fz_Min;Marca;PCEB_Fz_Max\n5;P3;9\n", avisos);
         Assert.Single(c);
         Assert.Equal("P3", c[0].Marca);
         Assert.Equal(9, c[0].Valores[0]);

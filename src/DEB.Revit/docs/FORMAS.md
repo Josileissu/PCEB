@@ -5,7 +5,7 @@ Código: `src/Formas`; plano: `docs/04_arquitetura/pranchas_de_formas.md`.
 Painel "Formas": Atualizar dados, Cargas (CSV), Planta de locação, Planta de montagem (base `ToolCommand`; fluxo em `ExecucaoFormas`: uma
 transação por etapa — dados → tabela → vista → anotações → folha —, a que falha é desfeita e vai para `logs/formas_*.txt`).
 - **Parâmetros** (`ParametrosFormas`): compartilhados de instância, GUIDs FIXOS `8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN` (nunca mudar),
-  criados por arquivo temporário (o do usuário é restaurado). `SD_Ordem` (inteiro) = posição da marca na ordem natural (núcleo:
+  criados por arquivo temporário (o do usuário é restaurado). `PCEB_Ordem` (inteiro) = posição da marca na ordem natural (núcleo:
   `Numeracao/ComparadorNatural`): as tabelas ordenam e filtram (&gt; 0) por ele, escondido. Textos (`DEB.Core/Formas/TextosFormas`) e CSV
   das cargas (`CsvCargas`) no núcleo, com testes (`FormasTests`).
 - **Marca do comando**: Extensible Storage `DEB_Formas` (`MarcaFormas`, campo Papel: `vista-locacao:<nível>`, `tabela-cargas`,

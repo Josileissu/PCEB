@@ -11,7 +11,7 @@ namespace DEB.Revit.Formas
     /// Tabelas das pranchas de formas (D25, etapa 2), tabelas do Revit lendo os parâmetros SD_:
     ///  • "Cargas na fundação" (pilares): Nome | Carga máx | Carga mín | Mx +/− | My +/− | Fx +/− | Fy +/−, cabeçalhos agrupados;
     ///  • "Lajes" (pisos de um nível): Nome | Tipo | Altura | Elevação | Nível | Peso próprio | Sobrecarga: Adicional/Acidental/Localizada.
-    /// Ordem natural das marcas por SD_Ordem (coluna escondida; o Revit ordena texto caractere a caractere), que também filtra
+    /// Ordem natural das marcas por PCEB_Ordem (coluna escondida; o Revit ordena texto caractere a caractere), que também filtra
     /// (&gt; 0 = peça tratada pelo "Atualizar dados"). A tabela é achada pela marca do comando: rodar de novo refaz as colunas da
     /// mesma tabela (continua nas folhas), sem duplicar. Precisa de transação.
     /// </summary>
@@ -131,8 +131,8 @@ namespace DEB.Revit.Formas
             return vs;
         }
 
-        /// <summary>"Seções consideradas": uma linha por tipo (seção SD_Secao, tipo, quantidade, material) das vigas ou dos pilares
-        /// tratados pelo "Atualizar dados" (os que têm SD_Secao).</summary>
+        /// <summary>"Seções consideradas": uma linha por tipo (seção PCEB_Secao, tipo, quantidade, material) das vigas ou dos pilares
+        /// tratados pelo "Atualizar dados" (os que têm PCEB_Secao).</summary>
         public ViewSchedule Secoes(bool vigas)
         {
             BuiltInCategory cat = vigas ? BuiltInCategory.OST_StructuralFraming : BuiltInCategory.OST_StructuralColumns;
@@ -222,7 +222,7 @@ namespace DEB.Revit.Formas
             return f;
         }
 
-        /// <summary>SD_Ordem escondido no fim (não muda os índices das colunas visíveis): filtra (&gt; 0) e ordena; desempate pela marca.</summary>
+        /// <summary>PCEB_Ordem escondido no fim (não muda os índices das colunas visíveis): filtra (&gt; 0) e ordena; desempate pela marca.</summary>
         private void Ordem(ScheduleDefinition def, bool pilares)
         {
             ScheduleField fo = Campo(def, ParametrosFormas.Ordem, "Ordem");
@@ -233,7 +233,7 @@ namespace DEB.Revit.Formas
                 def.AddFilter(new ScheduleFilter(fo.FieldId, ScheduleFilterType.GreaterThan, 0));
                 def.AddSortGroupField(new ScheduleSortGroupField(fo.FieldId, ScheduleSortOrder.Ascending));
             }
-            else _log.Warn($"Tabela de {(pilares ? "cargas" : "lajes")}: sem SD_Ordem, ordenada pela marca do Revit (P10 antes de P2) e sem filtro.");
+            else _log.Warn($"Tabela de {(pilares ? "cargas" : "lajes")}: sem PCEB_Ordem, ordenada pela marca do Revit (P10 antes de P2) e sem filtro.");
             if (fm != null) def.AddSortGroupField(new ScheduleSortGroupField(fm.FieldId, ScheduleSortOrder.Ascending));
         }
 

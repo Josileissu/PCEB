@@ -4,7 +4,8 @@ Plugin para Revit 2025/2026 (C#, .NET 8): detalhamento de peças estruturais, co
 (consolos, armadura, pranchas no padrão do escritório). Projeto/DLL/namespace `DEB.Revit`, aba "Detalhador Estrutural Brasileiro",
 `DEB.Revit.addin`; dados em `%AppData%\PCEB\DEB.Revit` (copiados de `%AppData%\StructuralDetailer` na 1ª execução, `Core/UserFolders.cs`).
 Mantidos por estarem gravados nos modelos: `Tag = "StructuralDetailer"` das barras, grupo de parâmetros compartilhados
-`StructuralDetailer`, parâmetros `SD_*`; também os IDs de botão `SD_*` e as variáveis `SD_AUTORUN`/`SD_AUTOEXIT`/`SD_SAVEAS`.
+`StructuralDetailer`; também os IDs de botão `SD_*` e as variáveis `SD_AUTORUN`/`SD_AUTOEXIT`/`SD_SAVEAS`. Os **parâmetros** passaram
+de `SD_` a `PCEB_` (D38).
 Regras gerais do PCEB: `AGENTS.md` da raiz.
 
 Arquivos do escritório (fora do Git — padrões não são públicos), na pasta-mãe do PCEB (`desenvolvedor\`): **modelo-base dos testes `Teste_PM.rvt`** (gerado pelo AutoRun `criarmodelo`:
@@ -89,7 +90,7 @@ src/
                  RebarFactory, PrecastColumnPipeline, UI/ (janela WPF em código, sem XAML)
   Presentation/  PresentationStandard (JSON por elemento em %AppData%\PCEB\DEB.Revit\Padroes),
                  Defaults (padrão de fábrica = PP127), StandardDetailer, SheetComposer (regiões),
-                 RebarSchedules, RebarData (partição N1.., parâmetros SD_Aço / SD_Peso), AnnotationStyles
+                 RebarSchedules, RebarData (partição N1.., parâmetros PCEB_Aço / PCEB_Peso), AnnotationStyles
   LajeAlveolar/  paginação de laje alveolar (docs/LAJE_ALVEOLAR.md)
   Formas/        pranchas de formas (docs/FORMAS.md)
   Tools/         painel "Ferramentas" (docs/FERRAMENTAS.md)
@@ -108,9 +109,10 @@ Detalhe de cada funcionalidade (consulte quando for mexer nela), em `docs/`: `EX
 - Armaduras: longitudinal + estribos, zonas de estribos (topo/base/consolo), consolo (tirante + costura),
   içamento/insertos.
 - Pranchas guiadas por padrões de apresentação (pilar, viga, laje, fundação).
-- Parâmetros `SD_Aço` / `SD_Peso (kg)` mantêm o nome (modelos já detalhados).
-- Tabelas, rótulos e peso das barras pelo comprimento do **núcleo** (D30, 16/11/2026): `SD_Comprimento (núcleo)` e
-  `SD_Comprimento total (núcleo)` (GUIDs fixos `5f0c3a8e-…-1d2b3c4d5e03`/`…5e04`, nunca mudar), gravados na criação da barra
+- Parâmetros do plugin com prefixo **`PCEB_`** (D38, 18/11/2026: troca direta de `SD_`, sem migrar os modelos antigos); os **GUIDs
+  continuam os mesmos** (as famílias de anotação do escritório leem os rótulos pelo GUID).
+- Tabelas, rótulos e peso das barras pelo comprimento do **núcleo** (D30, 16/11/2026): `PCEB_Comprimento (núcleo)` e
+  `PCEB_Comprimento total (núcleo)` (GUIDs fixos `5f0c3a8e-…-1d2b3c4d5e03`/`…5e04`, nunca mudar), gravados na criação da barra
   (`RebarData.Apply`). São valores gravados: barra editada à mão no Revit só se atualiza rodando o comando de novo.
 - Parâmetros de Formas: compartilhados com GUIDs FIXOS `8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN` (nunca mudar).
 
@@ -120,7 +122,7 @@ Detalhe de cada funcionalidade (consulte quando for mexer nela), em `docs/`: `EX
 - Assemblies idênticos: o Revit junta no mesmo tipo e **apaga vistas novas**; nunca renomear um gêmeo.
 - API 2025: `GeometryInstance.GetSymbolGeometryId().SymbolId` (não há `.Symbol`);
   `RebarBarType.SetBarTypeDiameters(BarTypeDiameterOptions)`; sem parâmetro de peso de barra e sem
-  campos calculados via API (por isso `SD_Peso (kg)`). Documentação local: `C:\Program Files\Autodesk\Revit 2025\RevitAPI.xml` (grep).
+  campos calculados via API (por isso `PCEB_Peso (kg)`). Documentação local: `C:\Program Files\Autodesk\Revit 2025\RevitAPI.xml` (grep).
 - Tabelas/textos na folha: posicionar por `ScheduleSheetInstance.Point` / `TextNote.Coord`, não pelo bounding box.
 - A API não cria legenda do zero: `LegendFactory` duplica uma legenda existente (ver `docs/DETALHES_PADRAO.md`).
 - Ler `TagText` do tipo "NV" de uma família de pilar do escritório derruba o Revit (queda nativa): a sondagem `formassonda` pula

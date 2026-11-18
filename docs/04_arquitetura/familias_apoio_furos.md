@@ -20,9 +20,8 @@ Sólido sobre a face superior do consolo, preso a planos de referência rotulado
 | `PCEB_ApoioAfastamento` | comprimento: face externa do consolo → face externa do apoio (a2) | tipo | C3 |
 | `PCEB_ApoioVisivel` | sim/não, fórmula `not(PCEB_Apoio = "Direto")` | — | Direto = sem sólido |
 
-Material pelo tipo (Neoprene / Argamassa de assentamento). O **pino** fica no centro do apoio: `PCEB_PinoDiametro` e
-`PCEB_PinoAltura` (barra saindo do consolo para dentro do furo da viga) — a confirmar com o usuário se o pino entra na família
-do consolo ou continua só no detalhamento.
+Material pelo tipo (Neoprene / Argamassa de assentamento). O **pino continua só no detalhamento** (resposta do usuário,
+18/11/2026); a família não leva o pino.
 
 Fatores de Hd por tipo (fase de cálculo, NBR 9062 7.3.9): neoprene (elastômero) 0,16·Fd; argamassa 0,5·Fd; direto (junta a
 seco) 0,8·Fd.
@@ -32,7 +31,7 @@ Vazio cilíndrico vertical atravessando o dente, nas duas pontas.
 
 | Parâmetro | Tipo | Uso |
 |---|---|---|
-| `PCEB_FuroDiametro` | comprimento | prancha, folga do pino |
+| `PCEB_FuroDiametro` | comprimento, padrão **32 mm** (usuário, 18/11/2026) | prancha, folga do pino |
 | `PCEB_FuroQtd` | inteiro, fórmula `if(b < 30 cm, 1, 2)` (D23), editável | D8 |
 | `PCEB_FuroDistE` / `PCEB_FuroDistD` | comprimento: ponta → centro do furo | casa com o pino do consolo |
 | `PCEB_FuroEntreFuros` | comprimento (2 furos) | prancha |
@@ -43,5 +42,4 @@ A exportação para o CAD (D22, `Intercambio`) passa estes valores para `FurosE/
 Uma tarefa do AutoRun (`SD_AUTORUN=familiaspceb`, numa instância de teste) abre a cópia do `.rfa`, edita a família aninhada do
 consolo (`EditFamily`), cria planos de referência, cotas rotuladas, o sólido/vazio e os parâmetros, recarrega na viga e grava
 `... - PCEB.rfa` na pasta de trabalho; depois `familias` (relatório) e `criarmodelo` conferem. **Neste computador (PC1) o Revit de
-teste parou em "manage licensing"** em 18/11/2026: a licença estava com o Revit de outro usuário do Windows. Fazer no PC2 ou com
-a licença livre.
+teste parou em "manage licensing"** em 18/11/2026: a licença estava com o Revit de outro usuário do Windows. Decisão do usuário: **fazer no PC2**.

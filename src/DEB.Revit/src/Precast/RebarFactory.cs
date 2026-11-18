@@ -23,7 +23,7 @@ namespace DEB.Revit.Precast
 
         /// <summary>
         /// Comprimento unitário pelo núcleo (cm, regras do CAD: SharedRules.RealLengthCm) de cada conjunto criado. As barras de um
-        /// conjunto são iguais (mesma forma; só a posição muda). Vai para o parâmetro SD_Comprimento (RebarData.Apply), que as
+        /// conjunto são iguais (mesma forma; só a posição muda). Vai para o parâmetro PCEB_Comprimento (RebarData.Apply), que as
         /// tabelas e o peso usam (decisão do dono D30, item 4).
         /// </summary>
         public Dictionary<ElementId, double> CoreLengthsCm { get; } = new Dictionary<ElementId, double>();
@@ -97,7 +97,7 @@ namespace DEB.Revit.Precast
 
         /// <summary>
         /// Registra no log o comprimento do Revit (REBAR_ELEM_LENGTH) ao lado do comprimento do núcleo, que é o que vale nas
-        /// tabelas e no peso desde a D30 (parâmetro SD_Comprimento). Não altera nada no modelo.
+        /// tabelas e no peso desde a D30 (parâmetro PCEB_Comprimento). Não altera nada no modelo.
         /// </summary>
         private void LogLengthComparison(BarDef b, Rebar r)
         {
