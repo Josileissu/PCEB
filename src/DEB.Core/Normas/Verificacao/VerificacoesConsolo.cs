@@ -137,6 +137,18 @@ public static class VerificacoesConsolo
                 $"{N(taxaCost, "0.000")} cm²/cm", $"≥ {N(k * taxaTir, "0.000")} cm²/cm", taxaCost < k * taxaTir - 1e-9, "NBR 9062, 7.3.6",
                 dica: c.CostN == 0 ? "A costura é obrigatória." : ""));
 
+        // C12: dispensa de costura só com d > 4(a + a0) (7.3.3.13, Fig. 19); a0 ≥ 0, então d ≤ 4a já decide que não se aplica
+        r.Add(d <= 4 * a + 1e-9
+            ? R(c, "C12", "Dispensa da costura (d > 4(a + a0)): não se aplica, a costura é obrigatória", $"d = {N(d)} cm", $"4a = {N(4 * a)} cm",
+                false, "NBR 9062, 7.3.3.13")
+            : R(c, "C12", "Dispensa da costura possível se d > 4(a + a0): então pele com ρ ≥ 0,002 por face na zona 2", $"d = {N(d)} cm",
+                $"> 4(a + a0); 4a = {N(4 * a)} cm", false, "NBR 9062, 7.3.3.13, Fig. 19", dica: "Informativo: a0 conforme a Figura 19."));
+
+        // C14: o tirante é um só tipo de barra (n, φ) da ponta até o pilar no desenho: sem redução de seção até o engaste (a/d ≤ 2)
+        if (ad <= 2)
+            r.Add(R(c, "C14", "Tirante sem redução de seção entre a carga e o engaste (as mesmas barras da ponta ao pilar no desenho)",
+                    $"{c.TirN} ø{N(c.TirPhi)}", "", false, "NBR 9062, 7.3.5.1"));
+
         // C13: taxa mecânica do tirante ω = ρ·fyk/fck ≥ 0,04 (a/d ≤ 2)
         double w = c.B > 0 && d > 0 && c.FckMPa > 0 ? asTir / (c.B * d) * c.FykMPa / c.FckMPa : 0;
         r.Add(R(c, "C13", "Taxa mecânica do tirante ω = (As,tir/b·d)·fyk/fck", N(w, "0.000"), "≥ 0,04", w < 0.04 - 1e-9, "NBR 9062, 7.3.5.2"));
@@ -147,5 +159,45 @@ public static class VerificacoesConsolo
                     asVert < 0.0015 * c.B * c.H - 1e-9, "NBR 9062, 7.3.7.2", SituacaoVerificacao.Conferir,
                     "Leitura da taxa como área total dos ramos verticais no balanço; conferir com o livro de comentários."));
         return r;
+    }
+
+    /// <summary>
+    /// C16: na face do elemento-suporte (pilar) junto ao consolo, barras com área ≥ a do tirante (7.3.3.14, Fig. 20a).
+    /// <paramref name="asFaceCm2"/> = barras longitudinais da face que passam por toda a altura do consolo.
+    /// </summary>
+    public static ResultadoVerificacao ArmaduraNaFaceDoSuporte(DadosConsolo c, string face, double asFaceCm2)
+    {
+        double asTir = c.TirN * Math.PI * c.TirPhi * c.TirPhi / 400;
+        return R(c, "C16", $"Barras do pilar na face {face} do consolo: As ≥ As,tir", $"{N(asFaceCm2, "0.00")} cm²", $"≥ {N(asTir, "0.00")} cm²",
+                 asFaceCm2 < asTir - 1e-9, "NBR 9062, 7.3.3.14, Fig. 20",
+                 dica: asFaceCm2 < asTir - 1e-9 ? "Aumentar as barras da face (ou acrescentar barras junto ao consolo em toda a altura dele)." : "");
+    }
+
+    /// <summary>
+    /// C17: ancoragem do tirante no pilar (7.3.5.5 → NBR 6118, 9.4.2). Duplo (passante) = OK. Consolo sozinho: o trecho reto
+    /// disponível no pilar (da face até a face oposta, menos cobrimento, estribo e longitudinal) contra lb,nec = α·lb com a
+    /// aderência mais desfavorável (má, η2 = 0,7) e α = 0,7 com gancho/perna (1,0 sem). Sem As,calc, abaixo disso e acima do
+    /// lb,mín = máx(0,3·lb; 10φ; 10 cm) fica "Conferir" (lb,nec = α·lb·As,calc/As,ef); abaixo do lb,mín, "Não atende".
+    /// </summary>
+    public static ResultadoVerificacao AncoragemNoSuporte(DadosConsolo c, bool passante, double disponivelCm, bool gancho, string aco)
+    {
+        if (passante)
+            return R(c, "C17", "Ancoragem do tirante no pilar: tirante passante (consolo duplo)", "", "", false, "NBR 9062, 7.3.5.5");
+        var regra = new RegrasTraspasse { Fck = c.FckMPa };
+        double lbBoa = regra.Lb(c.TirPhi, aco);
+        regra.Aderencia = SituacaoAderencia.Ma;
+        double alfa = gancho ? 0.7 : 1.0, lbNec = alfa * regra.Lb(c.TirPhi, aco);
+        double lbMin = Math.Max(0.3 * lbBoa, Math.Max(10 * c.TirPhi / 10, 10));
+        var sit = disponivelCm >= lbNec - 1e-6 ? SituacaoVerificacao.Ok
+                : disponivelCm >= lbMin - 1e-6 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende;
+        return new ResultadoVerificacao
+        {
+            Codigo = "C17", Grupo = "Consolo " + c.Nome, Situacao = sit, Referencia = "NBR 9062, 7.3.5.5; NBR 6118, 9.4.2",
+            Descricao = $"Ancoragem do tirante ø{N(c.TirPhi)} no pilar (trecho reto{(gancho ? " antes do gancho/perna" : "")})",
+            Valor = $"{N(disponivelCm)} cm", Limite = $"≥ {(gancho ? "0,7·" : "")}lb (má aderência) = {N(lbNec)} cm",
+            Dica = sit == SituacaoVerificacao.Conferir
+                ? $"Acima do lb,mín = {N(lbMin)} cm: atende se As,calc/As,ef ≤ {N(disponivelCm / lbNec, "0.00")} ou com boa aderência na concretagem."
+                : sit == SituacaoVerificacao.NaoAtende ? $"Abaixo do lb,mín = {N(lbMin)} cm." : "",
+        };
     }
 }

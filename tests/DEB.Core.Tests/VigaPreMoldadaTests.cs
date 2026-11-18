@@ -45,7 +45,8 @@ public class VigaPreMoldadaTests
         Assert.Contains(prod.Linhas, l => l[1] == "1,080 ton.");
         Assert.Contains(r.Textos, x => x.Texto == "4) UTILIZAR NEOPRENE 15 mm;");
         Assert.NotNull(r.PosicaoRA);
-        Assert.Empty(r.Avisos);
+        // fora as verificações normativas (testadas em VerificacoesVigaTests), nenhum aviso
+        Assert.DoesNotContain(r.Avisos, a => !r.Verificacoes.Any(x => x.Mensagem == a));
     }
 
     [Fact]

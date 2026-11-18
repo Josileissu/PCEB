@@ -10,6 +10,8 @@ public sealed class DadosCobrimento
     public ElementoCobrimento Elemento { get; set; } = ElementoCobrimento.VigaPilar;
     /// <summary>Peça pré-moldada (NBR 9062): Δc = 5 mm em vez de 10 mm.</summary>
     public bool PreMoldado { get; set; } = true;
+    /// <summary>Concreto protendido: Tabela 7.2 de protendido e mínimo absoluto de 25 mm da NBR 9062.</summary>
+    public bool Protendido { get; set; }
     public double FckMPa { get; set; }
     /// <summary>Relação água/cimento ≤ 0,45 declarada pelo usuário (com fck ≥ 40 MPa libera a 2ª redução da NBR 9062).</summary>
     public bool AguaCimentoAte045 { get; set; }
@@ -30,8 +32,8 @@ public static class RegrasCobrimento
     /// <summary>Número com vírgula decimal (os textos vão para o relatório e os avisos em português).</summary>
     private static string N(double x, string f = "0.#") => Fmt.Virgula(x, f);
 
-    /// <summary>Mínimos absolutos da NBR 9062, 9.2.1.1.2, para concreto armado (mm).</summary>
-    private static double MinimoAbsoluto(ElementoCobrimento e) => e == ElementoCobrimento.Laje ? 15 : 20;
+    /// <summary>Mínimos absolutos da NBR 9062, 9.2.1.1.2 (mm): concreto armado 15 (laje) ou 20; protendido 25.</summary>
+    private static double MinimoAbsoluto(ElementoCobrimento e, bool protendido) => protendido ? 25 : e == ElementoCobrimento.Laje ? 15 : 20;
 
     /// <summary>
     /// Cobrimento nominal exigido (mm) e as reduções aplicadas, em texto: Tab. 7.2 (Δc = 10 mm); pré-moldado −5 mm (Δc = 5 mm,
@@ -39,7 +41,7 @@ public static class RegrasCobrimento
     /// </summary>
     public static (double Mm, string Reducoes) Exigido(DadosCobrimento d)
     {
-        double tab = TabelasNbr.CobrimentoNominalMm(d.Classe, d.Elemento);
+        double tab = TabelasNbr.CobrimentoNominalMm(d.Classe, d.Elemento, d.Protendido);
         if (!d.PreMoldado) return (tab, "");
         var red = new List<string> { "−5 mm (Δc = 5 mm, NBR 9062 9.2.1.1.1)" };
         double c = tab - 5;
@@ -48,7 +50,7 @@ public static class RegrasCobrimento
             c -= 5;
             red.Add("−5 mm (fck ≥ 40 MPa e a/c ≤ 0,45, NBR 9062 9.2.1.1.2)");
         }
-        double min = MinimoAbsoluto(d.Elemento);
+        double min = MinimoAbsoluto(d.Elemento, d.Protendido);
         if (c < min) { c = min; red.Add($"limitado a {min:0} mm (NBR 9062 9.2.1.1.2)"); }
         return (c, string.Join("; ", red));
     }
@@ -57,13 +59,13 @@ public static class RegrasCobrimento
     {
         var (exig, red) = Exigido(d);
         string classe = TabelasNbr.Romano(d.Classe);
-        double tab = TabelasNbr.CobrimentoNominalMm(d.Classe, d.Elemento);
+        double tab = TabelasNbr.CobrimentoNominalMm(d.Classe, d.Elemento, d.Protendido);
         bool reduzido = exig < tab - 1e-9;
         // G1/G2: abaixo do exigido = não atende; atende só graças às reduções = conferir (avisa a redução aplicada)
         yield return new ResultadoVerificacao
         {
             Codigo = reduzido ? "G2" : "G1", Grupo = "Cobrimento",
-            Descricao = $"Cobrimento nominal, classe de agressividade {classe}",
+            Descricao = $"Cobrimento nominal, classe de agressividade {classe}{(d.Protendido ? ", concreto protendido" : "")}",
             Valor = $"{N(d.CobrimentoMm)} mm", Limite = $"≥ {N(exig)} mm",
             Situacao = d.CobrimentoMm < exig - 1e-6 ? SituacaoVerificacao.NaoAtende
                      : reduzido && d.CobrimentoMm < tab - 1e-6 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.Ok,

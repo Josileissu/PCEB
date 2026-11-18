@@ -133,6 +133,7 @@ public sealed partial class TemplatePilarPreMoldado
         var zonas = LerZonas(v, yIni, yFim, L, r.Avisos);
         double phiT = zonas.Max(z => z.Bitola);
         var posicoes = PosicoesLinhas(b, h, cob, phiT, linhas, sCanto);
+        VerificarSuporteConsolos(r, v, b, h, L, cob, linhas, posicoes);
         var grupos = linhas.Select(l => new Grupo { Chave = l.Chave, Bitola = l.Bitola, Linha = l, Barras = posicoes[l.Linha] }).ToList();
         bool emL = linhas.Any(l => l.Arranjo == ArrAoLado);
         double phiCanto = linhas.Where(l => l.Arranjo == ArrCantos).Select(l => l.Bitola).DefaultIfEmpty(10).Max();
@@ -552,6 +553,52 @@ public sealed partial class TemplatePilarPreMoldado
             };
             foreach (var x in VerificacoesConsolo.Verificar(dados)) lista.Add(x);
         }
+        foreach (var a in lista.Avisos()) Aviso(r, a);
+        r.Verificacoes.Juntar(lista);
+    }
+
+    /// <summary>
+    /// C16 e C17 (o pilar como elemento-suporte do consolo): barras da face do consolo em toda a altura dele com As ≥ As,tir
+    /// (NBR 9062, 7.3.3.14) e a ancoragem do tirante no pilar (7.3.5.5): o trecho reto até a face oposta, como o detalhe do consolo
+    /// desenha (<see cref="BarrasConsolo.FimNoPilar"/>); par em nível (duplo) = tirante passante. Uma vez por tipo e face.
+    /// </summary>
+    private static void VerificarSuporteConsolos(ResultadoTemplate r, ValoresTemplate v, double b, double h, double L, double[] cob,
+                                                 List<LinhaLongitudinal> linhas, Dictionary<int, List<BarraNaSecao>> posicoes)
+    {
+        var consolos = LerConsolos(v, Catalogo, L, new List<string>());   // os avisos da leitura já saíram no desenho dos consolos
+        if (consolos.Count == 0) return;
+        var lista = new ListaVerificacoes();
+        double phiEst = BitolaMaxEstribo(v), phiLong = BitolaMaxLongitudinal(v);
+        string aco = v["LongAco"];
+        // distância do centro da barra à face interna f (1 = +x, 2 = −y, 3 = −x, 4 = +y)
+        double Dist(BarraNaSecao x, int f) => f == 1 ? b - x.X : f == 2 ? x.Y : f == 3 ? x.X : h - x.Y;
+        var vistos = new HashSet<string>();
+        foreach (var co in consolos)
+            foreach (int f in co.Faces)
+            {
+                bool passante = co.Pares.Any(p => p.F1 == f || p.F2 == f);
+                if (!vistos.Add($"{co.Tipo}|{f}|{passante}")) continue;
+                var dados = new DadosConsolo
+                {
+                    Nome = co.Tipo, B = co.B, A = co.A, H = co.H, H1 = co.H1, Cob = cob.Take(4).Min(), TirN = co.TirN, TirPhi = co.TirPhi,
+                    TirAlca = co.Laco, FckMPa = v.Numero("Fck"), FykMPa = TabelasNbr.Fyk(aco),
+                };
+                // C16: barras que passam por toda a altura do consolo, na fileira junto à face dele
+                var barras = linhas.Where(l => l.Ini <= co.ZTopo - co.H + 1e-6 && l.Fim >= co.ZTopo - 1e-6)
+                                   .SelectMany(l => posicoes.TryGetValue(l.Linha, out var p) ? p : new List<BarraNaSecao>()).ToList();
+                double asFace = 0;
+                if (barras.Count > 0)
+                {
+                    double dMin = barras.Min(x => Dist(x, f));
+                    asFace = barras.Where(x => Dist(x, f) <= dMin + 1).Sum(x => x.Feixe * Math.PI * x.Bitola * x.Bitola / 400);
+                }
+                lista.Add(VerificacoesConsolo.ArmaduraNaFaceDoSuporte(dados, FaceExibida(f).ToString(), asFace));
+                // C17: trecho reto do tirante no pilar até a face oposta (com perna ou gancho no fim; o laço fecha dentro do pilar)
+                double prof = f == 1 || f == 3 ? b : h;
+                int oposta = (f + 1) % 4 + 1;
+                double disp = BarrasConsolo.FimNoPilar(prof, cob[oposta - 1], phiEst, phiLong);
+                lista.Add(VerificacoesConsolo.AncoragemNoSuporte(dados, passante, disp, true, aco));
+            }
         foreach (var a in lista.Avisos()) Aviso(r, a);
         r.Verificacoes.Juntar(lista);
     }
