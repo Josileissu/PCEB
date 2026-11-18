@@ -60,7 +60,7 @@ namespace DEB.Revit
         {
             var uiapp = (UIApplication)sender;
             string task = _task.Trim().ToLowerInvariant();
-            bool semProjeto = task == "familias" || task == "criarmodelo" || task == "contarlegendas" || task == "exportar"   // tarefas que não precisam de projeto aberto
+            bool semProjeto = task == "familias" || task == "familiassonda" || task == "familiaspceb" || task == "criarmodelo" || task == "contarlegendas" || task == "exportar"   // tarefas que não precisam de projeto aberto
                               || (task.StartsWith("formas") && !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SD_MODELO")));   // formas: abre SD_MODELO pela API
             UIDocument uidoc = uiapp.ActiveUIDocument;
             if (!semProjeto && (uidoc == null || uidoc.Document.IsFamilyDocument)) return;   // ainda abrindo o projeto
@@ -73,6 +73,12 @@ namespace DEB.Revit
                 {
                     case "familias":
                         status = "OK " + TestModel.InspectFamilies(uiapp.Application);
+                        break;
+                    case "familiassonda":
+                        status = "OK " + FamiliasPceb.Sonda(uiapp.Application);
+                        break;
+                    case "familiaspceb":
+                        status = "OK " + FamiliasPceb.Aplicar(uiapp.Application);
                         break;
                     case "criarmodelo":
                         status = "OK " + TestModel.BuildPrecastModel(uiapp.Application);

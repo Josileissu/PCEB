@@ -61,6 +61,9 @@ $p.WaitForExit(540000)
   `criarmodelo` (projeto novo de `SD_TEMPLATE` com grade 3×2 de `SD_PILAR` + vigas `SD_VIGA`, gravado em `SD_SAVEAS`).
   Famílias do usuário em `S:\Meu Drive\Arquivos\Familias Revit` (copiar antes; `.000N.rfa` são backups). O template do
   escritório `EST_RVT_Residência.rte` traz uma residência modelada — para teste use `Structural Analysis-DefaultBRAPTB.rte`.
+- Famílias do PCEB (D36, `src/Precast/FamiliasPceb*.cs`): `familiassonda` (planos, cotas rotuladas e formas de `SD_FAMILIAS` e das aninhadas)
+  e `familiaspceb` (`SD_FAMILIA` = cópia da "Viga Pré-Moldada", `SD_SAVEAS` = saída; apoio no consolo + furos na viga + conferência
+  variando os parâmetros; `SD_SOCONFERIR=1` só reabre e confere). Ver `docs/04_arquitetura/familias_apoio_furos.md`.
 - `criarmodelo` com `SD_NIVEIS` = "cota_mm:direções;..." (ex.: "3000:X;6000:XY;9000:Y") cria vigas/consolos em vários níveis
   (modelo de teste do PC2: `Teste_PM_niveis.rvt`, pilar de 10 m com 4 consolos em 3 níveis).
 - Vigas pré-moldadas com consolos aninhados: a folga vem de `folga_esq`/`folga_dir` da família; **recuo da junta
@@ -127,5 +130,11 @@ Detalhe de cada funcionalidade (consulte quando for mexer nela), em `docs/`: `EX
 - A API não cria legenda do zero: `LegendFactory` duplica uma legenda existente (ver `docs/DETALHES_PADRAO.md`).
 - Ler `TagText` do tipo "NV" de uma família de pilar do escritório derruba o Revit (queda nativa): a sondagem `formassonda` pula
   os tipos com " NV "; só em instância de teste.
+- **Editar famílias pela API** (18/11/2026): geometria só segue os parâmetros quando FACES PLANAS ficam presas a planos de referência
+  (`NewAlignment`) ou quando as linhas do esboço nascem sobre os planos (o Revit prende sozinho). Numa família NÃO dá: `SketchEditScope`
+  (só projeto), cotar o centro de um círculo de esboço ("Invalid number of references"), cota rotulada a aresta/face cilíndrica (entra,
+  mas não move a geometria) nem vazio aninhado cortando a forma (`InstanceVoidCutUtils` só em projeto). Furo redondo = polígono de 16 lados.
+  Fórmula não compara texto (use inteiro) nem liga parâmetro de tipo a um de instância. A instância de teste às vezes não fecha
+  sozinha depois de `familias*`: feche pelo PID que você abriu.
 - Python que lê arquivos baixados: usar `-I`; `pymupdf` está instalado no usuário (renderizar PDFs em blocos).
 - AutoCAD 2026 está no PC2: `accoreconsole.exe` converte DWG↔DXF e plota PNG sem janela (README de `tools/detalhes_dxf`).
