@@ -8,6 +8,7 @@ using DEB.Core.Motor;
 using DEB.Core.Normas;
 using DEB.Core.Tabelas;
 using DEB.Core.Documentacao;
+using DEB.Core.Elementos.Consolo;
 using DEB.Core.Normas.Verificacao;
 using VP = DEB.Core.Normas.Verificacao.VerificacoesPilar;
 
@@ -506,22 +507,22 @@ public sealed partial class TemplatePilarPreMoldado
         double bMm = b * 10, hMm = h * 10, menor = Math.Min(bMm, hMm);
         string aco = v["LongAco"], acoEst = v["EstAco"];
         double fck = v.Numero("Fck");
-        lista.Add(VP.DimensaoMinima(bMm, hMm), true);
-        lista.Add(VP.PilarParede(bMm, hMm), true);
+        lista.Add(VP.DimensaoMinima(bMm, hMm), false);
+        lista.Add(VP.PilarParede(bMm, hMm), false);
         foreach (var phi in linhas.Select(x => x.Bitola).Distinct())
-            lista.Add(VP.BitolaLongitudinal(phi, menor), true);
+            lista.Add(VP.BitolaLongitudinal(phi, menor), false);
         double phiEqMax = linhas.Max(x => x.Bitola * Math.Sqrt(Math.Max(1, x.Feixe))), phiMin = linhas.Min(x => x.Bitola);
         foreach (var z in zonas.GroupBy(z => (z.Bitola, z.Esp)).Select(g => g.First()))
         {
-            lista.Add(VP.BitolaEstribo(z.Bitola, phiEqMax, z.Esp * 10, TabelasNbr.Fyk(acoEst)), true);
-            lista.Add(VP.EspacamentoEstribos(z.Esp * 10, menor, phiMin, aco), true);
+            lista.Add(VP.BitolaEstribo(z.Bitola, phiEqMax, z.Esp * 10, TabelasNbr.Fyk(acoEst)), false);
+            lista.Add(VP.EspacamentoEstribos(z.Esp * 10, menor, phiMin, aco), false);
         }
-        lista.Add(VP.ConcretoAltaResistencia(fck), true);
+        lista.Add(VP.ConcretoAltaResistencia(fck), false);
         // pelo menos uma barra em cada vértice, no pilar todo
         double yIni = zonas.Min(z => z.Y1), yFim = zonas.Max(z => z.Y2), y = yIni;
         foreach (var l in linhas.Where(l => l.Arranjo == ArrCantos).OrderBy(l => l.Ini))
             if (l.Ini <= y + 1e-6) y = Math.Max(y, l.Fim);
-        lista.Add(VP.Vertices(y, yFim), true);
+        lista.Add(VP.Vertices(y, yFim), false);
         // cobrimento das faces (cob: faces 3, 2, 1, 4, topo, base) com as reduções do pré-moldado aplicadas e avisadas
         var dc = new DadosCobrimento
         {
@@ -529,8 +530,30 @@ public sealed partial class TemplatePilarPreMoldado
             FckMPa = fck, AguaCimentoAte045 = v.SimNao("AguaCimento045"),
             CobrimentoMm = cob.Take(4).Min() * 10, MaiorBitolaMm = zonas.Max(z => z.Bitola), AgregadoMm = v.Numero("DiamAgregado"),
         };
-        foreach (var x in RegrasCobrimento.Verificar(dc)) lista.Add(x, true);
+        foreach (var x in RegrasCobrimento.Verificar(dc)) lista.Add(x, false);
         foreach (var a in lista.Avisos()) Aviso(r, a);
+        r.Verificacoes.Juntar(lista);
+    }
+
+    /// <summary>
+    /// Consolos (NBR 9062, 7.3; Etapa 2 das verificações): uma vez por tipo usado no pilar, pelas regras únicas do núcleo
+    /// (<see cref="VerificacoesConsolo"/>). Cobrimento do consolo = o menor das faces do pilar.
+    /// </summary>
+    private static void VerificarConsolos(ResultadoTemplate r, ValoresTemplate v, List<ConsoloPilar> consolos, double[] cob)
+    {
+        var lista = new ListaVerificacoes();
+        foreach (var k in consolos.GroupBy(x => x.Tipo).Select(g => g.First()))
+        {
+            var dados = new DadosConsolo
+            {
+                Nome = k.Tipo, B = k.B, A = k.A, H = k.H, H1 = k.H1, Cob = cob.Take(4).Min(),
+                TirN = k.TirN, TirPhi = k.TirPhi, TirAlca = k.Laco, CostN = k.CostN, CostPhi = k.CostPhi, VertN = k.VertN, VertPhi = k.VertPhi,
+                FckMPa = v.Numero("Fck"), FykMPa = TabelasNbr.Fyk(v["LongAco"]),
+            };
+            foreach (var x in VerificacoesConsolo.Verificar(dados)) lista.Add(x);
+        }
+        foreach (var a in lista.Avisos()) Aviso(r, a);
+        r.Verificacoes.Juntar(lista);
     }
 
     /// <summary>
@@ -553,17 +576,18 @@ public sealed partial class TemplatePilarPreMoldado
             pior = Math.Min(pior, viz.d - RaioFeixe(a.Bitola, a.Feixe) - RaioFeixe(viz.x.Bitola, viz.x.Feixe));
             maiorEixo = Math.Max(maiorEixo, viz.d);
         }
-        lista.Add(VP.EspacamentoLivre(pior * 10, phiMax, diamAg), true);
-        lista.Add(VP.EspacamentoEixos(maiorEixo * 10, menor * 10), true);
+        lista.Add(VP.EspacamentoLivre(pior * 10, phiMax, diamAg), false);
+        lista.Add(VP.EspacamentoEixos(maiorEixo * 10, menor * 10), false);
         // taxa geométrica da seção (nas emendas as duas barras estão na seção: P8 conta a sobreposição)
         double asMm2 = barras.Sum(x => x.Feixe * Math.PI * x.Bitola * x.Bitola / 4), acMm2 = b * h * 100;
-        lista.Add(VP.TaxaMinima(asMm2, acMm2), true);
-        lista.Add(VP.TaxaMaxima(asMm2, acMm2), true);
+        lista.Add(VP.TaxaMinima(asMm2, acMm2), false);
+        lista.Add(VP.TaxaMaxima(asMm2, acMm2), false);
         // proteção contra flambagem: barras a mais de 20 φt de um canto pedem grampo
         var cantos = barras.Where(x => x.Arranjo == ArrCantos).ToList();
         if (cantos.Count > 0 && !grampos)
             lista.Add(VP.ProtecaoFlambagem(barras.Where(x => x.Arranjo != ArrCantos)
-                .Any(x => cantos.Min(cn => Math.Max(Math.Abs(cn.X - x.X), Math.Abs(cn.Y - x.Y))) > 20 * phiT / 10 + 1e-6)), true);
+                .Any(x => cantos.Min(cn => Math.Max(Math.Abs(cn.X - x.X), Math.Abs(cn.Y - x.Y))) > 20 * phiT / 10 + 1e-6)), false);
         foreach (var m in lista.Avisos()) Aviso(r, m);
+        r.Verificacoes.Juntar(lista);
     }
 }

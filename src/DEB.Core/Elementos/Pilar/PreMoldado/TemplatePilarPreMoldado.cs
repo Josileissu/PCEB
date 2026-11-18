@@ -169,6 +169,23 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
     public static int ToleranciaComprimento(double lCm) => lCm <= 500 ? 10 : lCm <= 1000 ? 15 : 20;
 
 
+    /// <summary>Cabeçalho do relatório de verificação do grupo (D37): seção, comprimento, materiais, classe e cobrimentos.</summary>
+    private static void DadosParaRelatorio(ResultadoTemplate r, ValoresTemplate v)
+    {
+        string N(string k, string f = "0.##") => KitDesenho.Num(v.Numero(k), f);
+        r.ElementoRelatorio = "Pilar pré-moldado";
+        void D(string rot, string val) => r.DadosRelatorio.Add(new KeyValuePair<string, string>(rot, val));
+        D("Quantidade de peças", Math.Max(1, v.Inteiro("Quantidade")).ToString());
+        D("Seção", $"{N("B")} × {N("H")} cm" + (v.Numero("Chanfro") > 0 ? $", chanfro {N("Chanfro")} cm" : ""));
+        D("Comprimento", $"{N("L")} cm");
+        D("Concreto", $"fck = {N("Fck")} MPa; fcj no saque {N("FcjSaque")} MPa; na montagem {N("FcjMontagem")} MPa");
+        D("Aço", $"longitudinais {v["LongAco"]}; estribos {v["EstAco"]}");
+        D("Agregado graúdo", $"dmáx = {N("DiamAgregado")} mm");
+        D("Classe de agressividade", string.IsNullOrWhiteSpace(v["ClasseAgressividade"]) ? "II" : v["ClasseAgressividade"]);
+        D("Relação a/c ≤ 0,45", v.SimNao("AguaCimento045") ? "sim (declarada)" : "não declarada");
+        D("Cobrimentos (faces 1 a 4; topo; base)", $"{N("CobFace1")}, {N("CobFace2")}, {N("CobFace3")}, {N("CobFace4")}; {N("CobTopo")}; {N("CobBase")} cm");
+    }
+
     public ResultadoTemplate Gerar(ValoresTemplate v, ConfiguracaoArmadura cfg)
     {
         var r = new ResultadoTemplate();
@@ -179,6 +196,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         r.Escala = escV;
         string nome = string.IsNullOrWhiteSpace(v["Nome"]) ? "PILAR" : v["Nome"].Trim();
         r.Detalhamento = nome;
+        DadosParaRelatorio(r, v);
 
         double b = v.Numero("B"), h = v.Numero("H"), L = v.Numero("L"), ch = Math.Max(0, v.Numero("Chanfro"));
         double cotaBase = v.Numero("CotaBase");
@@ -229,6 +247,7 @@ public sealed partial class TemplatePilarPreMoldado : ITemplateArmadura
         // ---------------- consolos nas vistas e as marcas dos cortes de forma na VISTA 2 ----------------
         var cob0 = Cobrimentos(v);
         var consolos = LerConsolos(v, Catalogo, L, r.Avisos);
+        VerificarConsolos(r, v, consolos, cob0);
         DesenharConsolosNasVistas(c, consolos, xs, larguras, cob0);
         // alças (pelo CG), montagem (furo ou alça de topo) e inserto do topo
         var itens = DesenharItensNasVistas(c, v, consolos, xs, larguras, b, h, L, ch);

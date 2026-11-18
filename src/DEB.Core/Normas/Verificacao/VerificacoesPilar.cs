@@ -9,6 +9,9 @@ namespace DEB.Core.Normas.Verificacao;
 /// </summary>
 public static class VerificacoesPilar
 {
+    /// <summary>Número com vírgula decimal (os textos vão para o relatório e os avisos em português).</summary>
+    private static string N(double x, string f = "0.#") => Fmt.Virgula(x, f);
+
     private const string G = "Pilar";
 
     private static ResultadoVerificacao R(string cod, string grupo, string desc, string valor, string limite, bool falha,
@@ -24,15 +27,15 @@ public static class VerificacoesPilar
     {
         double menor = Math.Min(bMm, hMm), area = bMm * hMm / 100;   // cm²
         if (menor < 140 - 1e-6 || area < 360 - 1e-6)
-            return R("P1", G, "Seção do pilar abaixo do mínimo", $"{Fmt.N(menor / 10)} cm, {Fmt.N(area, "0")} cm²",
+            return R("P1", G, "Seção do pilar abaixo do mínimo", $"{N(menor / 10)} cm, {N(area, "0")} cm²",
                      "menor dimensão ≥ 14 cm e área ≥ 360 cm²", true, "NBR 6118, 13.2.3");
         if (menor < 190 - 1e-6)
         {
             double gn = 1.95 - 0.05 * menor / 10;
-            return R("P1", G, "Menor dimensão entre 14 e 19 cm: esforços multiplicados por γn", $"{Fmt.N(menor / 10)} cm",
+            return R("P1", G, "Menor dimensão entre 14 e 19 cm: esforços multiplicados por γn", $"{N(menor / 10)} cm",
                      "≥ 19 cm", true, "NBR 6118, 13.2.3, Tab. 13.1", SituacaoVerificacao.Conferir, $"γn = {Fmt.Virgula(gn, "0.00")}.");
         }
-        return R("P1", G, "Menor dimensão do pilar", $"{Fmt.N(menor / 10)} cm", "≥ 19 cm", false, "NBR 6118, 13.2.3");
+        return R("P1", G, "Menor dimensão do pilar", $"{N(menor / 10)} cm", "≥ 19 cm", false, "NBR 6118, 13.2.3");
     }
 
     /// <summary>P2: lado maior até 5× o menor; acima disso é pilar-parede (18.5).</summary>
@@ -47,21 +50,23 @@ public static class VerificacoesPilar
     public static ResultadoVerificacao BitolaLongitudinal(double phiMm, double menorMm)
     {
         if (phiMm < 10 - 1e-6)
-            return R("P3", "Longitudinal", $"Longitudinal ø{Fmt.N(phiMm)} < 10 mm", $"ø{Fmt.N(phiMm)}", "≥ 10 mm", true, "NBR 6118, 18.4.2.1");
-        return R("P3", "Longitudinal", $"Longitudinal ø{Fmt.N(phiMm)} e 1/8 da menor dimensão", $"ø{Fmt.N(phiMm)}",
-                 $"≤ {Fmt.N(menorMm / 8)} mm", phiMm > menorMm / 8 + 1e-6, "NBR 6118, 18.4.2.1");
+            return R("P3", "Longitudinal", $"Longitudinal ø{N(phiMm)} < 10 mm", $"ø{N(phiMm)}", "≥ 10 mm", true, "NBR 6118, 18.4.2.1");
+        return R("P3", "Longitudinal", $"Longitudinal ø{N(phiMm)} e 1/8 da menor dimensão", $"ø{N(phiMm)}",
+                 $"≤ {N(menorMm / 8)} mm", phiMm > menorMm / 8 + 1e-6, "NBR 6118, 18.4.2.1");
     }
 
     /// <summary>P4: barra em cada vértice — falha quando há trecho da altura sem barra de canto (cm, a partir da base).</summary>
     public static ResultadoVerificacao Vertices(double semCantoDeCm, double ateCm) =>
-        R("P4", "Longitudinal", $"Sem barras de canto de {Fmt.N(semCantoDeCm)} a {Fmt.N(ateCm)} cm: é preciso uma barra em cada vértice",
-          "", "", ateCm > semCantoDeCm + 1e-6, "NBR 6118, 18.4.2.2");
+        ateCm > semCantoDeCm + 1e-6
+            ? R("P4", "Longitudinal", $"Sem barras de canto de {N(semCantoDeCm)} a {N(ateCm)} cm: é preciso uma barra em cada vértice",
+                "", "", true, "NBR 6118, 18.4.2.2")
+            : R("P4", "Longitudinal", "Barra em cada vértice em toda a altura", "", "", false, "NBR 6118, 18.4.2.2");
 
     /// <summary>P5: espaçamento livre ≥ max(20 mm; φ, φ do feixe φ√n ou da luva; 1,2·dmáx do agregado), também nas emendas.</summary>
     public static ResultadoVerificacao EspacamentoLivre(double livreMm, double phiEqMaxMm, double agregadoMm)
     {
         double min = Math.Max(20, Math.Max(phiEqMaxMm, 1.2 * agregadoMm));
-        return R("P5", "Longitudinal", "Espaçamento livre entre barras", $"{Fmt.N(livreMm, "0.#")} mm", $"≥ {Fmt.N(min, "0.#")} mm",
+        return R("P5", "Longitudinal", "Espaçamento livre entre barras", $"{N(livreMm, "0.#")} mm", $"≥ {N(min, "0.#")} mm",
                  livreMm < min - 1e-6, "NBR 6118, 18.4.2.2");
     }
 
@@ -69,7 +74,7 @@ public static class VerificacoesPilar
     public static ResultadoVerificacao EspacamentoEixos(double maiorMm, double menorLadoMm)
     {
         double max = Math.Min(2 * menorLadoMm, 400);
-        return R("P6", "Longitudinal", "Espaçamento entre eixos das barras longitudinais", $"{Fmt.N(maiorMm, "0")} mm", $"≤ {Fmt.N(max, "0")} mm",
+        return R("P6", "Longitudinal", "Espaçamento entre eixos das barras longitudinais", $"{N(maiorMm, "0")} mm", $"≤ {N(max, "0")} mm",
                  maiorMm > max + 1e-6, "NBR 6118, 18.4.2.2");
     }
 
@@ -96,11 +101,11 @@ public static class VerificacoesPilar
         {
             double sAlt = 90000 * phiTMm * phiTMm / (phiLongEqMaxMm * fykMPa);
             if (espacamentoMm <= sAlt + 1e-6)
-                return R("P12", "Estribos", $"Estribo ø{Fmt.N(phiTMm)} < φ/4, admitido pelo espaçamento", $"s = {Fmt.N(espacamentoMm, "0")} mm",
-                         $"≤ 90000·φt²/(φ·fyk) = {Fmt.N(sAlt, "0")} mm", true, "NBR 6118, 18.4.3", SituacaoVerificacao.Conferir,
+                return R("P12", "Estribos", $"Estribo ø{N(phiTMm)} < φ/4, admitido pelo espaçamento", $"s = {N(espacamentoMm, "0")} mm",
+                         $"≤ 90000·φt²/(φ·fyk) = {N(sAlt, "0")} mm", true, "NBR 6118, 18.4.3", SituacaoVerificacao.Conferir,
                          "Vale só com o mesmo tipo de aço nas longitudinais e nos estribos.");
         }
-        return R("P10", "Estribos", $"Estribo ø{Fmt.N(phiTMm)}: mínimo de 5 mm e φ/4", $"ø{Fmt.N(phiTMm)}", $"≥ {Fmt.N(min, "0.0#")} mm",
+        return R("P10", "Estribos", $"Estribo ø{N(phiTMm)}: mínimo de 5 mm e φ/4", $"ø{N(phiTMm)}", $"≥ {N(min, "0.0#")} mm",
                  falha, "NBR 6118, 18.4.3");
     }
 
@@ -110,16 +115,18 @@ public static class VerificacoesPilar
         double k = TabelasNbr.FatorEspacamentoEstriboPilar(acoLong);
         double max = Math.Min(200, Math.Min(menorLadoMm, k * phiLongMinMm));
         string onde = zona.Length > 0 ? $" ({zona})" : "";
-        return R("P11", "Estribos", $"Espaçamento dos estribos{onde}", $"{Fmt.N(sMm, "0.#")} mm",
-                 $"≤ {Fmt.N(max, "0.#")} mm = mín. de 20 cm, menor dimensão e {k:0}φ", sMm > max + 1e-6, "NBR 6118, 18.4.3");
+        return R("P11", "Estribos", $"Espaçamento dos estribos{onde}", $"{N(sMm, "0.#")} mm",
+                 $"≤ {N(max, "0.#")} mm = mín. de 20 cm, menor dimensão e {k:0}φ", sMm > max + 1e-6, "NBR 6118, 18.4.3");
     }
 
     /// <summary>P13: concretos C55 a C90 — espaçamentos máximos reduzidos em 50 % e ganchos ≥ 135°.</summary>
     public static ResultadoVerificacao ConcretoAltaResistencia(double fckMPa) =>
         R("P13", "Estribos", "Concreto do grupo II (C55 a C90): reduzir em 50 % os espaçamentos máximos dos estribos, ganchos ≥ 135°",
-          $"fck = {Fmt.N(fckMPa)} MPa", "< 55 MPa", fckMPa >= 55 - 1e-9, "NBR 6118, 18.4.3", SituacaoVerificacao.Conferir);
+          $"fck = {N(fckMPa)} MPa", "< 55 MPa", fckMPa >= 55 - 1e-9, "NBR 6118, 18.4.3", SituacaoVerificacao.Conferir);
 
     /// <summary>P14: barras a mais de 20φt do canto (ou mais de duas nesse trecho) pedem grampo suplementar.</summary>
     public static ResultadoVerificacao ProtecaoFlambagem(bool barraSemProtecao) =>
-        R("P14", "Estribos", "Há barras a mais de 20φt do canto sem grampos suplementares", "", "", barraSemProtecao, "NBR 6118, 18.2.4");
+        R("P14", "Estribos", barraSemProtecao ? "Há barras a mais de 20φt do canto sem grampos suplementares"
+                                              : "Barras protegidas contra a flambagem (até 20φt do canto ou com grampo)",
+          "", "", barraSemProtecao, "NBR 6118, 18.2.4");
 }

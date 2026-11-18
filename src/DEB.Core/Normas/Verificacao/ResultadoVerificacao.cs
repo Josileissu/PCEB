@@ -60,4 +60,19 @@ public sealed class ListaVerificacoes : List<ResultadoVerificacao>
         this.Where(r => r.Situacao != SituacaoVerificacao.Ok).Select(r => r.Mensagem).Distinct();
 
     public void Add(ResultadoVerificacao r, bool soFalhas) { if (r != null && (!soFalhas || r.Situacao != SituacaoVerificacao.Ok)) Add(r); }
+
+    /// <summary>
+    /// Junta resultados de várias seções/trechos no relatório: uma linha por (código, descrição), ficando o pior (a mesma regra
+    /// conferida em 5 seções aparece uma vez, com o valor do caso mais desfavorável).
+    /// </summary>
+    public void Juntar(IEnumerable<ResultadoVerificacao> novos)
+    {
+        foreach (var r in novos)
+        {
+            if (r == null) continue;
+            int i = FindIndex(x => x.Codigo == r.Codigo && x.Descricao == r.Descricao);
+            if (i < 0) Add(r);
+            else if (r.Situacao > this[i].Situacao) this[i] = r;
+        }
+    }
 }

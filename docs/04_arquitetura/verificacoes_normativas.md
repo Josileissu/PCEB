@@ -81,6 +81,12 @@ argamassa 0,5·Fd, a seco 0,8·Fd). Enquanto a família não tiver o apoio, C3/C
 | C16 | Armadura no elemento-suporte | barras no pilar com As ≥ As,tir na face do consolo | 9062 7.3.3.14, Fig. 20 | Não atende |
 | C17 | Ancoragem do tirante no pilar | lb pela 6118 (no duplo, passante) | 9062 7.3.5.5 | Não atende |
 
+**Etapa 2 (18/11/2026, `VerificacoesConsolo`)**: implementadas C1 (sem a2 = limite rigoroso, "Conferir"), C2 (informativa,
+a/d ≤ balanço/d), C6/C7 (bitola e espaçamento pela ancoragem), C9 (pelo eixo do tirante), C10, C11 (0,4 ou 0,5 conforme a/d),
+C13 e C15 ("Conferir": leitura da taxa a confirmar no livro de comentários). Uma vez por tipo de consolo no template do CAD e
+por geometria no Revit (substituíram as verificações avulsas do `Check`). Ficam para o apoio na família (PC2): C3, C4, C5; para
+depois: C8 (alça vertical, o catálogo não tem), C12, C14, C16, C17.
+
 ## V — Viga pré-moldada (depois do template P2-8)
 | Cód. | Verificação | Limite | Referência | Falha |
 |---|---|---|---|---|
@@ -144,10 +150,15 @@ Os mesmos `ResultadoVerificacao` alimentam quatro saídas, do mais curto ao mais
 | 3. **Memorial de detalhamento da obra** | um documento por obra | premissas (normas e edições, materiais, classe, cobrimentos, regras do escritório), índice das peças com o selo de cada uma, lista das pendências "Conferir" com **aceite do engenheiro e comentário** (rastreabilidade: quem aceitou, quando, por quê) |
 | 4. **Memorial de cálculo** (fase de cálculo) | idem | cada verificação com fórmula → "onde:" → números substituídos → resultado (formato visto no Gtool3D e no Precast Design); o `ResultadoVerificacao` ganha os campos `Formula` e `Memoria` |
 
-Pontos a decidir com o usuário:
-- **Formato principal**: HTML imprimível (simples, abre em qualquer lugar, vira PDF) ou Word/Excel? Bilíngue como as pranchas
-  (PT/EN) ou só português?
-- **Quadro na prancha**: um quadro resumido de verificações (selo + pendências) na folha da peça, ou só no relatório?
-- **Aceite das pendências**: onde guardar o aceite do engenheiro — no modelo (parâmetro `SD_` na peça, Revit; XData no CAD)
-  ou num arquivo da obra ao lado do modelo?
-- **Granularidade**: um relatório por grupo de peças iguais (como as pranchas) ou um por peça?
+Respostas (D37): HTML, só português; um relatório por grupo de peças iguais; aceite das pendências num arquivo da obra.
+
+### Nível 2 implementado (18/11/2026)
+- Núcleo: `DEB.Core/Documentacao/RelatorioVerificacao.cs` — `RelatorioGrupo` (marca, elemento, dados, verificações),
+  `RelatorioHtml.Gerar/Gravar` (uma página sem arquivos externos; selo geral; pendências no topo; tabelas por grupo com valor,
+  limite, situação e norma; impressão em PDF pelo navegador ou PDF24) e `AceitesObra` (`PCEB_aceites.json` na pasta da obra:
+  marca, código, descrição, valor, engenheiro, data, comentário — o aceite só vale enquanto descrição e valor forem os mesmos).
+- Arquivo: `<pasta da obra>\Relatórios PCEB\Verificação - <marca>.html`.
+- CAD: `ARMTEMPLATE` grava na pasta do DWG (desenho sem nome: Documentos\PCEB); `ARMIMPORTARPECAS`, na pasta do arquivo de peças.
+- Revit: o detalhamento dos pilares grava um por grupo na pasta do .rvt (testar no PC2).
+- Só o pilar pré-moldado preenche as verificações por enquanto (`ResultadoTemplate.Verificacoes`/`DadosRelatorio`).
+- Falta: tela para registrar o aceite (hoje editando o JSON); quadro resumido na prancha; viga e consolo.

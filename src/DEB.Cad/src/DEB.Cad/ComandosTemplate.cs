@@ -48,6 +48,7 @@ public sealed class ComandosTemplate
                             (resultado.Detalhamento.Length > 0 ? $" no detalhamento \"{resultado.Detalhamento}\"." : "."));
         }
         foreach (var a in resultado.Avisos) ed.WriteMessage("\nAviso: " + a);
+        GravarRelatorio(ed, db, resultado, f.Valores["Nome"]);
         // todo elemento desenhado fica salvo como modelo no arquivo do template (pelo nome; o mesmo nome é atualizado)
         try
         {
@@ -463,6 +464,29 @@ public sealed class ComandosTemplate
         else if (atualizarRA) Relacao.ServicoRA.Atualizar(db, tr, cfg);
         return ids;
     }
+
+    /// <summary>
+    /// Relatório de verificação do grupo (D37) na pasta do desenho (\Relatórios PCEB); desenho ainda sem nome: em
+    /// Documentos\PCEB. Só para os templates que preenchem as verificações (pilar pré-moldado, por enquanto).
+    /// </summary>
+    internal static void GravarRelatorio(Editor ed, Database db, ResultadoTemplate r, string marca)
+    {
+        var relat = RelatorioHtml.DoTemplate(r, marca, "template do CAD (" + (string.IsNullOrEmpty(db.Filename) ? "desenho sem nome" : Path.GetFileName(db.Filename)) + ")");
+        if (relat == null) return;
+        try
+        {
+            string dwg = db.Filename ?? "";
+            string pasta = dwg.EndsWith(".dwg", StringComparison.OrdinalIgnoreCase) && File.Exists(dwg)
+                ? Path.GetDirectoryName(dwg)
+                : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PCEB");
+            ed.WriteMessage($"\nRelatório de verificação ({RotuloSituacao(relat.Verificacoes.Geral)}): {RelatorioHtml.Gravar(relat, pasta)}");
+        }
+        catch (Exception ex) { ed.WriteMessage("\nRelatório de verificação não gravado: " + ex.Message); }
+    }
+
+    private static string RotuloSituacao(DEB.Core.Normas.Verificacao.SituacaoVerificacao s) =>
+        s == DEB.Core.Normas.Verificacao.SituacaoVerificacao.NaoAtende ? "NÃO ATENDE"
+        : s == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Conferir ? "CONFERIR" : "OK";
 
     /// <summary>Nome de bloco para um detalhamento: sem as pontas em branco e com "-" no lugar dos caracteres que o CAD não aceita.</summary>
     internal static string NomeDeBloco(string nome) =>

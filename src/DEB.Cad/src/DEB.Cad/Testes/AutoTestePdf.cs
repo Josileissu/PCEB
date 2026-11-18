@@ -189,6 +189,27 @@ public sealed class AutoTestePdf
         finally { HostApplicationServices.WorkingDatabase = antigo; }
     }
 
+    /// <summary>
+    /// Diagnóstico: mídias da impressora ARM_PDFLOTE_IMPRESSORA (padrão PDF24) com o tamanho e as margens que o CAD considera,
+    /// em ARM_MIDIAS_SAIDA (arquivo); depois encerra a própria instância de teste.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEMIDIAS", Rt.CommandFlags.Session)]
+    public void Midias()
+    {
+        var linhas = new List<string>();
+        try
+        {
+            string imp = Environment.GetEnvironmentVariable("ARM_PDFLOTE_IMPRESSORA");
+            if (string.IsNullOrEmpty(imp)) imp = "PDF24";
+            linhas.Add("impressora " + imp);
+            linhas.AddRange(PlotadorPdf.ListarMidias(imp));
+        }
+        catch (Exception ex) { linhas.Add("ERRO: " + ex); }
+        string saida = Environment.GetEnvironmentVariable("ARM_MIDIAS_SAIDA");
+        if (!string.IsNullOrEmpty(saida)) File.WriteAllLines(saida, linhas);
+        if (!string.IsNullOrEmpty(saida)) System.Diagnostics.Process.GetCurrentProcess().Kill();
+    }
+
     [Rt.CommandMethod("ARMTESTEPDFLOTE", Rt.CommandFlags.Session)]
     public void Lote()
     {

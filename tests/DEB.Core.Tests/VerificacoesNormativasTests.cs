@@ -135,3 +135,51 @@ public class SuspensaoDenteTests
         Assert.Equal(25 + 20, xs[2] + e, 6);                          // o próximo passo cai no 1º estribo da alma, no fim do trecho
     }
 }
+
+/// <summary>Consolo (NBR 9062 7.3), sem esforços: Etapa 2 das verificações.</summary>
+public class VerificacoesConsoloTests
+{
+    // consolo duplo do catálogo (P61): 40 x 23,5 x 25, tirante 5 ø16 com barra soldada, costura 4 ø8, verticais 5 ø6,3
+    private static DadosConsolo P61() => new DadosConsolo
+    {
+        Nome = "CD 40x23,5x25", B = 40, A = 25, H = 23.5, H1 = 23.5, Cob = 3.5, TirN = 5, TirPhi = 16, TirAlca = false,
+        CostN = 4, CostPhi = 8, VertN = 5, VertPhi = 6.3, FckMPa = 40, FykMPa = 500,
+    };
+
+    private static ResultadoVerificacao Cod(System.Collections.Generic.List<ResultadoVerificacao> l, string c, string inicio = "") =>
+        l.First(x => x.Codigo == c && x.Descricao.StartsWith(inicio));
+
+    [Fact]
+    public void ConsoloDoCatalogoAtende()
+    {
+        var r = VerificacoesConsolo.Verificar(P61());
+        Assert.DoesNotContain(r, x => x.Situacao == SituacaoVerificacao.NaoAtende);
+        Assert.Equal(SituacaoVerificacao.Ok, Cod(r, "C9").Situacao);         // eixo a 3,5 + 0,8 = 4,3 ≤ 23,5/5 = 4,7
+        Assert.Equal(SituacaoVerificacao.Ok, Cod(r, "C13").Situacao);
+    }
+
+    [Fact]
+    public void TiranteConformeAAncoragem()
+    {
+        var c = P61(); c.TirPhi = 25; c.TirAlca = true;                       // alça: φ ≤ mín(23,5/8 = 2,94 cm; 25 mm)
+        Assert.Equal(SituacaoVerificacao.Ok, Cod(VerificacoesConsolo.Verificar(c), "C6", "Bitola").Situacao);
+        c.H = 18; c.H1 = 18;                                                   // b mín 18 → 18/8 = 22,5 mm < 25
+        Assert.Equal(SituacaoVerificacao.NaoAtende, Cod(VerificacoesConsolo.Verificar(c), "C6", "Bitola").Situacao);
+        c.TirAlca = false;                                                     // soldada: 18/6 = 30 → 25 mm
+        Assert.Equal(SituacaoVerificacao.Ok, Cod(VerificacoesConsolo.Verificar(c), "C7", "Bitola").Situacao);
+    }
+
+    [Fact]
+    public void QuintoDaAlturaCosturaETaxaMecanica()
+    {
+        var c = P61(); c.H = 18; c.H1 = 18;                                    // h/5 = 3,6 < 4,3
+        var r = VerificacoesConsolo.Verificar(c);
+        Assert.Equal(SituacaoVerificacao.NaoAtende, Cod(r, "C9").Situacao);
+        c = P61(); c.CostN = 0;
+        Assert.Equal(SituacaoVerificacao.NaoAtende, Cod(VerificacoesConsolo.Verificar(c), "C11").Situacao);
+        c = P61(); c.TirN = 2; c.TirPhi = 8;                                    // ω = 1,005/(40·19,2)·500/40 ≈ 0,016
+        Assert.Equal(SituacaoVerificacao.NaoAtende, Cod(VerificacoesConsolo.Verificar(c), "C13").Situacao);
+        c = P61(); c.H1 = 10;                                                  // face externa < h/2 (sem a2): conferir
+        Assert.Equal(SituacaoVerificacao.Conferir, Cod(VerificacoesConsolo.Verificar(c), "C1").Situacao);
+    }
+}

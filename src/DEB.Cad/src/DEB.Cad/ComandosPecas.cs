@@ -52,7 +52,7 @@ public sealed class ComandosPecas
             op.Keywords.Default = "Manter";
             var rk = ed.GetKeywords(op);
             return rk.Status == PromptStatus.OK && rk.StringResult == "Substituir";
-        });
+        }, System.IO.Path.GetDirectoryName(caminho));
         if (rel.CatalogosAlterados) Plugin.SalvarConfig();   // dentes/consolos criados na importação ficam no catálogo do usuário
         foreach (var l in rel.Linhas) ed.WriteMessage("\n" + l);
         foreach (var a in rel.Avisos) ed.WriteMessage("\nAviso: " + a);
@@ -72,6 +72,8 @@ public sealed class ComandosPecas
         public List<string> Substituidos { get; } = new List<string>();
         /// <summary>Resposta do usuário para os que mudaram: substituir (true) ou manter os dois.</summary>
         public bool Substituir { get; set; }
+        /// <summary>Pasta da obra (a do arquivo de peças): relatório de verificação por grupo (D37); null = sem relatório.</summary>
+        public string PastaObra { get; set; }
         /// <summary>Tempos da importação (log): gerar os templates, desenhar e a relação do aço do fim.</summary>
         public System.Diagnostics.Stopwatch TempoGerar { get; } = new System.Diagnostics.Stopwatch();
         public System.Diagnostics.Stopwatch TempoDesenhar { get; } = new System.Diagnostics.Stopwatch();
@@ -83,9 +85,9 @@ public sealed class ComandosPecas
     /// false (ou null) = manter os dois (o novo entra como "nome (2)"). Os que não mudaram nunca são redesenhados.
     /// </param>
     internal static Relatorio Importar(Database db, ConfiguracaoArmadura cfg, ArquivoPecas arq, Point3d origem,
-        Func<IReadOnlyList<string>, bool> perguntarSubstituir = null)
+        Func<IReadOnlyList<string>, bool> perguntarSubstituir = null, string pastaObra = null)
     {
-        var rel = new Relatorio();
+        var rel = new Relatorio { PastaObra = pastaObra };
         var mudaram = arq.Pilares.Select(p => (p.Marca, A: AssinaturaPeca.De(p))).Concat(arq.Vigas.Select(v => (v.Marca, A: AssinaturaPeca.De(v))))
             .Where(x => { var ex = Existente(db, ComandosTemplate.NomeDeBloco(x.Marca)); return ex.Existe && AssinaturaPeca.Importado(ex.Comentarios) && AssinaturaPeca.DoComentario(ex.Comentarios) != x.A; })
             .Select(x => x.Marca).ToList();
@@ -234,6 +236,14 @@ public sealed class ComandosPecas
             r.DadosDetalhamento.Repeticoes = g.Quantidade;
             r.DadosDetalhamento.Sistema = SistemaConstrutivo.PreMoldado;
             r.DadosDetalhamento.Comentarios = AssinaturaPeca.Comentario(arq.Origem, arq.Data, g.Elementos.Select(e => e.Id), g.Assinatura);
+            if (rel.PastaObra != null)
+            {
+                // relatório de verificação do grupo (D37), ao lado do arquivo de peças; falha aqui não impede o desenho
+                var relat = RelatorioHtml.DoTemplate(r, g.Marca, $"importado de {arq.Origem} ({g.Quantidade} peça(s))");
+                if (relat != null)
+                    try { rel.Linhas.Add($"  {g.Marca}: relatório {RelatorioHtml.Gravar(relat, rel.PastaObra)}"); }
+                    catch (Exception exr) { rel.Avisos.Add($"{g.Marca}: relatório de verificação não gravado — {exr.Message}"); }
+            }
 
             double y = topoNaOrigem ? p0.Y - Topo(r) / cpu : p0.Y;
             double xDesenho = x;

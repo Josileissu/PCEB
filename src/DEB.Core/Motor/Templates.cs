@@ -270,6 +270,12 @@ public sealed class ResultadoTemplate
     public (double X, double Y)? ColunaDetalhes { get; set; }
     /// <summary>Avisos ao usuário (valores fora do padrão, verificações).</summary>
     public List<string> Avisos { get; } = new List<string>();
+    /// <summary>Todas as verificações normativas da peça, inclusive as OK (relatório por grupo, D37).</summary>
+    public DEB.Core.Normas.Verificacao.ListaVerificacoes Verificacoes { get; } = new DEB.Core.Normas.Verificacao.ListaVerificacoes();
+    /// <summary>Dados da peça para o cabeçalho do relatório (seção, comprimento, materiais…), na ordem de exibição.</summary>
+    public List<KeyValuePair<string, string>> DadosRelatorio { get; } = new List<KeyValuePair<string, string>>();
+    /// <summary>Tipo da peça para o relatório ("Pilar pré-moldado"); vazio = sem relatório.</summary>
+    public string ElementoRelatorio { get; set; } = "";
 }
 
 /// <summary>

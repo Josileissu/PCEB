@@ -170,6 +170,11 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   mudam quando os formulários do Windows são recriados. A janela lê as folhas da impressora escolhida (`PlotadorPdf.NomesMidias`;
   sem desenho aberto, `DeviceCapabilities` do driver) e a linha cuja folha falta avisa "crie as folhas na impressora" (o
   Exportar pergunta antes de seguir).
+- **Escala** (18/11): com a moldura reconhecida, escala EXATA (moldura = papel, `SetCustomPrintScale`); sem moldura, "ajustar à
+  folha". O GstarCAD reserva 3,2 mm de cada lado nos papéis personalizados da PDF24 (o driver informa 0): com "ajustar" o PDF saía
+  a 98,9 % e com borda. Em escala exata nada é cortado (testado: A4 29,7 × 21 ocupa a página toda). Diagnóstico das margens por
+  mídia: `ARMTESTEMIDIAS` (`ARM_MIDIAS_SAIDA`). Os .pc3/.pmp do GstarCAD são serialização MFC com estruturas cruas da memória
+  (não dá para gravar folhas com segurança): a impressora do lote no GstarCAD continua a PDF24.
 - **Impressora** (17/11): GstarCAD/ZWCAD = PDF24 (campo `Impressora` do pdflote.json). **AutoCAD** = combo com a
   "AutoCAD PDF (High Quality Print).pc3" (padrão) e a PDF24, se instalada; a escolha fica em `ImpressoraAutoCad` (o mesmo
   pdflote.json serve aos dois CADs; `ConfigLotePdf.ImpressoraLote` escolhe pelo hospedeiro). Com a .pc3 o lote plota para
