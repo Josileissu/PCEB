@@ -25,7 +25,7 @@ internal static class PainelComandos
         ("Relação do aço", new[] { ("Inserir", "ARMRAINSERIR"), ("Atualizar", "ARMRAATUALIZAR"), ("Parcial", "ARMRAPARCIAL"),
                                    ("Associar", "ARMRAASSOCIAR"), ("Bloquear", "ARMRABLOQUEAR"), ("Corte e dobra", "ARMCORTEDOBRA") }),
         ("Detalhamentos", new[] { ("Criar", "ARMDETCRIAR"), ("Gerenciar", "ARMDETGERENCIAR"), ("Templates", "ARMTEMPLATE"), ("Consolos", "ARMCONSOLOS"), ("Insertos", "ARMINSERTOS"), ("Dentes", "ARMDENTES") }),
-        ("Geral", new[] { ("Importar .cad", "ARMIMPORTARCAD"), ("PDFs em lote", "ARMPDFLOTE"), ("Paleta prop.", "ARMPALETA"), ("Prop. rápida", "ARMPALETARAPIDA"), ("Configuração", "ARMCONFIG"), ("Sobre", "ARMSOBRE") }),
+        ("Geral", new[] { ("Importar .cad", "ARMIMPORTARCAD"), ("PDFs em lote", "ARMPDFLOTE"), ("Aceites", "ARMACEITES"), ("Paleta prop.", "ARMPALETA"), ("Prop. rápida", "ARMPALETARAPIDA"), ("Configuração", "ARMCONFIG"), ("Sobre", "ARMSOBRE") }),
     };
 
     private static PaletteSet _ps;

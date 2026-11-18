@@ -104,39 +104,31 @@ public static class RelatorioHtml
         Directory.CreateDirectory(pasta);
         string caminho = Path.Combine(pasta, NomeArquivo(g.Marca));
         File.WriteAllText(caminho, Gerar(g, AceitesObra.Ler(pastaObra)), new UTF8Encoding(true));
+        // dados do grupo e índice da obra (tela do aceite); falha aqui não tira o relatório já gravado
+        try { RelatoriosObra.GravarDados(g, pastaObra); RelatoriosObra.GravarIndice(pastaObra); } catch { }
         return caminho;
     }
 
     /// <summary>Escape mínimo (o arquivo é UTF-8: acentos ficam legíveis, sem &amp;#224;).</summary>
-    private static string H(string s) => (s ?? "").Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
+    internal static string H(string s) => (s ?? "").Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;").Replace("\"", "&quot;");
 
-    private static string Selo(SituacaoVerificacao s) => s switch
+    internal static string Selo(SituacaoVerificacao s) => s switch
     {
         SituacaoVerificacao.NaoAtende => "NÃO ATENDE",
         SituacaoVerificacao.Conferir => "CONFERIR",
         _ => "OK",
     };
 
-    private static string Classe(SituacaoVerificacao s) => s switch
+    internal static string Classe(SituacaoVerificacao s) => s switch
     {
         SituacaoVerificacao.NaoAtende => "na", SituacaoVerificacao.Conferir => "cf", _ => "ok",
     };
 
-    public static string Gerar(RelatorioGrupo g, AceitesObra aceites = null)
+    /// <summary>Início da página (estilo comum do relatório do grupo e do índice da obra).</summary>
+    internal static void Cabecalho(StringBuilder sb, string titulo)
     {
-        aceites ??= new AceitesObra();
-        var lista = g.Verificacoes ?? new ListaVerificacoes();
-        // situação de cada linha considerando os aceites: "Conferir" aceito conta como OK no selo geral
-        AceitePendencia Aceite(ResultadoVerificacao r) => r.Situacao == SituacaoVerificacao.Conferir ? aceites.Encontrar(g.Marca, r) : null;
-        var efetiva = lista.Select(r => Aceite(r) != null ? SituacaoVerificacao.Ok : r.Situacao).DefaultIfEmpty(SituacaoVerificacao.Ok).Max();
-        int nNa = lista.Count(r => r.Situacao == SituacaoVerificacao.NaoAtende);
-        int nCf = lista.Count(r => r.Situacao == SituacaoVerificacao.Conferir && Aceite(r) == null);
-        int nAc = lista.Count(r => Aceite(r) != null);
-        int nOk = lista.Count(r => r.Situacao == SituacaoVerificacao.Ok);
-
-        var sb = new StringBuilder();
         sb.Append("<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n<meta charset=\"utf-8\">\n");
-        sb.Append($"<title>Verificação - {H(g.Marca)}</title>\n");
+        sb.Append($"<title>{H(titulo)}</title>\n");
         sb.Append(@"<style>
 :root { --tinta: #1d2430; --suave: #5b6576; --linha: #d9dee6; --fundo: #ffffff; --faixa: #f4f6f9;
         --ok: #1f7a3f; --ok-f: #e6f4ea; --cf: #8a5a00; --cf-f: #fff4dc; --na: #a8221a; --na-f: #fde8e6; }
@@ -164,6 +156,7 @@ td.cod { font-family: Consolas, monospace; white-space: nowrap; }
 .sit.ok { color: var(--ok); } .sit.cf { color: var(--cf); } .sit.na { color: var(--na); }
 tr.na td { background: var(--na-f); } tr.cf td { background: var(--cf-f); }
 .dica { color: var(--suave); font-size: 12px; margin-top: 2px; }
+a { color: inherit; }
 .aceite { color: var(--ok); font-size: 12px; margin-top: 2px; }
 footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px solid var(--linha); padding-top: 8px; }
 @media print { body { padding: 0; } tr { break-inside: avoid; } }
@@ -172,6 +165,22 @@ footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px
 <body>
 <main>
 ");
+    }
+
+    public static string Gerar(RelatorioGrupo g, AceitesObra aceites = null)
+    {
+        aceites ??= new AceitesObra();
+        var lista = g.Verificacoes ?? new ListaVerificacoes();
+        // situação de cada linha considerando os aceites: "Conferir" aceito conta como OK no selo geral
+        AceitePendencia Aceite(ResultadoVerificacao r) => r.Situacao == SituacaoVerificacao.Conferir ? aceites.Encontrar(g.Marca, r) : null;
+        var efetiva = lista.Select(r => Aceite(r) != null ? SituacaoVerificacao.Ok : r.Situacao).DefaultIfEmpty(SituacaoVerificacao.Ok).Max();
+        int nNa = lista.Count(r => r.Situacao == SituacaoVerificacao.NaoAtende);
+        int nCf = lista.Count(r => r.Situacao == SituacaoVerificacao.Conferir && Aceite(r) == null);
+        int nAc = lista.Count(r => Aceite(r) != null);
+        int nOk = lista.Count(r => r.Situacao == SituacaoVerificacao.Ok);
+
+        var sb = new StringBuilder();
+        Cabecalho(sb, "Verificação - " + g.Marca);
         sb.Append("<header>\n<div>\n");
         sb.Append($"<h1>Verificação normativa — {H(g.Marca)}</h1>\n");
         sb.Append($"<div class=\"sub\">{H(g.Elemento)} · detalhamento sem cálculo de esforços (NBR 6118:2023, NBR 9062:2017)</div>\n");
@@ -220,7 +229,7 @@ footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px
         sb.Append("<footer>\n");
         sb.Append($"Gerado pelo PCEB em {g.Data:dd/MM/yyyy HH:mm}" + (string.IsNullOrWhiteSpace(g.Origem) ? "" : $" · {H(g.Origem)}") + ".<br>\n");
         sb.Append("Verificações do desenho pela norma, sem esforços: os limites que dependem de esforço aparecem como \"Conferir\" com o " +
-                  $"limite mais rigoroso. Aceites das pendências: arquivo {AceitesObra.NomeArquivo} na pasta da obra.\n");
+                  $"limite mais rigoroso. Aceites das pendências: arquivo {AceitesObra.NomeArquivo} na pasta da obra (comando ARMACEITES no CAD).\n");
         sb.Append("</footer>\n</main>\n</body>\n</html>\n");
         return sb.ToString();
     }

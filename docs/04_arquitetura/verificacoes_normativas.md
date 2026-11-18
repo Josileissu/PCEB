@@ -167,4 +167,10 @@ Respostas (D37): HTML, só português; um relatório por grupo de peças iguais;
 - CAD: `ARMTEMPLATE` grava na pasta do DWG (desenho sem nome: Documentos\PCEB); `ARMIMPORTARPECAS`, na pasta do arquivo de peças.
 - Revit: o detalhamento dos pilares grava um por grupo na pasta do .rvt (testar no PC2).
 - Só o pilar pré-moldado preenche as verificações por enquanto (`ResultadoTemplate.Verificacoes`/`DadosRelatorio`).
-- Falta: tela para registrar o aceite (hoje editando o JSON); quadro resumido na prancha; viga e consolo.
+- **Tela do aceite** (18/11/2026): comando `ARMACEITES` no CAD (botão "Aceites" da paleta, grupo Geral). Lista as pendências
+  "Conferir" de todos os relatórios da pasta da obra (a do DWG, ou outra escolhida na janela); o engenheiro marca, comenta e
+  grava. O núcleo (`DEB.Core/Documentacao/RelatoriosObra.cs`) guarda os dados de cada grupo em `Relatórios PCEB\dados\<marca>.json`
+  (gravados junto com o HTML), aplica as decisões no `PCEB_aceites.json`, regrava os relatórios e o índice
+  `Relatórios PCEB\Verificações da obra.html` (selo de cada peça, pendências em aberto e aceitas). "Não atende" não pode ser
+  aceito: corrige-se a peça. Como lê a pasta, serve também para os relatórios gravados pelo Revit (pasta do .rvt).
+- Falta: quadro resumido na prancha.
