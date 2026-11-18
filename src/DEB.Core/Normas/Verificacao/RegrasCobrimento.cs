@@ -27,6 +27,9 @@ public sealed class DadosCobrimento
 /// </summary>
 public static class RegrasCobrimento
 {
+    /// <summary>Número com vírgula decimal (os textos vão para o relatório e os avisos em português).</summary>
+    private static string N(double x, string f = "0.#") => Fmt.Virgula(x, f);
+
     /// <summary>Mínimos absolutos da NBR 9062, 9.2.1.1.2, para concreto armado (mm).</summary>
     private static double MinimoAbsoluto(ElementoCobrimento e) => e == ElementoCobrimento.Laje ? 15 : 20;
 
@@ -61,17 +64,17 @@ public static class RegrasCobrimento
         {
             Codigo = reduzido ? "G2" : "G1", Grupo = "Cobrimento",
             Descricao = $"Cobrimento nominal, classe de agressividade {classe}",
-            Valor = $"{Fmt.N(d.CobrimentoMm)} mm", Limite = $"≥ {Fmt.N(exig)} mm",
+            Valor = $"{N(d.CobrimentoMm)} mm", Limite = $"≥ {N(exig)} mm",
             Situacao = d.CobrimentoMm < exig - 1e-6 ? SituacaoVerificacao.NaoAtende
                      : reduzido && d.CobrimentoMm < tab - 1e-6 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.Ok,
             Referencia = reduzido ? "NBR 6118, Tab. 7.2; NBR 9062, 9.2.1.1" : "NBR 6118, 7.4.7.2, Tab. 7.2",
-            Dica = reduzido ? $"Tabela 7.2: {Fmt.N(tab)} mm; reduções aplicadas: {red}." : "",
+            Dica = reduzido ? $"Tabela 7.2: {N(tab)} mm; reduções aplicadas: {red}." : "",
         };
         if (d.MaiorBitolaMm > 0)
             yield return new ResultadoVerificacao
             {
                 Codigo = "G3", Grupo = "Cobrimento", Descricao = "Cobrimento maior ou igual à bitola (ou ao φ do feixe)",
-                Valor = $"{Fmt.N(d.CobrimentoMm)} mm", Limite = $"≥ {Fmt.N(d.MaiorBitolaMm)} mm",
+                Valor = $"{N(d.CobrimentoMm)} mm", Limite = $"≥ {N(d.MaiorBitolaMm)} mm",
                 Situacao = d.CobrimentoMm < d.MaiorBitolaMm - 1e-6 ? SituacaoVerificacao.NaoAtende : SituacaoVerificacao.Ok,
                 Referencia = "NBR 6118, 7.4.7.5",
             };
@@ -79,7 +82,7 @@ public static class RegrasCobrimento
             yield return new ResultadoVerificacao
             {
                 Codigo = "G4", Grupo = "Cobrimento", Descricao = "Agregado graúdo dmáx ≤ 1,2 × cobrimento",
-                Valor = $"{Fmt.N(d.AgregadoMm)} mm", Limite = $"≤ {Fmt.N(1.2 * d.CobrimentoMm)} mm",
+                Valor = $"{N(d.AgregadoMm)} mm", Limite = $"≤ {N(1.2 * d.CobrimentoMm)} mm",
                 Situacao = d.AgregadoMm > 1.2 * d.CobrimentoMm + 1e-6 ? SituacaoVerificacao.NaoAtende : SituacaoVerificacao.Ok,
                 Referencia = "NBR 6118, 7.4.7.6",
             };

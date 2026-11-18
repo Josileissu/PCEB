@@ -159,6 +159,36 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         // ------------------------------------------------------------------
         // Verificações (NBR 6118 / NBR 9062). Retornam mensagens; não bloqueiam a geração.
 
+        private ListaVerificacoes _ultimas = new ListaVerificacoes();
+
+        /// <summary>Todas as verificações normativas (inclusive as OK), para o relatório do grupo (D37).</summary>
+        public ListaVerificacoes Verificacoes(ColumnBox frame, IList<Corbel> corbels)
+        {
+            Check(frame, corbels);
+            return _ultimas;
+        }
+
+        /// <summary>Relatório de verificação do grupo de pilares iguais (D37): cabeçalho com seção, comprimento, materiais e cobrimento.</summary>
+        public DEB.Core.Documentacao.RelatorioGrupo Relatorio(ColumnBox frame, IList<Corbel> corbels, string marca, int quantidade, string origem)
+        {
+            var g = new DEB.Core.Documentacao.RelatorioGrupo
+            {
+                Marca = marca, Elemento = "Pilar pré-moldado", Origem = origem, Verificacoes = Verificacoes(frame, corbels),
+            };
+            void D(string k, string v) => g.Dados.Add(new KeyValuePair<string, string>(k, v));
+            D("Quantidade de peças", Math.Max(1, quantidade).ToString());
+            D("Seção", $"{Fmt.N(U_.ToMm(frame.Bx) / 10)} × {Fmt.N(U_.ToMm(frame.By) / 10)} cm");
+            D("Comprimento", $"{Fmt.N(U_.ToMm(frame.H) / 10)} cm");
+            D("Concreto", $"fck = {Fmt.N(FckMPa)} MPa");
+            D("Aço", $"longitudinais {LongSteel}; estribos {StirrupSteel}");
+            D("Agregado graúdo", $"dmáx = {Fmt.N(AggregateMm)} mm");
+            D("Classe de agressividade", ExposureClass);
+            D("Relação a/c ≤ 0,45", WaterCement045 ? "sim (declarada)" : "não declarada");
+            D("Cobrimento", $"{Fmt.N(CoverMm)} mm");
+            D("Modelo de armadura", Name);
+            return g;
+        }
+
         public List<string> Check(ColumnBox frame, IList<Corbel> corbels)
         {
             var w = new List<string>();
@@ -174,17 +204,17 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
             if (linhas.Count == 0) w.Add("Sem armadura longitudinal: inclua as barras na armadura por linha.");
             // regras únicas do núcleo (as mesmas do template do CAD; docs/04_arquitetura/verificacoes_normativas.md)
             var lista = new ListaVerificacoes();
-            lista.Add(VP.DimensaoMinima(bx, by), true);
-            lista.Add(VP.PilarParede(bx, by), true);
+            lista.Add(VP.DimensaoMinima(bx, by), false);
+            lista.Add(VP.PilarParede(bx, by), false);
             foreach (var phi in linhas.Select(l => l.Bitola).DefaultIfEmpty(LongDiameterMm).Distinct())
-                lista.Add(VP.BitolaLongitudinal(phi, bMin), true);
+                lista.Add(VP.BitolaLongitudinal(phi, bMin), false);
             foreach (var (label, s) in new[] { ("corrente", StirrupSpacingMm), ("topo", TopZoneSpacingMm),
                                                ("base", BaseZoneSpacingMm), ("consolo", CorbelZoneSpacingMm) })
             {
-                lista.Add(VP.BitolaEstribo(StirrupDiameterMm, phiEqMax, s, TabelasNbr.Fyk(StirrupSteel)), true);
-                lista.Add(VP.EspacamentoEstribos(s, bMin, phiMin, LongSteel, label), true);
+                lista.Add(VP.BitolaEstribo(StirrupDiameterMm, phiEqMax, s, TabelasNbr.Fyk(StirrupSteel)), false);
+                lista.Add(VP.EspacamentoEstribos(s, bMin, phiMin, LongSteel, label), false);
             }
-            lista.Add(VP.ConcretoAltaResistencia(FckMPa), true);
+            lista.Add(VP.ConcretoAltaResistencia(FckMPa), false);
 
             // espaçamentos e taxa em cada trecho da altura com a mesma composição (redução com a altura e emendas): o pior trecho
             double gapMaxFound = 0, clearMin = double.MaxValue, asMax = 0, asMin = double.MaxValue;
@@ -198,19 +228,20 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
                 double asTrecho = trecho.Sum(b => b.Feixe * Math.PI * b.Bitola * b.Bitola / 4);
                 asMax = Math.Max(asMax, asTrecho); asMin = Math.Min(asMin, asTrecho);
             }
-            if (gapMaxFound > 0) lista.Add(VP.EspacamentoEixos(gapMaxFound, bMin), true);
-            if (clearMin < double.MaxValue) lista.Add(VP.EspacamentoLivre(clearMin, phiEqMax, AggregateMm), true);
+            if (gapMaxFound > 0) lista.Add(VP.EspacamentoEixos(gapMaxFound, bMin), false);
+            if (clearMin < double.MaxValue) lista.Add(VP.EspacamentoLivre(clearMin, phiEqMax, AggregateMm), false);
             double ac = bx * by;
             if (asMin == double.MaxValue) asMin = 0;
-            lista.Add(VP.TaxaMinima(asMin, ac), true);
-            lista.Add(VP.TaxaMaxima(asMax, ac), true);
+            lista.Add(VP.TaxaMinima(asMin, ac), false);
+            lista.Add(VP.TaxaMaxima(asMax, ac), false);
             var dc = new DadosCobrimento
             {
                 Classe = TabelasNbr.Classe(ExposureClass), Elemento = ElementoCobrimento.VigaPilar, PreMoldado = true, FckMPa = FckMPa,
                 AguaCimentoAte045 = WaterCement045, CobrimentoMm = CoverMm, MaiorBitolaMm = StirrupDiameterMm, AgregadoMm = AggregateMm,
             };
-            foreach (var x in RegrasCobrimento.Verificar(dc)) lista.Add(x, true);
+            foreach (var x in RegrasCobrimento.Verificar(dc)) lista.Add(x, false);
             w.AddRange(lista.Avisos());
+            _ultimas = lista;
 
             // alça: o vão interno (largura − Ø) tem de comportar o diâmetro de dobra do tipo de barra (o tipo da cordoalha é criado
             // com 5Ø, como o CA-50 abaixo de 20 mm); senão o Revit não resolve a forma ("Não é possível solucionar o formato")

@@ -50,6 +50,7 @@ namespace DEB.Revit.Precast
         {
             foreach (ColumnGroup g in groups)
             {
+                WriteVerificationReport(g);
                 foreach (PrecastColumn m in g.Members)
                 {
                     PieceLog log = _report.Begin($"{g.Mark} - pilar {m.Id}");
@@ -64,6 +65,24 @@ namespace DEB.Revit.Precast
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Relatório de verificação do grupo (D37): HTML em "Relatórios PCEB", na pasta do .rvt (modelo ainda não salvo: sem
+        /// relatório). Falha aqui não impede o detalhamento.
+        /// </summary>
+        private void WriteVerificationReport(ColumnGroup g)
+        {
+            try
+            {
+                string rvt = _doc.PathName;
+                if (string.IsNullOrEmpty(rvt) || g.Spec == null) return;
+                var m = g.Representative;
+                var rel = g.Spec.Relatorio(m.Frame, m.Corbels, g.Mark, g.Members.Count, "modelo do Revit (" + System.IO.Path.GetFileName(rvt) + ")");
+                string arq = DEB.Core.Documentacao.RelatorioHtml.Gravar(rel, System.IO.Path.GetDirectoryName(rvt));
+                _report.General.Add($"{g.Mark}: relatório de verificação em {arq}");
+            }
+            catch (Exception ex) { _report.General.Add($"{g.Mark}: relatório de verificação não gravado — {ex.Message}"); }
         }
 
         private void RunMember(ColumnGroup g, PrecastColumn m, PipelineOptions opt, PieceLog log)
