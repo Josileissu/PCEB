@@ -249,7 +249,7 @@ namespace DEB.Revit.Precast
                                    ?? MaterialPceb(viga, MatNeoprene, new Color(40, 40, 40));
                     MaterialPceb(viga, MatArgamassa, new Color(190, 190, 180));
                     fm.Set(pMat, neo.Id);
-                    fm.Set(fDia, Ft(32)); fm.Set(fDE, Ft(125)); fm.Set(fDD, Ft(125));
+                    fm.Set(fDia, Ft(32)); fm.Set(fDE, Ft(110)); fm.Set(fDD, Ft(110));   // 110 mm: padrão do usuário (18/11/2026)
                 }
                 fm.SetFormula(pNome, "if(PCEB_ApoioTipo = 1, \"Neoprene\", if(PCEB_ApoioTipo = 2, \"Argamassa\", \"Direto\"))");
                 fm.SetFormula(pEsp, "if(PCEB_ApoioTipo = 1, 15 mm, if(PCEB_ApoioTipo = 2, 20 mm, 0 mm))");
@@ -286,8 +286,10 @@ namespace DEB.Revit.Precast
             View planta = Vista(viga, ViewType.FloorPlan, "Ref. Level");
             ReferencePlane pontaE = Plano(viga, "2"), pontaD = Plano(viga, "3"), fundo = Plano(viga, "Bottom");
             ReferencePlane centro = Plano(viga, "Center (Front/Back)");
-            double xE = pontaE.GetPlane().Origin.X, xD = pontaD.GetPlane().Origin.X, zF = fundo.GetPlane().Origin.Z;
-            double r = Ft(16), dist = Ft(125), s = Ft(50);
+            // vazios a partir do plano do topo, descendo h (ajuste do usuário, 18/11/2026)
+            ReferencePlane topo = PlanosDaCota(viga, "h").OrderBy(p => p.GetPlane().Origin.Z).Last();
+            double xE = pontaE.GetPlane().Origin.X, xD = pontaD.GetPlane().Origin.X, zF = topo.GetPlane().Origin.Z;
+            double r = Ft(16), dist = Ft(110), s = Ft(50);
             double xIni = xE - Ft(300), xFim = xD + Ft(300);
             FamilyParameter pDia = fm.get_Parameter("PCEB_FuroDiametro");
 
@@ -348,7 +350,8 @@ namespace DEB.Revit.Precast
 
             Passo(viga, log, "vazios dos furos", () =>
             {
-                SketchPlane sp = SketchPlane.Create(viga, fundo.Id);
+                if (topo.Name == "Plano de referência" || topo.Name == "Reference Plane") topo.Name = "Topo";
+                SketchPlane sp = SketchPlane.Create(viga, topo.Id);
                 foreach (var (lado, x) in new[] { ("E", xE + dist), ("D", xD - dist) })
                 {
                     Extrusion um = Vazio(viga, sp, new[] { new XYZ(x, 0, zF) }, r);
