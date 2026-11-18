@@ -41,4 +41,4 @@ trechos (sem uso no CAD até o JSON v2), "Selecionar no modelo" e voltar para "a
   `PCEB_Apoio*` da viga em que o consolo está aninhado (`PieceReview.Apoio`). No CAD vira as colunas do apoio na tabela "Consolos".
 - Viga: `furos` = {quantidade, dist_esquerda, dist_direita, diametro (mm)} dos `PCEB_Furo*` do tipo; no CAD, "Quantidade de furos
   de pino" = Digitada, `FurosE/D` (só nas pontas com dente), `FuroDistE/D` e `FuroDiam`. Família sem esses parâmetros: nada muda.
-- Falta testar no PC2 que os furos verticais no dente não atrapalham o levantamento da viga (cortes da seção).
+- Testado em 18/11/2026 (Revit 2025 + GstarCAD): os furos verticais no dente não atrapalham o levantamento da viga.
