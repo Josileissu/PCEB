@@ -36,7 +36,7 @@ internal sealed class FormAceites : Form
         StartPosition = FormStartPosition.CenterParent;
         Size = new Size(1100, 520);
         MinimumSize = new Size(760, 320);
-        Font = new Font("Segoe UI", 9f);
+        Font = new System.Drawing.Font("Segoe UI", 9f);
         ShowInTaskbar = false;
         MinimizeBox = false;
 
