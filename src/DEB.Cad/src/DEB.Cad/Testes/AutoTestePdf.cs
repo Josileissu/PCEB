@@ -193,6 +193,36 @@ public sealed class AutoTestePdf
     /// Diagnóstico: mídias da impressora ARM_PDFLOTE_IMPRESSORA (padrão PDF24) com o tamanho e as margens que o CAD considera,
     /// em ARM_MIDIAS_SAIDA (arquivo); depois encerra a própria instância de teste.
     /// </summary>
+    /// <summary>
+    /// DWG para conferir a escala fixa (19/11/2026): três molduras no Model — A4 exata em cm (29,7 × 21), A4 menor em cm
+    /// (28,9 × 20,2: ainda reconhecida, tem de sair com 289 × 202 mm no PDF, centralizada, e não esticada até o papel) e a
+    /// mesma menor em mm (289 × 202). Layout1 fica vazio.
+    /// </summary>
+    private static void CriarEscala(string destino)
+    {
+        using var db = new Database(true, true);
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var ms = (BlockTableRecord)tr.GetObject(SymbolUtilityServices.GetBlockModelSpaceId(db), OpenMode.ForWrite);
+            void Ret(double x0, double y0, double l, double a)
+            {
+                var pl = new Polyline();
+                pl.SetDatabaseDefaults(db);
+                pl.AddVertexAt(0, new Point2d(x0, y0), 0, 0, 0);
+                pl.AddVertexAt(1, new Point2d(x0 + l, y0), 0, 0, 0);
+                pl.AddVertexAt(2, new Point2d(x0 + l, y0 + a), 0, 0, 0);
+                pl.AddVertexAt(3, new Point2d(x0, y0 + a), 0, 0, 0);
+                pl.Closed = true;
+                ms.AppendEntity(pl); tr.AddNewlyCreatedDBObject(pl, true);
+            }
+            Ret(0, 0, 29.7, 21);
+            Ret(100, 0, 28.9, 20.2);
+            Ret(1000, 0, 289, 202);
+            tr.Commit();
+        }
+        db.SaveAs(destino, DwgVersion.Current);
+    }
+
     [Rt.CommandMethod("ARMTESTEMIDIAS", Rt.CommandFlags.Session)]
     public void Midias()
     {
@@ -240,7 +270,7 @@ public sealed class AutoTestePdf
             {
                 try
                 {
-                    var plano = FolhasPc3.Planejar(cfg.ImpressoraLote, cfg.Formatos);
+                    var plano = FolhasPc3.Planejar(cfg.ImpressoraLote, cfg.FormatosDoPapel);
                     L($"criar folhas: {plano.Mudancas} mudança(s), pmp {plano.Pmp} (novo {plano.PmpNovo}, religar {plano.Religar})");
                     if (plano.Mudancas > 0) L(FolhasPc3.Aplicar(plano));
                     var depois = PlotadorPdf.NomesMidias(cfg.ImpressoraLote) ?? new HashSet<string>();
@@ -254,6 +284,8 @@ public sealed class AutoTestePdf
             if (!string.IsNullOrEmpty(criar)) { var p = criar.Split('|'); CriarVariosLayouts(p[0], p[1]); L("criado " + p[1]); }
             var soModel = Environment.GetEnvironmentVariable("ARM_PDFLOTE_CRIARMODEL"); // DWG só com Model e page setup de outro PC
             if (!string.IsNullOrEmpty(soModel)) { CriarSoModel(soModel); L("criado " + soModel); }
+            var escala = Environment.GetEnvironmentVariable("ARM_PDFLOTE_CRIARESCALA"); // molduras para conferir a escala fixa
+            if (!string.IsNullOrEmpty(escala)) { CriarEscala(escala); L("criado " + escala); }
             L("pasta de estilos: " + (PlotadorPdf.PastaEstilos() ?? "(não achada)"));
             if (Environment.GetEnvironmentVariable("ARM_PDFLOTE_FOLHAS_DIAG") == "1")
             {
@@ -263,7 +295,7 @@ public sealed class AutoTestePdf
                 L("pasta dos .pc3: " + (FolhasPc3.PastaPc3() ?? "(não achada)"));
                 foreach (var pc3 in new[] { "DWG To PDF.pc3", "Inexistente.pc3" })
                 {
-                    try { var p = FolhasPc3.Planejar(pc3, cfg.Formatos); L($"plano {pc3}: {p.Mudancas} mudança(s), pmp {p.Pmp}"); }
+                    try { var p = FolhasPc3.Planejar(pc3, cfg.FormatosDoPapel); L($"plano {pc3}: {p.Mudancas} mudança(s), pmp {p.Pmp}"); }
                     catch (Exception ex) { L($"plano {pc3}: {ErrosLotePdf.Classificar(ex, EtapaLotePdf.Configurar).Resumo}"); }
                 }
             }

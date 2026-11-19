@@ -87,6 +87,33 @@ public static class FormatosFolha
         return new FormatoReconhecido { Diferenca = Math.Max(Math.Abs(maior - prox.Maior), Math.Abs(menor - prox.Menor)) };
     }
 
+    /// <summary>Maior folga aceita no papel (mm por lado).</summary>
+    public const double FolgaMaxima = 10;
+
+    /// <summary>Folga válida: entre 0 e <see cref="FolgaMaxima"/> (valor estranho = 0).</summary>
+    public static double FolgaValida(double folga) =>
+        double.IsNaN(folga) || double.IsInfinity(folga) || folga <= 0 ? 0 : Math.Min(folga, FolgaMaxima);
+
+    /// <summary>
+    /// Os mesmos formatos (mesmos nomes) com o PAPEL maior em <paramref name="folga"/> mm de cada lado: é o tamanho com que as
+    /// folhas são criadas na impressora, para a linha externa da moldura não cair em cima da borda do papel. O reconhecimento da
+    /// moldura continua pela medida nominal e a escala não depende do papel (<see cref="EscalaPlot"/>).
+    /// </summary>
+    public static List<FormatoFolha> ComFolga(IEnumerable<FormatoFolha> formatos, double folga)
+    {
+        double d = 2 * FolgaValida(folga);
+        return (formatos ?? Enumerable.Empty<FormatoFolha>()).Where(f => f != null)
+            .Select(f => new FormatoFolha(f.Nome, f.Largura > 0 ? f.Largura + d : f.Largura, f.Altura > 0 ? f.Altura + d : f.Altura)).ToList();
+    }
+
+    /// <summary>
+    /// Escala fixa da plotagem de uma moldura reconhecida: mm de papel por unidade do desenho (a unidade em que a moldura casou
+    /// com o formato). Folha em cm = 10 (no diálogo do CAD: 1 mm = 0,1 unidade); em mm = 1; em m = 1000; em polegada = 25,4.
+    /// Não depende do tamanho do papel nem de a moldura ter a medida exata. 0 = sem moldura reconhecida (ajustar à folha).
+    /// </summary>
+    public static double EscalaPlot(FormatoReconhecido r) =>
+        r?.Formato == null || double.IsNaN(r.Fator) || double.IsInfinity(r.Fator) || r.Fator <= 0 ? 0 : r.Fator;
+
     /// <summary>Formato pelo nome (sem diferenciar maiúsculas).</summary>
     public static FormatoFolha PorNome(IEnumerable<FormatoFolha> formatos, string nome) =>
         string.IsNullOrEmpty(nome) ? null : formatos?.FirstOrDefault(f => string.Equals(f.Nome, nome, StringComparison.OrdinalIgnoreCase));
@@ -137,6 +164,14 @@ public sealed class ConfigLotePdf
     [DataMember(Order = 13)] public bool AbrirPastaNoFim { get; set; }
     /// <summary>Impressora do lote no AutoCAD (lembrada à parte; no GstarCAD/ZWCAD vale <see cref="Impressora"/>).</summary>
     [DataMember(Order = 14)] public string ImpressoraAutoCad { get; set; } = ImpressorasPdf.AutoCadPdf;
+    /// <summary>
+    /// Folga do papel, em mm de cada lado: as folhas são criadas na impressora maiores que o formato (1 = +2 mm na largura e na
+    /// altura), para a linha externa da moldura não ser cortada na borda. 0 = papel do tamanho exato do formato.
+    /// </summary>
+    [DataMember(Order = 15)] public double FolgaPapel { get; set; } = 1;
+
+    /// <summary>Formatos com o tamanho do papel a criar na impressora (<see cref="Formatos"/> + folga).</summary>
+    [IgnoreDataMember] public List<FormatoFolha> FormatosDoPapel => FormatosFolha.ComFolga(Formatos, FolgaPapel);
 
     /// <summary>O hospedeiro é o AutoCAD (definido pelo comando; não é gravado).</summary>
     [IgnoreDataMember] public bool NoAutoCad { get; set; }
@@ -156,6 +191,7 @@ public sealed class ConfigLotePdf
         Impressora = p.Impressora; EstiloPlotagem = ""; Tolerancia = p.Tolerancia; Area = p.Area;
         PastaDestino = p.PastaDestino; NaPastaDoDesenho = p.NaPastaDoDesenho; UltimaPastaDwg = p.UltimaPastaDwg;
         EsperaSegundos = p.EsperaSegundos; Formatos = null; ImpressoraAutoCad = p.ImpressoraAutoCad;
+        FolgaPapel = p.FolgaPapel;
     }
 
     [OnDeserialized]
@@ -164,6 +200,7 @@ public sealed class ConfigLotePdf
         if (Formatos == null || Formatos.Count == 0) Formatos = FormatosFolha.Padrao();
         if (Tolerancia <= 0) Tolerancia = 10;
         if (EsperaSegundos < 10) EsperaSegundos = 180;
+        FolgaPapel = FormatosFolha.FolgaValida(FolgaPapel);
         if (string.IsNullOrWhiteSpace(Impressora)) Impressora = "PDF24";
         if (string.IsNullOrWhiteSpace(ImpressoraAutoCad)) ImpressoraAutoCad = ImpressorasPdf.AutoCadPdf;
     }

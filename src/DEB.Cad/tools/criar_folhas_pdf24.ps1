@@ -2,6 +2,8 @@
 #
 # Faz o mesmo que o botao "Criar folhas na impressora" da janela do ARMPDFLOTE, fora do CAD (DEB.Cad):
 #   - lista de folhas = a do %AppData%\PCEB\DEB.Cad\pdflote.json (campo "Formatos"); sem o arquivo, a lista padrao abaixo;
+#   - folga do papel = campo "FolgaPapel" do mesmo arquivo (mm de cada lado; padrao 1): o papel e criado maior que o formato
+#     para a linha externa da moldura nao ser cortada na borda (a escala do ARMPDFLOTE nao depende do papel);
 #   - formularios sem margem, em ordem crescente de area (o Windows lista os forms de usuario na ordem em que foram criados:
 #     do primeiro fora de ordem em diante, os forms de usuario da lista sao apagados e criados de novo);
 #   - form do Windows (BUILTIN) nunca e alterado; form do driver de uma impressora (PRINTER) com o mesmo nome e outro tamanho
@@ -111,10 +113,12 @@ function Mm([int]$m) { ($m / 1000).ToString('0.#', [Globalization.CultureInfo]::
 
 # ---- lista de folhas (mesma do ARMPDFLOTE) ----
 $formatos = @()
+$folga = 1.0   # mm de cada lado (padrao do DEB.Cad)
 if (Test-Path -LiteralPath $Config) {
     try {
         $json = [IO.File]::ReadAllText($Config, [Text.Encoding]::UTF8) | ConvertFrom-Json
         foreach ($f in $json.Formatos) { $formatos += [pscustomobject]@{ Nome = [string]$f.Nome; Largura = [double]$f.Largura; Altura = [double]$f.Altura } }
+        if ($null -ne $json.FolgaPapel) { $folga = [double]$json.FolgaPapel }
         Write-Host "Lista de folhas: $Config"
     } catch { Write-Host "Nao deu para ler $Config ($($_.Exception.Message)); usando a lista padrao." }
 }
@@ -125,13 +129,15 @@ if ($formatos.Count -eq 0) {
     }
     Write-Host 'Lista de folhas: padrao do DEB.Cad'
 }
+if ($folga -lt 0 -or [double]::IsNaN($folga)) { $folga = 0 } elseif ($folga -gt 10) { $folga = 10 }
+Write-Host "Folga do papel: $folga mm de cada lado"
 # validos, sem nome repetido, em ordem crescente de area (empate: maior lado; Sort-Object -Stable nao existe no PS 5.1)
 $vistos = @{}; $validos = @(); $i = 0
 foreach ($f in $formatos) {
     $n = $f.Nome.Trim()
     if (-not $n -or $f.Largura -le 0 -or $f.Altura -le 0 -or $vistos.ContainsKey($n.ToUpperInvariant())) { continue }
     $vistos[$n.ToUpperInvariant()] = 1
-    $validos += [pscustomobject]@{ Nome = $n; L = [int][math]::Round($f.Largura * 1000); A = [int][math]::Round($f.Altura * 1000)
+    $validos += [pscustomobject]@{ Nome = $n; L = [int][math]::Round(($f.Largura + 2 * $folga) * 1000); A = [int][math]::Round(($f.Altura + 2 * $folga) * 1000)
                                    Area = [math]::Round($f.Largura * $f.Altura, 3); Maior = [math]::Max($f.Largura, $f.Altura); Pos = $i++ }
 }
 $ordem = @($validos | Sort-Object Area, Maior, Pos)

@@ -69,8 +69,11 @@ internal static class PlotadorPdf
         try
         {
             var res = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var l in ListarMidias(impressora.Trim()))
+            foreach (var linha in ListarMidias(impressora.Trim()))
             {
+                // "canônico = local | medida e margens": a medida é só do diagnóstico (com ela no nome, nenhuma folha era achada)
+                int m = linha.IndexOf(" | ", StringComparison.Ordinal);
+                var l = m >= 0 ? linha.Substring(0, m) : linha;
                 int i = l.IndexOf(" = ", StringComparison.Ordinal);
                 if (i >= 0) res.Add(l.Substring(i + 3).Trim());
                 res.Add((i >= 0 ? l.Substring(0, i) : l).Trim());
@@ -195,14 +198,15 @@ internal static class PlotadorPdf
         }
         else if (cfg.Area == AreaPlotLote.Layout && !ps.ModelType) v.SetPlotType(ps, PlotType.Layout);
         else v.SetPlotType(ps, PlotType.Extents);
-        // moldura reconhecida: escala EXATA (a moldura do tamanho do papel). Com "ajustar à folha" o CAD encolhia o desenho para a
-        // área imprimível dele — o GstarCAD reserva 3,2 mm de cada lado nos papéis personalizados da PDF24 (o driver diz 0) e o PDF
-        // saía a 98,9 % (relato do usuário, 18/11/2026). Sem moldura (área = layout/extensão), continua ajustando.
-        double ladoCaixa = Math.Max(f.Largura, f.Altura), ladoPapel = Math.Max(f.Formato.Largura, f.Formato.Altura);
-        if (f.TemCaixa && ladoCaixa > 0 && ladoPapel > 0 && (cfg.Area == AreaPlotLote.Moldura || f.NoModelo))
+        // moldura reconhecida: escala FIXA pela unidade do desenho (folha em cm: 1 mm = 0,1 unidade; em mm: 1 = 1), centralizada —
+        // não depende do papel (que pode ter folga) nem de a moldura ter a medida exata. Com "ajustar à folha" o CAD encolhia o
+        // desenho para a área imprimível dele — o GstarCAD reserva 3,2 mm de cada lado nos papéis personalizados da PDF24 (o driver
+        // diz 0) e o PDF saía a 98,9 % (relato do usuário, 18/11/2026). Sem moldura (área = layout/extensão), continua ajustando.
+        double escala = FormatosFolha.EscalaPlot(f.Reconhecido);
+        if (f.TemCaixa && escala > 0 && (cfg.Area == AreaPlotLote.Moldura || f.NoModelo))
         {
             v.SetUseStandardScale(ps, false);
-            v.SetCustomPrintScale(ps, new CustomScale(ladoPapel, ladoCaixa));
+            v.SetCustomPrintScale(ps, new CustomScale(escala, 1));
         }
         else
         {

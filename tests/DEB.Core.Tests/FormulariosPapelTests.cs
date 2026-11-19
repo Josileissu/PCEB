@@ -249,4 +249,21 @@ public class FormulariosPapelTests
         Assert.Equal(ImpressorasPdf.AutoCadPdf, ConfigLotePdf.Carregar(arq).ImpressoraAutoCad);
         System.IO.File.Delete(arq);
     }
+
+    /// <summary>Com folga, o form é criado maior; o form antigo (tamanho exato) é recriado e o já folgado é mantido.</summary>
+    [Fact]
+    public void FolgaDoPapelEntraNoTamanhoDoFormulario()
+    {
+        var nominal = new List<FormatoFolha> { new FormatoFolha("A1+", 911.1, 594) };
+        var papel = FormatosFolha.ComFolga(nominal, 1);
+        var novo = FormulariosPapel.Planejar(papel, new List<FormularioWindows>(), true).Passos.Single();
+        Assert.Equal(AcaoFormulario.Criar, novo.Acao);
+        Assert.Equal(913100, novo.Largura);
+        Assert.Equal(596000, novo.Altura);
+
+        var exato = new List<FormularioWindows> { new FormularioWindows("A1+", 911100, 594000) };
+        Assert.Equal(AcaoFormulario.Recriar, FormulariosPapel.Planejar(papel, exato, true).Passos.Single().Acao);
+        var folgado = new List<FormularioWindows> { new FormularioWindows("A1+", 913100, 596000) };
+        Assert.Equal(AcaoFormulario.Manter, FormulariosPapel.Planejar(papel, folgado, true).Passos.Single().Acao);
+    }
 }
