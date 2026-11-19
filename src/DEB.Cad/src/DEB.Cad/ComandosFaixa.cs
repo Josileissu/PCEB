@@ -25,19 +25,41 @@ public sealed class ComandosFaixa
 
     /// <summary>
     /// ARMREBATER (seção 3.1): a barra vai para o destino e fica uma rebatida vinculada na posição
-    /// original. Uma barra por vez.
+    /// original. Uma barra por vez. O ponto base é o vértice da barra mais perto do clique na seleção
+    /// (opção "Base" para escolher outro); com a seleção prévia, o ponto base é pedido.
     /// </summary>
     [Rt.CommandMethod("ARMREBATER", Flags)]
     public void Rebater() => Comandos.Executar("ARMREBATER", (doc, ed, db, cfg) =>
     {
-        var barraId = Comandos.SelecionarBarra(ed, db, "\nSelecione a armadura a rebater:");
+        var barraId = Comandos.SelecionarBarra(ed, db, "\nSelecione a armadura a rebater (perto do vértice que será o ponto base):", out var clique);
         if (barraId.IsNull) return;
-        var rb = ed.GetPoint("\nPonto base:");
-        if (rb.Status != PromptStatus.OK) return;
-        var rd = ed.GetPoint(new PromptPointOptions("\nPonto de destino da barra (a rebatida fica no lugar atual):")
-            { UseBasePoint = true, BasePoint = rb.Value });
-        if (rd.Status != PromptStatus.OK) return;
-        var desl = Wcs(ed, rd.Value) - Wcs(ed, rb.Value);
+        Point3d? baseWcs = null;
+        if (clique != null)
+            using (var tr0 = new TransacaoSegura(db))
+            {
+                var pl0 = (Polyline)tr0.GetObject(barraId, OpenMode.ForRead);
+                baseWcs = VerticeMaisProximo(pl0, clique.Value);
+                tr0.Commit();
+            }
+        var ucsInv = ed.CurrentUserCoordinateSystem.Inverse();
+        Point3d destWcs;
+        while (true)
+        {
+            if (baseWcs == null)
+            {
+                var rb = ed.GetPoint("\nPonto base:");
+                if (rb.Status != PromptStatus.OK) return;
+                baseWcs = Wcs(ed, rb.Value);
+            }
+            var op = new PromptPointOptions("\nPonto de destino da barra (a rebatida fica no lugar atual) [Base]:", "Base")
+                { UseBasePoint = true, BasePoint = baseWcs.Value.TransformBy(ucsInv) };
+            var rd = ed.GetPoint(op);
+            if (rd.Status == PromptStatus.Keyword) { baseWcs = null; continue; }
+            if (rd.Status != PromptStatus.OK) return;
+            destWcs = Wcs(ed, rd.Value);
+            break;
+        }
+        var desl = destWcs - baseWcs.Value;
         using var tr = new TransacaoSegura(db);
         var pl = (Polyline)tr.GetObject(barraId, OpenMode.ForWrite);
         ServicoRebatida.Rebater(tr, pl, new Vector2d(desl.X, desl.Y));
@@ -87,6 +109,16 @@ public sealed class ComandosFaixa
     });
 
     private static Point3d Wcs(Editor ed, Point3d ucs) => ucs.TransformBy(ed.CurrentUserCoordinateSystem);
+
+    /// <summary>Vértice da polilinha mais perto do ponto (WCS, no plano da barra).</summary>
+    private static Point3d VerticeMaisProximo(Polyline pl, Point3d p)
+    {
+        var alvo = new Point2d(p.X, p.Y);
+        int melhor = 0;
+        for (int i = 1; i < pl.NumberOfVertices; i++)
+            if (pl.GetPoint2dAt(i).GetDistanceTo(alvo) < pl.GetPoint2dAt(melhor).GetDistanceTo(alvo)) melhor = i;
+        return pl.GetPoint3dAt(melhor);
+    }
 
     /// <summary>Faixas com linha base: ponto inicial, final, posição, espaçamento e (corte) lado.</summary>
     private static Point3d? PedirLinha(Editor ed, DadosFaixa f)

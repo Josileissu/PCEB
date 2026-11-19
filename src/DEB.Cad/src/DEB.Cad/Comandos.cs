@@ -891,8 +891,12 @@ public sealed class Comandos
     /// Barra selecionada: usa a seleção prévia (pickfirst) se ela for uma única armadura; senão pede.
     /// Os comandos que usam isto precisam de CommandFlags.UsePickSet.
     /// </summary>
-    internal static ObjectId SelecionarBarra(Editor ed, Database db, string msg)
+    internal static ObjectId SelecionarBarra(Editor ed, Database db, string msg) => SelecionarBarra(ed, db, msg, out _);
+
+    /// <summary>Como acima, devolvendo também o ponto clicado (WCS); nulo quando veio da seleção prévia.</summary>
+    internal static ObjectId SelecionarBarra(Editor ed, Database db, string msg, out Point3d? clique)
     {
+        clique = null;
         var impl = ed.SelectImplied();
         if (impl.Status == PromptStatus.OK && impl.Value != null)
         {
@@ -920,7 +924,11 @@ public sealed class Comandos
                 achada = ServicoBarra.ResolverBarra(tr, r.ObjectId)?.ObjectId ?? ObjectId.Null;
                 tr.Commit();
             }
-            if (!achada.IsNull) return achada;
+            if (!achada.IsNull)
+            {
+                clique = r.PickedPoint.TransformBy(ed.CurrentUserCoordinateSystem);
+                return achada;
+            }
             ed.WriteMessage("\nIsto não é uma armadura.");
         }
     }

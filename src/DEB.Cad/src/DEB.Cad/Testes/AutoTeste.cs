@@ -397,6 +397,8 @@ public sealed class AutoTeste
         doc.SendStringToExecute(Pre(H["R"]) + "ARMREBATER\n3000,500\n3000,300\n", true, false, true);
         doc.SendStringToExecute("_.STRETCH _C 3195,545 3205,555\n\n0,0\n0,30\n", true, false, true);
         doc.SendStringToExecute("_.MOVE _C 3095,495 3105,505\n\n0,0\n100,0\n", true, false, true);
+        // mover a barra: a rebatida fica onde está (pedido do usuário, 19/11/2026)
+        doc.SendStringToExecute("_.MOVE _C 2995,295 3005,305\n\n0,0\n0,-50\n", true, false, true);
         // U pelo cobrimento: linha esquerda (lado de dentro), ponto no topo, fundo, direita, ponto no topo
         doc.SendStringToExecute("_.ZOOM _W 3990,-10 4040,70\n", true, false, true);
         doc.SendStringToExecute("ARMBARRA\nCobrimento\n2.5\n4000,40\n4010,40\nPonto\n4005,55\n4015,0\n4030,30\nPonto\n4020,55\n\n",
@@ -454,16 +456,16 @@ public sealed class AutoTeste
             var dR = XDataCad.LerBarra(plR);
             var geoR = GeometriaBarra.Ler(plR, 1);
             Rel.AppendLine($"        barra R: início {plR.GetPoint2dAt(0)}, segmentos {string.Join(" + ", geoR.Select(s => s.Comprimento.ToString("0.##")))}");
-            Checar(plR.GetPoint2dAt(0).GetDistanceTo(new Point2d(3000, 300)) < 1e-6, "ARMREBATER levou a barra para o destino");
+            Checar(plR.GetPoint2dAt(0).GetDistanceTo(new Point2d(3000, 250)) < 1e-6, "ARMREBATER levou a barra para o destino (e o MOVE, 50 abaixo)");
             Checar(dR.Rebatidas.Count == 1, $"barra lista 1 rebatida ({dR.Rebatidas.Count})");
             var reb = dR.Rebatidas.Count == 1 ? Ent<Polyline>(tr, db, dR.Rebatidas[0]) : null;
             if (reb != null)
             {
                 Rel.AppendLine($"        rebatida: início {reb.GetPoint2dAt(0)}");
                 Checar(geoR.Count == 2 && Math.Abs(geoR[1].Comprimento - 80) < 1e-6, "esticar a rebatida esticou a barra (50 → 80)");
-                Checar(reb.GetPoint2dAt(0).GetDistanceTo(new Point2d(3100, 500)) < 1e-6, "mover a rebatida não moveu a barra");
+                Checar(reb.GetPoint2dAt(0).GetDistanceTo(new Point2d(3100, 500)) < 1e-6, "mover a rebatida não moveu a barra e mover a barra não moveu a rebatida");
                 var vR = XDataCad.LerVinculo(reb);
-                Checar(Math.Abs(vR.Dx - (-100)) < 1e-6 && Math.Abs(vR.Dy - (-200)) < 1e-6, $"deslocamento guardado ({vR.Dx}, {vR.Dy})");
+                Checar(Math.Abs(vR.Dx - (-100)) < 1e-6 && Math.Abs(vR.Dy - (-250)) < 1e-6, $"deslocamento guardado ({vR.Dx}, {vR.Dy})");
                 Checar(!reb.Database.Equals(null) && XDataCad.LerBarra(reb) == null, "rebatida não entra como barra na relação do aço");
                 H["rebatida"] = dR.Rebatidas[0];
             }

@@ -89,7 +89,7 @@ pela unidade do desenho (`INSUNITS`; se indefinida, a configuração — padrão
 | `ARMCORTECHAMADA` / `ARMCORTECHAMADAARCO` | Linha base (ou arco/círculo + lado) → espaçamento → início/centro/fim → texto da chamada |
 | `ARMCHAMADA` / `ARMINDICACAO` | Pontos de referência → texto (→ quantidade). Indicação não soma |
 | `ARMESTRIBO` / `ARMESTRIBOREP` | Diálogo (formato, ramos, gancho, bitola, dimensões, seção + cobrimento) → seção → rebatido → faixas |
-| `ARMREBATER` | Barra → ponto base → destino: a barra vai, fica a rebatida vinculada |
+| `ARMREBATER` | Barra (o vértice mais perto do clique é o ponto base; opção "Base" escolhe outro) → destino: a barra vai, fica a rebatida vinculada. Depois, mover a barra ou a rebatida só muda o deslocamento (a outra fica); mudar a forma de uma muda a outra |
 | `ARMRECOTA` | Clica no segmento → a cota volta (em laço) |
 | `ARMBARRA` → `Cobrimento` | Clica nas linhas da forma; vértices nas interseções das linhas deslocadas; `Ponto` projeta um ponto livre |
 | `ARMDETCRIAR` | Seleção → nome → grupo → pavimento: vira um BLOCO (detalhamento) no mesmo lugar; vínculos preservados |

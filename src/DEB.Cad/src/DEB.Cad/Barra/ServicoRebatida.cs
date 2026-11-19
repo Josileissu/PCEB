@@ -9,8 +9,8 @@ namespace DEB.Cad.Barra;
 
 /// <summary>
 /// Armadura rebatida (seção 2.2): polilinha "espelho" vinculada à barra, deslocada de (Dx, Dy).
-/// A forma é sempre a mesma da barra: editar uma propaga para a outra; mover a rebatida só muda o
-/// deslocamento guardado.
+/// A forma é sempre a mesma da barra: editar uma propaga para a outra; mover a rebatida ou a barra só
+/// muda o deslocamento guardado (a outra fica onde está).
 /// </summary>
 internal static class ServicoRebatida
 {
@@ -104,7 +104,17 @@ internal static class ServicoRebatida
             if (reb == null) continue;
             validas.Add(h);
             var desl = new Vector2d(-v.Dx, -v.Dy);
-            if (!Coincide(barra, reb, desl))
+            if (Coincide(barra, reb, desl)) { }
+            else if (MesmaForma(barra, reb))
+            {
+                // a barra só mudou de lugar: a rebatida fica onde está e o deslocamento guardado muda
+                var novo = barra.GetPoint2dAt(0) - reb.GetPoint2dAt(0);
+                v.Dx = novo.X;
+                v.Dy = novo.Y;
+                reb.UpgradeOpen();
+                XDataCad.Gravar(reb, v);
+            }
+            else
             {
                 reb.UpgradeOpen();
                 Copiar(barra, reb, desl);
