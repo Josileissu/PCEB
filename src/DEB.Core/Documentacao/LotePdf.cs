@@ -165,10 +165,12 @@ public sealed class ConfigLotePdf
     /// <summary>Impressora do lote no AutoCAD (lembrada à parte; no GstarCAD/ZWCAD vale <see cref="Impressora"/>).</summary>
     [DataMember(Order = 14)] public string ImpressoraAutoCad { get; set; } = ImpressorasPdf.AutoCadPdf;
     /// <summary>
-    /// Folga do papel, em mm de cada lado: as folhas são criadas na impressora maiores que o formato (1 = +2 mm na largura e na
-    /// altura), para a linha externa da moldura não ser cortada na borda. 0 = papel do tamanho exato do formato.
+    /// Folga do papel, em mm de cada lado: as folhas são criadas na impressora maiores que o formato (4 = +8 mm na largura e na
+    /// altura), para a linha externa da moldura não ser cortada na borda. 0 = papel do tamanho exato do formato. Padrão 4: o
+    /// GstarCAD recorta a plotagem a 3,2 mm de cada borda nos papéis personalizados da PDF24 (com 1 mm a moldura ainda era
+    /// cortada; medido no PDF em 19/11/2026).
     /// </summary>
-    [DataMember(Order = 15)] public double FolgaPapel { get; set; } = 1;
+    [DataMember(Order = 15)] public double FolgaPapel { get; set; } = 4;
 
     /// <summary>Formatos com o tamanho do papel a criar na impressora (<see cref="Formatos"/> + folga).</summary>
     [IgnoreDataMember] public List<FormatoFolha> FormatosDoPapel => FormatosFolha.ComFolga(Formatos, FolgaPapel);

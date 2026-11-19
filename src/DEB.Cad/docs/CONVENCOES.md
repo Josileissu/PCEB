@@ -176,10 +176,12 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   moldura 2 mm fora mudava a escala). O GstarCAD reserva 3,2 mm de cada lado nos papéis personalizados da PDF24 (o driver
   informa 0): com "ajustar" o PDF saía a 98,9 % e com borda. Testado: moldura 289 × 202 mm em papel A4 sai com 289,0 × 202,0 mm
   no PDF e 4 mm de cada lado.
-- **Folga do papel** (19/11, `FolgaPapel` do pdflote.json, campo "folga (mm por lado)" da janela; padrão 1, de 0 a 10): com o
+- **Folga do papel** (19/11, `FolgaPapel` do pdflote.json, campo "folga (mm por lado)" da janela; padrão 4, de 0 a 10): com o
   papel do tamanho exato da moldura, a linha externa caía em cima da borda da página e sumia do PDF. O botão "Criar folhas na
   impressora" cria o papel com formato + 2 × folga (`ConfigLotePdf.FormatosDoPapel`); a lista de formatos e o reconhecimento
-  continuam nominais, e a escala fixa não muda com a folga. Mudar a folga e clicar no botão recria os papéis (muda o UserNNNNN).
+  continuam nominais, e a escala fixa não muda com a folga. Por que 4: o GstarCAD RECORTA a plotagem na área imprimível dele
+  (3,2 mm de cada borda nos papéis personalizados da PDF24; clip de 3,2–3,3 mm medido no PDF) — com folga 1 a moldura ficava
+  a 1,1 mm da borda e continuava cortada. Mudar a folga e clicar no botão recria os papéis (muda o UserNNNNN).
   Diagnóstico das margens por mídia: `ARMTESTEMIDIAS` (`ARM_MIDIAS_SAIDA`). Os .pc3/.pmp do GstarCAD são serialização MFC com estruturas cruas da memória
   (não dá para gravar folhas com segurança): a impressora do lote no GstarCAD continua a PDF24.
 - **Impressora** (17/11): GstarCAD/ZWCAD = PDF24 (campo `Impressora` do pdflote.json). **AutoCAD** = combo com a

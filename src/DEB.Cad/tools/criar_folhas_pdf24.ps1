@@ -2,7 +2,7 @@
 #
 # Faz o mesmo que o botao "Criar folhas na impressora" da janela do ARMPDFLOTE, fora do CAD (DEB.Cad):
 #   - lista de folhas = a do %AppData%\PCEB\DEB.Cad\pdflote.json (campo "Formatos"); sem o arquivo, a lista padrao abaixo;
-#   - folga do papel = campo "FolgaPapel" do mesmo arquivo (mm de cada lado; padrao 1): o papel e criado maior que o formato
+#   - folga do papel = campo "FolgaPapel" do mesmo arquivo (mm de cada lado; padrao 4): o papel e criado maior que o formato
 #     para a linha externa da moldura nao ser cortada na borda (a escala do ARMPDFLOTE nao depende do papel);
 #   - formularios sem margem, em ordem crescente de area (o Windows lista os forms de usuario na ordem em que foram criados:
 #     do primeiro fora de ordem em diante, os forms de usuario da lista sao apagados e criados de novo);
@@ -113,7 +113,7 @@ function Mm([int]$m) { ($m / 1000).ToString('0.#', [Globalization.CultureInfo]::
 
 # ---- lista de folhas (mesma do ARMPDFLOTE) ----
 $formatos = @()
-$folga = 1.0   # mm de cada lado (padrao do DEB.Cad)
+$folga = 4.0   # mm de cada lado (padrao do DEB.Cad)
 if (Test-Path -LiteralPath $Config) {
     try {
         $json = [IO.File]::ReadAllText($Config, [Text.Encoding]::UTF8) | ConvertFrom-Json

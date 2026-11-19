@@ -124,7 +124,7 @@ public class LotePdfTests
         try
         {
             System.IO.File.WriteAllText(arq, "{\"Impressora\":\"PDF24\"}");
-            Assert.Equal(1, ConfigLotePdf.Carregar(arq).FolgaPapel);
+            Assert.Equal(4, ConfigLotePdf.Carregar(arq).FolgaPapel);
             new ConfigLotePdf { FolgaPapel = 2.5 }.Salvar(arq);
             Assert.Equal(2.5, ConfigLotePdf.Carregar(arq).FolgaPapel);
             new ConfigLotePdf { FolgaPapel = 0 }.Salvar(arq);
