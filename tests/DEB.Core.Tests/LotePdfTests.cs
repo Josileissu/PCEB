@@ -1,4 +1,5 @@
 using DEB.Core.Documentacao;
+using System.Linq;
 using Xunit;
 
 namespace DEB.Core.Tests;
@@ -66,5 +67,71 @@ public class LotePdfTests
         Assert.Equal(AreaPlotLote.Extensao, l.Area);
         Assert.Equal(9, l.Formatos.Count);
         Assert.Equal("PDF24", l.Impressora);
+    }
+
+    /// <summary>Escala fixa pela unidade: folha em cm = 10 mm de papel por unidade (1 mm = 0,1), em mm = 1, mesmo com a moldura fora da medida.</summary>
+    [Theory]
+    [InlineData(148.63, 84.1, 10)]   // A0++ em cm
+    [InlineData(148.9, 84.3, 10)]    // moldura um pouco maior: a escala não muda
+    [InlineData(1486.3, 841, 1)]     // em mm
+    [InlineData(1.4863, 0.841, 1000)] // em m
+    public void EscalaFixaPelaUnidade(double l, double a, double esperado)
+    {
+        var r = FormatosFolha.Reconhecer(l, a, FormatosFolha.Padrao());
+        Assert.Equal("A0++", r.Formato.Nome);
+        Assert.Equal(esperado, FormatosFolha.EscalaPlot(r));
+    }
+
+    [Fact]
+    public void EscalaSemMolduraEhAjustar()
+    {
+        Assert.Equal(0, FormatosFolha.EscalaPlot(null));
+        Assert.Equal(0, FormatosFolha.EscalaPlot(new FormatoReconhecido()));
+        Assert.Equal(0, FormatosFolha.EscalaPlot(FormatosFolha.Reconhecer(1000, 700, FormatosFolha.Padrao())));
+    }
+
+    /// <summary>Folga: o papel cresce 2 × folga na largura e na altura; o nome e a lista nominal (reconhecimento) não mudam.</summary>
+    [Fact]
+    public void FolgaAumentaSoOPapel()
+    {
+        var cfg = new ConfigLotePdf { FolgaPapel = 1 };
+        var papel = cfg.FormatosDoPapel;
+        var a0 = FormatosFolha.PorNome(papel, "A0++");
+        Assert.Equal(1488.3, a0.Largura, 6);
+        Assert.Equal(843, a0.Altura, 6);
+        Assert.Equal(1486.3, FormatosFolha.PorNome(cfg.Formatos, "A0++").Largura, 6);
+        Assert.Equal(cfg.Formatos.Select(f => f.Nome), papel.Select(f => f.Nome));
+        // a moldura continua reconhecida pela medida nominal e a escala é a mesma
+        var r = FormatosFolha.Reconhecer(148.63, 84.1, cfg.Formatos, cfg.Tolerancia);
+        Assert.Equal(0, r.Diferenca, 6);
+        Assert.Equal(10, FormatosFolha.EscalaPlot(r));
+        cfg.FolgaPapel = 0;
+        Assert.Equal(1486.3, FormatosFolha.PorNome(cfg.FormatosDoPapel, "A0++").Largura, 6);
+    }
+
+    [Theory]
+    [InlineData(-3, 0)]
+    [InlineData(double.NaN, 0)]
+    [InlineData(2.5, 2.5)]
+    [InlineData(99, 10)]
+    public void FolgaValida(double folga, double esperado) => Assert.Equal(esperado, FormatosFolha.FolgaValida(folga));
+
+    /// <summary>pdflote.json antigo (sem o campo) ganha a folga padrão; o valor gravado é lembrado e saneado.</summary>
+    [Fact]
+    public void ConfigFolgaPapel()
+    {
+        var arq = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "deb_pdflote_folga_teste.json");
+        try
+        {
+            System.IO.File.WriteAllText(arq, "{\"Impressora\":\"PDF24\"}");
+            Assert.Equal(4, ConfigLotePdf.Carregar(arq).FolgaPapel);
+            new ConfigLotePdf { FolgaPapel = 2.5 }.Salvar(arq);
+            Assert.Equal(2.5, ConfigLotePdf.Carregar(arq).FolgaPapel);
+            new ConfigLotePdf { FolgaPapel = 0 }.Salvar(arq);
+            Assert.Equal(0, ConfigLotePdf.Carregar(arq).FolgaPapel);
+            new ConfigLotePdf { FolgaPapel = -4 }.Salvar(arq);
+            Assert.Equal(0, ConfigLotePdf.Carregar(arq).FolgaPapel);
+        }
+        finally { System.IO.File.Delete(arq); }
     }
 }

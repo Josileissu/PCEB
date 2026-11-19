@@ -28,6 +28,7 @@ internal sealed class FormAceites : Form
 
     /// <summary>Pasta da obra (onde ficam "Relatórios PCEB" e o arquivo dos aceites).</summary>
     public string PastaObra { get; private set; }
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
     public string Engenheiro { get => _engenheiro.Text.Trim(); set => _engenheiro.Text = value ?? ""; }
 
     public FormAceites(string pastaObra)

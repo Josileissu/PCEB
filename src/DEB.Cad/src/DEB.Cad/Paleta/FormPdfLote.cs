@@ -36,6 +36,8 @@ internal sealed class FormPdfLote : Form
     private readonly ComboBox _impressora = new ComboBox { Width = 200, DropDownStyle = ComboBoxStyle.DropDown };
     private readonly ComboBox _estilo = new ComboBox { Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly ComboBox _area = new ComboBox { Width = 200, DropDownStyle = ComboBoxStyle.DropDownList };
+    // folga do papel criado pelo botão "Criar folhas na impressora" (a escala não depende dela)
+    private readonly NumericUpDown _folga = new NumericUpDown { Width = 50, DecimalPlaces = 1, Increment = 0.5m, Minimum = 0, Maximum = (decimal)FormatosFolha.FolgaMaxima };
     private readonly RadioButton _naPasta = new RadioButton { Text = "Na pasta de cada desenho", AutoSize = true };
     private readonly RadioButton _outraPasta = new RadioButton { Text = "Nesta pasta:", AutoSize = true };
     private readonly TextBox _pasta = new TextBox { Width = 330 };
@@ -111,8 +113,13 @@ internal sealed class FormPdfLote : Form
         Linha(plot, "Estilo de plotagem", _estilo);
         Linha(plot, "Área", _area);
         var criar = Botao("Criar folhas na impressora", (s, e) => CriarFolhas());
-        Linha(plot, "Folhas", criar);
-        var gPlot = new GroupBox { Text = "Plotagem (escala ajustada à folha, centralizado)", AutoSize = true, Padding = new Padding(6) };
+        var linhaFolhas = new FlowLayoutPanel { AutoSize = true, Margin = Padding.Empty, WrapContents = false };
+        linhaFolhas.Controls.Add(criar);
+        linhaFolhas.Controls.Add(new Label { Text = "folga (mm por lado)", AutoSize = true, Margin = new Padding(8, 7, 0, 0) });
+        linhaFolhas.Controls.Add(_folga);
+        Linha(plot, "Folhas", linhaFolhas);
+        _folga.Value = (decimal)FormatosFolha.FolgaValida(cfg.FolgaPapel);
+        var gPlot = new GroupBox { Text = "Plotagem (escala fixa pela unidade do desenho, centralizado)", AutoSize = true, Padding = new Padding(6) };
         plot.Location = new Point(6, 20); // abaixo do título do GroupBox
         gPlot.Controls.Add(plot);
 
@@ -350,7 +357,7 @@ internal sealed class FormPdfLote : Form
         {
             List<FormularioWindows> existentes;
             using (var srv = FormulariosWindows.Abrir(false)) existentes = srv.Listar();
-            var plano = FormulariosPapel.Planejar(_cfg.Formatos, existentes, true);
+            var plano = FormulariosPapel.Planejar(_cfg.FormatosDoPapel, existentes, true);
             var conflitos = plano.ConflitosImpressora;
             if (conflitos.Count > 0)
             {
@@ -360,7 +367,7 @@ internal sealed class FormPdfLote : Form
                           "\n\nPode substituir?\nSim = apagar o do driver e criar o da lista\nNão = deixar o do driver e pular essa folha\nCancelar = não fazer nada";
                 var r = MessageBox.Show(this, txt, titulo, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (r == DialogResult.Cancel) return;
-                if (r == DialogResult.No) plano = FormulariosPapel.Planejar(_cfg.Formatos, existentes, false);
+                if (r == DialogResult.No) plano = FormulariosPapel.Planejar(_cfg.FormatosDoPapel, existentes, false);
             }
             if (plano.NadaAFazer)
             {
@@ -416,7 +423,7 @@ internal sealed class FormPdfLote : Form
     {
         try
         {
-            var plano = FolhasPc3.Planejar(imp, _cfg.Formatos);
+            var plano = FolhasPc3.Planejar(imp, _cfg.FormatosDoPapel);
             if (plano.Mudancas == 0)
             {
                 MessageBox.Show(this, TamanhosPc3.Resumo(plano.Passos, imp), titulo, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -453,6 +460,7 @@ internal sealed class FormPdfLote : Form
         _cfg.ImpressoraLote = _impressora.Text.Trim();
         _cfg.EstiloPlotagem = _estilo.SelectedIndex <= 0 ? "" : _estilo.SelectedItem.ToString();
         _cfg.Area = (AreaPlotLote)Math.Max(0, _area.SelectedIndex);
+        _cfg.FolgaPapel = (double)_folga.Value;
         _cfg.NaPastaDoDesenho = _naPasta.Checked;
         _cfg.PastaDestino = _pasta.Text.Trim();
         _cfg.Subpastas = _subpastas.Checked;
