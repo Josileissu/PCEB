@@ -19,7 +19,8 @@ internal static class ServicoFaixa
     // ---------- criação ----------
 
     /// <summary>Cria a faixa, liga à barra e já calcula quantidade e partes. Retorna a entidade principal.</summary>
-    public static ObjectId Criar(Transaction tr, Polyline barra, DadosFaixa f, Point3d posicao, ConfiguracaoArmadura cfg)
+    public static ObjectId Criar(Transaction tr, Polyline barra, DadosFaixa f, Point3d posicao, ConfiguracaoArmadura cfg,
+        bool textoPeloLadoDasReferencias = false)
     {
         var db = barra.Database;
         XDataCad.GarantirRegApp(db, tr);
@@ -53,7 +54,11 @@ internal static class ServicoFaixa
             default:
                 principal = new MText
                 {
-                    Location = posicao, TextHeight = h, Attachment = AttachmentPoint.MiddleLeft, Contents = "",
+                    Location = posicao, TextHeight = h, Contents = "",
+                    // comandos de chamada/indicação: referências à direita = o texto termina no ponto clicado
+                    Attachment = textoPeloLadoDasReferencias && (f.Tipo == TipoFaixa.Chamada || f.Tipo == TipoFaixa.Indicacao)
+                                 && CalculoFaixa.TextoTerminaNoPonto(posicao.X, f.Referencias.Select(r => r.X))
+                        ? AttachmentPoint.MiddleRight : AttachmentPoint.MiddleLeft,
                 };
                 break;
         }

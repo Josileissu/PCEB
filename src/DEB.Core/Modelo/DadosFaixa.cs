@@ -236,6 +236,17 @@ public sealed class DadosFaixa
 
 public static class CalculoFaixa
 {
+    /// <summary>
+    /// Chamada/indicação: o texto TERMINA no ponto clicado (fica à esquerda dele) quando as referências estão à direita —
+    /// a linha de chamada chega pelo lado do ponto e o texto não fica por cima dela. Referências à esquerda (ou na mesma
+    /// vertical): o texto começa no ponto.
+    /// </summary>
+    public static bool TextoTerminaNoPonto(double xTexto, IEnumerable<double> xReferencias)
+    {
+        var xs = xReferencias?.ToList();
+        return xs != null && xs.Count > 0 && xs.Average() > xTexto + 1e-9;
+    }
+
     /// <summary>Quantidade de barras distribuídas em <paramref name="comprimento"/> (cm) com espaçamento s.</summary>
     public static int Quantidade(double comprimento, double espacamento, double fracaoInicial, ModoQuantidadeFaixa modo,
         bool fechada = false)

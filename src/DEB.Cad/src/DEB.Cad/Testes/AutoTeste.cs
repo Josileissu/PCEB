@@ -2912,6 +2912,62 @@ public sealed class AutoTeste
         Gravar();
     }, suspender: false);
 
+    /// <summary>
+    /// ARMTESTEINDIC: lado do texto da indicação (2026-11-20). ARMINDICACAO digitado como o usuário: referência à direita do
+    /// ponto do texto = o texto termina no ponto (fica à esquerda); referência à esquerda = começa no ponto. ARMTESTEINDIC2 confere.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEINDIC")]
+    public void Indic() => Comandos.Executar("ARMTESTEINDIC", (doc, ed, db, cfg) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0; H.Clear(); Antes.Clear();
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+            var pl = new Polyline();
+            pl.SetDatabaseDefaults(db);
+            pl.AddVertexAt(0, new Point2d(12000, -5000), 0, 0, 0);
+            pl.AddVertexAt(1, new Point2d(12300, -5000), 0, 0, 0);
+            esp.AppendEntity(pl);
+            tr.AddNewlyCreatedDBObject(pl, true);
+            ServicoBarra.Criar(tr, pl, new DadosArmadura { Bitola = 8, Aco = "CA-50", Quantidade = 3, Escala = 25 }, cfg);
+            H["A"] = XDataCad.Hex(pl.ObjectId);
+            tr.Commit();
+        }
+        string sel = $"(sssetfirst nil (ssadd (handent \"{H["A"]}\")))\n";
+        // texto à esquerda/acima, à esquerda/abaixo, à direita/acima e à direita/abaixo da referência
+        // o comando repete até o Enter: as 4 indicações saem de uma chamada só
+        doc.SendStringToExecute(sel + "ARMINDICACAO\n12150,-5000\n\n12050,-4900\n12150,-5000\n\n12050,-5100\n" +
+            "12150,-5000\n\n12250,-4900\n12150,-5000\n\n12250,-5100\n\n", true, false, true);
+        doc.SendStringToExecute("ARMTESTEINDIC2\n", true, false, true);
+    }, suspender: false);
+
+    [Rt.CommandMethod("ARMTESTEINDIC2")]
+    public void Indic2() => Comandos.Executar("ARMTESTEINDIC2", (doc, ed, db, cfg) =>
+    {
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var b = XDataCad.LerBarra(tr.GetObject(Id(db, H["A"]), OpenMode.ForRead));
+            Checar(b.Faixas.Count == 4, $"4 indicações criadas ({b.Faixas.Count})");
+            foreach (var hf in b.Faixas)
+            {
+                var mt = Ent<MText>(tr, db, hf);
+                if (mt == null) { Checar(false, $"indicação {hf}: texto não encontrado"); continue; }
+                var f = ServicoFaixa.Ler(mt);
+                var ext = mt.GeometricExtents;
+                bool refADireita = 12150 > mt.Location.X;
+                var ln = f.Partes.Select(h => Ent<Line>(tr, db, h)).FirstOrDefault(l => l != null);
+                // referência à direita: o texto inteiro fica à esquerda do ponto e a linha chega pela direita dele
+                bool ok = refADireita
+                    ? mt.Attachment == AttachmentPoint.MiddleRight && ext.MaxPoint.X <= mt.Location.X + 1e-6 && ln != null && ln.EndPoint.X > ext.MaxPoint.X
+                    : mt.Attachment == AttachmentPoint.MiddleLeft && ext.MinPoint.X >= mt.Location.X - 1e-6 && ln != null && ln.EndPoint.X < ext.MinPoint.X;
+                Checar(ok, $"texto em ({mt.Location.X:0},{mt.Location.Y:0}), ref. à {(refADireita ? "direita" : "esquerda")}: {mt.Attachment}, " +
+                           $"texto de x={ext.MinPoint.X:0.#} a {ext.MaxPoint.X:0.#}, linha termina em x={ln?.EndPoint.X:0.#}");
+            }
+            tr.Commit();
+        }
+        Gravar();
+    }, suspender: false);
+
     [Rt.CommandMethod("ARMTESTEMARCA")]
     public void Marca() => Log.Info($"autoteste: marca {++_marca}");
 

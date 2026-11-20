@@ -100,7 +100,7 @@ public sealed class ComandosFaixa
             using (var tr = new TransacaoSegura(db))
             {
                 var pl = (Polyline)tr.GetObject(barraId, OpenMode.ForWrite);
-                ServicoFaixa.Criar(tr, pl, f, posicao.Value, cfg);
+                ServicoFaixa.Criar(tr, pl, f, posicao.Value, cfg, textoPeloLadoDasReferencias: true);
                 tr.Commit();
             }
             criadas++;

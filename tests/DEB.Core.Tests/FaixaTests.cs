@@ -53,6 +53,15 @@ public class FaixaTests
         Assert.Equal(4, copia.AfastamentoInicial);
     }
 
+    [Theory]
+    [InlineData(0, new double[] { 50 }, true)]        // referência à direita: o texto fica à esquerda do ponto
+    [InlineData(0, new double[] { -50 }, false)]
+    [InlineData(0, new double[] { 0 }, false)]        // mesma vertical: como sempre foi
+    [InlineData(0, new double[] { -10, 40 }, true)]   // várias: vale a média
+    [InlineData(0, new double[0], false)]
+    public void TextoDaIndicacaoTerminaNoPontoComReferenciasADireita(double x, double[] refs, bool esperado) =>
+        Assert.Equal(esperado, CalculoFaixa.TextoTerminaNoPonto(x, refs));
+
     [Fact]
     public void QuantidadeNaCircunferencia() =>
         Assert.Equal(8, CalculoFaixa.Quantidade(2 * System.Math.PI * 20, 15.7, 0, ModoQuantidadeFaixa.PisoMaisUm, fechada: true));
