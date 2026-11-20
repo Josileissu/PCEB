@@ -43,6 +43,30 @@ internal sealed class PropriedadesTabela
         set { O.ColunaElemento = value; Pendentes.Add(o => o.ColunaElemento = value); }
     }
 
+    [Category(G), DisplayName("Título"),
+     Description("Título desta tabela. Apague o texto para voltar ao título padrão da configuração.")]
+    public string Titulo
+    {
+        get => O.TituloEfetivo(Plugin.Config);
+        set { string v = Limpo(value); O.Titulo = v; Pendentes.Add(o => o.Titulo = v); }
+    }
+
+    [Category(G), DisplayName("Título do resumo"),
+     Description("Título do resumo desta tabela. Apague o texto para voltar ao título padrão da configuração.")]
+    public string TituloResumo
+    {
+        get => O.TituloResumoEfetivo(Plugin.Config);
+        set { string v = Limpo(value); O.TituloResumo = v; Pendentes.Add(o => o.TituloResumo = v); }
+    }
+
+    // o texto de XData tem limite de 255 caracteres
+    private static string Limpo(string v)
+    {
+        v = (v ?? "").Trim();
+        if (v.Length > 200) throw new ArgumentException("O título pode ter até 200 caracteres.");
+        return v;
+    }
+
     [Category(G), DisplayName("Nome no título"), TypeConverter(typeof(SimNaoConverter)),
      Description("RA parcial: o título mostra o(s) detalhamento(s) da tabela, ex.: \"RELAÇÃO DO AÇO - V1\".")]
     public bool NomeNoTitulo

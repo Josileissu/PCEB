@@ -31,6 +31,16 @@ public class NovidadesTests
     {
         var op = new OpcoesTabelaRA { ColunaElemento = ColunaElemento.Sempre, NomeNoTitulo = true };
         var x = CodecDados.DecodificarTabela(CodecDados.Codificar(op), new OpcoesTabelaRA());
+        // título próprio da tabela: vazio = o da configuração; digitado, vai e volta no XData e não é copiado pelo MATCHPROP
+        var cfgT = new DEB.Core.Configuracao.ConfiguracaoArmadura();
+        Assert.Equal(cfgT.TituloRelacao, x.TituloEfetivo(cfgT));
+        Assert.Equal(cfgT.TituloResumo, x.TituloResumoEfetivo(cfgT));
+        var comTitulo = CodecDados.DecodificarTabela(CodecDados.Codificar(
+            new OpcoesTabelaRA { Titulo = " RELAÇÃO DO AÇO - BLOCOS ", TituloResumo = "RESUMO - BLOCOS" }), new OpcoesTabelaRA());
+        Assert.Equal("RELAÇÃO DO AÇO - BLOCOS", comTitulo.TituloEfetivo(cfgT));
+        Assert.Equal("RESUMO - BLOCOS", comTitulo.TituloResumoEfetivo(cfgT));
+        var outra = new OpcoesTabelaRA(); outra.CopiarPropriedadesDe(comTitulo);
+        Assert.Equal("", outra.Titulo);
         Assert.Equal(ColunaElemento.Sempre, x.ColunaElemento);
         Assert.True(x.NomeNoTitulo);
         Assert.True(x.ComElemento(TipoNumeracao.Global));

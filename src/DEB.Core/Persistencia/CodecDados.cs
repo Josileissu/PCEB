@@ -387,6 +387,9 @@ public static class CodecDados
         foreach (var p in o.Partes) { l.Add(new CampoXData(CampoXData.Texto, "PD")); l.Add(ValorHandle(p)); }
         l.Add(new CampoXData(CampoXData.Texto, "COLEL")); l.Add(new CampoXData(CampoXData.Inteiro16, (short)o.ColunaElemento));
         l.Add(new CampoXData(CampoXData.Texto, "TITEL")); l.Add(new CampoXData(CampoXData.Inteiro16, (short)(o.NomeNoTitulo ? 1 : 0)));
+        // títulos próprios da tabela: só quando digitados (vazio = os da configuração)
+        if (!string.IsNullOrWhiteSpace(o.Titulo)) { l.Add(new CampoXData(CampoXData.Texto, "TIT")); l.Add(new CampoXData(CampoXData.Texto, o.Titulo.Trim())); }
+        if (!string.IsNullOrWhiteSpace(o.TituloResumo)) { l.Add(new CampoXData(CampoXData.Texto, "TITR")); l.Add(new CampoXData(CampoXData.Texto, o.TituloResumo.Trim())); }
         return l;
     }
 
@@ -412,6 +415,8 @@ public static class CodecDados
             else if (k == "PD" && v is string p && p.Length > 0) o.Partes.Add(p);
             else if (k == "COLEL") o.ColunaElemento = (RelacaoAco.ColunaElemento)Int(v);
             else if (k == "TITEL") o.NomeNoTitulo = Int(v) != 0;
+            else if (k == "TIT" && v is string tit) o.Titulo = tit;
+            else if (k == "TITR" && v is string titr) o.TituloResumo = titr;
         }
         return o;
     }

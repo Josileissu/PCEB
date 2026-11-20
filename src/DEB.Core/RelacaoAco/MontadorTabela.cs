@@ -27,6 +27,18 @@ public sealed class OpcoesTabelaRA
     public ColunaElemento ColunaElemento { get; set; } = ColunaElemento.Automatica;
     /// <summary>Título com o(s) nome(s) do(s) detalhamento(s) da tabela parcial: "RELAÇÃO DO AÇO - V1".</summary>
     public bool NomeNoTitulo { get; set; }
+    /// <summary>
+    /// Título DESTA tabela, digitado na paleta (pedido do usuário, 20/11/2026). Vazio = o da configuração
+    /// (<see cref="ConfiguracaoArmadura.TituloRelacao"/>).
+    /// </summary>
+    public string Titulo { get; set; } = "";
+    /// <summary>Título do resumo DESTA tabela. Vazio = o da configuração (<see cref="ConfiguracaoArmadura.TituloResumo"/>).</summary>
+    public string TituloResumo { get; set; } = "";
+
+    /// <summary>Título da relação que a tabela mostra (o dela ou o da configuração), sem o nome do detalhamento.</summary>
+    public string TituloEfetivo(ConfiguracaoArmadura cfg) => string.IsNullOrWhiteSpace(Titulo) ? cfg.TituloRelacao : Titulo.Trim();
+    /// <summary>Título do resumo que a tabela mostra (o dela ou o da configuração).</summary>
+    public string TituloResumoEfetivo(ConfiguracaoArmadura cfg) => string.IsNullOrWhiteSpace(TituloResumo) ? cfg.TituloResumo : TituloResumo.Trim();
 
     /// <summary>A tabela mostra a coluna ELEMENTO, dado o tipo de numeração do desenho.</summary>
     public bool ComElemento(Numeracao.TipoNumeracao numeracao) => ColunaElemento switch
@@ -59,7 +71,8 @@ public sealed class OpcoesTabelaRA
 
     /// <summary>
     /// MATCHPROP entre tabelas (pedido do usuário, 2026-11-05): copia a apresentação, a escala e as colunas. Não copia o
-    /// que a tabela LISTA (Blocos da RA parcial) nem o desenho dos detalhes (partes e posição) — cada uma continua com o seu.
+    /// que a tabela LISTA (Blocos da RA parcial), os títulos digitados nem o desenho dos detalhes (partes e posição) — cada
+    /// uma continua com o seu.
     /// </summary>
     public void CopiarPropriedadesDe(OpcoesTabelaRA o)
     {
@@ -141,7 +154,7 @@ public static class MontadorTabela
 
         if (op.Apresentacao != ApresentacaoRA.SomenteResumo)
         {
-            t.Add(cfg.TituloRelacao + sufixo);
+            t.Add(op.TituloEfetivo(cfg) + sufixo);
             sufixo = "";
             t.Mesclas.Add((t.Ultima, 0, ultima));
             t.Titulos.Add(t.Ultima);
@@ -190,7 +203,7 @@ public static class MontadorTabela
             bool peso = op.Resumo != ApresentacaoResumo.Barras;
             bool barras = op.Resumo != ApresentacaoResumo.Peso;
 
-            t.Add(cfg.TituloResumo + sufixo); // só resumo: o nome vai no título dele
+            t.Add(op.TituloResumoEfetivo(cfg) + sufixo); // só resumo: o nome vai no título dele
             t.Mesclas.Add((t.Ultima, 0, ultima));
             t.Titulos.Add(t.Ultima);
 

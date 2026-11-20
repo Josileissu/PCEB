@@ -309,6 +309,10 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   clicado o texto nasce `MiddleRight` (termina no ponto, fica à esquerda dele) e a linha chega pela direita; à esquerda, `MiddleLeft`
   como antes (`CalculoFaixa.TextoTerminaNoPonto`, média das referências). Só ao criar pelo comando: templates, importação e
   indicações existentes não mudam, e mover o texto depois não troca o lado. Autoteste: ARMTESTEINDIC.
+- Título por tabela da relação do aço (2026-11-20): `OpcoesTabelaRA.Titulo`/`TituloResumo` (XData "TIT"/"TITR" só quando digitados;
+  paleta da tabela "Título" e "Título do resumo"). Vazio = o padrão da configuração (`TituloRelacao`/`TituloResumo`), então as
+  tabelas antigas não mudam; apagar o texto na paleta volta ao padrão. O MATCHPROP entre tabelas não copia os títulos. "Nome no
+  título" continua acrescentando o detalhamento depois do título. Autoteste: ARMTESTETITULO.
 - Afastamento da faixa (D39, 2026-11-20): `DadosFaixa.AfastamentoInicial`/`AfastamentoFinal` em cm (XData "AFI"/"AFF" só quando > 0;
   paleta "Afastamento inicial/final (cm)", faixas que distribuem). A cota mede a peça inteira; quantidade e posições saem de
   `CalculoFaixa.QuantidadeEntre`/`PosicoesEntre` com `DadosFaixa.AfastamentosCm()` (0 = a fração `EspacamentoInicial` naquela ponta).

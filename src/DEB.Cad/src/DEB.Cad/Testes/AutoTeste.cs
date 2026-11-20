@@ -2968,6 +2968,60 @@ public sealed class AutoTeste
         Gravar();
     }, suspender: false);
 
+    /// <summary>
+    /// ARMTESTETITULO: título por tabela (2026-11-20). Duas relações do aço no mesmo desenho: a que tem título próprio mostra o
+    /// dela (relação e resumo), a outra continua com o da configuração; o título sobrevive ao ARMRAATUALIZAR.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTETITULO")]
+    public void TituloTabela() => Comandos.Executar("ARMTESTETITULO", (doc, ed, db, cfg) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0; H.Clear(); Antes.Clear();
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+            var pl = new Polyline();
+            pl.SetDatabaseDefaults(db);
+            pl.AddVertexAt(0, new Point2d(12000, -5000), 0, 0, 0);
+            pl.AddVertexAt(1, new Point2d(12300, -5000), 0, 0, 0);
+            esp.AppendEntity(pl);
+            tr.AddNewlyCreatedDBObject(pl, true);
+            ServicoBarra.Criar(tr, pl, new DadosArmadura { Bitola = 8, Aco = "CA-50", Quantidade = 3, Escala = 25 }, cfg);
+            var op = Core.RelacaoAco.OpcoesTabelaRA.Padrao(cfg);
+            op.Titulo = "RELAÇÃO DO AÇO - TESTE";
+            op.TituloResumo = "RESUMO - TESTE";
+            H["T1"] = XDataCad.Hex(ServicoRA.Inserir(db, tr, new Point3d(13200, -5000, 0), cfg, op));
+            H["T2"] = XDataCad.Hex(ServicoRA.Inserir(db, tr, new Point3d(14200, -5000, 0), cfg));
+            tr.Commit();
+        }
+        doc.SendStringToExecute("ARMRAATUALIZAR\nARMTESTETITULO2\n", true, false, true);
+    }, suspender: false);
+
+    [Rt.CommandMethod("ARMTESTETITULO2")]
+    public void TituloTabela2() => Comandos.Executar("ARMTESTETITULO2", (doc, ed, db, cfg) =>
+    {
+        if (Rel.Length > 0) return; // o Enter final do roteiro repete o comando
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            List<string> Celulas(string h)
+            {
+                var t = Ent<Table>(tr, db, h);
+                var r = new List<string>();
+                for (int i = 0; t != null && i < t.Rows.Count; i++) r.Add(t.Cells[i, 0].TextString ?? "");
+                return r;
+            }
+            var c1 = Celulas(H["T1"]);
+            var c2 = Celulas(H["T2"]);
+            Checar(c1.Count > 0 && c1[0] == "RELAÇÃO DO AÇO - TESTE", $"tabela com título próprio: \"{(c1.Count > 0 ? c1[0] : "")}\"");
+            Checar(c1.Contains("RESUMO - TESTE") && !c1.Contains(cfg.TituloResumo), "tabela com título próprio: resumo \"RESUMO - TESTE\"");
+            Checar(c2.Count > 0 && c2[0] == cfg.TituloRelacao && c2.Contains(cfg.TituloResumo),
+                $"tabela sem título próprio: o da configuração (\"{(c2.Count > 0 ? c2[0] : "")}\")");
+            var o1 = ServicoRA.Opcoes(Ent<Table>(tr, db, H["T1"]), cfg);
+            Checar(o1 != null && o1.Titulo == "RELAÇÃO DO AÇO - TESTE" && o1.TituloResumo == "RESUMO - TESTE", "título gravado na tabela (XData)");
+            tr.Commit();
+        }
+        Gravar();
+    }, suspender: false);
+
     [Rt.CommandMethod("ARMTESTEMARCA")]
     public void Marca() => Log.Info($"autoteste: marca {++_marca}");
 

@@ -108,10 +108,12 @@ internal sealed class ConfiguracaoEditavel
     public ModoArredondamento Arredondamento { get => _c.Arredondamento; set => _c.Arredondamento = value; }
 
     // 3. Relação do aço
-    [Category(GRA), DisplayName("Título da relação")]
+    [Category(GRA), DisplayName("Título da relação (padrão)"),
+     Description("Título das tabelas que não têm um título próprio. Cada tabela pode ter o seu: selecione a tabela e edite \"Título\".")]
     public string TituloRelacao { get => _c.TituloRelacao; set => _c.TituloRelacao = value ?? ""; }
 
-    [Category(GRA), DisplayName("Título do resumo")]
+    [Category(GRA), DisplayName("Título do resumo (padrão)"),
+     Description("Título do resumo das tabelas que não têm um próprio (na tabela: \"Título do resumo\").")]
     public string TituloResumo { get => _c.TituloResumo; set => _c.TituloResumo = value ?? ""; }
 
     [Category(GRA), DisplayName("Apresentação (tabelas novas)"), TypeConverter(typeof(ApresentacaoRAConverter))]
