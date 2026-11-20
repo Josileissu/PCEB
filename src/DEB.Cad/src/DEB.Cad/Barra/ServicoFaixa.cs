@@ -52,15 +52,20 @@ internal static class ServicoFaixa
                 principal = new AlignedDimension(p1, p2, posicao, "", db.Dimstyle);
                 break;
             default:
+            {
+                // comandos de chamada/indicação: o ponto clicado é a PONTA DA LINHA (ou do patamar), e o texto fica do outro
+                // lado dela — referências à direita = texto à esquerda do ponto, terminando antes dele
+                bool peloLado = textoPeloLadoDasReferencias && (f.Tipo == TipoFaixa.Chamada || f.Tipo == TipoFaixa.Indicacao)
+                                && f.Referencias.Count > 0;
+                bool termina = peloLado && CalculoFaixa.TextoTerminaNoPonto(posicao.X, f.Referencias.Select(r => r.X));
+                double recuo = !peloLado ? 0 : (f.Patamar ? FolgaPatamar + ComprimentoPatamar : FolgaLinha) * h;
                 principal = new MText
                 {
-                    Location = posicao, TextHeight = h, Contents = "",
-                    // comandos de chamada/indicação: referências à direita = o texto termina no ponto clicado
-                    Attachment = textoPeloLadoDasReferencias && (f.Tipo == TipoFaixa.Chamada || f.Tipo == TipoFaixa.Indicacao)
-                                 && CalculoFaixa.TextoTerminaNoPonto(posicao.X, f.Referencias.Select(r => r.X))
-                        ? AttachmentPoint.MiddleRight : AttachmentPoint.MiddleLeft,
+                    Location = new Point3d(posicao.X + (termina ? -recuo : recuo), posicao.Y, posicao.Z), TextHeight = h, Contents = "",
+                    Attachment = termina ? AttachmentPoint.MiddleRight : AttachmentPoint.MiddleLeft,
                 };
                 break;
+            }
         }
         principal.SetDatabaseDefaults(db);
         principal.LayerId = layer;
@@ -272,7 +277,10 @@ internal static class ServicoFaixa
     /// Ponta da linha de chamada junto ao texto: no meio da altura, um pouco afastada (0,4 altura) do lado de onde a linha
     /// vem — vinda da direita, à direita do texto; vinda da esquerda, à esquerda. null se o texto ainda não tem extensão.
     /// </summary>
-    private static Point2d? PontoNoTexto(MText texto, Point2d de) => AoLadoDoTexto(texto, de.X, 0.4)?.ponto;
+    private static Point2d? PontoNoTexto(MText texto, Point2d de) => AoLadoDoTexto(texto, de.X, FolgaLinha)?.ponto;
+
+    /// <summary>Folga (× altura do texto) entre o texto e a ponta da linha; entre o texto e o patamar; comprimento do patamar.</summary>
+    private const double FolgaLinha = 0.4, FolgaPatamar = 0.3, ComprimentoPatamar = 1.4;
 
     /// <summary>
     /// Ponto ao lado do texto (meia altura), afastado <paramref name="folga"/> × altura, no lado de <paramref name="xRef"/>, e o
@@ -296,8 +304,8 @@ internal static class ServicoFaixa
     /// <summary>Patamar ao lado do texto, virado para as referências: do canto do texto (meia altura) a ~1,2 altura dele.</summary>
     private static (Point2d inicio, Point2d fim)? Patamar(MText texto, double xRefs)
     {
-        if (!(AoLadoDoTexto(texto, xRefs, 0.3) is { } l)) return null; // texto vazio ainda sem extensão
-        return (l.ponto, l.ponto + new Vector2d(l.lado * 1.4 * texto.TextHeight, 0));
+        if (!(AoLadoDoTexto(texto, xRefs, FolgaPatamar) is { } l)) return null; // texto vazio ainda sem extensão
+        return (l.ponto, l.ponto + new Vector2d(l.lado * ComprimentoPatamar * texto.TextHeight, 0));
     }
 
     /// <summary>

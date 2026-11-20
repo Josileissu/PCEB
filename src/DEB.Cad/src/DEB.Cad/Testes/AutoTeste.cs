@@ -2955,13 +2955,16 @@ public sealed class AutoTeste
                 var f = ServicoFaixa.Ler(mt);
                 var ext = mt.GeometricExtents;
                 bool refADireita = 12150 > mt.Location.X;
+                // o ponto clicado (x = 12050 ou 12250) é a ponta da linha, não o texto
+                double xClique = refADireita ? 12050 : 12250;
                 var ln = f.Partes.Select(h => Ent<Line>(tr, db, h)).FirstOrDefault(l => l != null);
                 // referência à direita: o texto inteiro fica à esquerda do ponto e a linha chega pela direita dele
                 bool ok = refADireita
                     ? mt.Attachment == AttachmentPoint.MiddleRight && ext.MaxPoint.X <= mt.Location.X + 1e-6 && ln != null && ln.EndPoint.X > ext.MaxPoint.X
                     : mt.Attachment == AttachmentPoint.MiddleLeft && ext.MinPoint.X >= mt.Location.X - 1e-6 && ln != null && ln.EndPoint.X < ext.MinPoint.X;
+                ok = ok && Math.Abs(ln.EndPoint.X - xClique) <= 0.05 * mt.TextHeight;
                 Checar(ok, $"texto em ({mt.Location.X:0},{mt.Location.Y:0}), ref. à {(refADireita ? "direita" : "esquerda")}: {mt.Attachment}, " +
-                           $"texto de x={ext.MinPoint.X:0.#} a {ext.MaxPoint.X:0.#}, linha termina em x={ln?.EndPoint.X:0.#}");
+                           $"texto de x={ext.MinPoint.X:0.##} a {ext.MaxPoint.X:0.##}, linha termina em x={ln?.EndPoint.X:0.##} (clique {xClique:0}, h={mt.TextHeight:0.##})");
             }
             tr.Commit();
         }

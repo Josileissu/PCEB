@@ -306,8 +306,9 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   cota ou linha de chamada vale pelo objeto dono. Autoteste: `tools\autoteste_autocad.ps1 -Comando ARMTESTEMATCH`.
   GstarCAD/ZWCAD têm os mesmos eventos (compilam), mas NÃO foram testados.
 - Lado do texto da chamada/indicação (2026-11-20): nos comandos ARMCHAMADA/ARMINDICACAO, com as referências à direita do ponto
-  clicado o texto nasce `MiddleRight` (termina no ponto, fica à esquerda dele) e a linha chega pela direita; à esquerda, `MiddleLeft`
-  como antes (`CalculoFaixa.TextoTerminaNoPonto`, média das referências). Só ao criar pelo comando: templates, importação e
+  clicado o texto nasce `MiddleRight` (fica à esquerda do ponto) e a linha chega pela direita; à esquerda, `MiddleLeft`. O ponto
+  clicado é a PONTA DA LINHA (ou do patamar): o texto recua a folga dela (0,4 altura; com patamar, 0,3 + 1,4) para o outro lado
+  (`CalculoFaixa.TextoTerminaNoPonto`, média das referências). Só ao criar pelo comando: templates, importação e
   indicações existentes não mudam, e mover o texto depois não troca o lado. Autoteste: ARMTESTEINDIC.
 - Título por tabela da relação do aço (2026-11-20): `OpcoesTabelaRA.Titulo`/`TituloResumo` (XData "TIT"/"TITR" só quando digitados;
   paleta da tabela "Título" e "Título do resumo"). Vazio = o padrão da configuração (`TituloRelacao`/`TituloResumo`), então as
