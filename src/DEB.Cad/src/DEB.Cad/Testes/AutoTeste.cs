@@ -2849,6 +2849,69 @@ public sealed class AutoTeste
         }
     }, suspender: false);
 
+    /// <summary>
+    /// ARMTESTEAFAST: afastamento inicial/final da faixa (2026-11-20). A cota mede a peça inteira (100 cm) e as barras do
+    /// corte ficam entre os afastamentos (10 e 10, c/20 = 5 barras em 10, 30, 50, 70, 90); sem afastamento, 6 barras.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEAFAST")]
+    public void Afastamento() => Comandos.Executar("ARMTESTEAFAST", (doc, ed, db, cfg) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0; H.Clear(); Antes.Clear();
+        double cpu = Desenho.CmPorUnidade(db, cfg);
+        double x0 = 12000, l = 100 / cpu;
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
+            Polyline Barra(string nome, double y)
+            {
+                var pl = new Polyline();
+                pl.SetDatabaseDefaults(db);
+                pl.AddVertexAt(0, new Point2d(x0, y), 0, 0, 0);
+                pl.AddVertexAt(1, new Point2d(x0 + 300 / cpu, y), 0, 0, 0);
+                esp.AppendEntity(pl);
+                tr.AddNewlyCreatedDBObject(pl, true);
+                ServicoBarra.Criar(tr, pl, new DadosArmadura { Bitola = 8, Aco = "CA-50", Quantidade = 1, Escala = 25 }, cfg);
+                H[nome] = XDataCad.Hex(pl.ObjectId);
+                return pl;
+            }
+            ObjectId Faixa(Polyline bar, double y, double ini, double fim) => ServicoFaixa.Criar(tr, bar,
+                new DadosFaixa { Tipo = TipoFaixa.CorteCotaOrtogonal, Espacamento = 20, Escala = 25, AfastamentoInicial = ini, AfastamentoFinal = fim,
+                                 P1X = x0, P1Y = y, P2X = x0 + l, P2Y = y },
+                new Point3d(x0 + l / 2, y - 30 / cpu, 0), cfg);
+            H["F1"] = XDataCad.Hex(Faixa(Barra("A", -5000), -5100 , 10, 10));
+            H["F2"] = XDataCad.Hex(Faixa(Barra("B", -5400), -5500, 0, 0));
+            H["F3"] = XDataCad.Hex(Faixa(Barra("C", -5800), -5900, 10, 0));
+            tr.Commit();
+        }
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            void Conferir(string nf, string nb, double ini, double fim, int nPiso)
+            {
+                var ent = (Entity)tr.GetObject(Id(db, H[nf]), OpenMode.ForRead);
+                var f = ServicoFaixa.Ler(ent);
+                int esperado = CalculoFaixa.QuantidadeEntre(100, 20, ini, fim, cfg.ModoQuantidadeFaixa);
+                var xs = f.Partes.Select(h => Ent<Entity>(tr, db, h)).Where(e => e is Circle || e is Polyline)
+                    .Select(e => { var ex = e.GeometricExtents; return ((ex.MinPoint.X + ex.MaxPoint.X) / 2 - x0) * cpu; })
+                    .OrderBy(v => v).ToList();
+                string lista = string.Join(" ", xs.Select(v => v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)));
+                Checar(f.Quantidade == esperado && (cfg.ModoQuantidadeFaixa != ModoQuantidadeFaixa.PisoMaisUm || esperado == nPiso),
+                    $"{nf} (afast. {ini}/{fim}): quantidade {f.Quantidade} (esperado {esperado})");
+                Checar(xs.Count == f.Quantidade && xs.Count > 1 && Math.Abs(xs[0] - ini) < 1e-6 && Math.Abs(xs[1] - xs[0] - 20) < 1e-6
+                       && xs[xs.Count - 1] <= 100 - fim + 1e-6, $"{nf}: barras do corte em {lista}");
+                var dim = ent as Dimension;
+                Checar(dim != null && Math.Abs(dim.Measurement * cpu - 100) < 1e-6 && dim.DimensionText.StartsWith(f.Quantidade + " N"),
+                    $"{nf}: a cota mede a peça inteira ({dim?.Measurement * cpu:0.#} cm) e o texto é \"{dim?.DimensionText}\"");
+                var b = XDataCad.LerBarra(tr.GetObject(Id(db, H[nb]), OpenMode.ForRead));
+                Checar(b.Quantidade == f.Quantidade, $"{nf}: a barra soma a faixa ({b.Quantidade})");
+            }
+            Conferir("F1", "A", 10, 10, 5);
+            Conferir("F2", "B", 0, 0, 6);
+            Conferir("F3", "C", 10, 0, 5);
+            tr.Commit();
+        }
+        Gravar();
+    }, suspender: false);
+
     [Rt.CommandMethod("ARMTESTEMARCA")]
     public void Marca() => Log.Info($"autoteste: marca {++_marca}");
 

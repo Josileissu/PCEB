@@ -116,8 +116,9 @@ internal static class ServicoFaixa
         bool fechado = arco && Math.Abs(Math.Abs(f.AnguloFim - f.AnguloIni) - 2 * Math.PI) < 1e-6;
 
         if (f.Tipo == TipoFaixa.Indicacao) { if (f.Quantidade < 0) f.Quantidade = 0; } // só para o texto (0 = a da barra)
-        else if (!f.QuantidadeDigitada)
-            f.Quantidade = CalculoFaixa.Quantidade(comprimentoCm, f.Espacamento, f.EspacamentoInicial, cfg.ModoQuantidadeFaixa, fechado);
+        var (afIni, afFim) = f.AfastamentosCm(); // trechos sem barra nas pontas (digitados ou a fração do espaçamento)
+        if (f.Tipo != TipoFaixa.Indicacao && !f.QuantidadeDigitada)
+            f.Quantidade = CalculoFaixa.QuantidadeEntre(comprimentoCm, f.Espacamento, afIni, afFim, cfg.ModoQuantidadeFaixa, fechado);
 
         // texto
         string texto = Core.Descricao.QuebrasTexto.Aplicar(TextoFaixa.Formatar(f, barra, cfg), f.Quebras); // Enter do usuário
@@ -160,7 +161,7 @@ internal static class ServicoFaixa
                 double lado = f.LadoCorte; // +1 externo, −1 interno
                 double raioCirc = f.Raio + lado * afast;
                 double total = f.AnguloFim - f.AnguloIni;
-                var pos = CalculoFaixa.Posicoes(Math.Abs(total) * f.Raio * cpu, f.Quantidade, f.Espacamento, f.EspacamentoInicial, fechado);
+                var pos = CalculoFaixa.PosicoesEntre(Math.Abs(total) * f.Raio * cpu, f.Quantidade, f.Espacamento, afIni, afFim, fechado);
                 foreach (var s in pos)
                 {
                     double ang = f.AnguloIni + Math.Sign(total) * (s / cpu) / f.Raio;
@@ -171,7 +172,7 @@ internal static class ServicoFaixa
             {
                 var u = (b - a).GetNormal();
                 var n = u.GetPerpendicularVector() * f.LadoCorte;
-                foreach (var s in CalculoFaixa.Posicoes(comprimentoCm, f.Quantidade, f.Espacamento, f.EspacamentoInicial))
+                foreach (var s in CalculoFaixa.PosicoesEntre(comprimentoCm, f.Quantidade, f.Espacamento, afIni, afFim))
                     centros.Add(a + u * (s / cpu) + n * afast);
             }
             var layerCorte = Desenho.GarantirLayer(db, tr, cfg.LayerCorte, cfg.CorCorte);

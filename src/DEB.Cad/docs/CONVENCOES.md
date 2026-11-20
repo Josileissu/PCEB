@@ -305,6 +305,10 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
   1º `PromptForEntityEnding` do comando (ou a pré-seleção de 1 objeto); destinos = seleções + modificados. Clicar num texto,
   cota ou linha de chamada vale pelo objeto dono. Autoteste: `tools\autoteste_autocad.ps1 -Comando ARMTESTEMATCH`.
   GstarCAD/ZWCAD têm os mesmos eventos (compilam), mas NÃO foram testados.
+- Afastamento da faixa (D39, 2026-11-20): `DadosFaixa.AfastamentoInicial`/`AfastamentoFinal` em cm (XData "AFI"/"AFF" só quando > 0;
+  paleta "Afastamento inicial/final (cm)", faixas que distribuem). A cota mede a peça inteira; quantidade e posições saem de
+  `CalculoFaixa.QuantidadeEntre`/`PosicoesEntre` com `DadosFaixa.AfastamentosCm()` (0 = a fração `EspacamentoInicial` naquela ponta).
+  Início = 1º ponto da faixa (P1). Autoteste: ARMTESTEAFAST.
 - Faixas em cota ORTOGONAL e ALINHADA nascem sem o diâmetro no texto (`DadosFaixa.MostrarDiametroAoCriar`, ARMFAIXAORT/ALI e
   faixa do ARMESTRIBO; pedido de 2026-11-05). As existentes não mudam (sem "MDIA" no XData = mostra); templates usam o deles.
 - **Reservatório** (2026-11-05): template `reservatorio` + reconhecedor (Core) + ARMRESERVATORIO; regras e limites em `docs/TEMPLATES.md`.

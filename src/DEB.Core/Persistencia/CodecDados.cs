@@ -242,6 +242,8 @@ public static class CodecDados
         I("FT", (int)f.Tipo);
         R("ESP", f.Espacamento);
         R("EINI", f.EspacamentoInicial);
+        if (f.AfastamentoInicial > 0) R("AFI", f.AfastamentoInicial);
+        if (f.AfastamentoFinal > 0) R("AFF", f.AfastamentoFinal);
         I("QTD", f.Quantidade);
         I("LADO", f.LadoCorte);
         R("P1X", f.P1X); R("P1Y", f.P1Y); R("P2X", f.P2X); R("P2Y", f.P2Y);
@@ -282,6 +284,8 @@ public static class CodecDados
                 case "FT": f.Tipo = (TipoFaixa)Int(v); break;
                 case "ESP": f.Espacamento = Real(v); break;
                 case "EINI": f.EspacamentoInicial = Real(v); break;
+                case "AFI": f.AfastamentoInicial = Real(v); break;
+                case "AFF": f.AfastamentoFinal = Real(v); break;
                 case "QTD": f.Quantidade = Int(v); break;
                 case "LADO": f.LadoCorte = Int(v) < 0 ? -1 : 1; break;
                 case "P1X": f.P1X = Real(v); break;

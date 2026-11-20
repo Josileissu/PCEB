@@ -39,6 +39,20 @@ public sealed class DadosFaixa
     public double Espacamento { get; set; } = 15;
     /// <summary>Espaçamento inicial como fração do espaçamento (0 a 1).</summary>
     public double EspacamentoInicial { get; set; }
+    /// <summary>
+    /// Afastamento (cm) da primeira barra ao início da faixa (P1). 0 = vale o <see cref="EspacamentoInicial"/> (fração).
+    /// A cota mede a peça inteira e as barras ficam entre os afastamentos (pedido do usuário, 20/11/2026).
+    /// </summary>
+    public double AfastamentoInicial { get; set; }
+    /// <summary>Afastamento (cm) da última barra ao fim da faixa (P2). 0 = vale o <see cref="EspacamentoInicial"/> (fração).</summary>
+    public double AfastamentoFinal { get; set; }
+
+    /// <summary>Trechos sem barra no início e no fim da faixa, em cm: o afastamento digitado ou, sem ele, a fração do espaçamento.</summary>
+    public (double Inicial, double Final) AfastamentosCm()
+    {
+        double e0 = Math.Max(0, Math.Min(1, EspacamentoInicial)) * Math.Max(0, Espacamento);
+        return (AfastamentoInicial > 0 ? AfastamentoInicial : e0, AfastamentoFinal > 0 ? AfastamentoFinal : e0);
+    }
     /// <summary>Quantidade: calculada (faixas com comprimento) ou digitada (Chamada).</summary>
     public int Quantidade { get; set; }
     /// <summary>Lado do corte: +1 à esquerda da linha base (p1→p2), −1 à direita.</summary>
@@ -142,6 +156,8 @@ public sealed class DadosFaixa
         {
             Espacamento = o.Espacamento;
             EspacamentoInicial = o.EspacamentoInicial;
+            AfastamentoInicial = o.AfastamentoInicial;
+            AfastamentoFinal = o.AfastamentoFinal;
         }
         else if (Tipo == o.Tipo && (Tipo == TipoFaixa.Chamada || Tipo == TipoFaixa.Indicacao))
             Quantidade = o.Quantidade;
@@ -224,10 +240,20 @@ public static class CalculoFaixa
     public static int Quantidade(double comprimento, double espacamento, double fracaoInicial, ModoQuantidadeFaixa modo,
         bool fechada = false)
     {
+        double e0 = Math.Max(0, Math.Min(1, fracaoInicial)) * Math.Max(0, espacamento);
+        return QuantidadeEntre(comprimento, espacamento, e0, e0, modo, fechada);
+    }
+
+    /// <summary>
+    /// Como <see cref="Quantidade"/>, com os trechos sem barra em cm: <paramref name="inicial"/> no começo e
+    /// <paramref name="final"/> no fim (<see cref="DadosFaixa.AfastamentosCm"/>).
+    /// </summary>
+    public static int QuantidadeEntre(double comprimento, double espacamento, double inicial, double final,
+        ModoQuantidadeFaixa modo, bool fechada = false)
+    {
         if (espacamento <= 0 || comprimento <= 0) return comprimento > 0 ? 1 : 0;
         if (fechada) return Math.Max(1, (int)Math.Round(comprimento / espacamento)); // circunferência: sem "+1"
-        double e0 = Math.Max(0, Math.Min(1, fracaoInicial)) * espacamento;
-        double util = comprimento - 2 * e0;
+        double util = comprimento - Math.Max(0, inicial) - Math.Max(0, final);
         if (util < 0) return 1;
         double q = util / espacamento;
         const double tol = 1e-6; // 400/15 exato não vira 27,0000001
@@ -242,6 +268,14 @@ public static class CalculoFaixa
     /// <summary>Distâncias (cm, a partir do início) das barras na faixa.</summary>
     public static List<double> Posicoes(double comprimento, int n, double espacamento, double fracaoInicial, bool fechada = false)
     {
+        double e0 = Math.Max(0, Math.Min(1, fracaoInicial)) * Math.Max(0, espacamento);
+        return PosicoesEntre(comprimento, n, espacamento, e0, e0, fechada);
+    }
+
+    /// <summary>Como <see cref="Posicoes"/>, com os trechos sem barra em cm (início e fim).</summary>
+    public static List<double> PosicoesEntre(double comprimento, int n, double espacamento, double inicial, double final,
+        bool fechada = false)
+    {
         var r = new List<double>();
         if (n <= 0) return r;
         if (fechada)
@@ -250,13 +284,15 @@ public static class CalculoFaixa
             for (int i = 0; i < n; i++) r.Add(i * passoCirc);
             return r;
         }
-        if (n == 1) { r.Add(comprimento / 2); return r; }
-        double e0 = Math.Max(0, Math.Min(1, fracaoInicial)) * espacamento;
-        double util = Math.Max(0, comprimento - 2 * e0);
-        // barras a cada s a partir de e0; se a regra de arredondamento pôs barra além do fim,
-        // redistribui por igual para nenhuma ficar fora da faixa
+        inicial = Math.Max(0, inicial);
+        final = Math.Max(0, final);
+        if (inicial + final > comprimento) inicial = final = 0; // os trechos não cabem: distribui na faixa toda
+        double util = comprimento - inicial - final;
+        if (n == 1) { r.Add(inicial + util / 2); return r; }
+        // barras a cada s a partir do trecho inicial (a sobra fica no fim); se a regra de arredondamento pôs barra
+        // além do fim, redistribui por igual para nenhuma ficar fora da faixa
         double passo = (n - 1) * espacamento <= util + 1e-6 ? espacamento : util / (n - 1);
-        for (int i = 0; i < n; i++) r.Add(e0 + i * passo);
+        for (int i = 0; i < n; i++) r.Add(inicial + i * passo);
         return r;
     }
 }

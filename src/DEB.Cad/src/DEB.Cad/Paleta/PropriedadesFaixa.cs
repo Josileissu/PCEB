@@ -15,6 +15,7 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
         "Quantidade" => F.TextoTemQuantidade,
         "DiametroEspacamento" => F.TextoTemDiametroEspacamento,
         "Cota" => F.TemCota,
+        "Distribuicao" => F.Tipo != TipoFaixa.Chamada && F.Tipo != TipoFaixa.Indicacao,
         "Indicacao" => F.Tipo == TipoFaixa.Indicacao,
         _ => true,
     };
@@ -174,6 +175,31 @@ internal sealed class PropriedadesFaixa : IPropriedadesCondicionais
             if (value <= 0) throw new ArgumentException("O espaçamento deve ser positivo.");
             F.Espacamento = value;
             Pendentes.Add(f => f.Espacamento = value);
+        }
+    }
+
+    [Category(G), DisplayName("Afastamento inicial (cm)"), TypeConverter(typeof(CmConverter)), SoQuando("Distribuicao"),
+     Description("Distância da primeira barra ao início da faixa (o 1º ponto). A cota continua medindo a peça inteira; " +
+                 "as barras ficam entre os afastamentos e a sobra fica no fim. 0 = sem afastamento digitado.")]
+    public double AfastamentoInicial
+    {
+        get => F.AfastamentoInicial;
+        set
+        {
+            if (value < 0) throw new ArgumentException("O afastamento não pode ser negativo.");
+            Campo(f => f.AfastamentoInicial = value);
+        }
+    }
+
+    [Category(G), DisplayName("Afastamento final (cm)"), TypeConverter(typeof(CmConverter)), SoQuando("Distribuicao"),
+     Description("Distância da última barra ao fim da faixa (o 2º ponto). 0 = sem afastamento digitado.")]
+    public double AfastamentoFinal
+    {
+        get => F.AfastamentoFinal;
+        set
+        {
+            if (value < 0) throw new ArgumentException("O afastamento não pode ser negativo.");
+            Campo(f => f.AfastamentoFinal = value);
         }
     }
 

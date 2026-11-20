@@ -17,6 +17,42 @@ public class FaixaTests
     public void QuantidadeNaFaixa(double l, double s, double e0, ModoQuantidadeFaixa modo, int esperado) =>
         Assert.Equal(esperado, CalculoFaixa.Quantidade(l, s, e0, modo));
 
+    [Theory]
+    [InlineData(100, 20, 10, 10, 5)]  // 80 úteis: 4 vãos + 1
+    [InlineData(100, 15, 10, 10, 6)]  // ⌊80/15⌋ + 1; a sobra (5) fica no fim
+    [InlineData(100, 20, 10, 0, 5)]   // só no início: ⌊90/20⌋ + 1
+    [InlineData(100, 20, 0, 0, 6)]
+    [InlineData(15, 20, 10, 10, 1)]   // afastamentos maiores que a faixa: 1 barra
+    public void QuantidadeEntreAfastamentos(double l, double s, double ini, double fim, int esperado) =>
+        Assert.Equal(esperado, CalculoFaixa.QuantidadeEntre(l, s, ini, fim, ModoQuantidadeFaixa.PisoMaisUm));
+
+    [Fact]
+    public void PosicoesEntreAfastamentos()
+    {
+        Assert.Equal(new double[] { 10, 30, 50, 70, 90 }, CalculoFaixa.PosicoesEntre(100, 5, 20, 10, 10));
+        var p = CalculoFaixa.PosicoesEntre(100, 6, 15, 10, 10);   // a cada 15 a partir de 10; sobra no fim
+        Assert.Equal(10, p[0], 6);
+        Assert.Equal(85, p[5], 6);
+        Assert.Equal(new double[] { 55 }, CalculoFaixa.PosicoesEntre(100, 1, 20, 30, 20)); // 1 barra: meio do trecho útil
+        Assert.Equal(new double[] { 7.5 }, CalculoFaixa.PosicoesEntre(15, 1, 20, 10, 10)); // não cabe: meio da faixa
+    }
+
+    [Fact]
+    public void AfastamentoDigitadoValeNoLugarDaFracao()
+    {
+        var f = new DadosFaixa { Espacamento = 20, EspacamentoInicial = 0.5 };
+        Assert.Equal((10, 10), f.AfastamentosCm());           // fração nas duas pontas
+        f.AfastamentoInicial = 4;
+        Assert.Equal((4, 10), f.AfastamentosCm());            // só a ponta digitada muda
+        f.AfastamentoFinal = 6;
+        var x = CodecDados.DecodificarFaixa(CodecDados.Codificar(f));
+        Assert.Equal((4, 6), x.AfastamentosCm());
+        var antiga = CodecDados.DecodificarFaixa(CodecDados.Codificar(new DadosFaixa { Espacamento = 15 }));
+        Assert.Equal((0, 0), antiga.AfastamentosCm());
+        var copia = new DadosFaixa(); copia.CopiarPropriedadesDe(f);
+        Assert.Equal(4, copia.AfastamentoInicial);
+    }
+
     [Fact]
     public void QuantidadeNaCircunferencia() =>
         Assert.Equal(8, CalculoFaixa.Quantidade(2 * System.Math.PI * 20, 15.7, 0, ModoQuantidadeFaixa.PisoMaisUm, fechada: true));
