@@ -146,3 +146,44 @@ public class VigaCalculoTests
         Assert.Equal(5, env.G); Assert.Equal(4, env.Q);
     }
 }
+
+/// <summary>Barras 3D da viga para o Revit (D40): as mesmas quantidades e posições do detalhamento do CAD.</summary>
+[Collection("Pilar")]
+public class VigaRebarLayoutTests
+{
+    private static double Cm(double ft) => ft * 30.48;
+
+    [Fact]
+    public void ParidadeComOTemplate()
+    {
+        var v = new ValoresTemplate(new TemplateVigaPreMoldada().Parametros);
+        v["B"] = "20"; v["H"] = "75"; v["L"] = "700"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "Reta";
+        var cfg = new ConfiguracaoArmadura();
+        var r = new TemplateVigaPreMoldada().Gerar(v, cfg);
+        var avisos = new List<string>();
+        var bars = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.VigaRebarLayout.Compute(v, cfg, 5, 0, avisos);
+        var lix = new List<string>();
+        var e = TemplateVigaPreMoldada.LerExtremidade(v, true, TemplateVigaPreMoldada.CatalogoDentes, lix);
+        var d = TemplateVigaPreMoldada.LerExtremidade(v, false, TemplateVigaPreMoldada.CatalogoDentes, lix);
+        int nEst = TemplateVigaPreMoldada.ZonasEstribos(v, cfg, 700, e, d).Sum(z => z.Posicoes.Count);
+        Assert.Equal(nEst, bars.Where(b => b.Role == DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.Stirrup).Sum(b => b.Count));
+        // inferior: 3 ø16 do padrão
+        var inf = bars.Where(b => b.Role == DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.Longitudinal && Math.Abs(b.DiameterMm - 16) < 1e-6).ToList();
+        Assert.Equal(r.Barras.Single(b => b.Nome == "long1").Quantidade, inf.Count);
+        // tudo dentro da alma (y de 5 a 25 cm), menos as alças, que saem pelo topo
+        foreach (var b in bars.Where(b => b.Role != DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.LiftLoop))
+            foreach (var p in b.Points)
+            {
+                Assert.InRange(Cm(p.B), 5 + 2.5 - 1e-6, 25 - 2.5 + 1e-6);
+                Assert.InRange(Cm(p.C), 2.5 - 1e-6, 75 - 2.5 + 1e-6);
+                Assert.InRange(Cm(p.A), -1e-6, 700 + 1e-6);
+            }
+        // dente só na ponta esquerda: suspensão e estribos do dente, tirante
+        Assert.Contains(bars, b => b.Role == DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.BeamHanger);
+        Assert.Contains(bars, b => b.Role == DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.BeamTie && b.Points.All(p => Cm(p.A) < 350));
+        Assert.Equal(4, bars.Count(b => b.Role == DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.LiftLoop));   // 2 alças × 2 cordoalhas
+        // girada 180°: o dente vai para a ponta direita
+        var g = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.VigaRebarLayout.Girar180(bars, 700 / 30.48, 30 / 30.48);
+        Assert.Contains(g, b => b.Role == DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.BeamTie && b.Points.All(p => Cm(p.A) > 350));
+    }
+}

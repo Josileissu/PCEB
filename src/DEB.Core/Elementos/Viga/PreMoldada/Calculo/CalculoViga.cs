@@ -1,17 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DEB.Core.Documentacao;
 using DEB.Core.Motor;
 using DEB.Core.Normas.Verificacao;
 
 namespace DEB.Core.Elementos.Viga.PreMoldada.Calculo;
 
-/// <summary>Um passo da memória de cálculo: título e linhas de texto (fórmula com os números).</summary>
-public sealed class PassoMemoria
-{
-    public string Titulo { get; set; } = "";
-    public List<string> Linhas { get; set; } = new List<string>();
-}
 
 /// <summary>Arranjo proposto para a armadura inferior: bitola e barras na 1ª e na 2ª camada.</summary>
 public sealed class ArranjoInferior
@@ -82,6 +77,48 @@ public sealed class ResultadoCalculoViga
     public List<string> Avisos { get; } = new List<string>();
     /// <summary>Valores do template com a armadura proposta (o detalhamento sai deles, no CAD e no Revit).</summary>
     public ValoresTemplate Proposta { get; set; }
+
+    /// <summary>Resumo da armadura proposta, uma linha por item (janela do Revit e relatório).</summary>
+    public List<string> ResumoProposta()
+    {
+        string Nm(double x, string f = "0.#") => Fmt.Virgula(x, f);
+        var l = new List<string>();
+        if (Inferior != null) l.Add($"Inferior: {Inferior.Texto} ({Nm(Inferior.Area, "0.00")} cm² ≥ {Nm(Math.Max(AsNec, AsMin), "0.00")} cm²)");
+        if (Superior.N > 0 && Capa <= 0) l.Add($"Superior: {Superior.N} ø{Nm(Superior.Bitola)}");
+        if (Pele.NPorFace > 0) l.Add($"Pele: {Pele.NPorFace} ø{Nm(Pele.Bitola)} por face");
+        if (EstBitola > 0)
+            l.Add(ZonaPonta > 0 ? $"Estribos: ø{Nm(EstBitola)} c/{Nm(EspPonta)} nas pontas ({Nm(ZonaPonta, "0")} cm) e c/{Nm(EspVao)} no vão"
+                                : $"Estribos: ø{Nm(EstBitola)} c/{Nm(EspVao)}");
+        if (Contraflecha > 0) l.Add($"Contraflecha: {Nm(Contraflecha)} cm");
+        return l;
+    }
+
+    /// <summary>Leva o cálculo para o relatório do grupo (D37): cargas e proposta nos dados, verificações K, memória e diagramas.</summary>
+    public void PreencherRelatorio(RelatorioGrupo g)
+    {
+        string Nm(double x, string f = "0.##") => Fmt.Virgula(x, f);
+        void D(string k, string v) => g.Dados.Add(new KeyValuePair<string, string>(k, v));
+        D("Vão de cálculo", $"{Nm(Vao, "0.#")} cm (apoios a {Nm(ApoioE, "0.#")} e {Nm(ApoioD, "0.#")} cm das pontas)");
+        D("Cargas (características)", $"g1 = {Nm(G1)} kN/m (peso próprio)" + (GCapa > 0 ? $"; capa {Nm(GCapa)} kN/m" : "") +
+                                      $"; g2 = {Nm(Cargas.G)} kN/m; q = {Nm(Cargas.Q)} kN/m" +
+                                      (Cargas.Concentradas.Count > 0 ? $"; concentradas: {CargasViga.TextoConcentradas(Cargas.Concentradas)}" : ""));
+        D("Esforços de cálculo", $"Md,máx = {Nm(MdMax, "0.0")} kN·m; Vd = {Nm(VdE, "0.0")} / {Nm(VdD, "0.0")} kN (apoios esquerdo / direito)");
+        D("Reações características", $"esquerda G {Nm(RkE_G, "0.0")} + Q {Nm(RkE_Q, "0.0")} kN; direita G {Nm(RkD_G, "0.0")} + Q {Nm(RkD_Q, "0.0")} kN");
+        D("Armadura proposta", string.Join("; ", ResumoProposta()));
+        g.Verificacoes.Juntar(Verificacoes);
+        g.Memoria.AddRange(Memoria);
+        var vao = Diagrama.Where(p => p.X >= ApoioE - 1e-6 && p.X <= L - ApoioD + 1e-6).ToList();
+        g.Diagramas.Add(new DiagramaRelatorio
+        {
+            Titulo = "Momento fletor de cálculo Md (kN·m)", Unidade = "kN·m", PositivoParaBaixo = true,
+            Pontos = vao.Select(p => (p.X, p.Md)).ToList(), Apoios = { ApoioE, L - ApoioD },
+        });
+        g.Diagramas.Add(new DiagramaRelatorio
+        {
+            Titulo = "Força cortante de cálculo Vd (kN)", Unidade = "kN",
+            Pontos = vao.Select(p => (p.X, p.Vd)).ToList(), Apoios = { ApoioE, L - ApoioD },
+        });
+    }
 }
 
 /// <summary>

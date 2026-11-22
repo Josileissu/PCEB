@@ -26,6 +26,11 @@ public sealed class RelatorioGrupo
     /// <summary>De onde veio (template do CAD, modelo do Revit, arquivo de peças) — texto livre para o rodapé.</summary>
     public string Origem { get; set; } = "";
     public DateTime Data { get; set; } = DateTime.Now;
+    /// <summary>Memória de cálculo (D40); vazia = relatório só de verificações do desenho (sem esforços).</summary>
+    public List<PassoMemoria> Memoria { get; set; } = new List<PassoMemoria>();
+    /// <summary>Diagramas de esforços desenhados no relatório (com cálculo).</summary>
+    public List<DiagramaRelatorio> Diagramas { get; set; } = new List<DiagramaRelatorio>();
+    public bool ComCalculo => Memoria.Count > 0;
 }
 
 /// <summary>Aceite do engenheiro para uma pendência "Conferir" (D37): quem, quando e por quê.</summary>
@@ -158,6 +163,16 @@ tr.na td { background: var(--na-f); } tr.cf td { background: var(--cf-f); }
 .dica { color: var(--suave); font-size: 12px; margin-top: 2px; }
 a { color: inherit; }
 .aceite { color: var(--ok); font-size: 12px; margin-top: 2px; }
+.memoria { border: 1px solid var(--linha); border-radius: 6px; padding: 8px 14px; margin: 8px 0; }
+.memoria h3 { font-size: 14px; margin: 6px 0; }
+.memoria ul { margin: 4px 0 6px; padding-left: 20px; } .memoria li { margin: 2px 0; }
+.diagramas { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 8px 20px; }
+.diagramas figure { margin: 0; } .diagramas figcaption { font-weight: 600; font-size: 13px; }
+svg.diag { width: 100%; height: auto; }
+svg.diag .eixo { stroke: var(--tinta); stroke-width: 1.2; }
+svg.diag .area { fill: #d6e4f5; stroke: none; } svg.diag .linha { fill: none; stroke: #1f5aa6; stroke-width: 1.6; }
+svg.diag .apoio { fill: var(--tinta); } svg.diag .rot { font-size: 11px; fill: var(--tinta); }
+.proposta { background: var(--ok-f); border: 1px solid var(--ok); border-radius: 6px; padding: 8px 14px; }
 footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px solid var(--linha); padding-top: 8px; }
 @media print { body { padding: 0; } tr { break-inside: avoid; } }
 </style>
@@ -182,8 +197,10 @@ footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px
         var sb = new StringBuilder();
         Cabecalho(sb, "Verificação - " + g.Marca);
         sb.Append("<header>\n<div>\n");
-        sb.Append($"<h1>Verificação normativa — {H(g.Marca)}</h1>\n");
-        sb.Append($"<div class=\"sub\">{H(g.Elemento)} · detalhamento sem cálculo de esforços (NBR 6118:2023, NBR 9062:2017)</div>\n");
+        sb.Append(g.ComCalculo ? $"<h1>Cálculo e verificação — {H(g.Marca)}</h1>\n" : $"<h1>Verificação normativa — {H(g.Marca)}</h1>\n");
+        sb.Append(g.ComCalculo
+            ? $"<div class=\"sub\">{H(g.Elemento)} · viga biapoiada de concreto armado, cargas digitadas pelo engenheiro (NBR 6118:2023, NBR 9062:2017, NBR 8681)</div>\n"
+            : $"<div class=\"sub\">{H(g.Elemento)} · detalhamento sem cálculo de esforços (NBR 6118:2023, NBR 9062:2017)</div>\n");
         sb.Append("</div>\n<div>\n");
         sb.Append($"<div class=\"selo {Classe(efetiva)}\">{Selo(efetiva)}</div>\n");
         sb.Append($"<div class=\"contagem\">{nOk} OK · {nCf} a conferir · {nAc} aceita(s) · {nNa} não atende(m)</div>\n");
@@ -194,6 +211,13 @@ footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px
             sb.Append("<h2>Dados do grupo</h2>\n<dl>\n");
             foreach (var d in g.Dados) sb.Append($"<dt>{H(d.Key)}</dt><dd>{H(d.Value)}</dd>\n");
             sb.Append("</dl>\n");
+        }
+
+        if (g.Diagramas.Count > 0)
+        {
+            sb.Append("<h2>Diagramas de cálculo (ELU)</h2>\n<div class=\"diagramas\">\n");
+            foreach (var dg in g.Diagramas) sb.Append($"<figure><figcaption>{H(dg.Titulo)}</figcaption>{dg.Svg()}</figure>\n");
+            sb.Append("</div>\n");
         }
 
         var pendentes = lista.Where(r => r.Situacao != SituacaoVerificacao.Ok && Aceite(r) == null).ToList();
@@ -226,10 +250,24 @@ footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px
             sb.Append("</tbody></table></div>\n");
         }
 
+        if (g.ComCalculo)
+        {
+            sb.Append("<h2>Memória de cálculo</h2>\n");
+            foreach (var m in g.Memoria)
+            {
+                sb.Append($"<section class=\"memoria\"><h3>{H(m.Titulo)}</h3><ul>\n");
+                foreach (var l in m.Linhas) sb.Append($"<li>{H(l)}</li>\n");
+                sb.Append("</ul></section>\n");
+            }
+        }
+
         sb.Append("<footer>\n");
         sb.Append($"Gerado pelo PCEB em {g.Data:dd/MM/yyyy HH:mm}" + (string.IsNullOrWhiteSpace(g.Origem) ? "" : $" · {H(g.Origem)}") + ".<br>\n");
-        sb.Append("Verificações do desenho pela norma, sem esforços: os limites que dependem de esforço aparecem como \"Conferir\" com o " +
-                  $"limite mais rigoroso. Aceites das pendências: arquivo {AceitesObra.NomeArquivo} na pasta da obra (comando ARMACEITES no CAD).\n");
+        sb.Append(g.ComCalculo
+            ? "Cálculo de viga biapoiada pelas cargas digitadas (peso próprio calculado pelo programa); a armadura proposta é conferida e aceita pelo " +
+              $"engenheiro responsável antes de ir para a peça. Aceites das pendências: arquivo {AceitesObra.NomeArquivo} na pasta da obra.\n"
+            : "Verificações do desenho pela norma, sem esforços: os limites que dependem de esforço aparecem como \"Conferir\" com o " +
+              $"limite mais rigoroso. Aceites das pendências: arquivo {AceitesObra.NomeArquivo} na pasta da obra (comando ARMACEITES no CAD).\n");
         sb.Append("</footer>\n</main>\n</body>\n</html>\n");
         return sb.ToString();
     }
