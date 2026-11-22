@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -22,27 +22,27 @@ using Fmt = DEB.Core.Fmt;
 
 namespace DEB.Revit.Vigas
 {
-    /// <summary>Uma viga do modelo dentro de um grupo de peÃ§as iguais.</summary>
+    /// <summary>Uma viga do modelo dentro de um grupo de peças iguais.</summary>
     internal sealed class MembroViga
     {
         public FamilyInstance Instance { get; set; }
         public PieceInfo Info { get; set; }
         public PecaLevantada Levantada { get; set; }
-        /// <summary>0 ou 180: a peÃ§a estÃ¡ girada em relaÃ§Ã£o Ã  representante do grupo.</summary>
+        /// <summary>0 ou 180: a peça está girada em relação à representante do grupo.</summary>
         public int Giro { get; set; }
         public CargasViga Cargas { get; set; } = new CargasViga();
         public long Id => Instance.Id.Value;
     }
 
-    /// <summary>Grupo de vigas prÃ©-moldadas iguais: geometria (do levantamento), cargas, cÃ¡lculo e proposta de armadura.</summary>
+    /// <summary>Grupo de vigas pré-moldadas iguais: geometria (do levantamento), cargas, cálculo e proposta de armadura.</summary>
     internal sealed class GrupoViga
     {
         public string Marca { get; set; } = "";
         public VigaPeca Peca { get; set; }
         public List<MembroViga> Membros { get; } = new List<MembroViga>();
-        /// <summary>Valores do template da viga com a geometria do modelo e o padrÃ£o do escritÃ³rio (antes do cÃ¡lculo).</summary>
+        /// <summary>Valores do template da viga com a geometria do modelo e o padrão do escritório (antes do cálculo).</summary>
         public ValoresTemplate Base { get; set; }
-        /// <summary>Alma da representante no sistema local dela (cm): inÃ­cio na largura e fundo.</summary>
+        /// <summary>Alma da representante no sistema local dela (cm): início na largura e fundo.</summary>
         public double AlmaY0 { get; set; }
         public double AlmaZ0 { get; set; }
         public List<string> Avisos { get; } = new List<string>();
@@ -58,15 +58,15 @@ namespace DEB.Revit.Vigas
     }
 
     /// <summary>
-    /// "Vigas prÃ©-moldadas" (D40, 22/11/2026): levanta as vigas (o mesmo levantamento da conferÃªncia e da exportaÃ§Ã£o), agrupa as
-    /// iguais, lÃª as cargas digitadas (parÃ¢metros <see cref="ParametrosCargasViga"/>), calcula no nÃºcleo
-    /// (<see cref="CalculoViga"/>), propÃµe a armadura e, depois do aceite na janela (D26), arma as peÃ§as no Revit pela geometria do
-    /// nÃºcleo (<see cref="VigaRebarLayout"/>), cria a montagem, as vistas (elevaÃ§Ã£o, planta, cortes, 3D; D29: sem montar folha) e
-    /// as tabelas de aÃ§o, e grava o relatÃ³rio de cÃ¡lculo e verificaÃ§Ã£o do grupo (D37).
+    /// "Vigas pré-moldadas" (D40, 22/11/2026): levanta as vigas (o mesmo levantamento da conferência e da exportação), agrupa as
+    /// iguais, lê as cargas digitadas (parâmetros <see cref="ParametrosCargasViga"/>), calcula no núcleo
+    /// (<see cref="CalculoViga"/>), propõe a armadura e, depois do aceite na janela (D26), arma as peças no Revit pela geometria do
+    /// núcleo (<see cref="VigaRebarLayout"/>), cria a montagem, as vistas (elevação, planta, cortes, 3D; D29: sem montar folha) e
+    /// as tabelas de aço, e grava o relatório de cálculo e verificação do grupo (D37).
     /// </summary>
     internal static class VigasPreMoldadas
     {
-        /// <summary>PadrÃ£o do escritÃ³rio para as vigas: os valores de partida do template (os mesmos do CAD).</summary>
+        /// <summary>Padrão do escritório para as vigas: os valores de partida do template (os mesmos do CAD).</summary>
         public static ValoresTemplate PadraoEscritorio() => new ValoresTemplate(new TemplateVigaPreMoldada().Parametros);
 
         public static List<GrupoViga> Levantar(Document doc, List<string> notas, ValoresTemplate padrao = null)
@@ -77,12 +77,12 @@ namespace DEB.Revit.Vigas
             notas.AddRange(arq.Notas.Where(n => n.StartsWith("Viga", StringComparison.OrdinalIgnoreCase) || n.Contains("vigas")));
             var porId = pecas.Where(p => p.Tipo == TipoPeca.Viga).ToDictionary(p => p.Id);
 
-            // dentes do modelo que faltam no catÃ¡logo: entram com a armadura padrÃ£o (opÃ§Ã£o b do usuÃ¡rio, 2026-11-09) â€” o cÃ¡lculo confere
+            // dentes do modelo que faltam no catálogo: entram com a armadura padrão (opção b do usuário, 2026-11-09) — o cálculo confere
             var catalogo = TipoDente.Padrao();
             var novos = CatalogoAutomatico.Dentes(arq.Vigas, catalogo);
             catalogo.AddRange(novos);
             TemplateVigaPreMoldada.CatalogoDentes = catalogo;
-            if (novos.Count > 0) notas.Add($"Dentes criados com a armadura padrÃ£o (conferir no cÃ¡lculo): {string.Join(", ", novos.Select(t => t.Nome))}.");
+            if (novos.Count > 0) notas.Add($"Dentes criados com a armadura padrão (conferir no cálculo): {string.Join(", ", novos.Select(t => t.Nome))}.");
 
             var grupos = new List<GrupoViga>();
             foreach (VigaPeca vp in arq.Vigas)
@@ -95,7 +95,7 @@ namespace DEB.Revit.Vigas
                     var erros = new List<string>();
                     var m = new MembroViga { Instance = fi, Info = PieceAnalyzer.Analyze(fi), Levantada = lev, Giro = el.Giro, Cargas = ParametrosCargasViga.Ler(fi, erros) };
                     foreach (string e in erros) g.Avisos.Add($"{fi.Id.Value}: {e}");
-                    if (el.Giro != 0 && el.Giro != 180) g.Avisos.Add($"{fi.Id.Value}: giro de {el.Giro}Â° nÃ£o esperado numa viga; armada como a representante.");
+                    if (el.Giro != 0 && el.Giro != 180) g.Avisos.Add($"{fi.Id.Value}: giro de {el.Giro}° não esperado numa viga; armada como a representante.");
                     g.Membros.Add(m);
                 }
                 if (g.Membros.Count == 0) continue;
@@ -109,7 +109,7 @@ namespace DEB.Revit.Vigas
                 g.AlmaZ0 = s?.Z0 ?? 0;
                 g.Cargas = CargasViga.Envoltoria(g.Membros.Select(x => x.Cargas));
                 if (g.Membros.Select(x => Assinatura(x.Cargas)).Distinct().Count() > 1)
-                    g.Avisos.Add("As peÃ§as do grupo tÃªm cargas diferentes: o cÃ¡lculo usa a envoltÃ³ria (maiores cargas) para todas.");
+                    g.Avisos.Add("As peças do grupo têm cargas diferentes: o cálculo usa a envoltória (maiores cargas) para todas.");
                 grupos.Add(g);
             }
             return grupos;
@@ -134,16 +134,16 @@ namespace DEB.Revit.Vigas
             g.Calculo = CalculoViga.Calcular(g.Base, g.Cargas, k, TemplateVigaPreMoldada.CatalogoDentes);
         }
 
-        /// <summary>Grava as cargas digitadas na janela em todas as peÃ§as do grupo (cria os parÃ¢metros se faltarem). Precisa de transaÃ§Ã£o.</summary>
+        /// <summary>Grava as cargas digitadas na janela em todas as peças do grupo (cria os parâmetros se faltarem). Precisa de transação.</summary>
         public static void GravarCargas(Document doc, GrupoViga g, List<string> avisos)
         {
             ParametrosCargasViga.Garantir(doc, avisos);
             foreach (MembroViga m in g.Membros) { ParametrosCargasViga.Gravar(m.Instance, g.Cargas); m.Cargas = g.Cargas; }
         }
 
-        // ------------------------------------------------------------------ aplicaÃ§Ã£o
+        // ------------------------------------------------------------------ aplicação
 
-        /// <summary>Barras de uma peÃ§a do grupo no sistema local dela (a representante + giro de 180Â° quando for o caso).</summary>
+        /// <summary>Barras de uma peça do grupo no sistema local dela (a representante + giro de 180° quando for o caso).</summary>
         public static List<BarDef> Barras(GrupoViga g, MembroViga m, List<string> avisos)
         {
             var bars = VigaRebarLayout.Compute(g.Proposta, new ConfiguracaoArmadura(), g.AlmaY0, g.AlmaZ0, avisos, TemplateVigaPreMoldada.CatalogoDentes);
@@ -164,7 +164,7 @@ namespace DEB.Revit.Vigas
                 {
                     PieceLog log = report.Begin($"{g.Marca} - viga {m.Id}");
                     try { AplicarMembro(doc, g, m, cfg, log, activeViewId, vistas && primeiro); }
-                    catch (Exception ex) { log.Error(ex.Message); log.Trace("Vigas prÃ©-moldadas", ex); }
+                    catch (Exception ex) { log.Error(ex.Message); log.Trace("Vigas pré-moldadas", ex); }
                     primeiro = false;
                 }
             }
@@ -197,14 +197,14 @@ namespace DEB.Revit.Vigas
                 RebarData.Apply(doc, rebar, g.Marca, factory.CoreLengthsCm);
             }, critical: false);
 
-            // montagem (viga + barras) e vistas: o 1Âº do grupo cria; os outros caem no mesmo tipo e reaproveitam
+            // montagem (viga + barras) e vistas: o 1º do grupo cria; os outros caem no mesmo tipo e reaproveitam
             var members = new List<ElementId> { m.Instance.Id };
             members.AddRange(rebar);
             AssemblyInstance asm = null;
             if (!Tx(doc, "Criar montagem", log, () =>
                 {
                     ElementId cat = m.Instance.Category.Id;
-                    if (!AssemblyInstance.IsValidNamingCategory(doc, cat, members)) throw new InvalidOperationException("categoria nÃ£o aceita para nomear a montagem");
+                    if (!AssemblyInstance.IsValidNamingCategory(doc, cat, members)) throw new InvalidOperationException("categoria não aceita para nomear a montagem");
                     asm = AssemblyInstance.Create(doc, members, cat);
                 }) || asm == null) return;
             PieceInfo p = m.Info;
@@ -212,13 +212,13 @@ namespace DEB.Revit.Vigas
             Tx(doc, "Orientar montagem", log, () => { asm.SetTransform(p.ToTransform()); doc.Regenerate(); }, critical: false);
             bool gemeo = new FilteredElementCollector(doc).OfClass(typeof(AssemblyInstance)).Cast<AssemblyInstance>()
                 .Any(a => a.Id != asm.Id && a.GetTypeId() == asm.GetTypeId());
-            if (gemeo) { log.Info($"Montagem igual Ã  \"{asm.AssemblyTypeName}\": usa as vistas dela."); return; }
+            if (gemeo) { log.Info($"Montagem igual à \"{asm.AssemblyTypeName}\": usa as vistas dela."); return; }
             Tx(doc, "Nomear montagem", log, () => asm.AssemblyTypeName = NameRegistry.ForAssemblyTypes(doc).Unique(g.Marca), critical: false);
             if (!vistas) return;
 
             var e = g.Peca;
             var c = cfg.Clone();
-            // corte junto ao apoio no meio do dente (ou a d da ponta reta); o outro no meio do vÃ£o
+            // corte junto ao apoio no meio do dente (ou a d da ponta reta); o outro no meio do vão
             c.BeamSupportSectionDistanceMm = (e.DenteE != null ? e.DenteE.Comprimento / 2 : Math.Max(30, g.Proposta.Numero("H") * 0.6)) * 10;
             DetailViews views = null;
             Tx(doc, "Criar vistas", log, () => views = new ViewFactory(doc, c, log).Create(asm, p), critical: false);
@@ -242,16 +242,23 @@ namespace DEB.Revit.Vigas
                 var ds = new DimensionService(doc, c, log);
                 foreach (DetailView dv in views.Views) dims += ds.AddOverallDimensions(dv, p);
             }, critical: false);
-            Tx(doc, "Tabelas de aÃ§o", log, () =>
+            int tags = 0;
+            Tx(doc, "Etiquetas das barras", log, () =>
+            {
+                foreach (DetailView dv in views.Views.Where(x => x.Role == ViewRole.Elevation))
+                    tags += VigasEtiquetas.Etiquetar(doc, dv.View, asm, m.Instance, log);
+            }, critical: false);
+            log.Info($"{tags} etiqueta(s) de barras na elevação ({views.Views.Count(x => x.Role == ViewRole.Elevation)} vista(s) de elevação).");
+            Tx(doc, "Tabelas de aço", log, () =>
             {
                 var nomes = NameRegistry.ForViews(doc);
-                RebarSchedules.Create(doc, asm, new TableSpec { Tipo = TableKind.RelacaoDoAco }, nomes.Unique($"{g.Marca} - RelaÃ§Ã£o do aÃ§o"));
-                RebarSchedules.Create(doc, asm, new TableSpec { Tipo = TableKind.ResumoDoAco }, nomes.Unique($"{g.Marca} - Resumo do aÃ§o"));
+                RebarSchedules.Create(doc, asm, new TableSpec { Tipo = TableKind.RelacaoDoAco }, nomes.Unique($"{g.Marca} - Relação do aço"));
+                RebarSchedules.Create(doc, asm, new TableSpec { Tipo = TableKind.ResumoDoAco }, nomes.Unique($"{g.Marca} - Resumo do aço"));
             }, critical: false);
-            log.Infos.Insert(0, $"{g.Marca}: {views.Views.Count} vistas da montagem e tabelas de aÃ§o (a folha fica com vocÃª, D29); {dims} cotas.");
+            log.Infos.Insert(0, $"{g.Marca}: {views.Views.Count} vistas da montagem e tabelas de aço (a folha fica com você, D29); {dims} cotas.");
         }
 
-        /// <summary>RelatÃ³rio de cÃ¡lculo e verificaÃ§Ã£o do grupo (D37) na pasta do modelo; sem modelo salvo, na pasta de logs.</summary>
+        /// <summary>Relatório de cálculo e verificação do grupo (D37) na pasta do modelo; sem modelo salvo, na pasta de logs.</summary>
         public static string GravarRelatorio(Document doc, GrupoViga g, DetailingReport report)
         {
             try
@@ -261,10 +268,10 @@ namespace DEB.Revit.Vigas
                 if (pasta == null || !Directory.Exists(pasta)) pasta = DetailingReport.LogDir;
                 RelatorioGrupo rel = Relatorio(doc, g);
                 string arq = RelatorioHtml.Gravar(rel, pasta);
-                report?.General.Add($"{g.Marca}: relatÃ³rio de cÃ¡lculo em {arq}");
+                report?.General.Add($"{g.Marca}: relatório de cálculo em {arq}");
                 return arq;
             }
-            catch (Exception ex) { report?.General.Add($"{g.Marca}: relatÃ³rio nÃ£o gravado â€” {ex.Message}"); return null; }
+            catch (Exception ex) { report?.General.Add($"{g.Marca}: relatório não gravado — {ex.Message}"); return null; }
         }
 
         public static RelatorioGrupo Relatorio(Document doc, GrupoViga g)
@@ -276,17 +283,17 @@ namespace DEB.Revit.Vigas
             v["Quantidade"] = g.Quantidade.ToString(CultureInfo.InvariantCulture);
             ResultadoTemplate r = t.Gerar(v, new ConfiguracaoArmadura());
             string origem = "modelo do Revit (" + (string.IsNullOrEmpty(doc.PathName) ? doc.Title : Path.GetFileName(doc.PathName)) + ")";
-            RelatorioGrupo rel = RelatorioHtml.DoTemplate(r, g.Marca, origem) ?? new RelatorioGrupo { Marca = g.Marca, Elemento = "Viga prÃ©-moldada", Origem = origem };
+            RelatorioGrupo rel = RelatorioHtml.DoTemplate(r, g.Marca, origem) ?? new RelatorioGrupo { Marca = g.Marca, Elemento = "Viga pré-moldada", Origem = origem };
             g.Calculo?.PreencherRelatorio(rel);
             try
             {
-                // desenho da armação proposta: as mesmas barras que vão para o Revit (representante, sem giro)
+                // desenho da arma��o proposta: as mesmas barras que v�o para o Revit (representante, sem giro)
                 var bars = VigaRebarLayout.Compute(g.Proposta, new ConfiguracaoArmadura(), g.AlmaY0, g.AlmaZ0, new List<string>(), TemplateVigaPreMoldada.CatalogoDentes);
                 foreach (var (tit, svg) in DesenhoArmacaoSvg.Figuras(g.Proposta, bars, g.AlmaY0, g.AlmaZ0))
                     rel.Figuras.Add(new KeyValuePair<string, string>(tit, svg));
             }
-            catch (Exception ex) { rel.Dados.Add(new KeyValuePair<string, string>("Observação", "desenho da armação não gerado: " + ex.Message)); }
-            foreach (string a in g.Avisos) rel.Dados.Add(new KeyValuePair<string, string>("ObservaÃ§Ã£o", a));
+            catch (Exception ex) { rel.Dados.Add(new KeyValuePair<string, string>("Observa��o", "desenho da arma��o n�o gerado: " + ex.Message)); }
+            foreach (string a in g.Avisos) rel.Dados.Add(new KeyValuePair<string, string>("Observação", a));
             return rel;
         }
 
@@ -322,7 +329,7 @@ namespace DEB.Revit.Vigas
                     WarningSwallower.Attach(t);
                     action();
                     if (t.Commit() == TransactionStatus.Committed) return true;
-                    (critical ? (Action<string>)log.Error : log.Warn)($"{name}: transaÃ§Ã£o nÃ£o confirmada{WarningSwallower.TakeReason()}.");
+                    (critical ? (Action<string>)log.Error : log.Warn)($"{name}: transação não confirmada{WarningSwallower.TakeReason()}.");
                     return false;
                 }
                 catch (Exception ex)

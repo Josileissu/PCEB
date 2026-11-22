@@ -43,7 +43,8 @@ namespace DEB.Revit.Precast
             // quantidade (layout de número fixo) e cada barra do conjunto é levada para a sua posição com "Modificar barras"
             // (MoveBarInSet), como se faz à mão no Revit. Assim a quantidade (8 N1) sai do próprio conjunto na etiqueta, na
             // tabela e no detalhe de curvatura em escala (que não desenha barra de forma livre).
-            var groups = all.Where(b => (b.Role == BarRole.Longitudinal || b.Role == BarRole.LiftLoop) && b.Count <= 1 && b.HostCorbel == null && !b.Closed)
+            var groups = all.Where(b => (b.Role == BarRole.Longitudinal || b.Role == BarRole.LiftLoop || b.Role == BarRole.BeamTie ||
+                                         b.Role == BarRole.BeamHairpin || b.Role == BarRole.BeamStitch) && b.Count <= 1 && b.HostCorbel == null && !b.Closed)
                 .GroupBy(ShapeKey).Where(g => g.Count() > 1).Select(g => g.ToList()).ToList();
             var grouped = new HashSet<BarDef>();
             foreach (List<BarDef> g in groups)
