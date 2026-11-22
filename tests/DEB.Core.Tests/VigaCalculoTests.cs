@@ -187,3 +187,31 @@ public class VigaRebarLayoutTests
         Assert.Contains(g, b => b.Role == DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.BeamTie && b.Points.All(p => Cm(p.A) > 350));
     }
 }
+
+/// <summary>Relatório de cálculo da viga (D37 + D40): memória, diagramas e o desenho da armação proposta.</summary>
+[Collection("Pilar")]
+public class VigaRelatorioCalculoTests
+{
+    [Fact]
+    public void RelatorioComMemoriaDiagramasEDesenho()
+    {
+        var v = new ValoresTemplate(new TemplateVigaPreMoldada().Parametros);
+        v["Nome"] = "V1"; v["B"] = "20"; v["H"] = "60"; v["L"] = "650"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "DG 45x25";
+        var calc = CalculoViga.Calcular(v, new CargasViga { G = 15, Q = 8, Concentradas = { new CargaConcentrada { X = 325, G = 20, Q = 10 } } });
+        var r = new TemplateVigaPreMoldada().Gerar(calc.Proposta, new ConfiguracaoArmadura());
+        var rel = DEB.Core.Documentacao.RelatorioHtml.DoTemplate(r, "V1", "teste");
+        calc.PreencherRelatorio(rel);
+        var bars = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.VigaRebarLayout.Compute(calc.Proposta, new ConfiguracaoArmadura(), 0, 0);
+        foreach (var (t, s) in DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.DesenhoArmacaoSvg.Figuras(calc.Proposta, bars, 0, 0))
+            rel.Figuras.Add(new KeyValuePair<string, string>(t, s));
+        string html = DEB.Core.Documentacao.RelatorioHtml.Gerar(rel);
+        Assert.Contains("Cálculo e verificação — V1", html);
+        Assert.Contains("Memória de cálculo", html);
+        Assert.Contains("Armação proposta", html);
+        Assert.Contains("<svg class=\"diag\"", html);
+        Assert.Contains("<svg class=\"arm\"", html);
+        Assert.Contains("K1", html);
+        string saida = Environment.GetEnvironmentVariable("ARM_SAIDA_RELATORIO");
+        if (!string.IsNullOrEmpty(saida)) System.IO.File.WriteAllText(saida, html, new System.Text.UTF8Encoding(true));
+    }
+}

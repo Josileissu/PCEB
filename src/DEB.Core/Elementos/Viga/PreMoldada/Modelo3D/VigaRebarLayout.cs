@@ -46,11 +46,16 @@ public static class VigaRebarLayout
             foreach (var (px, pz) in TemplateVigaPreMoldada.PontosNaSecao(l, b, h, cobF, cobT, cobL, phiT, longs))
             {
                 double y = y0 + px, z = z0 + pz;
+                // barra abaixo do fundo do dente (pele, 2ª camada): para na face do recorte, a cobrimento — senão sai do concreto
+                double ini = l.Ini, fim = l.Fim;
+                if (e.TemDente && pz < h - e.Dente.Altura + cobF) ini = Math.Max(ini, e.CompDente + cobP);
+                if (d.TemDente && pz < h - d.Dente.Altura + cobF) fim = Math.Min(fim, L - d.CompDente - cobP);
+                if (fim - ini < 10) continue;
                 var pts = new List<Loc>();
-                if (l.DobraE > 0) pts.Add(P(l.Ini, y, z + s * l.DobraE));
-                pts.Add(P(l.Ini, y, z));
-                pts.Add(P(l.Fim, y, z));
-                if (l.DobraD > 0) pts.Add(P(l.Fim, y, z + s * l.DobraD));
+                if (l.DobraE > 0 && ini == l.Ini) pts.Add(P(ini, y, z + s * l.DobraE));
+                pts.Add(P(ini, y, z));
+                pts.Add(P(fim, y, z));
+                if (l.DobraD > 0 && fim == l.Fim) pts.Add(P(fim, y, z + s * l.DobraD));
                 bars.Add(new BarDef { Role = BarRole.Longitudinal, DiameterMm = l.Bitola, Steel = acoL, Points = pts, Normal = Loc.UnitB });
             }
             // barra transversal soldada nas pontas da 1ª camada inferior (NBR 9062 7.4/7.5)

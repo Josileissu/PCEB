@@ -31,6 +31,8 @@ public sealed class RelatorioGrupo
     /// <summary>Diagramas de esforços desenhados no relatório (com cálculo).</summary>
     public List<DiagramaRelatorio> Diagramas { get; set; } = new List<DiagramaRelatorio>();
     public bool ComCalculo => Memoria.Count > 0;
+    /// <summary>Desenhos da armação proposta (SVG pronto; título vazio = bloco sem legenda, como a legenda de cores).</summary>
+    public List<KeyValuePair<string, string>> Figuras { get; set; } = new List<KeyValuePair<string, string>>();
 }
 
 /// <summary>Aceite do engenheiro para uma pendência "Conferir" (D37): quem, quando e por quê.</summary>
@@ -172,6 +174,11 @@ svg.diag { width: 100%; height: auto; }
 svg.diag .eixo { stroke: var(--tinta); stroke-width: 1.2; }
 svg.diag .area { fill: #d6e4f5; stroke: none; } svg.diag .linha { fill: none; stroke: #1f5aa6; stroke-width: 1.6; }
 svg.diag .apoio { fill: var(--tinta); } svg.diag .rot { font-size: 11px; fill: var(--tinta); }
+figure.elev { margin: 4px 0; } .secoes { display: flex; flex-wrap: wrap; gap: 12px 28px; } .secoes figure { margin: 0; width: 240px; }
+svg.arm { width: 100%; height: auto; } svg.arm .forma { fill: #f2f2f2; stroke: var(--tinta); stroke-width: 1.2; }
+svg.arm .cota { stroke: var(--suave); stroke-width: .8; } svg.arm .rot { font-size: 11px; fill: var(--tinta); }
+.legenda { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; color: var(--suave); margin: 6px 0; }
+.legenda i { display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; }
 .proposta { background: var(--ok-f); border: 1px solid var(--ok); border-radius: 6px; padding: 8px 14px; }
 footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px solid var(--linha); padding-top: 8px; }
 @media print { body { padding: 0; } tr { break-inside: avoid; } }
@@ -211,6 +218,16 @@ footer { margin-top: 28px; color: var(--suave); font-size: 12px; border-top: 1px
             sb.Append("<h2>Dados do grupo</h2>\n<dl>\n");
             foreach (var d in g.Dados) sb.Append($"<dt>{H(d.Key)}</dt><dd>{H(d.Value)}</dd>\n");
             sb.Append("</dl>\n");
+        }
+
+        if (g.Figuras.Count > 0)
+        {
+            sb.Append("<h2>Armação proposta</h2>\n");
+            var fs = g.Figuras.ToList();
+            sb.Append($"<figure class=\"elev\">{fs[0].Value}</figure>\n<div class=\"secoes\">\n");
+            foreach (var f in fs.Skip(1).Where(f => f.Key.Length > 0)) sb.Append($"<figure>{f.Value}</figure>\n");
+            sb.Append("</div>\n");
+            foreach (var f in fs.Skip(1).Where(f => f.Key.Length == 0)) sb.Append(f.Value + "\n");
         }
 
         if (g.Diagramas.Count > 0)

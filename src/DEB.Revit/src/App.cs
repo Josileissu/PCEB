@@ -66,6 +66,20 @@ namespace DEB.Revit
             };
             precast.AddItem(pilares);
 
+            var vigas = new PushButtonData("DEB_VigasPM", "Vigas\npré-moldadas", dll, typeof(PrecastBeamsCommand).FullName)
+            {
+                ToolTip = "Calcula as vigas pré-moldadas de concreto armado (biapoiadas) pelas cargas digitadas, propõe a armadura e arma no Revit.",
+                LongDescription =
+                    "Levanta as vigas da obra (o mesmo levantamento do \"Conferir peças\"), agrupa as iguais e lê as cargas digitadas nos " +
+                    "parâmetros PCEB_ da viga (permanente, variável e concentradas; o peso próprio é calculado). Calcula flexão, cortante, " +
+                    "dente Gerber, içamento, flecha e fissuras (NBR 6118 / NBR 9062), propõe a armadura no padrão do escritório e, no aceite, " +
+                    "cria as barras, a montagem, as vistas e as tabelas de aço. O relatório de cálculo de cada grupo vai para \"Relatórios PCEB\".",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "VM"),
+                Image = IconFactory.Create(16, "V")
+            };
+            precast.AddItem(vigas);
+
             var conferir = new PushButtonData("DEB_ConferirPecas", "Conferir\npeças", dll, typeof(ReviewPiecesCommand).FullName)
             {
                 ToolTip = "Confere vigas e pilares antes de exportar: seção medida na geometria × nome do tipo, trechos e seções cotadas.",

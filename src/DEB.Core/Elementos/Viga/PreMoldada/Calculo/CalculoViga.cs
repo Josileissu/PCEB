@@ -425,12 +425,12 @@ public static class CalculoViga
             m7.Linhas.Add($"Dente da {id}: d = {N(dd, "0.0")} cm, a = {N(a, "0.0")} cm (a/d = {N(ad, "0.00")}, {(ad <= 0.5 ? "consolo muito curto: atrito-cisalhamento, μ = 1,4" : ad <= 1 ? "consolo curto" : "a/d > 1: viga em balanço — conferir")}); Vd = {N(vd, "0.0")} kN; Hd = {N(fHd)}·Vd = {N(hd, "0.0")} kN ({(neoprene ? "elastômero" : "argamassa")}).");
             m7.Linhas.Add($"Tirante: As = {(ad <= 0.5 ? "0,8·Vd/(fyd·μ)" : "(0,1 + a/d)·Vd/fyd")} + Hd/fyd = {N(asTir)} cm²; catálogo: {t.TiranteQtd} ø{N(t.TiranteBitola, "0.#")} = {N(asTirTem)} cm².");
             m7.Linhas.Add($"Suspensão: As,susp = Vd/fywd = {N(asSusp)} cm²; catálogo: {t.SuspQtd} estribos ø{N(t.SuspBitola, "0.#")} (2 ramos) = {N(asSuspTem)} cm².");
-            r.Verificacoes.Add(K("K9", "Dente " + id, "Tirante do dente", $"{N(asTirTem)} cm²", $"≥ {N(asTir)} cm²", asTirTem < asTir - 1e-9 || ad > 1, "NBR 9062, 7.4 e 7.3",
+            r.Verificacoes.Add(K("K9", "Dente " + id, $"Tirante do dente da ponta {lado}", $"{N(asTirTem)} cm²", $"≥ {N(asTir)} cm²", asTirTem < asTir - 1e-9 || ad > 1, "NBR 9062, 7.4 e 7.3",
                 ad > 1 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende, "Troque o dente no catálogo (ARMDENTES) por um com mais tirante."));
-            r.Verificacoes.Add(K("K10", "Dente " + id, "Armadura de suspensão do dente", $"{N(asSuspTem)} cm²", $"≥ {N(asSusp)} cm²", asSuspTem < asSusp - 1e-9, "NBR 9062, 7.4.6",
+            r.Verificacoes.Add(K("K10", "Dente " + id, $"Armadura de suspensão do dente da ponta {lado}", $"{N(asSuspTem)} cm²", $"≥ {N(asSusp)} cm²", asSuspTem < asSusp - 1e-9, "NBR 9062, 7.4.6",
                 dica: "Troque o dente no catálogo (ARMDENTES) por um com mais suspensão."));
             double vrd2d = 0.27 * av2 * fcd * b * dd;
-            r.Verificacoes.Add(K("K11", "Dente " + id, "Compressão da biela do dente (estimativa como VRd2 com d do dente)", $"Vd = {N(vd, "0.0")} kN", $"≤ {N(vrd2d, "0.0")} kN",
+            r.Verificacoes.Add(K("K11", "Dente " + id, $"Compressão da biela do dente da ponta {lado} (estimativa: VRd2 com o d do dente)", $"Vd = {N(vd, "0.0")} kN", $"≤ {N(vrd2d, "0.0")} kN",
                 true, "NBR 9062, 7.4", SituacaoVerificacao.Conferir, vd <= vrd2d ? "Atende a estimativa; confirme a biela pelo modelo do dente." : "Não atende a estimativa: aumente a altura do dente ou a largura."));
         }
         if (m7.Linhas.Count > 0) r.Memoria.Add(m7);

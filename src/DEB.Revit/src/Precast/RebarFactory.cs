@@ -346,7 +346,8 @@ namespace DEB.Revit.Precast
         }
 
         /// <summary>Estribos e grampos (estilo de estribo do Revit; pinos da tabela 9.2 da NBR 6118).</summary>
-        private static bool IsTie(BarRole r) => r == BarRole.Stirrup || r == BarRole.CrossTie || r == BarRole.CorbelSew || r == BarRole.CorbelStirrup;
+        private static bool IsTie(BarRole r) => r == BarRole.Stirrup || r == BarRole.CrossTie || r == BarRole.CorbelSew || r == BarRole.CorbelStirrup ||
+                                                r == BarRole.BeamGerber || r == BarRole.BeamHanger;
 
         public static string RoleLabel(BarRole r) => r switch
         {
@@ -360,6 +361,12 @@ namespace DEB.Revit.Precast
             BarRole.CorbelStirrup => "Estribo vertical do consolo",
             BarRole.CorbelBottom => "Armadura inferior do consolo",
             BarRole.CorbelPin => "Pino do consolo",
+            BarRole.BeamGerber => "Estribo do dente",
+            BarRole.BeamHanger => "Suspensão do dente",
+            BarRole.BeamTie => "Tirante do dente",
+            BarRole.BeamHairpin => "Grampo do dente",
+            BarRole.BeamStitch => "Costura do dente",
+            BarRole.BeamWelded => "Barra transversal soldada",
             _ => r.ToString()
         };
 

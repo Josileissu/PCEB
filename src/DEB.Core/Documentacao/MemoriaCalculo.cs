@@ -55,7 +55,7 @@ public sealed class DiagramaRelatorio
         var pmin = Pontos.OrderBy(p => p.Y).First();
         foreach (var p in new[] { pmax, pmin }.Distinct())
         {
-            if (Math.Abs(p.Y) < 1e-9) continue;
+            if (Math.Abs(p.Y) < 0.05 * ymax) continue;   // extremo desprezível (ponta do diagrama) não ganha rótulo
             sb.Append($"<text class=\"rot\" x=\"{X(p.X)}\" y=\"{(yb + sinal * p.Y / ymax * h + (sinal * p.Y > 0 ? 14 : -6)).ToString("0.#", CultureInfo.InvariantCulture)}\" text-anchor=\"middle\">" +
                       $"{Fmt.Virgula(p.Y, "0.0")} {RelatorioHtml.H(Unidade)}</text>");
         }

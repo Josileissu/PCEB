@@ -92,6 +92,9 @@ namespace DEB.Revit
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
                         break;
+                    case "vigas":
+                        status = "OK " + Vigas.VigasAutoTest.Run(uidoc);
+                        break;
                     case "conferir":
                         status = "OK " + ReviewAutoTest(uidoc.Document);
                         break;
