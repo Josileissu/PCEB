@@ -39,6 +39,8 @@ public sealed class DadosViga
     public double EstDistRamos { get; set; }
     /// <summary>Espaçamentos das zonas de estribos (nome da zona, cm).</summary>
     public List<(string Zona, double Esp)> Zonas { get; set; } = new List<(string, double)>();
+    /// <summary>Vd/VRd2 do cálculo (D40); null = sem cálculo (os limites que dependem do Vd ficam "Conferir").</summary>
+    public double? VdSobreVRd2 { get; set; }
 }
 
 /// <summary>
@@ -161,6 +163,25 @@ public static class VerificacoesViga
             : R("V5", G, "Bitola do estribo", $"ø{N(phi)}", $"≤ bw/10 = {N(bwMm / 10)} mm", phi > bwMm / 10 + 1e-6, "NBR 6118, 18.3.3.2");
         // V6: smáx = 0,6d ≤ 300 mm (Vd ≤ 0,67 VRd2) ou 0,3d ≤ 200 mm: sem Vd o mais rigoroso é "Conferir"
         double sRig = Math.Min(0.3 * v.D, 20), sMax = Math.Min(0.6 * v.D, 30);
+        if (v.VdSobreVRd2 is double rel)
+        {
+            // com o cálculo (D40) o limite é decidido pelo Vd: sem "Conferir"
+            bool alto = rel > 0.67 + 1e-9;
+            double lim = alto ? sRig : sMax;
+            foreach (var (zona, s) in v.Zonas.GroupBy(z => Math.Round(z.Esp, 3)).Select(g => g.First()))
+                yield return R("V6", G, $"Espaçamento dos estribos ({zona})", $"{N(s)} cm",
+                               alto ? $"≤ 0,3d ≤ 20 cm = {N(sRig)} cm (Vd/VRd2 = {N(rel, "0.00")} > 0,67)" : $"≤ 0,6d ≤ 30 cm = {N(sMax)} cm (Vd/VRd2 = {N(rel, "0.00")} ≤ 0,67)",
+                               s > lim + 1e-6, "NBR 6118, 18.3.3.2");
+            if (v.EstRamos >= 2 && v.EstDistRamos > 0)
+            {
+                bool alto7 = rel > 0.20 + 1e-9;
+                double lim7 = alto7 ? Math.Min(0.6 * v.D, 35) : Math.Min(v.D, 80);
+                yield return R("V7", G, "Distância transversal entre ramos do estribo", $"{N(v.EstDistRamos)} cm",
+                               alto7 ? $"≤ 0,6d ≤ 35 cm = {N(lim7)} cm (Vd/VRd2 > 0,20)" : $"≤ d ≤ 80 cm = {N(lim7)} cm (Vd/VRd2 ≤ 0,20)",
+                               v.EstDistRamos > lim7 + 1e-6, "NBR 6118, 18.3.3.2");
+            }
+        }
+        else
         foreach (var (zona, s) in v.Zonas.GroupBy(z => Math.Round(z.Esp, 3)).Select(g => g.First()))
         {
             bool nao = s > sMax + 1e-6, conf = s > sRig + 1e-6;
@@ -170,7 +191,7 @@ public static class VerificacoesViga
                            conf && !nao ? $"Atende 0,6d ≤ 30 cm = {N(sMax)} cm, que vale para Vd ≤ 0,67·VRd2." : "");
         }
         // V7: distância transversal entre ramos: 0,6d ≤ 350 mm (Vd > 0,20 VRd2, Conferir) ou d ≤ 800 mm
-        if (v.EstRamos >= 2 && v.EstDistRamos > 0)
+        if (v.VdSobreVRd2 == null && v.EstRamos >= 2 && v.EstDistRamos > 0)
         {
             double st = v.EstDistRamos, rig = Math.Min(0.6 * v.D, 35), max = Math.Min(v.D, 80);
             bool nao = st > max + 1e-6, conf = st > rig + 1e-6;

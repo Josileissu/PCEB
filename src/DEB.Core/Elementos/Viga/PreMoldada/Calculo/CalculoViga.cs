@@ -1,0 +1,590 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using DEB.Core.Motor;
+using DEB.Core.Normas.Verificacao;
+
+namespace DEB.Core.Elementos.Viga.PreMoldada.Calculo;
+
+/// <summary>Um passo da memória de cálculo: título e linhas de texto (fórmula com os números).</summary>
+public sealed class PassoMemoria
+{
+    public string Titulo { get; set; } = "";
+    public List<string> Linhas { get; set; } = new List<string>();
+}
+
+/// <summary>Arranjo proposto para a armadura inferior: bitola e barras na 1ª e na 2ª camada.</summary>
+public sealed class ArranjoInferior
+{
+    public double Bitola { get; set; }
+    public int N1 { get; set; }
+    public int N2 { get; set; }
+    public int N => N1 + N2;
+    public double Area => N * Math.PI * Bitola * Bitola / 400;
+    /// <summary>Altura útil (cm) do arranjo: até o centro de gravidade das barras.</summary>
+    public double D { get; set; }
+    public string Texto => N2 > 0 ? $"{N1} + {N2} ø{Fmt.Virgula(Bitola, "0.#")} (2 camadas)" : $"{N1} ø{Fmt.Virgula(Bitola, "0.#")}";
+}
+
+/// <summary>Resultado do cálculo de uma viga (ou da envoltória de um grupo de vigas iguais).</summary>
+public sealed class ResultadoCalculoViga
+{
+    // geometria e cargas
+    public double L { get; set; }
+    public double ApoioE { get; set; }
+    public double ApoioD { get; set; }
+    public double Vao => L - ApoioE - ApoioD;
+    public double B { get; set; }
+    public double H { get; set; }
+    public double Capa { get; set; }
+    /// <summary>Peso próprio da peça (kN/m, distribuído no comprimento) e da capa sobre a viga.</summary>
+    public double G1 { get; set; }
+    public double GCapa { get; set; }
+    public CargasViga Cargas { get; set; } = new CargasViga();
+    public CoeficientesViga Coef { get; set; } = new CoeficientesViga();
+
+    // esforços de cálculo
+    public double MdMax { get; set; }        // kN·m
+    public double XMdMax { get; set; }       // cm
+    public double VdE { get; set; }          // kN (junto ao apoio)
+    public double VdD { get; set; }
+    public double RkE_G { get; set; }        // reações características (kN)
+    public double RkE_Q { get; set; }
+    public double RkD_G { get; set; }
+    public double RkD_Q { get; set; }
+    /// <summary>Diagrama de cálculo no vão: x (cm), Md (kN·m), Vd (kN).</summary>
+    public List<(double X, double Md, double Vd)> Diagrama { get; set; } = new List<(double, double, double)>();
+
+    // armaduras
+    public double AsNec { get; set; }
+    public double AsMin { get; set; }
+    public double AsComprNec { get; set; }
+    public double AsSupIcamento { get; set; }
+    public ArranjoInferior Inferior { get; set; }
+    public (int N, double Bitola) Superior { get; set; }
+    public (int NPorFace, double Bitola) Pele { get; set; }
+    public double EstBitola { get; set; }
+    public double EspPonta { get; set; }
+    public double EspVao { get; set; }
+    public double ZonaPonta { get; set; }
+    public double VRd2 { get; set; }
+    public double Vc { get; set; }
+    public double VdSobreVRd2 => VRd2 > 0 ? Math.Max(VdE, VdD) / VRd2 : 0;
+
+    // ELS
+    public double FlechaImediata { get; set; }
+    public double FlechaTotal { get; set; }
+    public double Contraflecha { get; set; }
+    public double Wk { get; set; }
+
+    public ListaVerificacoes Verificacoes { get; } = new ListaVerificacoes();
+    public List<PassoMemoria> Memoria { get; } = new List<PassoMemoria>();
+    public List<string> Avisos { get; } = new List<string>();
+    /// <summary>Valores do template com a armadura proposta (o detalhamento sai deles, no CAD e no Revit).</summary>
+    public ValoresTemplate Proposta { get; set; }
+}
+
+/// <summary>
+/// Cálculo da viga pré-moldada de concreto armado biapoiada (D40, 22/11/2026), sem protensão: esforços pelas cargas digitadas,
+/// ELU de flexão (NBR 6118 17.2) e de cisalhamento (modelo I, 17.4.2.2), armadura mínima (17.3.5.2), pele (17.3.5.2.3), ancoragem no
+/// apoio (18.3.2.4), dente Gerber (NBR 9062 7.4, tirante pelo consolo 7.3 e suspensão), içamento (momento negativo nas alças), ELS de
+/// flecha (17.3.2.1, Branson + fluência) e de abertura de fissuras (17.3.3.2). Devolve a armadura PROPOSTA nos valores do template
+/// (longitudinais, estribos e zonas), a memória de cálculo e as verificações (códigos K) para o relatório (D37).
+/// O padrão do escritório (valores de partida) é o mínimo: a proposta não afrouxa espaçamentos nem tira barras do padrão.
+/// </summary>
+public static class CalculoViga
+{
+    public static readonly double[] BitolasLong = { 10, 12.5, 16, 20, 25, 32 };
+    public static readonly double[] BitolasEst = { 5, 6.3, 8, 10, 12.5 };
+    public static readonly double[] BitolasPele = { 8, 10, 12.5 };
+
+    private static string N(double x, string f = "0.##") => Fmt.Virgula(x, f);
+    private static double A(double phiMm) => Math.PI * phiMm * phiMm / 400;   // cm²
+
+    /// <summary>Distância da ponta ao eixo do apoio (cm) quando não foi digitada: o furo do pino; sem furo, o meio do dente; ponta reta, 10 cm.</summary>
+    public static double ApoioAutomatico(ExtremidadeViga x) =>
+        x.Furos > 0 && x.DistFuro > 0 ? x.DistFuro : x.TemDente ? x.CompDente / 2 : 10;
+
+    public static ResultadoCalculoViga Calcular(ValoresTemplate v, CargasViga cargas, CoeficientesViga k = null, IReadOnlyList<TipoDente> catalogo = null)
+    {
+        k ??= new CoeficientesViga();
+        cargas ??= new CargasViga();
+        catalogo ??= TemplateVigaPreMoldada.CatalogoDentes;
+        var r = new ResultadoCalculoViga { Cargas = cargas, Coef = k };
+        var avisosLeitura = new List<string>();
+        double b = v.Numero("B"), h = v.Numero("H"), L = v.Numero("L");
+        var e = TemplateVigaPreMoldada.LerExtremidade(v, true, catalogo, avisosLeitura);
+        var d = TemplateVigaPreMoldada.LerExtremidade(v, false, catalogo, avisosLeitura);
+        var aba = TemplateVigaPreMoldada.LerAba(v, h, L, e, d, avisosLeitura);
+        var ress = TemplateVigaPreMoldada.LerRessalto(v, b, h, avisosLeitura);
+        double capa = TemplateVigaPreMoldada.Capa(v);
+        r.L = L; r.B = b; r.H = h; r.Capa = capa;
+
+        double fck = v.Numero("Fck"), fcd = fck / k.GamaC / 10;                 // kN/cm²
+        string acoL = string.IsNullOrWhiteSpace(v["LongAco"]) ? "CA-50" : v["LongAco"], acoT = string.IsNullOrWhiteSpace(v["EstAco"]) ? "CA-50" : v["EstAco"];
+        double fyd = TabelasNbr.Fyk(acoL) / k.GamaS / 10, fywk = TabelasNbr.Fyk(acoT), fywd = Math.Min(fywk / k.GamaS, 435) / 10;
+        double fctm = TabelasNbr.Fctm(fck) / 10, fctd = 0.7 * fctm / k.GamaC;   // kN/cm²
+        double cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo"), cobL = v.Numero("CobLateral"), cobP = v.Numero("CobPontas");
+        double gc = v.Numero("PesoEspecifico") > 0 ? v.Numero("PesoEspecifico") / 100 : 25;   // kgf/m³ → kN/m³ (1 kgf ≈ 1 daN)
+        double dagg = v.Numero("DiamAgregado") > 0 ? v.Numero("DiamAgregado") : 19;
+        var padrao = TemplateVigaPreMoldada.LerLongitudinais(v, L, cobP, e, d, new List<string>());
+        double phiT0 = v.Numero("EstBitola") > 0 ? v.Numero("EstBitola") : 6.3;
+
+        // ---------------- 1. geometria, apoios e cargas ----------------
+        r.ApoioE = cargas.ApoioE > 0 ? cargas.ApoioE : ApoioAutomatico(e);
+        r.ApoioD = cargas.ApoioD > 0 ? cargas.ApoioD : ApoioAutomatico(d);
+        double vol = TemplateVigaPreMoldada.Volume(b, h, L, e, d) + aba.VolumeCm3 / 1e6 + ress.VolumeCm3(L) / 1e6;   // m³
+        r.G1 = vol * gc / (L / 100);
+        r.GCapa = capa > 0 ? b * capa / 1e4 * gc : 0;
+        double gTot = r.G1 + r.GCapa + cargas.G, qTot = cargas.Q;   // kN/m
+        var pg = cargas.Concentradas.Select(p => (p.X, p.G)).ToList();
+        var pq = cargas.Concentradas.Select(p => (p.X, p.Q)).ToList();
+        double xa = r.ApoioE, xb = L - r.ApoioD;
+        var eg = new EstaticaViga(L, xa, xb, gTot / 100, pg);
+        var eq = new EstaticaViga(L, xa, xb, qTot / 100, pq);
+        var eg1 = new EstaticaViga(L, xa, xb, (r.G1 + r.GCapa + cargas.G) / 100, pg);   // 1º estágio (peça sozinha): todas as permanentes
+        r.RkE_G = eg.Ra; r.RkD_G = eg.Rb; r.RkE_Q = eq.Ra; r.RkD_Q = eq.Rb;
+
+        var m1 = new PassoMemoria { Titulo = "1. Geometria, apoios e cargas (valores característicos)" };
+        m1.Linhas.Add($"Seção {N(b, "0.#")} × {N(h, "0.#")} cm" + (capa > 0 ? $" + capa de {N(capa, "0.#")} cm (2º estágio)" : "") +
+                      (aba.Existe ? "; seção com aba: o cálculo usa a alma (b × h), a favor da segurança" : "") + $"; comprimento L = {N(L, "0.#")} cm.");
+        m1.Linhas.Add($"Apoios: {N(r.ApoioE, "0.#")} cm da ponta esquerda e {N(r.ApoioD, "0.#")} cm da direita" +
+                      (cargas.ApoioE > 0 || cargas.ApoioD > 0 ? " (digitados)" : " (eixo do pino; sem pino, meio do dente; ponta reta, 10 cm)") +
+                      $" → vão de cálculo ℓ = {N(r.Vao, "0.#")} cm.");
+        m1.Linhas.Add($"Peso próprio: volume {N(vol, "0.000")} m³ × {N(gc, "0.#")} kN/m³ / {N(L / 100, "0.00")} m = g1 = {N(r.G1, "0.00")} kN/m.");
+        if (capa > 0) m1.Linhas.Add($"Capa sobre a viga: {N(b / 100, "0.00")} × {N(capa / 100, "0.00")} m × {N(gc, "0.#")} kN/m³ = {N(r.GCapa, "0.00")} kN/m.");
+        m1.Linhas.Add($"Permanente adicional (digitada): g2 = {N(cargas.G, "0.00")} kN/m; variável: q = {N(cargas.Q, "0.00")} kN/m.");
+        foreach (var p in cargas.Concentradas)
+            m1.Linhas.Add($"Concentrada em x = {N(p.X, "0.#")} cm: G = {N(p.G, "0.##")} kN, Q = {N(p.Q, "0.##")} kN.");
+        m1.Linhas.Add($"Reações características: esquerda G = {N(eg.Ra, "0.0")} kN, Q = {N(eq.Ra, "0.0")} kN; direita G = {N(eg.Rb, "0.0")} kN, Q = {N(eq.Rb, "0.0")} kN.");
+        r.Memoria.Add(m1);
+        if (cargas.Vazia) r.Avisos.Add("Sem cargas digitadas: o cálculo usa só o peso próprio da peça.");
+        foreach (var p in cargas.Concentradas.Where(p => p.X < xa || p.X > xb))
+            r.Avisos.Add($"Carga concentrada em x = {N(p.X, "0.#")} cm fica fora dos apoios (balanço): conferir.");
+
+        // ---------------- 2. esforços de cálculo (ELU, combinação normal) ----------------
+        double Md(double x) => (k.GamaG * eg.M(x) + k.GamaQ * eq.M(x)) / 100;          // kN·m
+        double Vd(double x) => k.GamaG * eg.V(x) + k.GamaQ * eq.V(x);                   // kN
+        foreach (double x in eg.Pontos().Concat(eq.Pontos()).Distinct().OrderBy(x => x))
+            r.Diagrama.Add((x, Md(x), Vd(x)));
+        var max = r.Diagrama.OrderByDescending(p => p.Md).First();
+        r.MdMax = max.Md; r.XMdMax = max.X;
+        r.VdE = Math.Abs(Vd(xa + 1e-6)); r.VdD = Math.Abs(Vd(xb - 1e-6));
+        double MdG1 = k.GamaG * r.Diagrama.Max(p => eg1.M(p.X)) / 100;   // 1º estágio
+        var m2 = new PassoMemoria { Titulo = "2. Esforços de cálculo (ELU, combinação normal: Fd = γg·G + γq·Q)" };
+        m2.Linhas.Add($"γg = {N(k.GamaG)}; γq = {N(k.GamaQ)} (NBR 6118, Tabela 11.1).");
+        m2.Linhas.Add($"Md,máx = {N(r.MdMax, "0.0")} kN·m em x = {N(r.XMdMax, "0")} cm" +
+                      (cargas.Concentradas.Count == 0 ? $" (= (γg·g + γq·q)·ℓ²/8 = ({N(k.GamaG * gTot, "0.00")} + {N(k.GamaQ * qTot, "0.00")})·{N(r.Vao / 100, "0.00")}²/8)" : "") + ".");
+        m2.Linhas.Add($"Vd junto aos apoios: esquerdo {N(r.VdE, "0.0")} kN; direito {N(r.VdD, "0.0")} kN (no eixo do apoio, sem a redução de 17.4.1.2.1, a favor da segurança).");
+        if (capa > 0) m2.Linhas.Add($"1º estágio (peça sozinha, todas as permanentes): Md,1 = {N(MdG1, "0.0")} kN·m.");
+        r.Memoria.Add(m2);
+
+        // ---------------- 3. flexão: armadura inferior ----------------
+        var mat = new Flexao(fck, fcd, fyd);
+        double phiTcm = phiT0 / 10;
+        r.AsMin = TabelasNbr.RhoMinVigaPct(fck) / 100 * b * h;
+        double asSupPadrao = padrao.Where(l => l.Funcao == TemplateVigaPreMoldada.FSuperior || l.Funcao == TemplateVigaPreMoldada.FConstrutiva)
+            .Sum(l => l.Quantidade * A(l.Bitola));
+        double AsNec(double dd, out double asCompr, out double xd)
+        {
+            var f2 = mat.Armadura(r.MdMax * 100, b, dd + capa, cobT + phiTcm + 0.8);
+            asCompr = f2.AsCompr; xd = f2.XsobreD;
+            double a = f2.As;
+            if (capa > 0)
+            {
+                var f1 = mat.Armadura(MdG1 * 100, b, dd, cobT + phiTcm + 0.8);
+                if (f1.As > a) { a = f1.As; asCompr = Math.Max(asCompr, f1.AsCompr); xd = f1.XsobreD; }
+            }
+            return a;
+        }
+        ArranjoInferior melhor = null;
+        double melhorNota = double.MaxValue, asNecMelhor = 0, asComprMelhor = 0, xdMelhor = 0;
+        double ah = Math.Max(2, 1.2 * dagg / 10), wUtil = b - 2 * cobL - 2 * phiTcm;
+        double phiPadrao = padrao.Where(l => l.Inferior).Select(l => l.Bitola).DefaultIfEmpty(0).Max();
+        foreach (double phi in BitolasLong)
+        {
+            double pc = phi / 10, ahP = Math.Max(ah, pc);
+            int nMax = (int)Math.Floor((wUtil + ahP) / (pc + ahP) + 1e-9);
+            if (nMax < 2) continue;
+            for (int n = 2; n <= 2 * nMax; n++)
+            {
+                int n1 = Math.Min(n, nMax), n2 = n - n1;
+                if (n2 == 1) { n1 = n - 2; n2 = 2; }   // 2ª camada com pelo menos 2 barras (nos cantos do estribo)
+                if (n1 < n2 || n1 < 2) continue;
+                double y1 = cobF + phiTcm + pc / 2, y2 = y1 + pc + Math.Max(2, pc);
+                double ycg = (n1 * y1 + n2 * y2) / n;
+                var arr = new ArranjoInferior { Bitola = phi, N1 = n1, N2 = n2, D = h - ycg };
+                double nec = AsNec(arr.D, out double ac, out double xd);
+                if (arr.Area < Math.Max(nec, r.AsMin) - 1e-9) continue;
+                if (arr.Area > 0.04 * b * h) continue;
+                // nota: área (cm²) + penalidade da 2ª camada e do número de barras; bitola menor que a do padrão só se for bem melhor
+                double nota = arr.Area * (n2 > 0 ? 1.06 : 1) + 0.25 * n + (phi < phiPadrao - 1e-6 ? 0.5 : 0);
+                if (nota < melhorNota - 1e-9) { melhorNota = nota; melhor = arr; asNecMelhor = nec; asComprMelhor = ac; xdMelhor = xd; }
+                break;   // mais barras da mesma bitola só pioram a nota
+            }
+        }
+        var m3 = new PassoMemoria { Titulo = "3. Flexão no ELU — armadura inferior (NBR 6118, 17.2.2)" };
+        m3.Linhas.Add($"fcd = fck/γc = {N(fck)}/{N(k.GamaC)} = {N(fcd * 10, "0.00")} MPa; fyd = {N(fyd * 10, "0.0")} MPa; λ = {N(mat.Lambda, "0.00")}; αc = {N(mat.AlfaC, "0.00")}; x/d ≤ {N(mat.XdLim)} (14.6.4.3).");
+        m3.Linhas.Add($"As,mín = ρmín·b·h = {N(TabelasNbr.RhoMinVigaPct(fck), "0.000")} % × {N(b, "0.#")} × {N(h, "0.#")} = {N(r.AsMin)} cm² (Tabela 17.3).");
+        if (melhor == null)
+        {
+            r.Avisos.Add("Flexão: nenhum arranjo de até duas camadas resolve a armadura inferior nesta seção — aumentar a altura ou a largura da viga.");
+            r.Verificacoes.Add(K("K1", "Flexão", "Armadura inferior de flexão (ELU)", $"Md = {N(r.MdMax, "0.0")} kN·m", "arranjo em até 2 camadas", true,
+                "NBR 6118, 17.2.2", dica: "Aumente a seção."));
+            m3.Linhas.Add("Nenhum arranjo de barras cabe na seção: aumentar a seção.");
+        }
+        else
+        {
+            r.Inferior = melhor; r.AsNec = asNecMelhor; r.AsComprNec = asComprMelhor;
+            double dd = melhor.D;
+            var f = mat.Armadura(r.MdMax * 100, b, dd + capa, cobT + phiTcm + 0.8);
+            m3.Linhas.Add($"d = h − (cobrimento + estribo + CG das barras) = {N(dd, "0.0")} cm" + (capa > 0 ? $" (peça); com a capa, d = {N(dd + capa, "0.0")} cm" : "") + ".");
+            m3.Linhas.Add($"x = (d/λ)·[1 − √(1 − 2·Md/(αc·fcd·b·d²))] = {N(f.X, "0.0")} cm → x/d = {N(f.XsobreD, "0.000")}" +
+                          (f.AsCompr > 0 ? $" > {N(mat.XdLim)}: armadura dupla, As' = {N(f.AsCompr)} cm²" : "") + ".");
+            m3.Linhas.Add($"As = Md/(fyd·(d − λx/2)) = {N(f.As)} cm²" + (capa > 0 ? $"; 1º estágio: {N(mat.Armadura(MdG1 * 100, b, dd, cobT + phiTcm + 0.8).As)} cm²" : "") +
+                          $" → As,nec = {N(Math.Max(asNecMelhor, r.AsMin))} cm².");
+            m3.Linhas.Add($"Proposta: {melhor.Texto} = {N(melhor.Area)} cm² (espaçamento livre ≥ {N(ah, "0.0#")} cm, 18.3.2.2).");
+            r.Verificacoes.Add(K("K1", "Flexão", "Armadura inferior de flexão (ELU)", $"{melhor.Texto} = {N(melhor.Area)} cm²",
+                $"≥ As,nec = {N(asNecMelhor)} cm²", false, "NBR 6118, 17.2.2"));
+            r.Verificacoes.Add(K("K2", "Flexão", "Armadura mínima de flexão", $"{N(melhor.Area)} cm²", $"≥ As,mín = {N(r.AsMin)} cm²", false, "NBR 6118, 17.3.5.2.1"));
+            r.Verificacoes.Add(K("K3", "Flexão", "Ductilidade: posição da linha neutra", $"x/d = {N(xdMelhor, "0.000")}", $"≤ {N(mat.XdLim)}",
+                asComprMelhor > 0, "NBR 6118, 14.6.4.3", SituacaoVerificacao.Conferir,
+                asComprMelhor > 0 ? $"Com armadura dupla (As' = {N(asComprMelhor)} cm²); prefira aumentar a altura da viga." : ""));
+        }
+        r.Memoria.Add(m3);
+
+        // ---------------- 4. içamento (alças) e armadura superior ----------------
+        var m4 = new PassoMemoria { Titulo = "4. Içamento e armadura superior (NBR 9062, 5.3)" };
+        double phiSup = padrao.Where(l => l.Funcao == TemplateVigaPreMoldada.FSuperior).Select(l => l.Bitola).DefaultIfEmpty(10).Max();
+        int nSup = padrao.Where(l => l.Funcao == TemplateVigaPreMoldada.FSuperior).Select(l => l.Quantidade).DefaultIfEmpty(2).Max();
+        double asSupNec = r.AsComprNec;
+        if (v.SimNao("Alcas"))
+        {
+            var xs = TemplateVigaPreMoldada.PosicaoAlcas(v, b, L, e, d);
+            double fcj = v.Numero("FcjSaque") > 0 ? v.Numero("FcjSaque") : fck;
+            var matJ = new Flexao(fcj, fcj / k.GamaC / 10, fyd);
+            var ei = new EstaticaViga(L, Math.Min(xs[0], xs[1]), Math.Max(xs[0], xs[1]), r.G1 / 100 * k.CoefDinamico);
+            double mNeg = Math.Max(Math.Abs(ei.M(ei.Xa)), Math.Abs(ei.M(ei.Xb))) * k.GamaG / 100;   // kN·m
+            double mPos = Math.Max(0, ei.M((ei.Xa + ei.Xb) / 2)) * k.GamaG / 100;
+            double dSup = h - cobT - phiTcm - phiSup / 20;
+            var fs = matJ.Armadura(mNeg * 100, b, dSup, cobF + phiTcm + 0.8);
+            r.AsSupIcamento = fs.As;
+            asSupNec = Math.Max(asSupNec, fs.As);
+            m4.Linhas.Add($"Alças a {N(Math.Min(xs[0], xs[1]), "0")} e {N(Math.Max(xs[0], xs[1]), "0")} cm da ponta esquerda; carga = γg·βdin·g1 = {N(k.GamaG)}·{N(k.CoefDinamico)}·{N(r.G1, "0.00")} kN/m; fcj = {N(fcj)} MPa.");
+            m4.Linhas.Add($"Momento negativo nas alças: Md− = {N(mNeg, "0.00")} kN·m → As,sup = {N(fs.As)} cm² (d = {N(dSup, "0.0")} cm). Positivo entre as alças: {N(mPos, "0.00")} kN·m.");
+        }
+        else m4.Linhas.Add("Viga sem alças no template: içamento não verificado.");
+        if (r.AsComprNec > 0) m4.Linhas.Add($"Armadura de compressão da flexão: As' = {N(r.AsComprNec)} cm².");
+        r.Superior = (nSup, phiSup);
+        if (capa > 0)
+        {
+            double asPorta = Math.Max(0, v.Inteiro("PortaEstriboQtd")) * A(v.Numero("PortaEstriboBitola"));
+            bool falta = asSupNec > asPorta + 1e-9;
+            m4.Linhas.Add($"Viga com 2º estágio: a peça leva só o porta-estribo ({N(asPorta)} cm²) — a superior vai no capeamento.");
+            r.Verificacoes.Add(K("K4", "Içamento", "Armadura superior da peça no içamento (porta-estribo)", $"{N(asPorta)} cm²", $"≥ {N(asSupNec)} cm²", falta,
+                "NBR 9062, 5.3", SituacaoVerificacao.Conferir, falta ? "Aumente o porta-estribo (bitola) ou leve as alças para mais perto das pontas." : ""));
+        }
+        else
+        {
+            if (asSupNec > asSupPadrao + 1e-9)
+            {
+                // menor bitola com 2 (ou 3) barras que resolve
+                var opc = BitolasLong.SelectMany(p => new[] { 2, 3 }.Select(n => (n, p))).Where(o => o.n * A(o.p) >= asSupNec)
+                    .OrderBy(o => o.n * A(o.p)).ThenBy(o => o.n).FirstOrDefault();
+                if (opc.n > 0) r.Superior = opc;
+                m4.Linhas.Add($"Superior do padrão ({N(asSupPadrao)} cm²) < {N(asSupNec)} cm² → proposta: {r.Superior.N} ø{N(r.Superior.Bitola, "0.#")} = {N(r.Superior.N * A(r.Superior.Bitola))} cm².");
+            }
+            else m4.Linhas.Add($"Superior do padrão: {N(asSupPadrao)} cm² ≥ {N(asSupNec)} cm² — mantida.");
+            double asSup = Math.Max(asSupPadrao, r.Superior.N * A(r.Superior.Bitola));
+            r.Verificacoes.Add(K("K4", "Içamento", "Armadura superior (içamento e compressão)", $"{N(asSup)} cm²", $"≥ {N(asSupNec)} cm²", asSup < asSupNec - 1e-9, "NBR 9062, 5.3"));
+        }
+        r.Memoria.Add(m4);
+
+        // ---------------- 5. cisalhamento: estribos (modelo I) ----------------
+        double dV = (r.Inferior?.D ?? h - cobF - phiTcm - 1) + (capa > 0 ? 0 : 0);   // a peça resiste sozinha à cortante do 1º estágio: d da peça
+        double av2 = 1 - fck / 250;
+        r.VRd2 = 0.27 * av2 * fcd * b * dV;
+        r.Vc = 0.6 * fctd * b * dV;
+        double vdMax = Math.Max(r.VdE, r.VdD);
+        double rhoMin = 0.2 * fctm * 10 / fywk;   // ρsw,mín
+        double aswMin = rhoMin * b;               // cm²/cm
+        double AswS(double vd) => Math.Max(aswMin, Math.Max(0, vd - r.Vc) / (0.9 * dV * fywd));
+        bool rigoroso = vdMax > 0.67 * r.VRd2;
+        double sMax = rigoroso ? Math.Min(0.3 * dV, 20) : Math.Min(0.6 * dV, 30);
+        double espPadP = v.Numero("EstEspPonta") > 0 ? v.Numero("EstEspPonta") : 10, espPadV = v.Numero("EstEspVao") > 0 ? v.Numero("EstEspVao") : 15;
+        double Arred(double s) => Math.Floor(s / 2.5 + 1e-9) * 2.5;
+        double phiEst = phiT0, sP = 0;
+        foreach (double p in BitolasEst.Where(x => x >= phiT0 - 1e-6).DefaultIfEmpty(phiT0))
+        {
+            phiEst = p;
+            sP = Math.Min(Math.Min(Arred(2 * A(p) / AswS(vdMax)), sMax), espPadP);
+            if (sP >= 7.5 - 1e-9) break;
+        }
+        if (sP < 5) { r.Avisos.Add($"Estribos: com ø{N(phiEst, "0.#")} o espaçamento nas pontas fica {N(sP, "0.#")} cm — usar 4 ramos ou aumentar a seção."); sP = Math.Max(sP, 2.5); }
+        double sV = Math.Min(Math.Min(Arred(2 * A(phiEst) / aswMin), sMax), espPadV);
+        if (sV < sP) sV = sP;
+        // zona das pontas: até onde a cortante pede mais que o espaçamento do vão (das duas pontas, a maior; o template é simétrico)
+        double capV = 2 * A(phiEst) / sV;
+        double xFimE = xa, xIniD = xb;
+        foreach (var p in r.Diagrama)
+        {
+            if (AswS(Math.Abs(p.Vd)) <= capV + 1e-12) continue;
+            if (p.X <= (xa + xb) / 2) xFimE = Math.Max(xFimE, p.X); else xIniD = Math.Min(xIniD, p.X);
+        }
+        double x0E = (e.TemDente ? e.CompDente : 0) + cobP, x0D = (d.TemDente ? d.CompDente : 0) + cobP;
+        double zona = Math.Max(Math.Max(xFimE - x0E, (L - xIniD) - x0D), 0);
+        zona = Math.Ceiling(zona / 10 - 1e-9) * 10;
+        double zonaPad = Math.Max(0, v.Numero("EstZonaPonta"));
+        if (zona > 0 || zonaPad > 0) zona = Math.Max(zona, zonaPad);
+        if (sV <= sP + 1e-9) zona = 0;   // um espaçamento só
+        r.EstBitola = phiEst; r.EspPonta = sP; r.EspVao = sV; r.ZonaPonta = zona;
+        var m5 = new PassoMemoria { Titulo = "5. Cisalhamento no ELU — estribos verticais, modelo I (NBR 6118, 17.4.2.2)" };
+        m5.Linhas.Add($"d = {N(dV, "0.0")} cm; αv2 = 1 − fck/250 = {N(av2, "0.000")}; VRd2 = 0,27·αv2·fcd·b·d = {N(r.VRd2, "0.0")} kN; Vd,máx = {N(vdMax, "0.0")} kN (Vd/VRd2 = {N(r.VdSobreVRd2, "0.00")}).");
+        m5.Linhas.Add($"Vc = Vc0 = 0,6·fctd·b·d = 0,6·{N(fctd * 10, "0.000")}·{N(b, "0.#")}·{N(dV, "0.0")}/10 = {N(r.Vc, "0.0")} kN (flexão simples, 17.4.2.2 b).");
+        m5.Linhas.Add($"Asw/s = (Vsd − Vc)/(0,9·d·fywd), fywd = {N(fywd * 10, "0")} MPa; mínimo ρsw = 0,2·fctm/fywk = {N(rhoMin * 100, "0.000")} % → {N(aswMin * 100, "0.00")} cm²/m.");
+        m5.Linhas.Add($"Na ponta: Asw/s = {N(AswS(vdMax) * 100, "0.00")} cm²/m → ø{N(phiEst, "0.#")} c/{N(sP, "0.#")} (2 ramos = {N(2 * A(phiEst) / sP * 100, "0.00")} cm²/m).");
+        m5.Linhas.Add($"No vão: ø{N(phiEst, "0.#")} c/{N(sV, "0.#")}; s,máx = {(rigoroso ? "0,3d ≤ 20 cm" : "0,6d ≤ 30 cm")} = {N(sMax, "0.#")} cm (18.3.3.2)" +
+                      (zona > 0 ? $"; zona das pontas: {N(zona, "0")} cm a partir da face do dente (ou da ponta)." : "."));
+        m5.Linhas.Add($"O padrão do escritório é o mínimo: espaçamentos até {N(espPadP, "0.#")} (pontas) e {N(espPadV, "0.#")} cm (vão), bitola a partir de ø{N(phiT0, "0.#")}.");
+        r.Memoria.Add(m5);
+        r.Verificacoes.Add(K("K5", "Cisalhamento", "Compressão das bielas (VRd2)", $"Vd = {N(vdMax, "0.0")} kN", $"≤ VRd2 = {N(r.VRd2, "0.0")} kN", vdMax > r.VRd2, "NBR 6118, 17.4.2.2",
+            dica: "Aumente a largura (b) ou a altura da viga."));
+        r.Verificacoes.Add(K("K6", "Cisalhamento", "Estribos nas pontas (Asw/s)", $"{N(2 * A(phiEst) / sP * 100, "0.00")} cm²/m",
+            $"≥ {N(AswS(vdMax) * 100, "0.00")} cm²/m", 2 * A(phiEst) / sP < AswS(vdMax) - 1e-12, "NBR 6118, 17.4.2.2"));
+        r.Verificacoes.Add(K("K7", "Cisalhamento", "Espaçamento máximo dos estribos com o Vd", $"{N(Math.Max(sP, sV), "0.#")} cm",
+            $"≤ {N(sMax, "0.#")} cm ({(rigoroso ? "Vd > 0,67·VRd2" : "Vd ≤ 0,67·VRd2")})", Math.Max(sP, sV) > sMax + 1e-9, "NBR 6118, 18.3.3.2"));
+
+        // ---------------- 6. ancoragem no apoio (pontas retas) ----------------
+        if (r.Inferior != null)
+        {
+            var m6 = new PassoMemoria { Titulo = "6. Armadura inferior no apoio (NBR 6118, 18.3.2.4)" };
+            foreach (var (x, vd, lado) in new[] { (e, r.VdE, "esquerda"), (d, r.VdD, "direita") })
+            {
+                if (x.TemDente) { m6.Linhas.Add($"Ponta {lado}: dente Gerber — a força no apoio vai para o tirante e a suspensão (item 7)."); continue; }
+                double al = vd > r.Vc + 1e-9 ? Math.Min(dV, Math.Max(0.5 * dV, dV * vd / (2 * (vd - r.Vc)))) : dV;
+                double asApoio = al / dV * vd / fyd;
+                m6.Linhas.Add($"Ponta {lado}: aℓ = {N(al, "0.0")} cm; As,apoio ≥ (aℓ/d)·Vd/fyd = {N(asApoio)} cm²; chegam {N(r.Inferior.Area)} cm² (toda a inferior).");
+                r.Verificacoes.Add(K("K8", "Ancoragem", $"Armadura inferior no apoio ({lado})", $"{N(r.Inferior.Area)} cm²", $"≥ {N(asApoio)} cm²",
+                    r.Inferior.Area < asApoio - 1e-9, "NBR 6118, 18.3.2.4"));
+            }
+            r.Memoria.Add(m6);
+        }
+
+        // ---------------- 7. dentes Gerber ----------------
+        var m7 = new PassoMemoria { Titulo = "7. Dentes Gerber (NBR 9062, 7.4: tirante como consolo, 7.3; suspensão)" };
+        bool neoprene = v.Numero("Neoprene") > 0;
+        double fHd = neoprene ? 0.16 : 0.5;
+        foreach (var (x, vd, lado, apoio) in new[] { (e, r.VdE, "esquerda", r.ApoioE), (d, r.VdD, "direita", r.ApoioD) })
+        {
+            if (!x.TemDente) continue;
+            var t = x.Dente;
+            double dd = t.Altura - cobT - (t.EstGerberQtd > 0 ? t.EstGerberBitola / 10 : 0) - t.TiranteBitola / 20;
+            double a = Math.Max(0, t.Comprimento - apoio + cobP);   // do eixo do apoio até a suspensão (junto da face do recorte)
+            double ad = dd > 0 ? a / dd : 99, hd = fHd * vd;
+            double asTir = ad <= 0.5 ? 0.8 * vd / (fyd * 1.4) + hd / fyd : (0.1 + ad) * vd / fyd + hd / fyd;
+            double asTirTem = t.TiranteQtd * A(t.TiranteBitola);
+            double asSusp = vd / fywd, asSuspTem = t.SuspQtd * 2 * A(t.SuspBitola);
+            string id = $"ponta {lado}, {t.Nome}";
+            m7.Linhas.Add($"Dente da {id}: d = {N(dd, "0.0")} cm, a = {N(a, "0.0")} cm (a/d = {N(ad, "0.00")}, {(ad <= 0.5 ? "consolo muito curto: atrito-cisalhamento, μ = 1,4" : ad <= 1 ? "consolo curto" : "a/d > 1: viga em balanço — conferir")}); Vd = {N(vd, "0.0")} kN; Hd = {N(fHd)}·Vd = {N(hd, "0.0")} kN ({(neoprene ? "elastômero" : "argamassa")}).");
+            m7.Linhas.Add($"Tirante: As = {(ad <= 0.5 ? "0,8·Vd/(fyd·μ)" : "(0,1 + a/d)·Vd/fyd")} + Hd/fyd = {N(asTir)} cm²; catálogo: {t.TiranteQtd} ø{N(t.TiranteBitola, "0.#")} = {N(asTirTem)} cm².");
+            m7.Linhas.Add($"Suspensão: As,susp = Vd/fywd = {N(asSusp)} cm²; catálogo: {t.SuspQtd} estribos ø{N(t.SuspBitola, "0.#")} (2 ramos) = {N(asSuspTem)} cm².");
+            r.Verificacoes.Add(K("K9", "Dente " + id, "Tirante do dente", $"{N(asTirTem)} cm²", $"≥ {N(asTir)} cm²", asTirTem < asTir - 1e-9 || ad > 1, "NBR 9062, 7.4 e 7.3",
+                ad > 1 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende, "Troque o dente no catálogo (ARMDENTES) por um com mais tirante."));
+            r.Verificacoes.Add(K("K10", "Dente " + id, "Armadura de suspensão do dente", $"{N(asSuspTem)} cm²", $"≥ {N(asSusp)} cm²", asSuspTem < asSusp - 1e-9, "NBR 9062, 7.4.6",
+                dica: "Troque o dente no catálogo (ARMDENTES) por um com mais suspensão."));
+            double vrd2d = 0.27 * av2 * fcd * b * dd;
+            r.Verificacoes.Add(K("K11", "Dente " + id, "Compressão da biela do dente (estimativa como VRd2 com d do dente)", $"Vd = {N(vd, "0.0")} kN", $"≤ {N(vrd2d, "0.0")} kN",
+                true, "NBR 9062, 7.4", SituacaoVerificacao.Conferir, vd <= vrd2d ? "Atende a estimativa; confirme a biela pelo modelo do dente." : "Não atende a estimativa: aumente a altura do dente ou a largura."));
+        }
+        if (m7.Linhas.Count > 0) r.Memoria.Add(m7);
+
+        // ---------------- 8. pele ----------------
+        r.Pele = (0, 0);
+        var pelePad = padrao.FirstOrDefault(l => l.Pele);
+        if (h > 60 + 1e-9)
+        {
+            double asFace = 0.001 * b * h;
+            double hLivre = h - cobF - cobT - 2 * phiTcm;
+            int nEsp = (int)Math.Ceiling(hLivre / Math.Min(20, dV / 3) - 1e-9) - 1;
+            (int, double) melhorP = (0, 0);
+            foreach (double p in BitolasPele)
+            {
+                int n = Math.Max(nEsp, (int)Math.Ceiling(asFace / A(p) - 1e-9));
+                if (melhorP.Item1 == 0 || n * A(p) < melhorP.Item1 * A(melhorP.Item2) - 1e-9) melhorP = (n, p);
+            }
+            if (pelePad != null && pelePad.Quantidade * A(pelePad.Bitola) >= melhorP.Item1 * A(melhorP.Item2) - 1e-9 && pelePad.Quantidade >= nEsp)
+                melhorP = (pelePad.Quantidade, pelePad.Bitola);
+            r.Pele = melhorP;
+            r.Memoria.Add(new PassoMemoria
+            {
+                Titulo = "8. Armadura de pele (NBR 6118, 17.3.5.2.3)",
+                Linhas =
+                {
+                    $"h = {N(h, "0.#")} cm > 60 cm: 0,10 %·b·h = {N(asFace)} cm² por face, espaçamento ≤ d/3 e ≤ 20 cm → {melhorP.Item1} ø{N(melhorP.Item2, "0.#")} por face.",
+                },
+            });
+        }
+        else if (pelePad != null) r.Pele = (pelePad.Quantidade, pelePad.Bitola);
+
+        // ---------------- 9. ELS: flecha e fissuras ----------------
+        if (r.Inferior != null)
+        {
+            var m9 = new PassoMemoria { Titulo = "9. Estados-limite de serviço (NBR 6118, 17.3)" };
+            double eci = fck <= 50 ? k.AlfaE * 5600 * Math.Sqrt(fck) : 21500 * k.AlfaE * Math.Pow(fck / 10 + 1.25, 1.0 / 3);
+            double ecs = Math.Min(1, 0.8 + 0.2 * fck / 80) * eci;   // MPa
+            double es = 210000, dd = r.Inferior.D, As = r.Inferior.Area;
+            double ic = b * Math.Pow(h, 3) / 12, mr = 1.5 * fctm * ic / (h / 2);   // kN·cm
+            (double X, double I) EstII(double ae)
+            {
+                double aa = ae * As, x = (-aa + Math.Sqrt(aa * aa + 2 * b * aa * dd)) / b;
+                return (x, b * x * x * x / 3 + aa * (dd - x) * (dd - x));
+            }
+            var qp = new EstaticaViga(L, xa, xb, (gTot + k.Psi2 * qTot) / 100, cargas.Concentradas.Select(p => (p.X, p.G + k.Psi2 * p.Q)));
+            var fr = new EstaticaViga(L, xa, xb, (gTot + k.Psi1 * qTot) / 100, cargas.Concentradas.Select(p => (p.X, p.G + k.Psi1 * p.Q)));
+            double ma = qp.Pontos().Max(qp.M);
+            var (x2, i2) = EstII(es / ecs);
+            double rel = ma > 0 ? Math.Min(1, Math.Pow(mr / ma, 3)) : 1;
+            double ie = Math.Min(ic, rel * ic + (1 - rel) * i2);
+            double ecKn = ecs / 10;   // kN/cm²
+            r.FlechaImediata = qp.FlechaMeio(ecKn * ie);
+            double Xi(double t) => t > 70 ? 2 : 0.68 * Math.Pow(0.996, t) * Math.Pow(t, 0.32);
+            double rho2 = (capa > 0 ? 0 : Math.Max(asSupPadrao, r.Superior.N * A(r.Superior.Bitola))) / (b * dd);
+            double af = (2 - Xi(k.IdadeCarregamentoMeses)) / (1 + 50 * rho2);
+            r.FlechaTotal = r.FlechaImediata * (1 + af);
+            double lim = r.Vao / k.FlechaLimite, limCf = r.Vao / 350;
+            m9.Linhas.Add($"Ecs = αi·Eci = {N(ecs, "0")} MPa; Ic = {N(ic, "0")} cm⁴; Mr = 1,5·fctm·Ic/yt = {N(mr / 100, "0.0")} kN·m (17.3.1).");
+            m9.Linhas.Add($"Quase permanente (ψ2 = {N(k.Psi2)}): Ma = {N(ma / 100, "0.0")} kN·m; estádio II: x = {N(x2, "0.0")} cm, III = {N(i2, "0")} cm⁴; Branson: Ie = {N(ie, "0")} cm⁴.");
+            m9.Linhas.Add($"Flecha imediata = {N(r.FlechaImediata, "0.00")} cm; fluência: αf = Δξ/(1 + 50ρ') = {N(af, "0.00")} (t0 = {N(k.IdadeCarregamentoMeses, "0.#")} mês) → total = {N(r.FlechaTotal, "0.00")} cm; limite ℓ/{N(k.FlechaLimite, "0")} = {N(lim, "0.00")} cm.");
+            bool passa = r.FlechaTotal <= lim + 1e-9;
+            if (!passa && r.FlechaTotal - limCf <= lim + 1e-9)
+            {
+                r.Contraflecha = Math.Ceiling(Math.Min(limCf, r.FlechaTotal - lim + 0.1) * 2) / 2;   // meio centímetro
+                m9.Linhas.Add($"Com contraflecha de {N(r.Contraflecha, "0.#")} cm (≤ ℓ/350 = {N(limCf, "0.00")} cm, 13.3) a flecha fica dentro do limite.");
+            }
+            r.Verificacoes.Add(K("K12", "Serviço", "Flecha total (imediata + diferida)", $"{N(r.FlechaTotal, "0.00")} cm", $"≤ ℓ/{N(k.FlechaLimite, "0")} = {N(lim, "0.00")} cm",
+                !passa, "NBR 6118, 17.3.2.1 e 13.3", r.Contraflecha > 0 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende,
+                r.Contraflecha > 0 ? $"Atende com contraflecha de {N(r.Contraflecha, "0.#")} cm (proposta na nota da prancha)." : "Aumente a altura da viga."));
+
+            // abertura de fissuras (combinação frequente)
+            double mf = fr.Pontos().Max(fr.M);
+            double wLim = TabelasNbr.Classe(v["ClasseAgressividade"]) switch { ClasseAgressividade.I => 0.4, ClasseAgressividade.IV => 0.2, _ => 0.3 };
+            if (mf <= mr)
+            {
+                r.Wk = 0;
+                m9.Linhas.Add($"Frequente (ψ1 = {N(k.Psi1)}): Md,ser = {N(mf / 100, "0.0")} kN·m ≤ Mr: a seção não fissura.");
+            }
+            else
+            {
+                var (xf, ifs) = EstII(15);
+                double sig = 15 * mf * (dd - xf) / ifs * 10;   // MPa
+                double phi = r.Inferior.Bitola, pc = phi / 10;
+                double acr = Math.Min(b / Math.Max(1, r.Inferior.N1), 15 * pc) * Math.Min(cobF + phiTcm + pc / 2 + 7.5 * pc, h / 2);
+                double rr = A(phi) / acr;
+                double w1 = phi / (12.5 * 2.25) * sig / es * 3 * sig / (fctm * 10);
+                double w2 = phi / (12.5 * 2.25) * sig / es * (4 / rr + 45);
+                r.Wk = Math.Min(w1, w2);
+                m9.Linhas.Add($"Frequente (ψ1 = {N(k.Psi1)}): Md,ser = {N(mf / 100, "0.0")} kN·m; σs = αe·M·(d − x)/III = {N(sig, "0")} MPa (αe = 15); ρr = {N(rr * 100, "0.00")} %.");
+                m9.Linhas.Add($"wk = mín(φ/(12,5η1)·σs/Es·3σs/fctm; φ/(12,5η1)·σs/Es·(4/ρr + 45)) = mín({N(w1, "0.000")}; {N(w2, "0.000")}) = {N(r.Wk, "0.000")} mm.");
+            }
+            r.Verificacoes.Add(K("K13", "Serviço", "Abertura de fissuras (combinação frequente)", $"wk = {N(r.Wk, "0.00")} mm", $"≤ {N(wLim, "0.0")} mm (Tabela 13.4)",
+                r.Wk > wLim + 1e-9, "NBR 6118, 17.3.3.2", dica: "Use mais barras de bitola menor na armadura inferior."));
+            r.Memoria.Add(m9);
+        }
+
+        // ---------------- proposta nos valores do template ----------------
+        r.Proposta = Aplicar(v, r, padrao);
+        return r;
+    }
+
+    /// <summary>Copia os valores e troca a armadura pela proposta (longitudinais, estribos, zonas, contraflecha, Vd/VRd2 das verificações).</summary>
+    public static ValoresTemplate Aplicar(ValoresTemplate v, ResultadoCalculoViga r, List<LinhaLongViga> padrao)
+    {
+        var p = new ValoresTemplate();
+        foreach (var kv in v.Todos) p[kv.Key] = kv.Value;
+        var linhas = new List<string[]>();
+        var infPad = v.Tabela("Longitudinais").FirstOrDefault(l => ValoresTemplate.Celula(l, 0).Equals(TemplateVigaPreMoldada.FInferior, StringComparison.OrdinalIgnoreCase));
+        string dobE = infPad != null ? ValoresTemplate.Celula(infPad, 4) : "0", dobD = infPad != null ? ValoresTemplate.Celula(infPad, 5) : "0";
+        if (r.Inferior != null)
+        {
+            linhas.Add(new[] { TemplateVigaPreMoldada.FInferior, r.Inferior.N1.ToString(), Fmt.N(r.Inferior.Bitola), "1", dobE, dobD, "", "" });
+            if (r.Inferior.N2 > 0) linhas.Add(new[] { TemplateVigaPreMoldada.FInferior, r.Inferior.N2.ToString(), Fmt.N(r.Inferior.Bitola), "2", dobE, dobD, "", "" });
+        }
+        else linhas.AddRange(v.Tabela("Longitudinais").Where(l => ValoresTemplate.Celula(l, 0).Equals(TemplateVigaPreMoldada.FInferior, StringComparison.OrdinalIgnoreCase)));
+        bool supTrocada = false;
+        foreach (var l in v.Tabela("Longitudinais"))
+        {
+            string f = ValoresTemplate.Celula(l, 0);
+            if (f.Equals(TemplateVigaPreMoldada.FInferior, StringComparison.OrdinalIgnoreCase) || f.Equals(TemplateVigaPreMoldada.FPele, StringComparison.OrdinalIgnoreCase)) continue;
+            if (f.Equals(TemplateVigaPreMoldada.FSuperior, StringComparison.OrdinalIgnoreCase) && r.Superior.N > 0 && !supTrocada)
+            {
+                double asPad = ValoresTemplate.NumeroCelula(l, 1) * A(ValoresTemplate.NumeroCelula(l, 2));
+                if (r.Superior.N * A(r.Superior.Bitola) > asPad + 1e-9)
+                {
+                    var nl = (string[])l.Clone();
+                    if (nl.Length < 8) Array.Resize(ref nl, 8);
+                    nl[1] = r.Superior.N.ToString(); nl[2] = Fmt.N(r.Superior.Bitola);
+                    linhas.Add(nl.Select(c => c ?? "").ToArray());
+                    supTrocada = true;
+                    continue;
+                }
+            }
+            linhas.Add(l);
+        }
+        if (r.Pele.NPorFace > 0) linhas.Add(new[] { TemplateVigaPreMoldada.FPele, r.Pele.NPorFace.ToString(), Fmt.N(r.Pele.Bitola), "1", "0", "0", "", "" });
+        p["Longitudinais"] = ValoresTemplate.JuntarTabela(linhas);
+        if (r.EstBitola > 0)
+        {
+            p["EstBitola"] = Fmt.N(r.EstBitola);
+            p["EstEspPonta"] = Fmt.N(r.EspPonta);
+            p["EstEspVao"] = Fmt.N(r.EspVao);
+            p["EstZonaPonta"] = Fmt.N(r.ZonaPonta);
+        }
+        if (r.Contraflecha > 0) p["Contraflecha"] = Fmt.N(r.Contraflecha);
+        p[ChaveVdVRd2] = Fmt.N(r.VdSobreVRd2, "0.####");
+        return p;
+    }
+
+    /// <summary>Valor oculto do template: Vd/VRd2 do cálculo (as verificações V6/V7 deixam de ser "Conferir").</summary>
+    public const string ChaveVdVRd2 = "CalcVdVRd2";
+
+    private static ResultadoVerificacao K(string cod, string grupo, string desc, string valor, string limite, bool falha, string refer,
+        SituacaoVerificacao seFalha = SituacaoVerificacao.NaoAtende, string dica = "") => new ResultadoVerificacao
+    {
+        Codigo = cod, Grupo = "Cálculo — " + grupo, Descricao = desc, Valor = valor, Limite = limite, Referencia = refer,
+        Situacao = falha ? seFalha : SituacaoVerificacao.Ok, Dica = falha ? dica : "",
+    };
+}
+
+/// <summary>Flexão simples de seção retangular no ELU (NBR 6118, 17.2.2: diagrama retangular; armadura dupla além de x/d limite).</summary>
+public sealed class Flexao
+{
+    public double Fck { get; }
+    public double Fcd { get; }   // kN/cm²
+    public double Fyd { get; }   // kN/cm²
+    public double Lambda { get; }
+    public double AlfaC { get; }
+    public double XdLim { get; }
+
+    public Flexao(double fck, double fcd, double fyd)
+    {
+        Fck = fck; Fcd = fcd; Fyd = fyd;
+        Lambda = fck <= 50 ? 0.8 : 0.8 - (fck - 50) / 400;
+        AlfaC = fck <= 50 ? 0.85 : 0.85 * (1 - (fck - 50) / 200);
+        XdLim = fck <= 50 ? 0.45 : 0.35;
+    }
+
+    /// <summary>Armadura para o momento <paramref name="md"/> (kN·cm): As tracionada, As' comprimida (cm²) e a linha neutra.</summary>
+    public (double As, double AsCompr, double X, double XsobreD) Armadura(double md, double b, double d, double dLinha)
+    {
+        if (md <= 0 || d <= 0) return (0, 0, 0, 0);
+        double xl = XdLim * d;
+        double mlim = AlfaC * Fcd * b * Lambda * xl * (d - Lambda * xl / 2);
+        if (md <= mlim)
+        {
+            double x = d / Lambda * (1 - Math.Sqrt(Math.Max(0, 1 - 2 * md / (AlfaC * Fcd * b * d * d))));
+            return (md / (Fyd * (d - Lambda * x / 2)), 0, x, x / d);
+        }
+        double asl = (md - mlim) / (Fyd * Math.Max(1, d - dLinha));
+        return (mlim / (Fyd * (d - Lambda * xl / 2)) + asl, asl, xl, XdLim);
+    }
+}

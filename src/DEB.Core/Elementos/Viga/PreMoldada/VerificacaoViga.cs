@@ -39,6 +39,7 @@ public sealed partial class TemplateVigaPreMoldada
             Protendida = v.SimNao("Protendida"), ComAba = aba.Existe,
             EstBitola = phiT, EstRamos = 2, EstDistRamos = b - 2 * cobL - phiT / 10,
             Zonas = zonas.Where(z => z.Contada <= 0).Select(z => (z.Nome, z.Esp)).ToList(),
+            VdSobreVRd2 = string.IsNullOrWhiteSpace(v[Calculo.CalculoViga.ChaveVdVRd2]) ? (double?)null : v.Numero(Calculo.CalculoViga.ChaveVdVRd2),
         };
 
         // longitudinais: armadura mínima e pele no meio do vão; máxima e espaçamentos em cada composição (o meio de cada linha)
