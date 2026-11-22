@@ -130,6 +130,10 @@ public class VigaCalculoTests
         // sem cálculo, V6/V7 do vão são "Conferir" (limite mais rigoroso); com o Vd conhecido, decididos
         Assert.Contains(sem.Verificacoes, x => (x.Codigo == "V6" || x.Codigo == "V7") && x.Situacao == SituacaoVerificacao.Conferir);
         Assert.DoesNotContain(com.Verificacoes, x => (x.Codigo == "V6" || x.Codigo == "V7") && x.Situacao == SituacaoVerificacao.Conferir);
+        // dente com o Fd conhecido: D7 decidido
+        var vd = Viga(v => { v["ExtE"] = "DG 45x25"; v["H"] = "75"; });
+        var rd = CalculoViga.Calcular(vd, Cargas());
+        Assert.Contains(t.Gerar(rd.Proposta, new ConfiguracaoArmadura()).Verificacoes, x => x.Codigo == "D7" && x.Situacao == SituacaoVerificacao.Ok);
     }
 
     [Fact]

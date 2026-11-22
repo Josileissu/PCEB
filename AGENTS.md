@@ -51,7 +51,8 @@ próprio (ver o AGENTS.md de cada plugin). `dotnet` não está no PATH.
 - **Reuso** (10/11/2026): contexto de desenho e funções comuns dos templates em `DEB.Core/Documentacao/KitDesenho.cs` (`Ctx`, `KitDesenho`);
   formatação de números em `DEB.Core/Fmt.cs` (`N` invariante, `Virgula` para a prancha, `Mm` para chaves). Não criar cópias novas.
 - **Prioridade (D19)**: o motor de detalhamento vem antes das análises estruturais
-  (`docs/04_arquitetura/motor_detalhamento.md`). Lembre o usuário disso se o assunto for começar análise.
+  (`docs/04_arquitetura/motor_detalhamento.md`). Lembre o usuário disso se o assunto for começar análise. Exceção decidida por ele:
+  a viga pré-moldada de concreto armado biapoiada tem cálculo (D40, `src/DEB.Revit/docs/VIGAS_PRE_MOLDADAS.md`).
 - **Núcleo único e prévia (D26)**: regra de engenharia, número e texto de prancha moram no `DEB.Core`; o DEB.Cad e o DEB.Revit
   só leem do hospedeiro, chamam o núcleo e escrevem o resultado. Toda operação que cria ou altera geometria segue modelo no
   núcleo → prévia → aceite → aplicação, com a prévia e o resultado saídos do mesmo modelo (referência: laje alveolar, D24).

@@ -90,6 +90,7 @@ public sealed partial class TemplateVigaPreMoldada
                 // posições medidas da ponta (como na ponta esquerda), as mesmas do desenho
                 SuspPosicoes = t.SuspBitola > 0 ? PosicoesSuspensao(t, v.Numero("CobPontas"), true, L, x.TrechoSuspensao) : new List<double>(),
                 Furos = x.Furos, FckMPa = fck, Aco = v["LongAco"],
+                Vd = string.IsNullOrWhiteSpace(v[esq ? Calculo.CalculoViga.ChaveVdE : Calculo.CalculoViga.ChaveVdD]) ? (double?)null : v.Numero(esq ? Calculo.CalculoViga.ChaveVdE : Calculo.CalculoViga.ChaveVdD),
             };
             foreach (var res in VerificacoesDente.Verificar(dd)) lista.Add(res);
         }

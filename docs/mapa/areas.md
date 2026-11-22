@@ -18,6 +18,7 @@ quadro (`docs/00_escopo/coordenacao.md`); confira lá antes de começar.
 | Comum aos templates (kit de desenho, detalhes típicos, modelos salvos) | `src/DEB.Core/Documentacao`; contratos em `src/DEB.Core/Motor/Templates.cs` | `PreviaTemplate`, `ModelosTemplate`, `RegressaoVisual` | — |
 | Regressão visual dos templates | `tests/DEB.Core.Tests/Referencias/*.txt` | `RegressaoVisual` | — |
 | Seção de elemento linear (famílias, partes nomeadas, reconhecimento, faces 1…4 ↔ partes; D28) | `src/DEB.Core/Geometria/Secao`; `docs/04_arquitetura/secoes.md`; barras pela seção em `src/DEB.Core/Motor/SecaoBarras.cs` e arranjo por família (D31) em `src/DEB.Core/Motor/ArranjoFamilias.cs` | `Geometria` | O-2 (etapa 5) |
+| Viga pré-moldada: cálculo e armação no Revit (D40) | `src/DEB.Core/Elementos/Viga/PreMoldada/Calculo`, `Modelo3D`; `src/DEB.Revit/src/Vigas` | `VigaCalculo`, `VigaRebarLayout`, `VigaRelatorioCalculo` | P1-11 |
 | Peças Revit → CAD | `src/DEB.Core/Intercambio`, `Pecas`; `src/DEB.Revit/src/Precast` | `Intercambio`, `ConversorLevantamento`, `SubdivisaoPecas`, `Reimportacao` | — |
 | Laje alveolar | `src/DEB.Core/Lajes`; `src/DEB.Revit/src/LajeAlveolar` | `LajeAlveolar` | P1-8 |
 | Formas (Revit) | `src/DEB.Core/Formas`; `src/DEB.Revit/src/Formas` | `Formas` | P1-9 |

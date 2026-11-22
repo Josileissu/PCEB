@@ -55,6 +55,7 @@ $p.WaitForExit(540000)
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela. `SD_LINHAS=1`: armadura por linha de
   teste (cantos ø20, faces 2 e 4 com redução ø16 → ø12,5, faces 1 e 3 em feixe de 2); o log traz x, y e z das longitudinais.
+- `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
 - `exportarpecas` (`SD_EXPORT` = caminho), `conferir`, `conferireditar`, `furos`: ver `docs/EXPORTAR_PARA_O_CAD.md` e `docs/CONFERIR_PECAS.md`.
   Tarefas `formas*`: `docs/FORMAS.md`. `contarlegendas`: `docs/DETALHES_PADRAO.md`.
 - Sem projeto aberto (`src/Precast/TestModel.cs`): `familias` (relatório de `SD_FAMILIAS`, .rfa separados por `;`) e
@@ -97,6 +98,7 @@ src/
   LajeAlveolar/  paginação de laje alveolar (docs/LAJE_ALVEOLAR.md)
   Formas/        pranchas de formas (docs/FORMAS.md)
   Tools/         painel "Ferramentas" (docs/FERRAMENTAS.md)
+  Vigas/         vigas pré-moldadas: cargas PCEB_, cálculo e armação pelo núcleo, janela com prévia (docs/VIGAS_PRE_MOLDADAS.md, D40)
 ```
 Fluxo dos pré-moldados: levantamento → grupos de peças iguais → janela (armadura por grupo) →
 para cada pilar: limpar → marca → barras → dados das barras → assembly (pilar + consolos + barras) →
@@ -118,11 +120,14 @@ Detalhe de cada funcionalidade (consulte quando for mexer nela), em `docs/`: `EX
   `PCEB_Comprimento total (núcleo)` (GUIDs fixos `5f0c3a8e-…-1d2b3c4d5e03`/`…5e04`, nunca mudar), gravados na criação da barra
   (`RebarData.Apply`). São valores gravados: barra editada à mão no Revit só se atualiza rodando o comando de novo.
 - Parâmetros de Formas: compartilhados com GUIDs FIXOS `8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN` (nunca mudar).
+- Parâmetros de carga das vigas (D40): compartilhados com GUIDs FIXOS `3c7d9a20-5e1f-4a2b-8c3d-7b6a5f4e00NN` (nunca mudar).
 
 ## Armadilhas já encontradas
 - Guardar `Solid` sem o `GeometryElement` dono → SEHException (GC libera a memória nativa).
   Ler todas as faces **antes** de criar cotas (criar cota regenera e invalida a geometria do corte).
 - Assemblies idênticos: o Revit junta no mesmo tipo e **apaga vistas novas**; nunca renomear um gêmeo.
+- `RenderTargetBitmap` (PNG das janelas no AutoRun) sai TRANSPARENTE com a sessão do Windows bloqueada (madrugada): não é erro do
+  código; as vistas exportadas pelo Revit saem normais.
 - API 2025: `GeometryInstance.GetSymbolGeometryId().SymbolId` (não há `.Symbol`);
   `RebarBarType.SetBarTypeDiameters(BarTypeDiameterOptions)`; sem parâmetro de peso de barra e sem
   campos calculados via API (por isso `PCEB_Peso (kg)`). Documentação local: `C:\Program Files\Autodesk\Revit 2025\RevitAPI.xml` (grep).

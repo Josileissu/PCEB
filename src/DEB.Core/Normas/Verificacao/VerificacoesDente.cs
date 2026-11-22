@@ -39,6 +39,8 @@ public sealed class DadosDente
     public int Furos { get; set; }
     public double FckMPa { get; set; } = 40;
     public string Aco { get; set; } = "CA-50";
+    /// <summary>Força no apoio do dente (kN, de cálculo) quando há cálculo (D40); null = sem cálculo.</summary>
+    public double? Vd { get; set; }
 
     /// <summary>Altura útil do dente (cm): até o centro do tirante, por dentro do estribo Gerber.</summary>
     public double D => Altura - CobTopo - (GerberN > 0 ? GerberPhi / 10 : 0) - TirPhi / 20;
@@ -153,10 +155,13 @@ public static class VerificacoesDente
                         livre < min - 1e-6 ? "Use menos estribos de bitola maior ou ramos duplos." : ""));
             }
         }
-
-        // D7: barras verticais na suspensão absorvem no máximo 0,4·Fd — precisa de Fd
-        r.Add(R(t, "D7", "Suspensão por barras verticais: no máximo 0,4·Fd (a do desenho é só de estribos fechados)", "", "≤ 0,4·Fd", true,
-                "NBR 9062, 7.4.6.2", SituacaoVerificacao.Conferir, "Depende de Fd (fase de cálculo)."));
+        // D7: barras verticais na suspensão absorvem no máximo 0,4·Fd; com o cálculo (D40) o Fd é conhecido
+        if (t.Vd is double fd)
+            r.Add(R(t, "D7", "Suspensão por barras verticais: no máximo 0,4·Fd (a do desenho é só de estribos fechados)", "0 kN (só estribos fechados)",
+                    $"≤ 0,4·Fd = {N(0.4 * fd, "0.0")} kN", false, "NBR 9062, 7.4.6.2"));
+        else
+            r.Add(R(t, "D7", "Suspensão por barras verticais: no máximo 0,4·Fd (a do desenho é só de estribos fechados)", "", "≤ 0,4·Fd", true,
+                    "NBR 9062, 7.4.6.2", SituacaoVerificacao.Conferir, "Depende de Fd (fase de cálculo)."));
 
         // D8: furos de pino pela largura (regra do escritório, D23)
         int esp = FurosEsperados(t.B);

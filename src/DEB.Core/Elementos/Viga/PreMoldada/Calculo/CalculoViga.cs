@@ -578,11 +578,15 @@ public static class CalculoViga
         }
         if (r.Contraflecha > 0) p["Contraflecha"] = Fmt.N(r.Contraflecha);
         p[ChaveVdVRd2] = Fmt.N(r.VdSobreVRd2, "0.####");
+        p[ChaveVdE] = Fmt.N(r.VdE, "0.##");
+        p[ChaveVdD] = Fmt.N(r.VdD, "0.##");
         return p;
     }
 
     /// <summary>Valor oculto do template: Vd/VRd2 do cálculo (as verificações V6/V7 deixam de ser "Conferir").</summary>
     public const string ChaveVdVRd2 = "CalcVdVRd2";
+    /// <summary>Valores ocultos: Vd (kN) junto a cada apoio — o Fd das regras do dente (D7).</summary>
+    public const string ChaveVdE = "CalcVdE", ChaveVdD = "CalcVdD";
 
     private static ResultadoVerificacao K(string cod, string grupo, string desc, string valor, string limite, bool falha, string refer,
         SituacaoVerificacao seFalha = SituacaoVerificacao.NaoAtende, string dica = "") => new ResultadoVerificacao
