@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using DEB.Core.Lajes;
 using DEB.Revit.Tools;
+using DEB.Revit.UI;
 
 namespace DEB.Revit.LajeAlveolar
 {
@@ -26,6 +27,10 @@ namespace DEB.Revit.LajeAlveolar
 
         /// <summary>true = o usuário confirmou a inserção.</summary>
         public static bool Mostrar(IList<PanoPaginado> panos, ConfigPaginacao cfg, string relatorio, IList<string> avisos)
+            => ToolDialogs.ShowModal(Criar(panos, cfg, relatorio, avisos));
+
+        /// <summary>Monta a janela da prévia sem mostrá-la (o AutoRun "janelas" a grava em PNG).</summary>
+        public static Window Criar(IList<PanoPaginado> panos, ConfigPaginacao cfg, string relatorio, IList<string> avisos)
         {
             var w = ToolDialogs.NewWindow("Paginar laje alveolar — prévia", 1250);
             w.SizeToContent = SizeToContent.Manual; w.Height = 820; w.ResizeMode = ResizeMode.CanResize;
@@ -37,27 +42,41 @@ namespace DEB.Revit.LajeAlveolar
             texto.Append(relatorio);
             var tb = new TextBox
             {
-                Text = texto.ToString(), IsReadOnly = true, FontFamily = new FontFamily("Consolas"), FontSize = 11,
+                Text = texto.ToString(), IsReadOnly = true, FontFamily = new FontFamily("Consolas"), FontSize = 11, BorderThickness = new Thickness(0),
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto, TextWrapping = TextWrapping.NoWrap,
             };
+            // avisos em lista (aba própria) e o relatório completo em texto (outra aba)
+            var lista = new StackPanel { Margin = new Thickness(4) };
+            if (avisos.Count == 0) lista.Children.Add(new TextBlock { Text = "Sem avisos.", Foreground = Estilo.B(Estilo.Hex("#1f7a3f")) });
+            foreach (var a in avisos)
+                lista.Children.Add(new Border
+                {
+                    Background = Estilo.B(Estilo.Hex("#fff4dc")), CornerRadius = new CornerRadius(3), Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(0, 0, 0, 4),
+                    Child = new TextBlock { Text = a, TextWrapping = TextWrapping.Wrap, Foreground = Estilo.B(Estilo.Ocre) },
+                });
+            var abas = new TabControl();
+            abas.Items.Add(new TabItem { Header = $"Avisos ({avisos.Count})", Content = new ScrollViewer { Content = lista, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } });
+            abas.Items.Add(new TabItem { Header = "Relatório", Content = new Border { Background = Brushes.White, BorderBrush = Estilo.B(Estilo.Linha), BorderThickness = new Thickness(1), Child = tb } });
 
             var grade = new Grid();
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(5) });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
-            var desenho = new Border { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Background = Brushes.White, Child = Desenhar(panos, cfg) };
+            var desenho = new Border { BorderBrush = Estilo.B(Estilo.Linha), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Background = Brushes.White, Child = Desenhar(panos, cfg) };
             grade.Children.Add(desenho);
-            var sp = new GridSplitter { HorizontalAlignment = HorizontalAlignment.Stretch }; Grid.SetColumn(sp, 1); grade.Children.Add(sp);
-            Grid.SetColumn(tb, 2); grade.Children.Add(tb);
+            var sp = new GridSplitter { HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.Transparent }; Grid.SetColumn(sp, 1); grade.Children.Add(sp);
+            Grid.SetColumn(abas, 2); grade.Children.Add(abas);
 
-            var legenda = new TextBlock
+            var legenda = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
+            foreach (var (txt, cor) in new[] { ("painel inteiro", "#fff3c4"), ("ajuste", "#c8e6ff"), ("corte na abertura", "#ffd0d0"), ("com entalhe", "#ffd8a8"),
+                                               ("faixa maciça", "#cfcfcf"), ("junta", "#8e44ad"), ("tirante", "#e67e22"), ("consolo a colocar", "#d63384") })
             {
-                Text = "amarelo = painel inteiro · azul = ajuste · vermelho = corte na abertura · laranja = com entalhe · cinza = faixa maciça · " +
-                       "branco tracejado = recorte · roxo = junta · ponto laranja = tirante · magenta = consolo a colocar · (!) = ponta com alerta",
-                TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 6, 0, 0),
-            };
+                legenda.Children.Add(new Border { Width = 14, Height = 10, Background = Estilo.B(Estilo.Hex(cor)), BorderBrush = Estilo.B(Estilo.Concreto), BorderThickness = new Thickness(0.6), Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center });
+                legenda.Children.Add(new TextBlock { Text = txt, Foreground = Estilo.B(Estilo.Suave), FontSize = 11, Margin = new Thickness(0, 0, 14, 0) });
+            }
+            legenda.Children.Add(new TextBlock { Text = "branco tracejado = recorte · (!) = ponta com alerta", Foreground = Estilo.B(Estilo.Suave), FontSize = 11 });
             var bts = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
-            var salvar = new Button { Content = "Salvar relatório…", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 8, 0) };
+            var salvar = new Button { Content = "Salvar relatório…", Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 0, 8, 0) };
             salvar.Click += (s, e) =>
             {
                 var dlg = new Microsoft.Win32.SaveFileDialog { Filter = "Texto (*.txt)|*.txt", FileName = "paginacao_laje_alveolar.txt" };
@@ -68,12 +87,19 @@ namespace DEB.Revit.LajeAlveolar
             ok.Margin = new Thickness(0);
             bts.Children.Add(ok);
 
-            var raiz = new DockPanel { Margin = new Thickness(10) };
+            var raiz = new DockPanel();
+            var cab = Estilo.Cabecalho("Laje alveolar — prévia da paginação",
+                $"{panos.Count} pano(s) · {panos.Count(p => p.Erro != null)} com erro · {avisos.Count} aviso(s) · confira antes de inserir no modelo",
+                Estilo.Selo(panos.Any(p => p.Erro != null) ? DEB.Core.Normas.Verificacao.SituacaoVerificacao.NaoAtende
+                          : avisos.Count > 0 ? DEB.Core.Normas.Verificacao.SituacaoVerificacao.Conferir : DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok, 110, 11));
+            DockPanel.SetDock(cab, Dock.Top); raiz.Children.Add(cab);
+            var corpo = new DockPanel { Margin = new Thickness(12, 10, 12, 10) };
             var baixo = new StackPanel(); baixo.Children.Add(legenda); baixo.Children.Add(bts);
-            DockPanel.SetDock(baixo, Dock.Bottom); raiz.Children.Add(baixo);
-            raiz.Children.Add(grade);
+            DockPanel.SetDock(baixo, Dock.Bottom); corpo.Children.Add(baixo);
+            corpo.Children.Add(grade);
+            raiz.Children.Add(corpo);
             w.Content = raiz;
-            return ToolDialogs.ShowModal(w);
+            return w;
         }
 
         /// <summary>Relatório final (texto), só leitura.</summary>

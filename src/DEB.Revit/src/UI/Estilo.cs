@@ -66,13 +66,13 @@ namespace DEB.Revit.UI
       <Setter.Value>
         <ControlTemplate TargetType='TabItem'>
           <Border x:Name='bd' Padding='14,6' Margin='0,0,2,0' Background='Transparent' BorderThickness='0,0,0,3' BorderBrush='Transparent'>
-            <ContentPresenter ContentSource='Header' TextElement.FontSize='12.5'/>
+            <ContentPresenter x:Name='hdr' ContentSource='Header' TextElement.FontSize='12.5'/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property='IsSelected' Value='True'>
               <Setter TargetName='bd' Property='BorderBrush' Value='#e3a92b'/>
               <Setter TargetName='bd' Property='Background' Value='#ffffff'/>
-              <Setter Property='TextElement.FontWeight' Value='SemiBold'/>
+              <Setter TargetName='hdr' Property='TextElement.FontWeight' Value='SemiBold'/>
             </Trigger>
             <Trigger Property='IsMouseOver' Value='True'><Setter TargetName='bd' Property='Background' Value='#ffffff'/></Trigger>
           </ControlTemplate.Triggers>
@@ -256,9 +256,10 @@ namespace DEB.Revit.UI
         public static UIElement TabelaVerificacoes(IEnumerable<ResultadoVerificacao> itens, bool agrupar = true)
         {
             var g = new Grid();
-            double[] larg = { 92, 44, 0, 150, 170, 140 };
+            // situação e código fixos; as outras proporcionais à largura (a descrição fica com a maior parte)
+            double[] larg = { 88, 40, -2.4, -1, -1.2, -1 };
             for (int i = 0; i < larg.Length; i++)
-                g.ColumnDefinitions.Add(new ColumnDefinition { Width = larg[i] > 0 ? new GridLength(larg[i]) : new GridLength(1, GridUnitType.Star) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = larg[i] > 0 ? new GridLength(larg[i]) : new GridLength(-larg[i], GridUnitType.Star), MinWidth = larg[i] > 0 ? 0 : 60 });
             int r = 0;
             void NovaLinha(UIElement[] cel, Brush fundo, bool cabecalho = false)
             {
@@ -302,6 +303,23 @@ namespace DEB.Revit.UI
                 }
             }
             return g;
+        }
+
+        /// <summary>Grava o conteúdo de uma janela em PNG sem mostrá-la (testes automáticos; com a sessão do Windows bloqueada sai vazio).</summary>
+        public static void Renderizar(Window w, string arquivo, int largura, int altura)
+        {
+            var root = (FrameworkElement)w.Content;
+            root.Measure(new Size(largura, altura));
+            root.Arrange(new Rect(0, 0, largura, altura));
+            root.UpdateLayout();
+            var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(largura, altura, 96, 96, PixelFormats.Pbgra32);
+            var bg = new DrawingVisual();
+            using (DrawingContext dc = bg.RenderOpen()) dc.DrawRectangle(w.Background ?? Brushes.White, null, new Rect(0, 0, largura, altura));
+            bmp.Render(bg);
+            bmp.Render(root);
+            var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+            enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+            using (var fs = System.IO.File.Create(arquivo)) enc.Save(fs);
         }
 
         /// <summary>Resumo: n OK · n a conferir · n não atende.</summary>

@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using DEB.Core.Pecas;
+using DEB.Revit.UI;
 
 namespace DEB.Revit.Precast.UI
 {
@@ -62,24 +63,23 @@ namespace DEB.Revit.Precast.UI
             _grupos = grupos;
             _actions = actions ?? new ReviewActions();
             var export = _actions.Export;
-            Title = "Conferir peças — Detalhador Estrutural Brasileiro";
+            Title = "PCEB — Conferir peças";
             Width = 1450; Height = 880;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            FontFamily = new FontFamily("Segoe UI");
+            Estilo.Aplicar(this);
 
-            var root = new DockPanel { Margin = new Thickness(8) };
-            var bottom = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+            var raiz = new DockPanel();
+            var root = new DockPanel { Margin = new Thickness(12, 8, 12, 0) };
+            var bottom = new DockPanel();
             var close = new Button { Content = "Fechar", Width = 90, IsCancel = true, IsDefault = true };
             close.Click += (s, e) => Close();
             DockPanel.SetDock(close, Dock.Right);
             bottom.Children.Add(close);
             if (export != null)
             {
-                var exp = new Button
-                {
-                    Content = "Exportar para o CAD…", Width = 150, Margin = new Thickness(0, 0, 8, 0),
-                    ToolTip = "Grava o .json dos grupos MARCADOS (1ª coluna) que o CAD desenha, com a marca do modelo como nome. As ✖ ficam de fora, com o motivo.",
-                };
+                var exp = Estilo.Primario("Exportar para o CAD…", () => { });
+                exp.Width = 170; exp.Margin = new Thickness(0, 0, 8, 0);
+                exp.ToolTip = "Grava o .json dos grupos MARCADOS (1ª coluna) que o CAD desenha, com a marca do modelo como nome. As ✖ ficam de fora, com o motivo.";
                 exp.Click += (s, e) =>
                 {
                     var marcados = _rows.Where(r => r.Exportar).ToList();
@@ -98,13 +98,18 @@ namespace DEB.Revit.Precast.UI
                             "A geometria define a peça; o nome do tipo só é conferido. A marca do modelo é o nome do detalhamento no CAD.";
             bottom.Children.Add(new TextBlock
             {
-                Text = resumo + (notes.Count > 0 ? "\nNotas: " + string.Join(" · ", notes.Take(6)) + (notes.Count > 6 ? " …" : "") : ""),
-                TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0),
+                Text = notes.Count > 0 ? "Notas: " + string.Join(" · ", notes.Take(6)) + (notes.Count > 6 ? " …" : "") : "A geometria define a peça; o nome do tipo só é conferido. A marca do modelo é o nome do detalhamento no CAD.",
+                TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Foreground = Estilo.B(Estilo.Suave), FontSize = 11,
             });
-            DockPanel.SetDock(bottom, Dock.Bottom);
-            root.Children.Add(bottom);
+            var rodape = new Border { Background = Brushes.White, BorderBrush = Estilo.B(Estilo.Linha), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(14, 8, 14, 8), Child = bottom };
+            var cab = Estilo.Cabecalho("Conferir peças", $"{grupos.Sum(g => g.Quantidade)} peça(s) em {grupos.Count} grupo(s) de peças iguais pela geometria · {ok} ok · {at} com atenção · {ns} com seção que o CAD ainda não desenha",
+                Estilo.Selo(ns > 0 ? DEB.Core.Normas.Verificacao.SituacaoVerificacao.NaoAtende : at > 0 ? DEB.Core.Normas.Verificacao.SituacaoVerificacao.Conferir : DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok, 110, 11,
+                            ns > 0 ? "HÁ SEÇÕES FORA" : at > 0 ? "CONFERIR" : "OK"));
+            DockPanel.SetDock(cab, Dock.Top); raiz.Children.Add(cab);
+            DockPanel.SetDock(rodape, Dock.Bottom); raiz.Children.Add(rodape);
             root.Children.Add(_tabs);
-            Content = root;
+            raiz.Children.Add(root);
+            Content = raiz;
 
             AddPage("Vigas", grupos.Where(g => g.Representante.Tipo == TipoPeca.Viga).ToList());
             AddPage("Pilares", grupos.Where(g => g.Representante.Tipo == TipoPeca.Pilar).ToList());
@@ -125,7 +130,7 @@ namespace DEB.Revit.Precast.UI
 
         private void AddPage(string name, List<GrupoPecas> grupos)
         {
-            var list = new ListView { Width = 630 };
+            var list = new ListView { Width = 640, BorderBrush = Estilo.B(Estilo.Linha), Background = Brushes.White };
             var gv = new GridView();
             // 1ª coluna: caixa "exportar" (só desta exportação; o "nunca exportar" gravado no modelo fica embaixo, à direita)
             var caixa = new FrameworkElementFactory(typeof(CheckBox));
@@ -161,7 +166,7 @@ namespace DEB.Revit.Precast.UI
             var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
             Button Botao(string t, string dica, System.Func<ReviewRow, bool> marcar)
             {
-                var b = new Button { Content = t, Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(8, 1, 8, 1), ToolTip = dica };
+                var b = new Button { Content = t, Margin = new Thickness(0, 0, 6, 0), Padding = new Thickness(10, 2, 10, 2), ToolTip = dica };
                 b.Click += (s, e) => { foreach (var r in rows) r.Exportar = marcar(r); };
                 barra.Children.Add(b);
                 return b;
@@ -178,13 +183,13 @@ namespace DEB.Revit.Precast.UI
             esquerda.Children.Add(list);
 
             var preview = new PieceReviewPreview();
-            var avisos = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0), MinHeight = 40 };
+            var avisos = new TextBlock { TextWrapping = TextWrapping.Wrap, MinHeight = 34 };
             // ---- edições do grupo escolhido: marca (gravada no modelo) e "não exportar" ----
             var markBox = new TextBox { Width = 110, VerticalContentAlignment = VerticalAlignment.Center };
-            var markBtn = new Button { Content = "Gravar marca no modelo", Margin = new Thickness(6, 0, 14, 0), Padding = new Thickness(8, 1, 8, 1) };
+            var markBtn = new Button { Content = "Gravar marca no modelo", Margin = new Thickness(6, 0, 14, 0), Padding = new Thickness(10, 2, 10, 2) };
             var skipBox = new CheckBox { Content = "Nunca exportar este grupo (gravado no modelo)", VerticalAlignment = VerticalAlignment.Center };
             var editMsg = new TextBlock { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.DarkRed, TextWrapping = TextWrapping.Wrap };
-            var edit = new DockPanel { Margin = new Thickness(0, 6, 0, 0), LastChildFill = true };
+            var edit = new DockPanel { LastChildFill = true };
             foreach (UIElement c in new UIElement[] { new TextBlock { Text = "Marca do grupo: ", VerticalAlignment = VerticalAlignment.Center }, markBox, markBtn, skipBox })
             { DockPanel.SetDock(c, Dock.Left); edit.Children.Add(c); }
             edit.Children.Add(editMsg);
@@ -231,15 +236,17 @@ namespace DEB.Revit.Precast.UI
                 editMsg.Text = "";
                 loading = false;
                 avisos.Text = g == null ? "" : g.Avisos.Count == 0 ? "Sem avisos." : "Avisos:\n• " + string.Join("\n• ", g.Avisos);
-                avisos.Foreground = g?.Situacao == SituacaoPeca.Ok ? Brushes.DarkGreen : Brushes.DarkRed;
+                avisos.Foreground = Estilo.B(g?.Situacao == SituacaoPeca.Ok ? Estilo.Hex("#1f7a3f") : g?.Situacao == SituacaoPeca.Atencao ? Estilo.Ocre : Estilo.Hex("#a8221a"));
             };
 
             var right = new DockPanel();
-            DockPanel.SetDock(avisos, Dock.Bottom);
-            right.Children.Add(avisos);
-            DockPanel.SetDock(edit, Dock.Bottom);
-            right.Children.Add(edit);
-            right.Children.Add(new Border { BorderBrush = Brushes.LightGray, BorderThickness = new Thickness(1), Child = preview });
+            var cAvisos = Estilo.Cartao("Avisos do grupo", new ScrollViewer { Content = avisos, MaxHeight = 120, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, new Thickness(0, 8, 0, 0));
+            DockPanel.SetDock(cAvisos, Dock.Bottom);
+            right.Children.Add(cAvisos);
+            var cEdit = Estilo.Cartao("Marca e exportação (gravadas no modelo)", edit, new Thickness(0, 8, 0, 0));
+            DockPanel.SetDock(cEdit, Dock.Bottom);
+            right.Children.Add(cEdit);
+            right.Children.Add(new Border { BorderBrush = Estilo.B(Estilo.Linha), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Background = Brushes.White, Child = preview });
             var grid = new DockPanel { Margin = new Thickness(4) };
             DockPanel.SetDock(esquerda, Dock.Left);
             grid.Children.Add(esquerda);
@@ -270,7 +277,7 @@ namespace DEB.Revit.Precast.UI
             root.UpdateLayout();
             var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
             var bg = new DrawingVisual();
-            using (DrawingContext dc = bg.RenderOpen()) dc.DrawRectangle(SystemColors.ControlBrush, null, new Rect(0, 0, width, height));
+            using (DrawingContext dc = bg.RenderOpen()) dc.DrawRectangle(Background ?? SystemColors.ControlBrush, null, new Rect(0, 0, width, height));
             bmp.Render(bg);
             bmp.Render(root);
             var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();

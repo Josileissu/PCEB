@@ -24,21 +24,27 @@ namespace DEB.Revit.Tools
             return w.ShowDialog() == true;
         }
 
-        public static Window NewWindow(string title, double width) => new Window
+        /// <summary>Janela de ferramenta no padrão visual do PCEB (UI/Estilo: fundo papel, botões e abas da identidade).</summary>
+        public static Window NewWindow(string title, double width)
         {
-            Title = title,
-            Width = width,
-            SizeToContent = SizeToContent.Height,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            ResizeMode = ResizeMode.NoResize,
-            ShowInTaskbar = false,
-            FontFamily = new FontFamily("Segoe UI")
-        };
+            var w = new Window
+            {
+                Title = title,
+                Width = width,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ResizeMode = ResizeMode.NoResize,
+                ShowInTaskbar = false,
+            };
+            DEB.Revit.UI.Estilo.Aplicar(w);
+            return w;
+        }
 
         public static StackPanel Buttons(Window w, string okText, Func<bool> canClose = null)
         {
-            var ok = new Button { Content = okText, IsDefault = true, MinWidth = 110, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 8, 0) };
-            var cancel = new Button { Content = "Cancelar", IsCancel = true, MinWidth = 90, Padding = new Thickness(10, 3, 10, 3) };
+            var ok = DEB.Revit.UI.Estilo.Primario(okText, () => { });
+            ok.IsDefault = true; ok.MinWidth = 110; ok.Padding = new Thickness(14, 4, 14, 4); ok.Margin = new Thickness(0, 0, 8, 0);
+            var cancel = new Button { Content = "Cancelar", IsCancel = true, MinWidth = 90, Padding = new Thickness(12, 4, 12, 4) };
             ok.Click += (s, e) => { if (canClose?.Invoke() ?? true) w.DialogResult = true; };
             var p = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
             p.Children.Add(ok);

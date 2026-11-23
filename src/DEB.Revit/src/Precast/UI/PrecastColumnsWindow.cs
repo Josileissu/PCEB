@@ -8,6 +8,7 @@ using System.Windows.Media;
 using DEB.Core.Elementos.Pilar.PreMoldado;
 using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 using DEB.Core.Normas.Verificacao;
+using DEB.Revit.UI;
 
 namespace DEB.Revit.Precast.UI
 {
@@ -32,6 +33,10 @@ namespace DEB.Revit.Precast.UI
         private readonly ComboBox _presets = new ComboBox { MinWidth = 140 };
         private readonly CheckBox _writeMarks = new CheckBox { Content = "Gravar marcas nos pilares", IsChecked = true, Margin = new Thickness(0, 0, 18, 0) };
         private readonly CheckBox _detail = new CheckBox { Content = "Gerar detalhamento (vistas e folhas)", IsChecked = true, Margin = new Thickness(0, 0, 18, 0) };
+        private readonly TabControl _abas = new TabControl();
+        private readonly ContentControl _tabela = new ContentControl(), _seloGeral = new ContentControl(), _seloGrupo = new ContentControl { Margin = new Thickness(0, 0, 10, 0) };
+        private readonly TextBlock _titulo = new TextBlock { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        private readonly TextBlock _subtitulo = new TextBlock { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 2, 0, 0) };
         private bool _loading;
 
         public List<ColumnGroup> Selected => _groups.Where(_include.Contains).ToList();
@@ -44,33 +49,55 @@ namespace DEB.Revit.Precast.UI
             _groups = groups;
             _include = new HashSet<ColumnGroup>(groups);
 
-            Title = "Pilares pré-moldados — armaduras";
+            Title = "PCEB — Pilares pré-moldados: armaduras";
             Width = 1500; Height = 900;
             MinWidth = 1100; MinHeight = 650;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            FontFamily = new FontFamily("Segoe UI");
-            FontSize = 12;
+            Estilo.Aplicar(this);
 
-            var root = new Grid { Margin = new Thickness(10) };
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(330) });
+            var raiz = new DockPanel();
+            var cab = Estilo.Cabecalho("Pilares pré-moldados — armaduras",
+                $"{groups.Sum(g => g.Members.Count)} pilares em {groups.Count} peça(s) distinta(s) · detalhamento com as regras da NBR 6118 e da NBR 9062",
+                _seloGeral);
+            DockPanel.SetDock(cab, Dock.Top); raiz.Children.Add(cab);
+
+            // ---- rodapé ----
+            var rodape = new Border { Background = Brushes.White, BorderBrush = Estilo.B(Estilo.Linha), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(14, 8, 14, 8) };
+            var bottom = new DockPanel();
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal };
+            Button ok = Estilo.Primario("Gerar armaduras e detalhamento", () => { DialogResult = true; });
+            ok.IsDefault = true; ok.Margin = new Thickness(0, 0, 8, 0); ok.Padding = new Thickness(18, 5, 18, 5);
+            buttons.Children.Add(ok);
+            Button cancel = Estilo.Botao("Cancelar", () => { DialogResult = false; });
+            cancel.IsCancel = true; cancel.Padding = new Thickness(14, 5, 14, 5);
+            buttons.Children.Add(cancel);
+            DockPanel.SetDock(buttons, Dock.Right);
+            bottom.Children.Add(buttons);
+            var opts = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            opts.Children.Add(_writeMarks);
+            opts.Children.Add(_detail);
+            bottom.Children.Add(opts);
+            rodape.Child = bottom;
+            DockPanel.SetDock(rodape, Dock.Bottom); raiz.Children.Add(rodape);
+
+            var root = new Grid { Margin = new Thickness(12, 10, 12, 6) };
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
             root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(430) });   // cabe a tabela da armadura por linha
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(450) });   // cabe a tabela da armadura por linha
 
             // ---- Esquerda: grupos ----
-            var left = new DockPanel { Margin = new Thickness(0, 0, 10, 0) };
-            var header = new TextBlock
-            {
-                Text = $"{groups.Sum(g => g.Members.Count)} pilares em {groups.Count} peça(s) distinta(s)",
-                FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6)
-            };
+            var left = new DockPanel { Margin = new Thickness(0, 0, 12, 0) };
+            var header = new TextBlock { Text = "PEÇAS DISTINTAS", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Estilo.B(Estilo.Suave), Margin = new Thickness(0, 4, 0, 8) };
             DockPanel.SetDock(header, Dock.Top);
             left.Children.Add(header);
             string noteText = string.Join("\n", notes ?? Enumerable.Empty<string>());
             if (noteText.Length > 0)
             {
-                var nt = new TextBlock { Text = noteText, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkGoldenrod, Margin = new Thickness(0, 0, 0, 6) };
+                var nt = new Border
+                {
+                    Background = Estilo.B(Estilo.Hex("#fff4dc")), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 0, 0, 8), MaxHeight = 150,
+                    Child = new TextBlock { Text = noteText, TextWrapping = TextWrapping.Wrap, Foreground = Estilo.B(Estilo.Ocre), FontSize = 11 },
+                };
                 DockPanel.SetDock(nt, Dock.Top);
                 left.Children.Add(nt);
             }
@@ -79,77 +106,62 @@ namespace DEB.Revit.Precast.UI
             Grid.SetColumn(left, 0);
             root.Children.Add(left);
 
-            // ---- Centro: desenho + legenda ----
+            // ---- Centro: título, abas Prévia / Verificações ----
             var center = new DockPanel();
+            var linhaTit = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            linhaTit.Children.Add(_seloGrupo); linhaTit.Children.Add(_titulo); linhaTit.Children.Add(_subtitulo);
+            DockPanel.SetDock(linhaTit, Dock.Top); center.Children.Add(linhaTit);
+            var previa = new DockPanel();
             var legend = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             foreach (var kv in ColumnPreview.Legend)
             {
-                legend.Children.Add(new Border { Width = 18, Height = 3, Background = kv.Value.Brush, Margin = new Thickness(8, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center });
-                legend.Children.Add(new TextBlock { Text = RebarFactory.RoleLabel(kv.Key) });
+                legend.Children.Add(new Border { Width = 18, Height = 3, Background = kv.Value.Brush, Margin = new Thickness(10, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center });
+                legend.Children.Add(new TextBlock { Text = RebarFactory.RoleLabel(kv.Key), Foreground = Estilo.B(Estilo.Suave), FontSize = 11 });
             }
             DockPanel.SetDock(legend, Dock.Bottom);
-            center.Children.Add(legend);
-            center.Children.Add(new Border { BorderBrush = Brushes.LightGray, BorderThickness = new Thickness(1), Child = _preview });
+            previa.Children.Add(legend);
+            previa.Children.Add(new Border { BorderBrush = Estilo.B(Estilo.Linha), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Background = Brushes.White, Child = _preview });
+            _abas.Items.Add(new TabItem { Header = "Prévia", Content = previa });
+            _abas.Items.Add(new TabItem { Header = "Verificações", Content = new ScrollViewer { Content = _tabela, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0, 4, 6, 0) } });
+            center.Children.Add(_abas);
             Grid.SetColumn(center, 1);
             root.Children.Add(center);
 
-            // ---- Direita: marca, modelos, campos, verificações ----
-            var right = new DockPanel { Margin = new Thickness(10, 0, 0, 0) };
+            // ---- Direita: marca, modelos, resumo das verificações e os campos ----
+            var right = new DockPanel { Margin = new Thickness(12, 0, 0, 0) };
             var top = new StackPanel();
-            top.Children.Add(Row("Marca da peça", _mark));
+            var peca = new StackPanel();
+            peca.Children.Add(Estilo.Campo("Marca da peça", _mark, "", 120));
             _mark.TextChanged += (s, e) =>
             {
                 if (_loading || Current == null) return;
                 Current.Mark = _mark.Text.Trim();
                 RefreshItem(Current);
             };
-
             var presetRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
             presetRow.Children.Add(_presets);
             presetRow.Children.Add(Button("Aplicar modelo", ApplyPreset));
             presetRow.Children.Add(Button("Salvar modelo", SavePreset));
-            top.Children.Add(new TextBlock { Text = "Modelos de armadura", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 0) });
-            top.Children.Add(presetRow);
-            top.Children.Add(Button("Copiar esta armadura para todos os grupos", CopyToAll, new Thickness(0, 6, 0, 6)));
+            peca.Children.Add(presetRow);
+            peca.Children.Add(Button("Copiar esta armadura para todos os grupos", CopyToAll, new Thickness(0, 6, 0, 0)));
+            top.Children.Add(Estilo.Cartao("Peça e modelos de armadura", peca));
             DockPanel.SetDock(top, Dock.Top);
             right.Children.Add(top);
 
-            // painel de verificações embaixo, sempre à vista (rolagem própria): muda junto com os campos e com a prévia
-            var checksBox = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
-            var checksTitle = new TextBlock { Text = "Verificações (NBR 6118 / NBR 9062)", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) };
-            DockPanel.SetDock(checksTitle, Dock.Top);
-            checksBox.Children.Add(checksTitle);
-            checksBox.Children.Add(new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 260, Content = _checks });
-            DockPanel.SetDock(checksBox, Dock.Bottom);
-            right.Children.Add(checksBox);
+            // resumo das verificações embaixo, sempre à vista (a tabela completa fica na aba "Verificações")
+            var checksCard = Estilo.Cartao("Verificações (NBR 6118 / NBR 9062)", new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 200, Content = _checks }, new Thickness(0, 10, 0, 0));
+            DockPanel.SetDock(checksCard, Dock.Bottom);
+            right.Children.Add(checksCard);
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            scroll.Content = _fields;
+            scroll.Content = new Border { Background = Brushes.White, BorderBrush = Estilo.B(Estilo.Linha), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(5), Padding = new Thickness(12, 2, 12, 10), Child = _fields };
             right.Children.Add(scroll);
             Grid.SetColumn(right, 2);
             root.Children.Add(right);
 
-            // ---- Rodapé ----
-            var bottom = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal };
-            Button ok = Button("Gerar armaduras e detalhamento", () => { DialogResult = true; }, new Thickness(0, 0, 8, 0));
-            ok.IsDefault = true;
-            ok.FontWeight = FontWeights.SemiBold;
-            buttons.Children.Add(ok);
-            Button cancel = Button("Cancelar", () => { DialogResult = false; });
-            cancel.IsCancel = true;
-            buttons.Children.Add(cancel);
-            DockPanel.SetDock(buttons, Dock.Right);
-            bottom.Children.Add(buttons);
-            var opts = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            opts.Children.Add(_writeMarks);
-            opts.Children.Add(_detail);
-            bottom.Children.Add(opts);
-            Grid.SetRow(bottom, 1);
-            Grid.SetColumnSpan(bottom, 3);
-            root.Children.Add(bottom);
-
-            Content = root;
+            raiz.Children.Add(root);
+            Content = raiz;
+            AtualizarSeloGeral();
 
             foreach (ColumnGroup g in groups) _list.Items.Add(new ListBoxItem { Tag = g, Content = ItemContent(g) });
             ReloadPresets();
@@ -168,29 +180,26 @@ namespace DEB.Revit.Precast.UI
             cb.Unchecked += (s, e) => _include.Remove(g);
 
             var text = new StackPanel();
+            var l1 = new DockPanel();
+            var selo = Estilo.Selo(painel.Geral, 74, 9.5);
+            DockPanel.SetDock(selo, Dock.Right); l1.Children.Add(selo);
+            l1.Children.Add(new TextBlock { Text = $"{g.Mark}   ×{g.Members.Count}", FontWeight = FontWeights.SemiBold, FontSize = 13 });
+            text.Children.Add(l1);
             text.Children.Add(new TextBlock
             {
-                Text = $"{g.Mark}   ×{g.Members.Count}",
-                FontWeight = FontWeights.SemiBold, FontSize = 14
-            });
-            text.Children.Add(new TextBlock
-            {
-                Text = $"{r.SectionLabel} mm  ·  H = {U_.ToMm(r.Frame.H) / 1000:0.00} m  ·  {r.Corbels.Count} consolo(s)" +
-                       (r.EmbedmentMm > 0 ? $"  ·  emb. {r.EmbedmentMm:0}" : "")
+                Text = $"{r.SectionLabel} mm · H = {U_.ToMm(r.Frame.H) / 1000:0.00} m · {r.Corbels.Count} consolo(s)" + (r.EmbedmentMm > 0 ? $" · emb. {r.EmbedmentMm:0}" : ""),
+                Foreground = Estilo.B(Estilo.Suave), FontSize = 11, TextWrapping = TextWrapping.Wrap,
             });
             text.Children.Add(new TextBlock
             {
                 Text = $"Pilares: {string.Join(", ", g.Members.Select(m => m.Id))}",
-                Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap, MaxWidth = 270
+                Foreground = Estilo.B(Estilo.Concreto), FontSize = 11, TextWrapping = TextWrapping.Wrap, MaxHeight = 32,
             });
-            text.Children.Add(new TextBlock
-            {
-                Text = painel.Geral == SituacaoVerificacao.Ok ? "✓ verificações OK"
-                     : $"⚠ {PainelVerificacoes.Texto(painel.Geral)}: {painel.Conferir} a conferir · {painel.NaoAtende} não atende",
-                Foreground = SealBrush(painel.Geral)
-            });
+            if (painel.Geral != SituacaoVerificacao.Ok)
+                text.Children.Add(new TextBlock { Text = $"{painel.Conferir} a conferir · {painel.NaoAtende} não atende", Foreground = Estilo.B(Estilo.Cores(painel.Geral).Tinta), FontSize = 11 });
 
-            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(2, 4, 2, 4) };
+            var row = new DockPanel();
+            DockPanel.SetDock(cb, Dock.Left);
             row.Children.Add(cb);
             row.Children.Add(text);
             return row;
@@ -215,6 +224,10 @@ namespace DEB.Revit.Precast.UI
             _loading = true;
             _mark.Text = g.Mark;
             _loading = false;
+            PrecastColumn rp = g.Representative;
+            _titulo.Text = $"{g.Mark} — {g.Members.Count} pilar(es)";
+            _subtitulo.Text = $"{rp.SectionLabel} mm · H = {U_.ToMm(rp.Frame.H) / 1000:0.00} m · {rp.Corbels.Count} consolo(s)";
+            _subtitulo.Foreground = Estilo.B(Estilo.Suave);
 
             ColumnRebarSpec s = g.Spec;
             Section("Geral");
@@ -302,14 +315,18 @@ namespace DEB.Revit.Precast.UI
             PainelVerificacoes p = PainelVerificacoes.De(g.Spec, g.Representative.Frame, g.Representative.Corbels);
 
             var head = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
-            head.Children.Add(new Border
-            {
-                Background = SealBrush(p.Geral), CornerRadius = new CornerRadius(3), Padding = new Thickness(8, 2, 8, 2),
-                Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
-                Child = new TextBlock { Text = PainelVerificacoes.Texto(p.Geral).ToUpperInvariant(), Foreground = Brushes.White, FontWeight = FontWeights.Bold }
-            });
-            head.Children.Add(new TextBlock { Text = p.Contagem, VerticalAlignment = VerticalAlignment.Center });
+            var sg = Estilo.Selo(p.Geral, 90, 10.5); sg.Margin = new Thickness(0, 0, 8, 0);
+            head.Children.Add(sg);
+            head.Children.Add(new TextBlock { Text = p.Contagem, VerticalAlignment = VerticalAlignment.Center, Foreground = Estilo.B(Estilo.Suave) });
             _checks.Children.Add(head);
+            _seloGrupo.Content = Estilo.Selo(p.Geral, 96, 11);
+            var tab = new StackPanel();
+            tab.Children.Add(new TextBlock { Text = $"Verificações do detalhamento: {p.Contagem}", Foreground = Estilo.B(Estilo.Suave), Margin = new Thickness(2, 0, 0, 8) });
+            tab.Children.Add(Estilo.Cartao(null, Estilo.TabelaVerificacoes(p.Resultados)));
+            foreach (string m in p.OutrosAvisos)
+                tab.Children.Add(new TextBlock { Text = "• " + m, TextWrapping = TextWrapping.Wrap, Foreground = Estilo.B(Estilo.Ocre), Margin = new Thickness(2, 2, 0, 0) });
+            _tabela.Content = tab;
+            AtualizarSeloGeral();
 
             if (p.Geral == SituacaoVerificacao.Ok)
                 _checks.Children.Add(new TextBlock { Text = "✓ Nenhuma pendência.", Foreground = Brushes.SeaGreen });
@@ -354,11 +371,20 @@ namespace DEB.Revit.Precast.UI
             _checks.Children.Add(g);
         }
 
-        private static Brush SealBrush(SituacaoVerificacao s) =>
-            s == SituacaoVerificacao.NaoAtende ? Brushes.Firebrick : s == SituacaoVerificacao.Conferir ? Brushes.DarkOrange : Brushes.SeaGreen;
+        private static Brush SealBrush(SituacaoVerificacao s) => Estilo.B(Estilo.Cores(s).Tinta);
 
-        private void Section(string title) =>
-            _fields.Children.Add(new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 12, 0, 4) });
+        private void AtualizarSeloGeral()
+        {
+            var geral = _groups.Count == 0 ? SituacaoVerificacao.Ok
+                : _groups.Max(g => PainelVerificacoes.De(g.Spec, g.Representative.Frame, g.Representative.Corbels).Geral);
+            _seloGeral.Content = Estilo.Selo(geral, 110, 11);
+        }
+
+        private void Section(string title)
+        {
+            if (_fields.Children.Count > 0) _fields.Children.Add(new Border { Height = 1, Background = Estilo.B(Estilo.Linha), Margin = new Thickness(0, 12, 0, 0) });
+            _fields.Children.Add(new TextBlock { Text = title.ToUpper(CultureInfo.GetCultureInfo("pt-BR")), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Estilo.B(Estilo.Mata), Margin = new Thickness(0, 10, 0, 4) });
+        }
 
         private void Num(string label, Func<double> get, Action<double> set)
         {
@@ -554,7 +580,7 @@ namespace DEB.Revit.Precast.UI
 
         private static Button Button(string text, Action click, Thickness? margin = null)
         {
-            var b = new Button { Content = text, Padding = new Thickness(10, 4, 10, 4), Margin = margin ?? new Thickness(6, 0, 0, 0) };
+            var b = new Button { Content = text, Margin = margin ?? new Thickness(6, 0, 0, 0) };
             b.Click += (s, e) => click();
             return b;
         }
@@ -609,17 +635,23 @@ namespace DEB.Revit.Precast.UI
         public void RenderToPng(string path, int width = 1500, int height = 860)
         {
             var root = (FrameworkElement)Content;
-            root.Measure(new Size(width, height));
-            root.Arrange(new Rect(0, 0, width, height));
-            root.UpdateLayout();
-            var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-            var bg = new DrawingVisual();
-            using (DrawingContext dc = bg.RenderOpen()) dc.DrawRectangle(SystemColors.ControlBrush, null, new Rect(0, 0, width, height));
-            bmp.Render(bg);
-            bmp.Render(root);
-            var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
-            enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
-            using (var fs = System.IO.File.Create(path)) enc.Save(fs);
+            for (int t = 0; t < _abas.Items.Count; t++)
+            {
+                _abas.SelectedIndex = t;
+                root.Measure(new Size(width, height));
+                root.Arrange(new Rect(0, 0, width, height));
+                root.UpdateLayout();
+                var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                var bg = new DrawingVisual();
+                using (DrawingContext dc = bg.RenderOpen()) dc.DrawRectangle(Background ?? SystemColors.ControlBrush, null, new Rect(0, 0, width, height));
+                bmp.Render(bg);
+                bmp.Render(root);
+                var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+                string arq = t == 0 ? path : System.IO.Path.Combine(System.IO.Path.GetDirectoryName(path), System.IO.Path.GetFileNameWithoutExtension(path) + "_" + (t + 1) + ".png");
+                using (var fs = System.IO.File.Create(arq)) enc.Save(fs);
+            }
+            _abas.SelectedIndex = 0;
         }
 
         // ------------------------------------------------------------------

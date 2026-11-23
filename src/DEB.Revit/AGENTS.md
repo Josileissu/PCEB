@@ -55,6 +55,10 @@ $p.WaitForExit(540000)
 - `diag`: levantamento do modelo em JSON. `probe`: testes de viabilidade da API (transação desfeita).
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela. `SD_LINHAS=1`: armadura por linha de
   teste (cantos ø20, faces 2 e 4 com redução ø16 → ø12,5, faces 1 e 3 em feixe de 2); o log traz x, y e z das longitudinais.
+- `janelas` (sem projeto): grava em PNG as janelas de prévia que não dependem do modelo, com dados de exemplo (hoje a prévia da
+  paginação de laje alveolar) — `src/UI/JanelasDemo.cs`. As janelas com abas (vigas, pilares) gravam uma imagem por aba (`janela_2.png`…).
+- **Padrão visual das janelas (D41)**: use o kit `src/UI/Estilo.cs` (`Estilo.Aplicar`, `Cabecalho`, `Cartao`, `Selo`, `Campo`,
+  `TabelaVerificacoes`, `Grafico`); janela nova de ferramenta pelo `ToolDialogs.NewWindow` (já aplica o kit). Cores só da identidade.
 - `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
   `SD_VIGA_FAMILIA` (.rfa; copie com nome sem acento), `SD_VIGA_TIPO` e `SD_VIGA_PARAMS` (`b=200;h=500;dz_aba=300;...`, mm, num tipo
   duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEBariantes_PCEB`
