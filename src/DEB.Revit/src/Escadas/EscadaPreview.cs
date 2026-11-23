@@ -26,8 +26,12 @@ namespace DEB.Revit.Escadas
                                       CorNeg = Estilo.Anil, CorEixo = Estilo.Hex("#8e44ad");
         public static IEnumerable<(string, WColor)> Legenda => new[]
         {
-            ("N1 positiva", CorN1), ("N2 positiva do patamar (cruzada)", CorN2), ("N3 distribuição", CorDist), ("N4/N5 negativas", CorNeg), ("eixo do cálculo", CorEixo),
+            ("principal (N1)", CorN1), ("positiva do patamar, cruzada na quina", CorN2), ("distribuição", CorDist), ("negativas e construtivas", CorNeg), ("eixo do cálculo", CorEixo),
         };
+
+        /// <summary>Cor da barra pela função (a mesma na elevação e no corte).</summary>
+        public static WColor CorDe(BarraEscada b) =>
+            b.Nome == "N1" ? CorN1 : b.Funcao.StartsWith("distribui") ? CorDist : b.Funcao.Contains("cruza") ? CorN2 : CorNeg;
 
         private static readonly CultureInfo Pt = CultureInfo.GetCultureInfo("pt-BR");
         private static readonly Typeface Tf = new Typeface("Segoe UI");
@@ -52,7 +56,7 @@ namespace DEB.Revit.Escadas
             // apoios (vigas) nas pontas: retângulo de largura do apoio sob o eixo
             var penApoio = new Pen(Estilo.B(Estilo.Concreto), 1); penApoio.Freeze();
             var fundoApoio = Estilo.B(Estilo.Hex("#d9d8d2"));
-            foreach (var (xa, zt) in new[] { (0.0, 0.0), (g.Vao, e.Desnivel) })
+            foreach (var (xa, zt) in e.Tipo == TipoEscada.Longitudinal ? new[] { (0.0, 0.0), (g.Vao, e.Desnivel) } : new (double, double)[0])   // nos laterais os apoios ficam fora da elevação (ver o corte)
             {
                 double hv = 40;
                 var a = P(xa - la / 2, zt); var b = P(xa + la / 2, zt - hv);
@@ -95,7 +99,7 @@ namespace DEB.Revit.Escadas
             if (MostrarBarras)
                 foreach (var b in r.Barras)
                 {
-                    var cor = b.Nome == "N1" ? CorN1 : b.Nome == "N2" ? CorN2 : b.Transversal ? CorDist : CorNeg;
+                    var cor = CorDe(b);
                     if (b.Transversal)
                     {
                         // pontos ao longo da linha, no espaçamento
@@ -115,7 +119,7 @@ namespace DEB.Revit.Escadas
                     int k = Enumerable.Range(1, b.Pontos.Count - 1).OrderByDescending(i => Dist(b.Pontos[i - 1], b.Pontos[i])).First();
                     var mp = P((b.Pontos[k - 1].X + b.Pontos[k].X) / 2, (b.Pontos[k - 1].Z + b.Pontos[k].Z) / 2);
                     var ft = Ft($"{b.Nome} ø{Fmt(b.Bitola, "0.#")} c/{Fmt(b.Espacamento, "0.#")}", 10.5, Estilo.B(cor), true);
-                    bool emBaixo = b.Nome == "N1" || b.Nome == "N2";
+                    bool emBaixo = b.Pontos.Average(p => p.Z) < g.Trechos.Average(t => (t.P0.Z + t.P1.Z) / 2) && !b.Funcao.Contains("negativa");
                     dc.DrawText(ft, new WPoint(mp.X - ft.Width / 2, emBaixo ? mp.Y + 8 : mp.Y - ft.Height - 6));
                 }
             // quina reentrante

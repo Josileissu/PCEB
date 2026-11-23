@@ -221,18 +221,28 @@ namespace DEB.Revit.Escadas
                     }
                     else
                     {
-                        // transversais: uma barra reta na largura, repetida ao longo de cada trecho reto da linha
+                        // transversais: uma barra na largura (reta ou com as dobras do perfil), repetida ao longo de cada trecho reto da linha
                         double yy = B / 2 - cob;
+                        var perfil = b.PerfilY.Count > 0 ? b.PerfilY : new List<(double Y, double N)> { (-yy, 0), (yy, 0) };
                         for (int i = 1; i < b.Pontos.Count; i++)
                         {
                             var p = b.Pontos[i - 1]; var q = b.Pontos[i];
                             double len = Math.Sqrt(Math.Pow(q.X - p.X, 2) + Math.Pow(q.Z - p.Z, 2));
-                            if (len < b.Espacamento / 2) continue;
+                            if (len < b.Espacamento / 2 && b.Quantidade > 1) continue;
                             var dir = (W(q.X, 0, q.Z) - W(p.X, 0, p.Z)).Normalize();
-                            var linha = Line.CreateBound(W(p.X, -yy, p.Z), W(p.X, yy, p.Z));
-                            var rb = Rebar.CreateFromCurves(doc, RebarStyle.Standard, tipo, null, null, fi, dir, new List<Curve> { linha },
+                            // normal à laje no plano da elevação (para cima): o deslocamento N do perfil
+                            double sx = -(q.Z - p.Z) / len, sz = (q.X - p.X) / len;
+                            var curvas = new List<Curve>();
+                            for (int j = 1; j < perfil.Count; j++)
+                            {
+                                var a = perfil[j - 1]; var c = perfil[j];
+                                if (Math.Abs(a.Y - c.Y) + Math.Abs(a.N - c.N) < 0.1) continue;
+                                curvas.Add(Line.CreateBound(W(p.X + sx * a.N, a.Y, p.Z + sz * a.N), W(p.X + sx * c.N, c.Y, p.Z + sz * c.N)));
+                            }
+                            var rb = Rebar.CreateFromCurves(doc, RebarStyle.Standard, tipo, null, null, fi, dir, curvas,
                                 RebarHookOrientation.Left, RebarHookOrientation.Left, true, true);
-                            rb.GetShapeDrivenAccessor().SetLayoutAsMaximumSpacing(b.Espacamento * Cm, len * Cm, true, i == 1, true);
+                            if (b.Pontos.Count == 2 && b.Quantidade > 1) rb.GetShapeDrivenAccessor().SetLayoutAsFixedNumber(b.Quantidade, len * Cm, true, true, true);   // trecho único: o número do núcleo
+                            else if (b.Quantidade > 1) rb.GetShapeDrivenAccessor().SetLayoutAsMaximumSpacing(b.Espacamento * Cm, len * Cm, true, i == 1, true);
                             barras.Add(rb.Id); compr[rb.Id] = b.Comprimento;
                         }
                     }

@@ -26,6 +26,10 @@ namespace DEB.Revit.Escadas
         private readonly Dictionary<string, TextBox> _campos = new Dictionary<string, TextBox>();
         private readonly ComboBox _classe = new ComboBox { ItemsSource = Classes };
         private readonly EscadaPreview _previa = new EscadaPreview(), _previaDef = new EscadaPreview { MostrarBarras = false };
+        private readonly EscadaCorte _corte = new EscadaCorte(), _corteDef = new EscadaCorte { MostrarDeformada = true };
+        private static readonly string[] Tipos = { "Armada longitudinalmente (apoios nas pontas)", "Armada transversalmente (apoios laterais)", "Em balanço (apoio de um lado)" };
+        private readonly ComboBox _tipo = new ComboBox { ItemsSource = Tipos };
+        private bool _carregando;
         private readonly ContentControl _esforcos = new ContentControl(), _reacoes = new ContentControl(), _mef = new ContentControl(),
                                         _verificacoes = new ContentControl(), _memoria = new ContentControl(), _otimizador = new ContentControl();
         private readonly TextBox _precoConc = new TextBox { Text = "650" }, _precoAco = new TextBox { Text = "9" }, _hMin = new TextBox { Text = "10" }, _hMax = new TextBox { Text = "22" };
@@ -35,7 +39,7 @@ namespace DEB.Revit.Escadas
         private readonly TextBlock _subtitulo = new TextBlock { Foreground = Estilo.B(Estilo.Suave) };
         private readonly TabControl _abas = new TabControl();
         private readonly Button _botaoMef;
-        private Border _molduraDef;
+        private Border _molduraDef, _molduraCorteDef;
         private ComparacaoMefEscada _cmp;
         private readonly string _origem;
 
@@ -46,12 +50,12 @@ namespace DEB.Revit.Escadas
         public EscadaWindow(EscadaLaje entrada, string origem = null)
         {
             Entrada = entrada.Copia(); _origem = origem;
-            Title = "PCEB — Escada armada longitudinalmente";
+            Title = "PCEB — Escada em laje";
             Width = 1500; Height = 900; MinWidth = 1150; MinHeight = 650;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             Estilo.Aplicar(this);
             var raiz = new DockPanel();
-            var cab = Estilo.Cabecalho("Escada — laje armada longitudinalmente",
+            var cab = Estilo.Cabecalho("Escada em laje — cálculo e armação",
                 "Cálculo pela apostila de escadas e pela NBR 6118, com conferência por elementos finitos (OpenSees e CalculiX)", _seloGeral);
             DockPanel.SetDock(cab, Dock.Top); raiz.Children.Add(cab);
 
@@ -81,6 +85,10 @@ namespace DEB.Revit.Escadas
             // ---- esquerda: entrada ----
             var esq = new StackPanel { Margin = new Thickness(0, 0, 12, 0) };
             var geo = new StackPanel();
+            geo.Children.Add(new TextBlock { Text = "Tipo", Foreground = Estilo.B(Estilo.Suave), Margin = new Thickness(0, 0, 0, 2) });
+            geo.Children.Add(_tipo);
+            _tipo.Margin = new Thickness(0, 0, 0, 6);
+            _tipo.SelectionChanged += (s, ev) => { if (!_carregando) Calcular(); };
             Campo(geo, "Desnivel", "Desnível", "cm");
             Campo(geo, "Espelhos", "Nº de espelhos (0 = auto)", "");
             Campo(geo, "EspelhoAlvo", "Espelho desejado", "cm");
@@ -121,7 +129,12 @@ namespace DEB.Revit.Escadas
             }
             var abaArm = new DockPanel();
             DockPanel.SetDock(leg, Dock.Bottom); abaArm.Children.Add(leg);
-            abaArm.Children.Add(Moldura(_previa));
+            var lado = new Grid();
+            lado.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.6, GridUnitType.Star) });
+            lado.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var me = Moldura(_previa); var mc = Moldura(_corte); mc.Margin = new Thickness(8, 0, 0, 0);
+            Grid.SetColumn(mc, 1); lado.Children.Add(me); lado.Children.Add(mc);
+            abaArm.Children.Add(lado);
             _abas.Items.Add(new TabItem { Header = "Elevação e armação", Content = abaArm });
             _abas.Items.Add(new TabItem { Header = "Esforços (ELU)", Content = _esforcos });
             _abas.Items.Add(new TabItem { Header = "Reações e deformada", Content = _reacoes });
@@ -134,7 +147,7 @@ namespace DEB.Revit.Escadas
 
             // ---- direita: proposta e MEF ----
             var dir = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
-            dir.Children.Add(Estilo.Cartao("Armadura proposta (por metro de largura)", _proposta));
+            dir.Children.Add(Estilo.Cartao("Armadura proposta", _proposta));
             var mefc = new StackPanel();
             mefc.Children.Add(_resumoMef);
             _botaoMef = Estilo.Botao("Conferir por MEF", ConferirMef, new Thickness(0, 6, 0, 0));
@@ -168,6 +181,7 @@ namespace DEB.Revit.Escadas
                     tb.Text = v is double d ? d.ToString("0.##", Pt) : v?.ToString() ?? "";
                 }
             _classe.SelectedItem = Classes.Contains(e.ClasseAgressividade) ? e.ClasseAgressividade : "II";
+            _carregando = true; _tipo.SelectedIndex = (int)e.Tipo; _carregando = false;
         }
 
         private bool Ler(out string erro)
@@ -182,6 +196,7 @@ namespace DEB.Revit.Escadas
                 if (pr.PropertyType == typeof(int)) pr.SetValue(e, (int)Math.Round(v)); else pr.SetValue(e, v);
             }
             e.ClasseAgressividade = _classe.SelectedItem as string ?? "II";
+            e.Tipo = (TipoEscada)Math.Max(0, _tipo.SelectedIndex);
             Entrada = e;
             return true;
         }
@@ -203,13 +218,17 @@ namespace DEB.Revit.Escadas
             var r = Resultado; var g = r.Geo;
             var todas = r.Verificacoes.Concat(_cmp?.Verificacoes ?? Enumerable.Empty<ResultadoVerificacao>()).ToList();
             _seloGeral.Content = Estilo.Selo(todas.Count == 0 ? (SituacaoVerificacao?)null : todas.Max(v => v.Situacao), 110, 11);
-            _subtitulo.Text = $"{g.N} espelhos de {F(g.Espelho, "0.0#")} cm · piso {F(g.Piso, "0.#")} · α = {F(g.Alfa * 180 / Math.PI, "0.0")}° · " +
-                              $"vão ℓ = {F(g.Vao, "0")} cm · h = {F(g.H, "0.#")} cm · largura {F(r.Entrada.Largura, "0")} cm · {Estilo.Contagem(todas)}";
+            bool lat = r.Entrada.Tipo != TipoEscada.Longitudinal, bal = r.Entrada.Tipo == TipoEscada.Balanco;
+            _subtitulo.Text = $"{Tipos[(int)r.Entrada.Tipo].Split('(')[0].Trim()} · {g.N} espelhos de {F(g.Espelho, "0.0#")} cm · piso {F(g.Piso, "0.#")} · α = {F(g.Alfa * 180 / Math.PI, "0.0")}° · " +
+                              $"vão de cálculo ℓ = {F(r.VaoCalculo, "0")} cm{(lat ? " (na largura)" : "")} · h = {F(g.H, "0.#")} cm · largura {F(r.Entrada.Largura, "0")} cm · {Estilo.Contagem(todas)}";
             _previa.Resultado = r; _previa.InvalidateVisual();
             _previaDef.Resultado = r;
             _previaDef.Deformada.Clear();
             _previaDef.Deformada.AddRange(r.Diagrama.Select(p => (p.X, p.FlechaElastica)));
             _previaDef.InvalidateVisual();
+            _corte.Resultado = r; _corte.InvalidateVisual();
+            _corteDef.Resultado = r; _corteDef.InvalidateVisual();
+            string rotX = lat ? (bal ? "y a partir do apoio (cm)" : "y na largura, de apoio a apoio (cm)") : "x (cm)";
 
             // esforços
             var grid = new Grid();
@@ -217,42 +236,47 @@ namespace DEB.Revit.Escadas
             var marcas = g.Trechos.Skip(1).Select(t => (t.P0.X, "quina")).ToList();
             Grafico Gr(string tit, string un, bool baixo, Func<PontoEscada, double> f, WColor cor)
             {
-                var gr = new Grafico { Titulo = tit, RotuloY = un, YParaBaixo = baixo, Margin = new Thickness(0, 0, 0, 6) };
+                var gr = new Grafico { Titulo = tit, RotuloY = un, YParaBaixo = baixo, RotuloX = rotX, Margin = new Thickness(0, 0, 0, 6) };
                 gr.Series.Add(new SerieGrafico { Nome = tit.Split(' ')[0], Pontos = r.Diagrama.Select(p => (p.X, f(p))).ToList(), Cor = cor, Preencher = true, RotularMaximo = true, Unidade = un });
                 gr.Marcas.AddRange(marcas);
                 return gr;
             }
             var gm = Gr("Md — momento fletor", "kN·m/m", true, p => p.Md, Estilo.Anil);
-            gm.Series.Add(new SerieGrafico { Nome = "MRd", Pontos = new List<(double, double)> { (0, r.MRd), (g.Vao, r.MRd) }, Cor = Estilo.Ocre, Tracejada = true, Espessura = 1.2 });
+            double sm = bal ? -1 : 1;
+            gm.Series.Add(new SerieGrafico { Nome = "MRd", Pontos = new List<(double, double)> { (0, sm * r.MRd), (r.VaoCalculo, sm * r.MRd) }, Cor = Estilo.Ocre, Tracejada = true, Espessura = 1.2 });
             var gv = Gr("Vd — cortante perpendicular ao eixo", "kN/m", false, p => p.Vd, Estilo.Mata);
-            gv.Series.Add(new SerieGrafico { Nome = "VRd1", Pontos = new List<(double, double)> { (0, r.VRd1), (g.Vao, r.VRd1) }, Cor = Estilo.Ocre, Tracejada = true, Espessura = 1.2 });
+            gv.Series.Add(new SerieGrafico { Nome = "VRd1", Pontos = new List<(double, double)> { (0, r.VRd1), (r.VaoCalculo, r.VRd1) }, Cor = Estilo.Ocre, Tracejada = true, Espessura = 1.2 });
             var gn = Gr("Nd — normal ao longo do eixo (compressão −)", "kN/m", false, p => p.Nd, Estilo.Hex("#8e44ad"));
             gn.Series[0].RotularPontas = true;
             Grid.SetRow(gm, 0); Grid.SetRow(gv, 1); Grid.SetRow(gn, 2);
-            grid.Children.Add(gm); grid.Children.Add(gv); grid.Children.Add(gn);
+            grid.Children.Add(gm); grid.Children.Add(gv);
+            if (lat) grid.RowDefinitions.RemoveAt(2); else grid.Children.Add(gn);
             _esforcos.Content = Moldura(grid, 6);
 
             // reações e deformada
             var rd = new DockPanel();
-            double B = r.Largura;
+            double B = r.ComprimentoReacao;
             var pares = new List<(string, string)>
             {
-                ("Apoio inferior — G / Q", $"{F(r.RaG)} / {F(r.RaQ)} kN/m  →  {F(r.RaG * B, "0.0")} / {F(r.RaQ * B, "0.0")} kN"),
-                ("Apoio superior — G / Q", $"{F(r.RbG)} / {F(r.RbQ)} kN/m  →  {F(r.RbG * B, "0.0")} / {F(r.RbQ * B, "0.0")} kN"),
+                (lat ? (bal ? "Apoio (engaste) — G / Q" : "Apoio esquerdo — G / Q") : "Apoio inferior — G / Q", $"{F(r.RaG)} / {F(r.RaQ)} kN/m  →  {F(r.RaG * B, "0.0")} / {F(r.RaQ * B, "0.0")} kN"),
+                bal ? ("Momento no engaste — G / Q", $"{F(r.MEngG)} / {F(r.MEngQ)} kN·m/m  →  {F(r.MEngG * B, "0.0")} / {F(r.MEngQ * B, "0.0")} kN·m")
+                    : (lat ? "Apoio direito — G / Q" : "Apoio superior — G / Q", $"{F(r.RbG)} / {F(r.RbQ)} kN/m  →  {F(r.RbG * B, "0.0")} / {F(r.RbQ * B, "0.0")} kN"),
                 ("Carga em projeção", $"lance g = {F(r.GLance)}, patamar g = {F(r.GPatamar)}, q = {F(r.Q)} kN/m²"),
                 ("Flecha elástica (QP, Ic)", $"{F(r.FlechaElasticaMax, "0.000")} cm"),
                 ("Flecha imediata (Branson)", $"{F(r.FlechaImediata, "0.000")} cm"),
-                ("Flecha total (com fluência)", $"{F(r.FlechaTotal, "0.00")} cm  (limite ℓ/250 = {F(g.Vao / 250, "0.00")} cm)"),
+                ("Flecha total (com fluência)", $"{F(r.FlechaTotal, "0.00")} cm  (limite {(bal ? "2ℓ" : "ℓ")}/250 = {F((bal ? 2 : 1) * r.VaoCalculo / 250, "0.00")} cm)"),
             };
-            var cart = Estilo.Cartao("Reações por metro de largura e na escada inteira (características)", Estilo.Pares(pares, 200), new Thickness(0, 0, 0, 8));
+            var cart = Estilo.Cartao(lat ? "Reações por metro de lance (inclinado) e no lance inteiro (características)" : "Reações por metro de largura e na escada inteira (características)",
+                Estilo.Pares(pares, 200), new Thickness(0, 0, 0, 8));
             DockPanel.SetDock(cart, Dock.Top); rd.Children.Add(cart);
-            var gd = new Grafico { Titulo = "Deformada vertical — quase permanente, rigidez elástica", RotuloY = "cm", YParaBaixo = true, Height = 220, Margin = new Thickness(0, 0, 0, 8) };
+            var gd = new Grafico { Titulo = "Deformada — quase permanente, rigidez elástica", RotuloY = "cm", YParaBaixo = true, RotuloX = rotX, Height = 220, Margin = new Thickness(0, 0, 0, 8) };
             gd.Series.Add(new SerieGrafico { Nome = "cálculo", Pontos = r.Diagrama.Select(p => (p.X, p.FlechaElastica)).ToList(), Cor = Estilo.Hex("#8e44ad"), RotularMaximo = true, Unidade = "cm" });
             gd.Marcas.AddRange(marcas);
             DockPanel.SetDock(gd, Dock.Bottom); rd.Children.Add(Moldura(gd, 4));
             _molduraDef ??= Moldura(_previaDef);
-            if (_molduraDef.Parent is Panel pai) pai.Children.Remove(_molduraDef);
-            rd.Children.Add(_molduraDef);
+            _molduraCorteDef ??= Moldura(_corteDef);
+            foreach (var mm in new[] { _molduraDef, _molduraCorteDef }) if (mm.Parent is Panel pai) pai.Children.Remove(mm);
+            rd.Children.Add(lat ? _molduraCorteDef : _molduraDef);
             _reacoes.Content = rd;
 
             // proposta
@@ -263,7 +287,7 @@ namespace DEB.Revit.Escadas
             {
                 ("Md,máx", $"{F(r.MdMax)} kN·m/m"), ("As,nec / As,ef", $"{F(r.AsNec)} / {F(r.AsPrincipal)} cm²/m"),
                 ("MRd", $"{F(r.MRd)} kN·m/m"), ("Vd / VRd1", $"{F(r.VdMax, "0.0")} / {F(r.VRd1, "0.0")} kN/m"),
-                ("lb,nec (quina)", $"{F(r.LbNec, "0")} cm"),
+                (lat ? "lb,nec (apoio)" : "lb,nec (quina)", $"{F(r.LbNec, "0")} cm"),
             }, 110));
             foreach (string a in r.Avisos)
                 _proposta.Children.Add(new Border { Background = Estilo.B(Estilo.Hex("#fff4dc")), CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 3, 6, 3), Margin = new Thickness(0, 4, 0, 0),

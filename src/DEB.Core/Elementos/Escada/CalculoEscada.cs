@@ -442,7 +442,7 @@ public static partial class CalculoEscada
         double FundoLance(double x) => (x - g.X1) * tg - h / c + co / c;   // eixo da barra inferior no lance
         double XFundoLance(double z) => g.X1 + (z + h / c - co / c) / tg;
         double XTopoLance(double z) => g.X1 + (z + co / c) / tg;
-        int nLarg = (int)Math.Floor((e.Largura - 2 * cob) / r.Principal.Esp + 1e-9) + 1;
+        int nLarg = QtReta(e.Largura - 2 * cob - phi / 10, r.Principal.Esp);
 
         // N1: positiva do patamar inferior + lance, cruzando na quina reentrante
         var n1 = new List<(double X, double Z)>();
@@ -475,15 +475,29 @@ public static partial class CalculoEscada
         if (d.Esp > 0)
         {
             double off = phi / 10 + d.Bitola / 20;   // logo acima da principal
-            var linha = n1.Select(p => p).ToList();
-            double comp = Comprimento(linha);
-            var n3 = new BarraEscada
+            // ao longo da N1 até o cruzamento da quina; com patamar superior, outra linha sobre a N2 (do apoio até o cruzamento)
+            var linha = new List<(double X, double Z)>();
+            double zc = H - hp + co, xc = XFundoLance(zc);
+            foreach (var p in n1)
+            {
+                if (ps && p.X > xc + 1e-6) { linha.Add((xc, zc)); break; }
+                linha.Add(p);
+            }
+            var l3 = linha.Select(p => (p.X, p.Z + off)).ToList();
+            r.Barras.Add(new BarraEscada
             {
                 Nome = "N3", Funcao = "distribuição", Bitola = d.Bitola, Espacamento = d.Esp, Transversal = true,
-                Quantidade = (int)Math.Floor(comp / d.Esp + 1e-9) + 1 + (ps ? (int)Math.Floor((xFim - XFundoLance(H - hp + co)) / d.Esp + 1e-9) : 0),
-                Pontos = linha.Select(p => (p.X, p.Z + off)).ToList(), Comprimento = e.Largura - 2 * cob,
-            };
-            r.Barras.Add(n3);
+                Quantidade = QtLinha(l3, d.Esp), Pontos = l3, Comprimento = e.Largura - 2 * cob,
+            });
+            if (ps)
+            {
+                var l3b = new List<(double X, double Z)> { (xFim, zc + off), (xc - d.Esp / 2, zc + off) };
+                r.Barras.Add(new BarraEscada
+                {
+                    Nome = "N3", Funcao = "distribuição (patamar superior)", Bitola = d.Bitola, Espacamento = d.Esp, Transversal = true,
+                    Quantidade = QtLinha(l3b, d.Esp), Pontos = l3b, Comprimento = e.Largura - 2 * cob,
+                });
+            }
         }
 
         // N4 / N5: negativas construtivas nos apoios, até 0,15·ℓ, com gancho dentro do apoio
@@ -491,7 +505,7 @@ public static partial class CalculoEscada
         if (ng.Esp > 0)
         {
             double con = cob + ng.Bitola / 20, comp = 0.15 * L;
-            int nL = (int)Math.Floor((e.Largura - 2 * cob) / ng.Esp + 1e-9) + 1;
+            int nL = QtReta(e.Largura - 2 * cob - ng.Bitola / 10, ng.Esp);
             var n4 = new List<(double X, double Z)>();
             if (pi)
             {
@@ -517,6 +531,25 @@ public static partial class CalculoEscada
             }
             r.Barras.Add(Barra("N5", "negativa no apoio superior", ng.Bitola, ng.Esp, nL, n5));
         }
+    }
+
+    /// <summary>Barras num comprimento com espaçamento máximo (as duas pontas incluídas): o mesmo número que o Revit cria.</summary>
+    public static int QtReta(double comp, double esp) => comp <= 1e-9 ? 1 : (int)Math.Ceiling(comp / esp - 1e-9) + 1;
+
+    /// <summary>Barras transversais ao longo de uma polilinha, trecho a trecho (como o Revit cria: o 1º trecho com a barra inicial;
+    /// trecho com menos de meio espaçamento fica sem barra).</summary>
+    public static int QtLinha(IReadOnlyList<(double X, double Z)> p, double esp)
+    {
+        if (p.Count == 2) return QtReta(Comprimento(p), esp);
+        int n = 0; bool prim = true;
+        for (int i = 1; i < p.Count; i++)
+        {
+            double l = Math.Sqrt(Math.Pow(p[i].X - p[i - 1].X, 2) + Math.Pow(p[i].Z - p[i - 1].Z, 2));
+            if (l < esp / 2) continue;
+            n += (int)Math.Ceiling(l / esp - 1e-9) + (prim ? 1 : 0);
+            prim = false;
+        }
+        return Math.Max(1, n);
     }
 
     private static BarraEscada Barra(string nome, string funcao, double phi, double esp, int n, List<(double X, double Z)> pts) => new BarraEscada

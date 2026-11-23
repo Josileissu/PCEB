@@ -16,12 +16,16 @@ using DEB.Revit.Core;
 namespace DEB.Revit.Escadas
 {
     /// <summary>
-    /// AutoRun "escadas" (D42): calcula uma escada de exemplo (ou a de SD_ESCADA = "Desnivel=144;Espelhos=8;…"), roda a conferência
-    /// por MEF, grava a janela em PNG (uma imagem por aba), cria a escada no modelo aberto longe das peças e exporta um corte e
-    /// uma vista 3D com as barras. Resultado em logs\escadas_AAAAMMDD_HHMMSS.
+    /// AutoRun "escadas" (D42), no modelo aberto, longe das peças:
+    /// (1) longitudinal com patamares — calcula, roda o MEF e o otimizador, grava a janela em PNG, cria duas vigas de apoio em níveis
+    /// diferentes (giradas 30°) e posiciona a escada por elas; (2) transversal e (3) em balanço, ao lado. Para cada escada: família,
+    /// barras, corte longitudinal, corte transversal e 3D exportados. SD_ESCADA = "Desnivel=144;Espelhos=8;…" muda a de exemplo.
+    /// Resultado em logs\escadas_AAAAMMDD_HHMMSS.
     /// </summary>
     internal static class EscadasAutoTest
     {
+        private const double Cm = 1 / 30.48;
+
         public static string Run(UIDocument uidoc)
         {
             var doc = uidoc.Document;
@@ -35,29 +39,26 @@ namespace DEB.Revit.Escadas
             };
             Ler(Environment.GetEnvironmentVariable("SD_ESCADA"), e, sb);
 
-            var win = new EscadaWindow(e, "Autoteste");
-            win.ConferirMefAgora();
-            win.Otimizar();
-            var r = win.Resultado;
-            sb.AppendLine($"cálculo: n = {r.Geo.N}, e = {r.Geo.Espelho:0.00}, vão {r.Geo.Vao:0}, Md = {r.MdMax:0.00} kN·m/m, flecha total {r.FlechaTotal:0.00} cm");
-            foreach (var b in r.Barras) sb.AppendLine("  " + b.Texto + $" — {b.Comprimento:0} cm");
-            foreach (var v in r.Verificacoes) sb.AppendLine($"  [{v.Situacao}] {v.Codigo} {v.Descricao}: {v.Valor} ({v.Limite})");
-            RenderToPng(win, Path.Combine(dir, "janela.png"));
-            sb.AppendLine("janela: " + Path.Combine(dir, "janela*.png"));
-
-            // longe das peças do modelo de teste
             var bbAll = new FilteredElementCollector(doc).WhereElementIsNotElementType().Where(x => x.Category != null && x.get_BoundingBox(null) != null)
                 .Select(x => x.get_BoundingBox(null)).ToList();
             double xMin = bbAll.Count > 0 ? bbAll.Min(b => b.Min.X) : 0, yMin = bbAll.Count > 0 ? bbAll.Min(b => b.Min.Y) : 0;
             var nivel = EscadasRevit.NivelAbaixo(doc, 0.01);
-            var pos = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20, nivel?.Elevation ?? 0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
-            // duas vigas de apoio (a de cima 144 cm acima, 416 cm adiante, giradas 30° no plano) e a posição lida delas
+            double z0 = nivel?.Elevation ?? 0;
+
+            // ---- 1. longitudinal, posicionada por duas vigas ----
+            var win = new EscadaWindow(e, "Autoteste");
+            win.ConferirMefAgora();
+            win.Otimizar();
+            Escrever(sb, "longitudinal", win.Resultado);
+            RenderToPng(win, Path.Combine(dir, "janela.png"));
+            var pos = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
+            var r = win.Resultado;
             var sym = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).OfCategory(BuiltInCategory.OST_StructuralFraming).Cast<FamilySymbol>().FirstOrDefault();
             if (sym != null)
             {
-                double cm = 1 / 30.48, ang = Math.PI / 6;
+                double ang = Math.PI / 6;
                 var dd = new XYZ(Math.Cos(ang), Math.Sin(ang), 0); var tt = new XYZ(-dd.Y, dd.X, 0);
-                var o = new XYZ(xMin - 60, yMin - 60, nivel?.Elevation ?? 0);
+                var o = new XYZ(xMin - 60, yMin - 60, z0);
                 var apoios = new List<Element>();
                 using (var t = new Transaction(doc, "Vigas de apoio (autoteste)"))
                 {
@@ -65,10 +66,9 @@ namespace DEB.Revit.Escadas
                     if (!sym.IsActive) sym.Activate();
                     foreach (var (x, z) in new[] { (0.0, 0.0), (r.Geo.Vao, r.Entrada.Desnivel) })
                     {
-                        var c0 = o + dd * (x * cm) - tt * (150 * cm) + XYZ.BasisZ * (z * cm);
-                        var c1 = o + dd * (x * cm) + tt * (150 * cm) + XYZ.BasisZ * (z * cm);
-                        var fiv = doc.Create.NewFamilyInstance(Line.CreateBound(c0, c1), sym, nivel, StructuralType.Beam);
-                        apoios.Add(fiv);
+                        var c0 = o + dd * (x * Cm) - tt * (150 * Cm) + XYZ.BasisZ * (z * Cm);
+                        var c1 = o + dd * (x * Cm) + tt * (150 * Cm) + XYZ.BasisZ * (z * Cm);
+                        apoios.Add(doc.Create.NewFamilyInstance(Line.CreateBound(c0, c1), sym, nivel, StructuralType.Beam));
                     }
                     t.Commit();
                 }
@@ -78,66 +78,27 @@ namespace DEB.Revit.Escadas
                 else
                 {
                     var g2 = GeometriaEscada.De(e2);
-                    sb.AppendLine($"apoios: {pos2.Origem}; direção {pos2.Direcao.X:0.000},{pos2.Direcao.Y:0.000} (esperado {dd.X:0.000},{dd.Y:0.000}); base z {pos2.Base.Z / cm:0.0} cm; " +
+                    sb.AppendLine($"apoios: {pos2.Origem}; direção {pos2.Direcao.X:0.000},{pos2.Direcao.Y:0.000} (esperado {dd.X:0.000},{dd.Y:0.000}); base z {(pos2.Base.Z - z0) / Cm:0.0} cm; " +
                                   $"desnível {e2.Desnivel:0.0}; vão lido {g2.Vao:0.0} (esperado {r.Geo.Vao:0.0}); patamares {e2.PatamarInferior:0}/{e2.PatamarSuperior:0}; largura {e2.Largura:0}; apoio {e2.LarguraApoio:0}");
-                    pos = pos2;
-                    r = CalculoEscada.Calcular(e2);
+                    pos = pos2; r = CalculoEscada.Calcular(e2);
                 }
             }
-            string marca = EscadaCommand.Criar(doc, r, pos, out var log);
-            sb.AppendLine($"criada: {marca}");
-            foreach (var i in log.Infos) sb.AppendLine("  " + i);
-            foreach (var w in log.Warnings) sb.AppendLine("  ATENÇÃO " + w);
-            var fi = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().First(x => x.Symbol.Family.Name == EscadasRevit.PrefixoFamilia + marca);
-            var rebars = new FilteredElementCollector(doc).OfClass(typeof(Rebar)).Cast<Rebar>().Where(x => x.GetHostId() == fi.Id).ToList();
-            sb.AppendLine($"barras no hospedeiro: {rebars.Count} conjuntos, {rebars.Sum(x => x.Quantity)} barras");
-            var bb = fi.get_BoundingBox(null);
-            sb.AppendLine($"caixa da escada (cm): {(bb.Max.X - bb.Min.X) * 30.48:0} × {(bb.Max.Y - bb.Min.Y) * 30.48:0} × {(bb.Max.Z - bb.Min.Z) * 30.48:0}; base z = {bb.Min.Z * 30.48:0.0}");
-            sb.AppendLine("barras fora da caixa da escada (tolerância 25 cm, os apoios): " +
-                rebars.Count(x => { var b2 = x.get_BoundingBox(null); return b2 == null || b2.Min.X < bb.Min.X - 0.82 || b2.Max.X > bb.Max.X + 0.82 || b2.Min.Z < bb.Min.Z - 0.82 || b2.Max.Z > bb.Max.Z + 0.82; }));
+            Criar(doc, r, pos, dir, "longitudinal", sb);
 
-            // vistas: corte longitudinal no meio da largura e 3D com as barras sólidas
-            using (var t = new Transaction(doc, "Vistas da escada (autoteste)"))
+            // ---- 2. transversal e 3. balanço, lado a lado ----
+            int k = 0;
+            foreach (var tipo in new[] { TipoEscada.Transversal, TipoEscada.Balanco })
             {
-                t.Start();
-                var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>();
-                var tSec = vft.First(v => v.ViewFamily == ViewFamily.Section);
-                var t3d = vft.First(v => v.ViewFamily == ViewFamily.ThreeDimensional);
-                double cm = 1 / 30.48;
-                var o = pos.Base;
-                var box = new BoundingBoxXYZ
-                {
-                    Transform = Autodesk.Revit.DB.Transform.Identity,
-                    Min = new XYZ(-60 * cm, -60 * cm - r.Geo.Contorno.Min(p => p.Z) * 0, -10 * cm),
-                    Max = new XYZ((r.Geo.Vao + 60) * cm, (r.Entrada.Desnivel + 60) * cm, 200 * cm),
-                };
-                // z local = −y do modelo: plano de corte em Max.Z (meio da largura), vista até Min.Z (além da largura)
-                // a vista mostra o x local para a esquerda: com BasisX = −X a escada sobe para a direita no corte
-                box.Min = new XYZ(-(r.Geo.Vao + 60) * cm, (r.Geo.Contorno.Min(p => p.Z) - 60) * cm, -(r.Entrada.Largura / 2 + 20) * cm);
-                box.Max = new XYZ(60 * cm, (r.Entrada.Desnivel + 60) * cm, 0);
-                var tr = Autodesk.Revit.DB.Transform.Identity;
-                var dx = pos.Direcao.Normalize(); tr.Origin = o; tr.BasisX = -dx; tr.BasisY = XYZ.BasisZ; tr.BasisZ = (-dx).CrossProduct(XYZ.BasisZ);
-                box.Transform = tr;
-                var sec = ViewSection.CreateSection(doc, tSec.Id, box);
-                sec.Name = "Escada " + marca + " — corte (autoteste)";
-                sec.Scale = 25; sec.DetailLevel = ViewDetailLevel.Fine;
-                var v3 = View3D.CreateIsometric(doc, t3d.Id);
-                v3.Name = "Escada " + marca + " — 3D (autoteste)";
-                v3.DetailLevel = ViewDetailLevel.Fine;
-                v3.SetSectionBox(new BoundingBoxXYZ { Min = bb.Min - new XYZ(1, 1, 1), Max = bb.Max + new XYZ(1, 1, 1) });
-                foreach (var rb in rebars) { rb.SetUnobscuredInView(sec, true); rb.SetUnobscuredInView(v3, true); }
-                t.Commit();
-                foreach (var (v, nome) in new[] { ((View)sec, "corte"), ((View)v3, "3d") })
-                {
-                    var ieo = new ImageExportOptions
-                    {
-                        ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, nome), FitDirection = FitDirectionType.Horizontal,
-                        HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG, ImageResolution = ImageResolution.DPI_150,
-                        PixelSize = 2400, ZoomType = ZoomFitType.FitToPage,
-                    };
-                    ieo.SetViewsAndSheets(new List<ElementId> { v.Id });
-                    doc.ExportImage(ieo);
-                }
+                k++;
+                var el = e.Copia(); el.Tipo = tipo; el.PatamarInferior = 0; el.PatamarSuperior = 0; el.Espessura = 12; el.EspessuraPatamar = 0;
+                el.Parapeito = tipo == TipoEscada.Balanco ? 0.5 : 0; el.BordasComParapeito = tipo == TipoEscada.Balanco ? 1 : 0;
+                var w = new EscadaWindow(el, "Autoteste");
+                w.ConferirMefAgora();
+                string nome = tipo == TipoEscada.Transversal ? "transversal" : "balanco";
+                Escrever(sb, nome, w.Resultado);
+                RenderToPng(w, Path.Combine(dir, $"janela_{nome}.png"));
+                var p = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - k * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
+                Criar(doc, w.Resultado, p, dir, nome, sb);
             }
             sb.AppendLine("diálogos fechados: " + string.Join(" | ", AutoRun.Dialogs));
             string arq = Path.Combine(dir, "resultado.txt");
@@ -145,7 +106,85 @@ namespace DEB.Revit.Escadas
             return arq;
         }
 
-        /// <summary>"Chave=valor;…" sobre a entrada (nomes das propriedades de <see cref="EscadaLaje"/>).</summary>
+        private static void Escrever(StringBuilder sb, string nome, ResultadoEscada r)
+        {
+            sb.AppendLine($"== {nome}: n = {r.Geo.N}, e = {r.Geo.Espelho:0.00}, vão de cálculo {r.VaoCalculo:0}, Md = {r.MdMax:0.00} kN·m/m, flecha total {r.FlechaTotal:0.00} cm");
+            foreach (var b in r.Barras) sb.AppendLine("  " + b.Texto + $" — {b.Comprimento:0} cm");
+            foreach (var v in r.Verificacoes.Where(v => v.Situacao != DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok))
+                sb.AppendLine($"  [{v.Situacao}] {v.Codigo} {v.Descricao}: {v.Valor} ({v.Limite})");
+            foreach (var a in r.Avisos) sb.AppendLine("  aviso: " + a);
+        }
+
+        /// <summary>Cria a escada e exporta o corte longitudinal (meio da largura), o transversal (meio do lance) e o 3D.</summary>
+        private static void Criar(Document doc, ResultadoEscada r, PosicaoEscada pos, string dir, string nome, StringBuilder sb)
+        {
+            string marca = EscadaCommand.Criar(doc, r, pos, out var log);
+            sb.AppendLine($"criada ({nome}): {marca}");
+            foreach (var i in log.Infos) sb.AppendLine("  " + i);
+            foreach (var w in log.Warnings) sb.AppendLine("  ATENÇÃO " + w);
+            var fi = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().First(x => x.Symbol.Family.Name == EscadasRevit.PrefixoFamilia + marca);
+            var rebars = new FilteredElementCollector(doc).OfClass(typeof(Rebar)).Cast<Rebar>().Where(x => x.GetHostId() == fi.Id).ToList();
+            sb.AppendLine($"  barras no hospedeiro: {rebars.Count} conjuntos, {rebars.Sum(x => x.Quantity)} barras (núcleo: {r.Barras.Sum(b => b.Quantidade)})");
+            var bb = fi.get_BoundingBox(null);
+            double tol = (r.Entrada.LarguraApoio + 30) * Cm;
+            sb.AppendLine($"  barras fora da caixa da escada (tolerância: o apoio + 30 cm): " +
+                rebars.Count(x => { var b2 = x.get_BoundingBox(null); return b2 == null || b2.Min.X < bb.Min.X - tol || b2.Max.X > bb.Max.X + tol || b2.Min.Y < bb.Min.Y - tol || b2.Max.Y > bb.Max.Y + tol || b2.Min.Z < bb.Min.Z - tol || b2.Max.Z > bb.Max.Z + tol; }));
+
+            var vistas = new List<(View, string)>();
+            using (var t = new Transaction(doc, "Vistas da escada (autoteste)"))
+            {
+                t.Start();
+                var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>();
+                var tSec = vft.First(v => v.ViewFamily == ViewFamily.Section);
+                var t3d = vft.First(v => v.ViewFamily == ViewFamily.ThreeDimensional);
+                var o = pos.Base; var dx = pos.Direcao.Normalize(); var sy = new XYZ(-dx.Y, dx.X, 0);
+                double zMin = r.Geo.Contorno.Min(p => p.Z) - 60, la = r.Entrada.LarguraApoio, B = r.Entrada.Largura;
+                // longitudinal: olha o lado da escada; x local para a esquerda (BasisX = −d) para a escada subir para a direita
+                var tr = Autodesk.Revit.DB.Transform.Identity;
+                tr.Origin = o; tr.BasisX = -dx; tr.BasisY = XYZ.BasisZ; tr.BasisZ = (-dx).CrossProduct(XYZ.BasisZ);
+                var box = new BoundingBoxXYZ
+                {
+                    Transform = tr,
+                    Min = new XYZ(-(r.Geo.Vao + 60) * Cm, zMin * Cm, -(B / 2 + 20) * Cm),
+                    Max = new XYZ(60 * Cm, (r.Entrada.Desnivel + 60) * Cm, 0),
+                };
+                var sec = ViewSection.CreateSection(doc, tSec.Id, box);
+                sec.Name = $"Escada {marca} — corte longitudinal (autoteste)"; sec.Scale = 25; sec.DetailLevel = ViewDetailLevel.Fine;
+                vistas.Add((sec, $"{nome}_corte"));
+                // transversal: plano vertical perpendicular ao sentido, no meio do lance
+                double xm = (r.Geo.X1 + r.Geo.X2) / 2;
+                var tr2 = Autodesk.Revit.DB.Transform.Identity;
+                tr2.Origin = o + dx * (xm * Cm); tr2.BasisX = sy; tr2.BasisY = XYZ.BasisZ; tr2.BasisZ = sy.CrossProduct(XYZ.BasisZ);
+                var box2 = new BoundingBoxXYZ
+                {
+                    Transform = tr2,
+                    Min = new XYZ(-(B / 2 + la + 40) * Cm, zMin * Cm, -30 * Cm),
+                    Max = new XYZ((B / 2 + la + 40) * Cm, (r.Entrada.Desnivel + 30) * Cm, 0),
+                };
+                var sec2 = ViewSection.CreateSection(doc, tSec.Id, box2);
+                sec2.Name = $"Escada {marca} — corte transversal (autoteste)"; sec2.Scale = 20; sec2.DetailLevel = ViewDetailLevel.Fine;
+                vistas.Add((sec2, $"{nome}_transversal"));
+                var v3 = View3D.CreateIsometric(doc, t3d.Id);
+                v3.Name = $"Escada {marca} — 3D (autoteste)"; v3.DetailLevel = ViewDetailLevel.Fine;
+                v3.SetSectionBox(new BoundingBoxXYZ { Min = bb.Min - new XYZ(1, 1, 1), Max = bb.Max + new XYZ(1, 1, 1) });
+                vistas.Add((v3, $"{nome}_3d"));
+                foreach (var rb in rebars) foreach (var (v, _) in vistas) rb.SetUnobscuredInView(v, true);
+                t.Commit();
+            }
+            foreach (var (v, arq) in vistas)
+            {
+                var ieo = new ImageExportOptions
+                {
+                    ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, arq), FitDirection = FitDirectionType.Horizontal,
+                    HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG, ImageResolution = ImageResolution.DPI_150,
+                    PixelSize = 2000, ZoomType = ZoomFitType.FitToPage,
+                };
+                ieo.SetViewsAndSheets(new List<ElementId> { v.Id });
+                doc.ExportImage(ieo);
+            }
+        }
+
+        /// <summary>"Chave=valor;…" sobre a entrada (nomes das propriedades de <see cref="EscadaLaje"/>; Tipo = 0, 1 ou 2).</summary>
         private static void Ler(string txt, EscadaLaje e, StringBuilder sb)
         {
             if (string.IsNullOrWhiteSpace(txt)) return;
@@ -155,7 +194,9 @@ namespace DEB.Revit.Escadas
                 if (kv.Length != 2) continue;
                 var p = typeof(EscadaLaje).GetProperty(kv[0].Trim());
                 if (p == null || !double.TryParse(kv[1].Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double v)) { sb.AppendLine("SD_ESCADA ignorado: " + par); continue; }
-                if (p.PropertyType == typeof(int)) p.SetValue(e, (int)Math.Round(v)); else if (p.PropertyType == typeof(double)) p.SetValue(e, v);
+                if (p.PropertyType == typeof(int)) p.SetValue(e, (int)Math.Round(v));
+                else if (p.PropertyType == typeof(double)) p.SetValue(e, v);
+                else if (p.PropertyType == typeof(TipoEscada)) p.SetValue(e, (TipoEscada)(int)Math.Round(v));
             }
         }
 

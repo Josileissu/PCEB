@@ -218,7 +218,7 @@ public static partial class CalculoEscada
         (double X, double Z) NaLinha(double x, double dPerp) => (x, (x - g.X1) * tg - h / c + dPerp / c);   // dPerp: distância perpendicular a partir da face de baixo
         List<(double X, double Z)> Linha(double dPerp) => new List<(double X, double Z)> { NaLinha(x0, dPerp), NaLinha(x1, dPerp) };
         double compLance = (x1 - x0) / c;
-        int Qt(double comp, double esp) => (int)Math.Floor(comp / esp + 1e-9) + 1;
+        int Qt(double comp, double esp) => QtReta(comp, esp);
         double yApoio = B / 2 + la - cob;   // dentro do apoio
         double desce = h - 2 * cob - phi / 10;
         if (!bal)
@@ -234,7 +234,7 @@ public static partial class CalculoEscada
             r.Barras.Add(new BarraEscada
             {
                 Nome = "N2", Funcao = "distribuição ao longo do lance", Bitola = pd, Espacamento = r.Distribuicao.Esp, Pontos = Linha(t2),
-                Quantidade = Qt(B - 2 * cob, r.Distribuicao.Esp), Comprimento = Math.Ceiling(compLance),
+                Quantidade = Qt(B - 2 * cob - pd / 10, r.Distribuicao.Esp), Comprimento = Math.Ceiling(compLance),
             });
             var ng = r.Negativa;
             if (ng.Esp > 0)
@@ -265,7 +265,7 @@ public static partial class CalculoEscada
             r.Barras.Add(new BarraEscada
             {
                 Nome = "N2", Funcao = "distribuição ao longo do lance", Bitola = pd, Espacamento = r.Distribuicao.Esp, Pontos = Linha(t2),
-                Quantidade = Qt(B - 2 * cob, r.Distribuicao.Esp), Comprimento = Math.Ceiling(compLance),
+                Quantidade = Qt(B - 2 * cob - pd / 10, r.Distribuicao.Esp), Comprimento = Math.Ceiling(compLance),
             });
             // canto de cada degrau: um ponto por degrau, dentro do canto (cobrimento nas duas faces)
             double pc = Math.Max(8, phi);
