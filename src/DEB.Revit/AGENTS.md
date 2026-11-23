@@ -64,7 +64,7 @@ $p.WaitForExit(540000)
   com openseespy; `ccx=` CalculiX).
 - `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
   `SD_VIGA_FAMILIA` (.rfa; copie com nome sem acento), `SD_VIGA_TIPO` e `SD_VIGA_PARAMS` (`b=200;h=500;dz_aba=300;...`, mm, num tipo
-  duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEBariantes_PCEB`
+  duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEB\variantes_PCEB`
   (as de "aba laje e aba superior" são do 2026). A família entra pelo documento dela (`fd.LoadFamily(doc)`): o `doc.LoadFamily` devolvia falso.
 - `exportarpecas` (`SD_EXPORT` = caminho), `conferir`, `conferireditar`, `furos`: ver `docs/EXPORTAR_PARA_O_CAD.md` e `docs/CONFERIR_PECAS.md`.
   Tarefas `formas*`: `docs/FORMAS.md`. `contarlegendas`: `docs/DETALHES_PADRAO.md`.
