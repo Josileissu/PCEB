@@ -12,6 +12,7 @@ using DEB.Core.Elementos.Viga.PreMoldada.Calculo;
 using DEB.Core.Normas.Verificacao;
 using DEB.Revit.Core;
 using DEB.Revit.Precast;
+using DEB.Revit.UI;
 using WColor = System.Windows.Media.Color;
 using WPoint = System.Windows.Point;
 
@@ -29,11 +30,16 @@ namespace DEB.Revit.Vigas
         private readonly List<GrupoViga> _grupos;
         private readonly ListBox _lista = new ListBox();
         private readonly VigaPreview _previa = new VigaPreview();
-        private readonly TextBox _fck = new TextBox { Width = 60 }, _cob = new TextBox { Width = 60 };
-        private readonly ComboBox _classe = new ComboBox { Width = 60, ItemsSource = Classes };
+        private readonly TextBox _fck = new TextBox(), _cob = new TextBox();
+        private readonly ComboBox _classe = new ComboBox { ItemsSource = Classes };
         private readonly TextBox _g = new TextBox(), _q = new TextBox(), _conc = new TextBox(), _apE = new TextBox(), _apD = new TextBox();
-        private readonly StackPanel _resultado = new StackPanel(), _verif = new StackPanel();
-        private readonly TextBlock _titulo = new TextBlock { FontSize = 15, FontWeight = FontWeights.SemiBold };
+        private readonly StackPanel _resultado = new StackPanel();
+        private readonly TextBlock _titulo = new TextBlock { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        private readonly TextBlock _subtitulo = new TextBlock { Foreground = UI.Estilo.B(UI.Estilo.Suave), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 2, 0, 0) };
+        private readonly ContentControl _seloGrupo = new ContentControl { Margin = new Thickness(0, 0, 10, 0) };
+        private readonly TabControl _abas = new TabControl();
+        private readonly ContentControl _esforcos = new ContentControl(), _longitudinal = new ContentControl(), _transversal = new ContentControl(),
+                                        _dente = new ContentControl(), _verificacoes = new ContentControl();
         private readonly CheckBox _vistas = new CheckBox { Content = "Criar vistas e tabelas da montagem", IsChecked = true, Margin = new Thickness(0, 0, 18, 0), VerticalAlignment = VerticalAlignment.Center };
         private bool _carregando;
 
@@ -44,93 +50,120 @@ namespace DEB.Revit.Vigas
         public VigasWindow(Autodesk.Revit.DB.Document doc, List<GrupoViga> grupos, IEnumerable<string> notas)
         {
             _doc = doc; _grupos = grupos;
-            Title = "Vigas pré-moldadas — cálculo e armação";
+            Title = "PCEB — Vigas pré-moldadas: cálculo e armação";
             Width = 1500; Height = 900; MinWidth = 1150; MinHeight = 650;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
-            FontFamily = new FontFamily("Segoe UI"); FontSize = 12;
+            UI.Estilo.Aplicar(this);
 
-            var root = new Grid { Margin = new Thickness(10) };
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            root.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(420) });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var raiz = new DockPanel();
+            // ---- cabeçalho: título, resumo e o selo geral ----
+            var todos = grupos.Where(g => g.Calculo != null).SelectMany(g => g.Calculo.Verificacoes).ToList();
+            var geral = grupos.Any(g => g.Base != null) ? grupos.Where(g => g.Base != null).Max(g => g.Situacao) : (SituacaoVerificacao?)null;
+            var cab = UI.Estilo.Cabecalho("Vigas pré-moldadas — cálculo e armação",
+                $"{grupos.Sum(g => g.Quantidade)} vigas em {grupos.Count} grupo(s) de peças iguais · concreto armado, biapoiadas (NBR 6118 e NBR 9062)",
+                UI.Estilo.Selo(geral, 110, 11));
+            DockPanel.SetDock(cab, Dock.Top); raiz.Children.Add(cab);
+
+            // ---- rodapé ----
+            var rodape = new Border { Background = UI.Estilo.B(UI.Estilo.Branco), BorderBrush = UI.Estilo.B(UI.Estilo.Linha), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(14, 8, 14, 8) };
+            var rp = new DockPanel();
+            var botoes = new StackPanel { Orientation = Orientation.Horizontal };
+            var ok = UI.Estilo.Primario("Armar no Revit", () => DialogResult = true);
+            ok.IsDefault = true; ok.Margin = new Thickness(0, 0, 8, 0); ok.Padding = new Thickness(18, 5, 18, 5);
+            botoes.Children.Add(ok);
+            var cancel = UI.Estilo.Botao("Cancelar", () => DialogResult = false); cancel.IsCancel = true; cancel.Padding = new Thickness(14, 5, 14, 5);
+            botoes.Children.Add(cancel);
+            DockPanel.SetDock(botoes, Dock.Right); rp.Children.Add(botoes);
+            var esq = new StackPanel { Orientation = Orientation.Horizontal };
+            esq.Children.Add(_vistas);
+            esq.Children.Add(new TextBlock { Text = "As cargas digitadas ficam gravadas nas vigas (parâmetros PCEB_ de Análise estrutural). A folha fica com você.", Foreground = UI.Estilo.B(UI.Estilo.Suave), VerticalAlignment = VerticalAlignment.Center });
+            rp.Children.Add(esq);
+            rodape.Child = rp;
+            DockPanel.SetDock(rodape, Dock.Bottom); raiz.Children.Add(rodape);
+
+            var corpo = new Grid { Margin = new Thickness(12, 10, 12, 6) };
+            corpo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(270) });
+            corpo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            corpo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
 
             // ---- esquerda: grupos ----
-            var left = new DockPanel { Margin = new Thickness(0, 0, 10, 0) };
-            var head = new TextBlock { Text = $"{grupos.Sum(g => g.Quantidade)} vigas em {grupos.Count} grupo(s) de peças iguais", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) };
+            var left = new DockPanel { Margin = new Thickness(0, 0, 12, 0) };
+            var head = new TextBlock { Text = "GRUPOS DE PEÇAS IGUAIS", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = UI.Estilo.B(UI.Estilo.Suave), Margin = new Thickness(0, 4, 0, 8) };
             DockPanel.SetDock(head, Dock.Top); left.Children.Add(head);
             string nt = string.Join("\n", notas ?? Enumerable.Empty<string>());
             if (nt.Length > 0)
             {
-                var t = new TextBlock { Text = nt, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkGoldenrod, Margin = new Thickness(0, 0, 0, 6), MaxHeight = 160 };
+                var t = new Border
+                {
+                    Background = UI.Estilo.B(UI.Estilo.Hex("#fff4dc")), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 0, 0, 8),
+                    Child = new TextBlock { Text = nt, TextWrapping = TextWrapping.Wrap, Foreground = UI.Estilo.B(UI.Estilo.Ocre), FontSize = 11 }, MaxHeight = 140,
+                };
                 DockPanel.SetDock(t, Dock.Top); left.Children.Add(t);
             }
+            var cont = new TextBlock { Text = todos.Count > 0 ? "Verificações: " + UI.Estilo.Contagem(todos) : "", Foreground = UI.Estilo.B(UI.Estilo.Suave), FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
+            DockPanel.SetDock(cont, Dock.Bottom); left.Children.Add(cont);
             _lista.SelectionChanged += (s, e) => Carregar();
             left.Children.Add(_lista);
-            Grid.SetColumn(left, 0); root.Children.Add(left);
+            Grid.SetColumn(left, 0); corpo.Children.Add(left);
 
-            // ---- centro: prévia ----
-            var center = new DockPanel();
-            DockPanel.SetDock(_titulo, Dock.Top); center.Children.Add(_titulo);
+            // ---- centro: título do grupo e abas ----
+            var centro = new DockPanel();
+            var linhaTit = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            linhaTit.Children.Add(_seloGrupo); linhaTit.Children.Add(_titulo); linhaTit.Children.Add(_subtitulo);
+            DockPanel.SetDock(linhaTit, Dock.Top); centro.Children.Add(linhaTit);
             var leg = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             foreach (var (txt, cor) in VigaPreview.Legenda)
             {
-                leg.Children.Add(new Border { Width = 18, Height = 3, Background = new SolidColorBrush(cor), Margin = new Thickness(8, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center });
-                leg.Children.Add(new TextBlock { Text = txt });
+                leg.Children.Add(new Border { Width = 18, Height = 3, Background = new SolidColorBrush(cor), Margin = new Thickness(10, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center });
+                leg.Children.Add(new TextBlock { Text = txt, Foreground = UI.Estilo.B(UI.Estilo.Suave), FontSize = 11 });
             }
-            DockPanel.SetDock(leg, Dock.Bottom); center.Children.Add(leg);
-            center.Children.Add(new Border { BorderBrush = Brushes.LightGray, BorderThickness = new Thickness(1), Background = Brushes.White, Child = _previa, Margin = new Thickness(0, 6, 0, 0) });
-            Grid.SetColumn(center, 1); root.Children.Add(center);
+            var abaArm = new DockPanel();
+            DockPanel.SetDock(leg, Dock.Bottom); abaArm.Children.Add(leg);
+            abaArm.Children.Add(Moldura(_previa));
+            _abas.Items.Add(new TabItem { Header = "Armação", Content = abaArm });
+            _abas.Items.Add(new TabItem { Header = "Esforços (ELU)", Content = _esforcos });
+            _abas.Items.Add(new TabItem { Header = "Longitudinal", Content = _longitudinal });
+            _abas.Items.Add(new TabItem { Header = "Transversal", Content = _transversal });
+            _abas.Items.Add(new TabItem { Header = "Dente, içamento e ELS", Content = _dente });
+            _abas.Items.Add(new TabItem { Header = "Verificações", Content = _verificacoes });
+            centro.Children.Add(_abas);
+            Grid.SetColumn(centro, 1); corpo.Children.Add(centro);
 
-            // ---- direita: materiais, cargas, resultado ----
-            var right = new StackPanel { Margin = new Thickness(10, 0, 0, 0) };
-            right.Children.Add(Titulo("Materiais (todos os grupos)"));
-            var mat = new WrapPanel();
-            mat.Children.Add(Rotulo("fck (MPa)")); mat.Children.Add(_fck);
-            mat.Children.Add(Rotulo("  classe")); mat.Children.Add(_classe);
-            mat.Children.Add(Rotulo("  cobrimento (cm)")); mat.Children.Add(_cob);
-            right.Children.Add(mat);
+            // ---- direita: materiais, cargas e a armadura proposta ----
+            var right = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
+            var mat = new StackPanel();
+            mat.Children.Add(UI.Estilo.Campo("fck", _fck, "MPa", 130));
+            mat.Children.Add(UI.Estilo.Campo("Classe de agressividade", _classe, "", 130));
+            mat.Children.Add(UI.Estilo.Campo("Cobrimento", _cob, "cm", 130));
+            mat.Children.Add(UI.Estilo.Botao("Aplicar e recalcular todos", () => { AplicarMateriais(); RecalcularTodos(); }, new Thickness(0, 6, 0, 0)));
+            right.Children.Add(UI.Estilo.Cartao("Materiais (todos os grupos)", mat));
             var g0 = grupos.FirstOrDefault(x => x.Base != null);
             _fck.Text = g0?.Base["Fck"] ?? "40"; _classe.SelectedItem = g0 != null && Classes.Contains(g0.Base["ClasseAgressividade"]) ? g0.Base["ClasseAgressividade"] : "II";
             _cob.Text = g0?.Base["CobFundo"] ?? "2.5";
-            right.Children.Add(Botao("Aplicar materiais e recalcular todos", () => { AplicarMateriais(); RecalcularTodos(); }, new Thickness(0, 4, 0, 8)));
 
-            right.Children.Add(Titulo("Cargas do grupo (características, além do peso próprio)"));
-            right.Children.Add(Linha("Permanente g (kN/m)", _g));
-            right.Children.Add(Linha("Variável q (kN/m)", _q));
-            right.Children.Add(Linha("Concentradas (x: G + Q; …)", _conc));
-            right.Children.Add(Linha("Apoio esquerdo (cm, 0 = auto)", _apE));
-            right.Children.Add(Linha("Apoio direito (cm, 0 = auto)", _apD));
-            var bts = new WrapPanel { Margin = new Thickness(0, 4, 0, 8) };
-            bts.Children.Add(Botao("Calcular este grupo", () => { LerCargas(); Recalcular(Atual); Carregar(); }));
-            bts.Children.Add(Botao("Copiar cargas para todos", CopiarCargas, new Thickness(6, 0, 0, 0)));
-            right.Children.Add(bts);
+            var cg = new StackPanel();
+            cg.Children.Add(new TextBlock { Text = "Características, além do peso próprio.", Foreground = UI.Estilo.B(UI.Estilo.Suave), FontSize = 11, Margin = new Thickness(0, 0, 0, 4) });
+            cg.Children.Add(UI.Estilo.Campo("Permanente g", _g, "kN/m", 130));
+            cg.Children.Add(UI.Estilo.Campo("Variável q", _q, "kN/m", 130));
+            cg.Children.Add(UI.Estilo.Campo("Concentradas", _conc, "x: G+Q", 130));
+            cg.Children.Add(UI.Estilo.Campo("Apoio esquerdo", _apE, "cm", 130));
+            cg.Children.Add(UI.Estilo.Campo("Apoio direito", _apD, "cm", 130));
+            cg.Children.Add(new TextBlock { Text = "Apoio 0 = automático (furo do pino, meio do dente ou 10 cm).", Foreground = UI.Estilo.B(UI.Estilo.Concreto), FontSize = 10.5, Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
+            var bts = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            bts.Children.Add(UI.Estilo.Primario("Calcular este grupo", () => { LerCargas(); Recalcular(Atual); Carregar(); }));
+            bts.Children.Add(UI.Estilo.Botao("Copiar para todos", CopiarCargas, new Thickness(6, 0, 0, 0)));
+            cg.Children.Add(bts);
+            right.Children.Add(UI.Estilo.Cartao("Cargas do grupo", cg));
 
-            right.Children.Add(Titulo("Armadura proposta"));
-            right.Children.Add(_resultado);
-            right.Children.Add(Botao("Abrir relatório de cálculo (HTML)", AbrirRelatorio, new Thickness(0, 6, 0, 8)));
-            right.Children.Add(Titulo("Verificações"));
-            right.Children.Add(new ScrollViewer { Content = _verif, MaxHeight = 300, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-            Grid.SetColumn(right, 2);
-            root.Children.Add(new ScrollViewer { Content = right, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-            Grid.SetColumn((UIElement)root.Children[root.Children.Count - 1], 2);
+            var res = new StackPanel();
+            res.Children.Add(_resultado);
+            res.Children.Add(UI.Estilo.Botao("Abrir relatório de cálculo (HTML)", AbrirRelatorio, new Thickness(0, 8, 0, 0)));
+            right.Children.Add(UI.Estilo.Cartao("Armadura proposta", res));
+            var sv = new ScrollViewer { Content = right, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            Grid.SetColumn(sv, 2); corpo.Children.Add(sv);
 
-            // ---- rodapé ----
-            var bottom = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal };
-            var ok = Botao("Armar no Revit", () => DialogResult = true, new Thickness(0, 0, 8, 0));
-            ok.IsDefault = true; ok.FontWeight = FontWeights.SemiBold;
-            buttons.Children.Add(ok);
-            var cancel = Botao("Cancelar", () => DialogResult = false); cancel.IsCancel = true;
-            buttons.Children.Add(cancel);
-            DockPanel.SetDock(buttons, Dock.Right); bottom.Children.Add(buttons);
-            var esq = new StackPanel { Orientation = Orientation.Horizontal };
-            esq.Children.Add(_vistas);
-            esq.Children.Add(new TextBlock { Text = "As cargas digitadas ficam gravadas nas vigas (parâmetros PCEB_ de Análise estrutural). A folha fica com você.", Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center });
-            bottom.Children.Add(esq);
-            Grid.SetRow(bottom, 1); Grid.SetColumnSpan(bottom, 3); root.Children.Add(bottom);
-            Content = root;
+            raiz.Children.Add(corpo);
+            Content = raiz;
 
             foreach (GrupoViga g in grupos) _lista.Items.Add(new ListBoxItem { Tag = g, Content = Item(g) });
             if (_lista.Items.Count > 0) _lista.SelectedIndex = 0;
@@ -138,31 +171,33 @@ namespace DEB.Revit.Vigas
 
         // ------------------------------------------------------------------
 
+        private static Border Moldura(UIElement e) => new Border { BorderBrush = UI.Estilo.B(UI.Estilo.Linha), BorderThickness = new Thickness(1), Background = Brushes.White, Child = e, CornerRadius = new CornerRadius(4) };
+
         private static UIElement Item(GrupoViga g)
         {
-            var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-            var cb = new CheckBox { IsChecked = g.Selecionado && g.Base != null, IsEnabled = g.Base != null, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) };
+            var dp = new DockPanel();
+            var cb = new CheckBox { IsChecked = g.Selecionado && g.Base != null, IsEnabled = g.Base != null, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 3, 8, 0) };
             cb.Checked += (s, e) => g.Selecionado = true; cb.Unchecked += (s, e) => g.Selecionado = false;
-            sp.Children.Add(cb);
-            var (txt, fundo, tinta) = Selo(g.Base == null ? (SituacaoVerificacao?)null : g.Situacao);
-            sp.Children.Add(new Border { Background = fundo, CornerRadius = new CornerRadius(3), Padding = new Thickness(4, 0, 4, 0), Margin = new Thickness(0, 0, 6, 0), Width = 78,
-                                         Child = new TextBlock { Text = txt, Foreground = tinta, FontSize = 10, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center } });
-            sp.Children.Add(new TextBlock { Text = $"{g.Marca}  ×{g.Quantidade}  {g.Secao}  L={Fmt(g.Peca?.L ?? 0)}", VerticalAlignment = VerticalAlignment.Center });
-            return sp;
+            DockPanel.SetDock(cb, Dock.Left); dp.Children.Add(cb);
+            var tx = new StackPanel();
+            var l1 = new DockPanel { LastChildFill = true };
+            var selo = UI.Estilo.Selo(g.Base == null ? (SituacaoVerificacao?)null : g.Situacao, 74, 9.5);
+            DockPanel.SetDock(selo, Dock.Right); l1.Children.Add(selo);
+            l1.Children.Add(new TextBlock { Text = $"{g.Marca}  ×{g.Quantidade}", FontWeight = FontWeights.SemiBold, FontSize = 13 });
+            tx.Children.Add(l1);
+            tx.Children.Add(new TextBlock { Text = $"{g.Secao} cm · L = {Fmt(g.Peca?.L ?? 0)} cm · {g.Pontas}", Foreground = UI.Estilo.B(UI.Estilo.Suave), FontSize = 11 });
+            if (g.Calculo?.Inferior != null)
+                tx.Children.Add(new TextBlock { Text = $"inferior {g.Calculo.Inferior.Texto} · ø{Fmt(g.Calculo.EstBitola, "0.#")} c/{Fmt(g.Calculo.EspPonta, "0.#")}/{Fmt(g.Calculo.EspVao, "0.#")}", Foreground = UI.Estilo.B(UI.Estilo.Suave), FontSize = 11 });
+            dp.Children.Add(tx);
+            return dp;
         }
-
-        private static (string, Brush, Brush) Selo(SituacaoVerificacao? s) => s switch
-        {
-            null => ("FORA", Brushes.Gainsboro, Brushes.DimGray),
-            SituacaoVerificacao.Ok => ("OK", new SolidColorBrush(WColor.FromRgb(0xE6, 0xF4, 0xEA)), new SolidColorBrush(WColor.FromRgb(0x1F, 0x7A, 0x3F))),
-            SituacaoVerificacao.Conferir => ("CONFERIR", new SolidColorBrush(WColor.FromRgb(0xFF, 0xF4, 0xDC)), new SolidColorBrush(WColor.FromRgb(0x8A, 0x5A, 0x00))),
-            _ => ("NÃO ATENDE", new SolidColorBrush(WColor.FromRgb(0xFD, 0xE8, 0xE6)), new SolidColorBrush(WColor.FromRgb(0xA8, 0x22, 0x1A))),
-        };
 
         private void AtualizarItem(GrupoViga g)
         {
             foreach (ListBoxItem it in _lista.Items) if (it.Tag == g) it.Content = Item(g);
         }
+
+        private static readonly CultureInfo Pt = CultureInfo.GetCultureInfo("pt-BR");
 
         private void Carregar()
         {
@@ -172,8 +207,11 @@ namespace DEB.Revit.Vigas
             _g.Text = Fmt(g.Cargas.G); _q.Text = Fmt(g.Cargas.Q); _conc.Text = CargasViga.TextoConcentradas(g.Cargas.Concentradas);
             _apE.Text = Fmt(g.Cargas.ApoioE); _apD.Text = Fmt(g.Cargas.ApoioD);
             _carregando = false;
-            _titulo.Text = $"{g.Marca} — {g.Quantidade} peça(s), {g.Secao} cm, L = {Fmt(g.Peca?.L ?? 0)} cm, pontas {g.Pontas}";
-            _resultado.Children.Clear(); _verif.Children.Clear();
+            _titulo.Text = $"{g.Marca} — {g.Quantidade} peça(s)";
+            _subtitulo.Text = $"{g.Secao} cm · L = {Fmt(g.Peca?.L ?? 0)} cm · pontas {g.Pontas}";
+            _seloGrupo.Content = UI.Estilo.Selo(g.Base == null ? (SituacaoVerificacao?)null : g.Situacao, 96, 11);
+            _resultado.Children.Clear();
+            foreach (var cc in new[] { _esforcos, _longitudinal, _transversal, _dente, _verificacoes }) cc.Content = null;
             if (g.Base == null)
             {
                 _resultado.Children.Add(new TextBlock { Text = "Grupo fora do cálculo: " + string.Join(" ", g.Avisos), TextWrapping = TextWrapping.Wrap, Foreground = Brushes.Firebrick });
@@ -181,27 +219,138 @@ namespace DEB.Revit.Vigas
                 return;
             }
             var c = g.Calculo;
-            if (c != null)
-            {
-                _resultado.Children.Add(new TextBlock { Text = $"Vão {Fmt(c.Vao)} cm · Md = {Fmt(c.MdMax)} kN·m · Vd = {Fmt(Math.Max(c.VdE, c.VdD))} kN · flecha {Fmt(c.FlechaTotal, "0.00")} cm", Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap });
-                foreach (string l in c.ResumoProposta()) _resultado.Children.Add(new TextBlock { Text = "• " + l, TextWrapping = TextWrapping.Wrap, FontWeight = FontWeights.SemiBold });
-                foreach (var v in c.Verificacoes.OrderByDescending(x => x.Situacao))
-                {
-                    var (_, fundo, tinta) = Selo(v.Situacao);
-                    _verif.Children.Add(new Border
-                    {
-                        Background = v.Situacao == SituacaoVerificacao.Ok ? Brushes.Transparent : fundo, Padding = new Thickness(4, 1, 4, 1),
-                        Child = new TextBlock { Text = $"{v.Codigo}  {v.Descricao}: {v.Valor} ({v.Limite})" + (v.Dica.Length > 0 ? " — " + v.Dica : ""), Foreground = tinta, TextWrapping = TextWrapping.Wrap },
-                    });
-                }
-                foreach (string a in c.Avisos.Concat(g.Avisos))
-                    _verif.Children.Add(new TextBlock { Text = "Atenção: " + a, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DarkGoldenrod });
-            }
             var av = new List<string>();
             List<BarDef> bars = null;
             try { bars = VigasPreMoldadas.Barras(g, g.Representante, av); } catch (Exception ex) { av.Add(ex.Message); }
-            foreach (string a in av.Distinct()) _verif.Children.Add(new TextBlock { Text = "Revit: " + a, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.SteelBlue });
             _previa.Mostrar(g, bars);
+            if (c == null) return;
+
+            // armadura proposta (direita)
+            var props = c.ResumoProposta().Select(l => { int i = l.IndexOf(':'); return i > 0 ? (l.Substring(0, i), l.Substring(i + 1).Trim()) : ("", l); }).ToList();
+            _resultado.Children.Add(UI.Estilo.Pares(props, 80, true));
+            _resultado.Children.Add(new Border { Height = 1, Background = UI.Estilo.B(UI.Estilo.Linha), Margin = new Thickness(0, 8, 0, 6) });
+            _resultado.Children.Add(UI.Estilo.Pares(new[]
+            {
+                ("Vão de cálculo", $"{Fmt(c.Vao, "0.#")} cm"),
+                ("Md,máx", $"{Fmt(c.MdMax, "0.0")} kN·m  (MRd = {Fmt(c.MRd, "0.0")})"),
+                ("Vd (E / D)", $"{Fmt(c.VdE, "0.0")} / {Fmt(c.VdD, "0.0")} kN"),
+                ("Flecha total", $"{Fmt(c.FlechaTotal, "0.00")} cm" + (c.Contraflecha > 0 ? $"  (contraflecha {Fmt(c.Contraflecha, "0.0")})" : "")),
+                ("Verificações", UI.Estilo.Contagem(c.Verificacoes)),
+            }, 100));
+            foreach (string a in c.Avisos.Concat(g.Avisos).Concat(av.Distinct().Select(x => "Revit: " + x)))
+                _resultado.Children.Add(new TextBlock { Text = "• " + a, TextWrapping = TextWrapping.Wrap, Foreground = UI.Estilo.B(UI.Estilo.Ocre), FontSize = 11, Margin = new Thickness(0, 4, 0, 0) });
+
+            _esforcos.Content = AbaEsforcos(c);
+            _longitudinal.Content = AbaLongitudinal(c);
+            _transversal.Content = AbaTransversal(c);
+            _dente.Content = AbaVerificacoes(c.Verificacoes.Where(v => !Longitudinal(v) && !Transversal(v)), "Dente Gerber, içamento, fissuração e flecha");
+            _verificacoes.Content = AbaVerificacoes(c.Verificacoes, "Todas as verificações do grupo");
+        }
+
+        private static bool Longitudinal(ResultadoVerificacao v) => v.Grupo.EndsWith("Flexão") || v.Grupo.EndsWith("Ancoragem");
+        private static bool Transversal(ResultadoVerificacao v) => v.Grupo.EndsWith("Cisalhamento");
+
+        // ---------------- abas ----------------
+
+        private static List<(double X, double Y)> NoVao(ResultadoCalculoViga c, Func<(double X, double Md, double Vd), double> f) =>
+            c.Diagrama.Where(p => p.X >= c.ApoioE - 1e-6 && p.X <= c.L - c.ApoioD + 1e-6).Select(p => (p.X, f(p))).ToList();
+
+        private static Grafico NovoGrafico(ResultadoCalculoViga c, string titulo, string unidade, bool paraBaixo, double altura)
+        {
+            var gr = new Grafico { Titulo = titulo, RotuloY = unidade, YParaBaixo = paraBaixo, Height = altura, Margin = new Thickness(0, 0, 0, 8) };
+            gr.Marcas.Add((c.ApoioE, "apoio"));
+            gr.Marcas.Add((c.L - c.ApoioD, "apoio"));
+            return gr;
+        }
+
+        private UIElement Rolar(UIElement e) => new ScrollViewer { Content = e, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0, 4, 6, 0) };
+
+        private UIElement AbaEsforcos(ResultadoCalculoViga c)
+        {
+            var sp = new StackPanel();
+            var md = NovoGrafico(c, "Momento fletor de cálculo Md", "kN·m", true, 230);
+            md.Series.Add(new SerieGrafico { Nome = "Md", Pontos = NoVao(c, p => p.Md), Cor = UI.Estilo.Anil, Preencher = true, RotularMaximo = true, Unidade = "kN·m" });
+            var vd = NovoGrafico(c, "Força cortante de cálculo Vd", "kN", false, 230);
+            vd.Series.Add(new SerieGrafico { Nome = "Vd", Pontos = NoVao(c, p => p.Vd), Cor = UI.Estilo.Hex("#c06a1f"), Preencher = true, RotularPontas = true, Unidade = "kN" });
+            sp.Children.Add(Moldura(md)); sp.Children.Add(new Border { Height = 8 }); sp.Children.Add(Moldura(vd));
+            var t = UI.Estilo.Pares(new[]
+            {
+                ("Vão de cálculo", $"{Fmt(c.Vao, "0.#")} cm (apoios a {Fmt(c.ApoioE, "0.#")} e {Fmt(c.ApoioD, "0.#")} cm das pontas)"),
+                ("Peso próprio g1", $"{Fmt(c.G1, "0.00")} kN/m" + (c.GCapa > 0 ? $"; capa {Fmt(c.GCapa, "0.00")} kN/m" : "")),
+                ("Cargas digitadas", $"g = {Fmt(c.Cargas.G)} kN/m; q = {Fmt(c.Cargas.Q)} kN/m" + (c.Cargas.Concentradas.Count > 0 ? "; concentradas " + CargasViga.TextoConcentradas(c.Cargas.Concentradas) : "")),
+                ("Coeficientes", $"γg = {Fmt(c.Coef.GamaG)}; γq = {Fmt(c.Coef.GamaQ)}; ψ1 = {Fmt(c.Coef.Psi1)}; ψ2 = {Fmt(c.Coef.Psi2)}"),
+                ("Md,máx", $"{Fmt(c.MdMax, "0.0")} kN·m em x = {Fmt(c.XMdMax, "0")} cm"),
+                ("Vd nos apoios", $"esquerdo {Fmt(c.VdE, "0.0")} kN; direito {Fmt(c.VdD, "0.0")} kN"),
+                ("Reações características", $"esquerda G {Fmt(c.RkE_G, "0.0")} + Q {Fmt(c.RkE_Q, "0.0")} kN; direita G {Fmt(c.RkD_G, "0.0")} + Q {Fmt(c.RkD_Q, "0.0")} kN"),
+            }, 160);
+            sp.Children.Add(new Border { Height = 8 });
+            sp.Children.Add(UI.Estilo.Cartao("Resumo dos esforços", t));
+            return Rolar(sp);
+        }
+
+        private UIElement AbaLongitudinal(ResultadoCalculoViga c)
+        {
+            var sp = new StackPanel();
+            var gr = NovoGrafico(c, "Md decalado × MRd da armadura proposta", "kN·m", true, 300);
+            var md = NoVao(c, p => p.Md);
+            // decalagem: o diagrama "deslocado" de aℓ para os lados (envoltória de Md(x ± aℓ)), NBR 6118 17.4.2.2 c e 18.3.2.3.1
+            var dec = md.Select(p => (p.X, md.Where(q => Math.Abs(q.X - p.X) <= c.Al + 1e-6).Max(q => q.Y))).ToList();
+            gr.Series.Add(new SerieGrafico { Nome = "Md", Pontos = md, Cor = UI.Estilo.Anil, Preencher = true });
+            gr.Series.Add(new SerieGrafico { Nome = $"Md decalado (aℓ = {Fmt(c.Al, "0.0")} cm)", Pontos = dec, Cor = UI.Estilo.Anil, Tracejada = true, Espessura = 1.4 });
+            if (c.MRd > 0)
+                gr.Series.Add(new SerieGrafico { Nome = "MRd", Pontos = new List<(double, double)> { (c.ApoioE, c.MRd), (c.L - c.ApoioD, c.MRd) }, Cor = UI.Estilo.Hex("#1f7a3f"), Espessura = 2.2, RotularPontas = false, RotularMaximo = true, Unidade = "kN·m" });
+            sp.Children.Add(Moldura(gr));
+            sp.Children.Add(new TextBlock
+            {
+                Text = "Toda a armadura inferior vai de apoio a apoio (nenhuma barra é cortada no vão), então o MRd cobre o diagrama decalado em todo o vão. " +
+                       "A decalagem entra também na força a ancorar nos apoios (verificação K8).",
+                TextWrapping = TextWrapping.Wrap, Foreground = UI.Estilo.B(UI.Estilo.Suave), FontSize = 11, Margin = new Thickness(2, 6, 2, 8),
+            });
+            var inf = c.Inferior;
+            sp.Children.Add(UI.Estilo.Cartao("Flexão no ELU", UI.Estilo.Pares(new[]
+            {
+                ("As,nec / As,mín", $"{Fmt(c.AsNec, "0.00")} / {Fmt(c.AsMin, "0.00")} cm²"),
+                ("Proposta", inf == null ? "—" : $"{inf.Texto} = {Fmt(inf.Area, "0.00")} cm² (d = {Fmt(inf.D, "0.0")} cm)"),
+                ("MRd / Md,máx", $"{Fmt(c.MRd, "0.0")} / {Fmt(c.MdMax, "0.0")} kN·m = {Fmt(c.MdMax > 0 ? c.MRd / c.MdMax : 0, "0.00")}"),
+                ("Armadura de compressão", c.AsComprNec > 0 ? $"As' = {Fmt(c.AsComprNec, "0.00")} cm²" : "não precisa (x/d dentro do limite)"),
+                ("Superior / pele", $"{c.Superior.N} ø{Fmt(c.Superior.Bitola, "0.#")}" + (c.Pele.NPorFace > 0 ? $"; pele {c.Pele.NPorFace} ø{Fmt(c.Pele.Bitola, "0.#")} por face" : "")),
+            }, 170)));
+            sp.Children.Add(UI.Estilo.Cartao("Verificações da armadura longitudinal", UI.Estilo.TabelaVerificacoes(c.Verificacoes.Where(Longitudinal), false)));
+            return Rolar(sp);
+        }
+
+        private UIElement AbaTransversal(ResultadoCalculoViga c)
+        {
+            var sp = new StackPanel();
+            var gr = NovoGrafico(c, "|Vd| × VRd3 dos estribos propostos e VRd2", "kN", false, 300);
+            gr.Series.Add(new SerieGrafico { Nome = "|Vd|", Pontos = NoVao(c, p => Math.Abs(p.Vd)), Cor = UI.Estilo.Hex("#c06a1f"), Preencher = true, RotularMaximo = true, Unidade = "kN" });
+            double xa = c.ApoioE, xb = c.L - c.ApoioD, ze = Math.Max(xa, Math.Min(c.XZonaE, xb)), zd = Math.Min(xb, Math.Max(c.XZonaD, xa));
+            var vr3 = new List<(double, double)> { (xa, c.VRd3Ponta), (ze, c.VRd3Ponta), (ze, c.VRd3Vao), (zd, c.VRd3Vao), (zd, c.VRd3Ponta), (xb, c.VRd3Ponta) };
+            gr.Series.Add(new SerieGrafico { Nome = "VRd3", Pontos = vr3, Cor = UI.Estilo.Hex("#1f7a3f"), Espessura = 2.2 });
+            // VRd2 muito acima (viga folgada nas bielas) achataria o gráfico: só entra quando está perto dos outros valores
+            if (c.VRd2 < 2.5 * Math.Max(c.VRd3Ponta, Math.Max(c.VdE, c.VdD)))
+                gr.Series.Add(new SerieGrafico { Nome = "VRd2", Pontos = new List<(double, double)> { (xa, c.VRd2), (xb, c.VRd2) }, Cor = UI.Estilo.Hex("#a8221a"), Tracejada = true, Espessura = 1.4, RotularMaximo = true, Unidade = "kN" });
+            gr.Titulo = c.VRd2 < 2.5 * Math.Max(c.VRd3Ponta, Math.Max(c.VdE, c.VdD)) ? gr.Titulo : $"|Vd| × VRd3 dos estribos propostos (VRd2 = {Fmt(c.VRd2, "0")} kN, fora da escala)";
+            sp.Children.Add(Moldura(gr));
+            sp.Children.Add(new Border { Height = 8 });
+            sp.Children.Add(UI.Estilo.Cartao("Cisalhamento no ELU — modelo I", UI.Estilo.Pares(new[]
+            {
+                ("Estribos", $"ø{Fmt(c.EstBitola, "0.#")} c/{Fmt(c.EspPonta, "0.#")} nas pontas" + (c.ZonaPonta > 0 ? $" ({Fmt(c.ZonaPonta, "0")} cm)" : "") + $" e c/{Fmt(c.EspVao, "0.#")} no vão"),
+                ("Vc (concreto)", $"{Fmt(c.Vc, "0.0")} kN"),
+                ("VRd3 pontas / vão", $"{Fmt(c.VRd3Ponta, "0.0")} / {Fmt(c.VRd3Vao, "0.0")} kN"),
+                ("VRd2 (bielas)", $"{Fmt(c.VRd2, "0.0")} kN — Vd/VRd2 = {Fmt(c.VdSobreVRd2, "0.00")}"),
+            }, 170)));
+            sp.Children.Add(UI.Estilo.Cartao("Verificações da armadura transversal", UI.Estilo.TabelaVerificacoes(c.Verificacoes.Where(Transversal), false)));
+            return Rolar(sp);
+        }
+
+        private UIElement AbaVerificacoes(IEnumerable<ResultadoVerificacao> itens, string titulo)
+        {
+            var l = itens.ToList();
+            var sp = new StackPanel();
+            sp.Children.Add(new TextBlock { Text = $"{titulo}: {UI.Estilo.Contagem(l)}", Foreground = UI.Estilo.B(UI.Estilo.Suave), Margin = new Thickness(2, 0, 0, 8) });
+            sp.Children.Add(UI.Estilo.Cartao(null, UI.Estilo.TabelaVerificacoes(l)));
+            return Rolar(sp);
         }
 
         private bool LerCargas()
@@ -292,24 +441,34 @@ namespace DEB.Revit.Vigas
 
         public static string Diagnostico;
 
-        /// <summary>Renderiza a janela em PNG (sem exibi-la) — teste automático.</summary>
+        /// <summary>
+        /// Renderiza a janela em PNG (sem exibi-la) — teste automático: uma imagem por aba (<paramref name="path"/> = a da 1ª aba;
+        /// as outras ganham _2, _3...). Com a sessão do Windows bloqueada o WPF não desenha (imagem vazia).
+        /// </summary>
         public void RenderToPng(string path, int width = 1500, int height = 860)
         {
             var root = (FrameworkElement)Content;
-            root.Measure(new Size(width, height));
-            root.Arrange(new Rect(0, 0, width, height));
-            root.UpdateLayout();
-            var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-            var bg = new DrawingVisual();
-            using (DrawingContext dc = bg.RenderOpen()) dc.DrawRectangle(SystemColors.ControlBrush, null, new Rect(0, 0, width, height));
-            bmp.Render(bg);
-            int Px() { var px = new byte[4]; bmp.CopyPixels(new Int32Rect(2, 2, 1, 1), px, 4, 0); return px[3]; }
-            Diagnostico = $"fundo alfa {Px()}";
-            try { bmp.Render(root); Diagnostico += $"; janela alfa {Px()}; tamanho {root.ActualWidth}x{root.ActualHeight}"; }
-            catch (Exception ex) { Diagnostico += "; erro " + ex; }
-            var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
-            enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
-            using (var fs = System.IO.File.Create(path)) enc.Save(fs);
+            Diagnostico = "";
+            for (int t = 0; t < Math.Max(1, _abas.Items.Count); t++)
+            {
+                if (_abas.Items.Count > 0) _abas.SelectedIndex = t;
+                root.Measure(new Size(width, height));
+                root.Arrange(new Rect(0, 0, width, height));
+                root.UpdateLayout();
+                var bmp = new System.Windows.Media.Imaging.RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+                var bg = new DrawingVisual();
+                using (DrawingContext dc = bg.RenderOpen()) dc.DrawRectangle(Background ?? SystemColors.ControlBrush, null, new Rect(0, 0, width, height));
+                bmp.Render(bg);
+                int Px() { var px = new byte[4]; bmp.CopyPixels(new Int32Rect(2, 2, 1, 1), px, 4, 0); return px[3]; }
+                if (t == 0) Diagnostico = $"fundo alfa {Px()}";
+                try { bmp.Render(root); if (t == 0) Diagnostico += $"; janela alfa {Px()}; tamanho {root.ActualWidth}x{root.ActualHeight}"; }
+                catch (Exception ex) { Diagnostico += "; erro " + ex; }
+                var enc = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                enc.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bmp));
+                string arq = t == 0 ? path : System.IO.Path.Combine(System.IO.Path.GetDirectoryName(path), System.IO.Path.GetFileNameWithoutExtension(path) + "_" + (t + 1) + ".png");
+                using (var fs = System.IO.File.Create(arq)) enc.Save(fs);
+            }
+            if (_abas.Items.Count > 0) _abas.SelectedIndex = 0;
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
@@ -395,13 +554,13 @@ namespace DEB.Revit.Vigas
             double z0 = _g.AlmaZ0, zTopoBarras = _bars == null || _bars.Count == 0 ? z0 + h : _bars.SelectMany(x => x.Points).Max(p => Cm(p.C));
             double acima = Math.Max(hr, zTopoBarras - (z0 + h));
             double mx = 24, larg = W - 2 * mx - 40, esc = larg / L;
-            double hElev = Math.Min(h * esc * 2.2, H * 0.30), escV = hElev / h;
+            double hElev = Math.Min(h * esc * 2.2, H * 0.34), escV = hElev / h;
             if (acima * escV > 60) escV = 60 / Math.Max(acima, 1);
             hElev = h * escV;
             double yTop = 30 + acima * escV, yBot = yTop + hElev;
             WPoint E(double x, double z) => new WPoint(mx + x * esc, yTop + (z0 + h - z) * escV);
             Txt("ELEVAÇÃO", mx, 6, 12, Brushes.DimGray);
-            Txt("escala vertical ampliada", mx + 72, 8, 10, Brushes.Gray);
+            Txt("escala vertical ampliada " + Nf(escV / esc, "0.#") + "×", W - mx - 190, 8, 10, Brushes.Gray);
             var contorno = new StreamGeometry();
             using (var sg = contorno.Open())
             {
@@ -450,111 +609,82 @@ namespace DEB.Revit.Vigas
             dc.DrawLine(fina, new WPoint(xh, E(L, z0 + h).Y), new WPoint(xh, E(L, z0).Y));
             Txt($"h = {Nf(h)}", xh + 3, (E(L, z0 + h).Y + E(L, z0).Y) / 2 - 7, 10, Brushes.DimGray);
 
-            // ---- embaixo: seção no meio do vão | armadura proposta | diagramas ----
+            // ---- embaixo: seção no dente (ou junto ao apoio) e seção no meio do vão, lado a lado ----
             double yBaixo = yCota + 30, hBaixo = H - yBaixo - 10;
-            double xm = L / 2;
-            AbaViga ab = aba.Em(xm) ? aba : null;
-            double le = ab?.LargE ?? 0, ld = ab?.LargD ?? 0, bTot = b + le + ld;
-            double escS = Math.Min((hBaixo - 60) / (h + hr), 220 / bTot);
-            double sx0 = mx + 10, sy1 = yBaixo + 22;
-            Txt("SEÇÃO NO MEIO DO VÃO", mx, yBaixo, 12, Brushes.DimGray);
-            WPoint S(double y, double z) => new WPoint(sx0 + (_g.AlmaY0 + b - y + le) * escS, sy1 + (z0 + h + hr - z) * escS);
-            var cont = TemplateVigaPreMoldada.ContornoSecao(b, h, ab, rs.Existe ? rs : null, 0, 0);
-            var geoS = new StreamGeometry();
-            using (var sg = geoS.Open())
+            double xDente = exE.TemDente ? exE.CompDente / 2 : Math.Min(L / 4, 30);
+            var secoes = new[] { (xDente, exE.TemDente ? "A — SEÇÃO NO DENTE" : "A — SEÇÃO JUNTO AO APOIO"), (L / 2, "B — SEÇÃO NO MEIO DO VÃO") };
+            // a mesma escala nas duas seções (a maior forma manda)
+            double bMax = b + (aba.Existe ? aba.LargE + aba.LargD : 0), hMax = h + hr - (aba.Existe ? Math.Min(0, aba.Base) : 0);
+            double larguraCol = (W - 2 * mx) / 2;
+            double escS = Math.Min((hBaixo - 64) / hMax, (larguraCol - 120) / bMax);
+            // trecho da peça em x: fundo do concreto e aba (a seção só mostra barras planas do mesmo trecho)
+            (double, bool) Trecho(double x) => (exE.TemDente && x < exE.CompDente ? 1 : exD.TemDente && x > L - exD.CompDente ? 2 : 0, aba.Em(x));
+            for (int k = 0; k < secoes.Length; k++)
             {
-                sg.BeginFigure(S(_g.AlmaY0 + b - cont[0].X, z0 + cont[0].Y), true, true);
-                foreach (var q in cont.Skip(1)) sg.LineTo(S(_g.AlmaY0 + b - q.X, z0 + q.Y), true, false);
-            }
-            geoS.Freeze();
-            dc.DrawGeometry(new SolidColorBrush(WColor.FromRgb(0xF4, 0xF4, 0xF4)), forma, geoS);
-            if (_bars != null)
-            {
-                // barras planas: de cada papel e lado, a mais perto do meio do vão
-                var perto = new Dictionary<(BarRole, int), (double Dist, BarDef Bd, List<Loc> Inst)>();
-                foreach (var bd in _bars.Where(x => x.Normal.A != 0 && x.Role != BarRole.BeamWelded))
-                    foreach (var inst in bd.Instances())
-                    {
-                        double dd = Math.Abs(Cm(inst[0].A) - xm);
-                        var chave = (bd.Role, Math.Sign(Math.Round(inst.Average(p => Cm(p.B)) - (_g.AlmaY0 + b / 2))));
-                        if (dd < 40 && (!perto.TryGetValue(chave, out var o) || dd < o.Dist)) perto[chave] = (dd, bd, inst);
-                    }
-                foreach (var (_, bd, inst) in perto.Values)
+                var (xm, titulo) = secoes[k];
+                double zb = z0;
+                if (exE.TemDente && xm < exE.CompDente) zb = z0 + h - exE.Dente.Altura;
+                if (exD.TemDente && xm > L - exD.CompDente) zb = z0 + h - exD.Dente.Altura;
+                AbaViga ab = aba.Em(xm) ? (zb > z0 ? aba.NoDente(zb - z0) : aba) : null;
+                double hSec = z0 + h - zb, le = ab?.LargE ?? 0, ld = ab?.LargD ?? 0, bTot = b + le + ld;
+                double colX = mx + k * larguraCol;
+                double sx0 = colX + (larguraCol - 60 - bTot * escS) / 2, sy1 = yBaixo + 26;
+                Txt(titulo, colX, yBaixo, 12, Brushes.DimGray);
+                WPoint S(double y, double z) => new WPoint(sx0 + (_g.AlmaY0 + b - y + le) * escS, sy1 + (z0 + h + hr - z) * escS);
+                var cont = TemplateVigaPreMoldada.ContornoSecao(b, hSec, ab, rs.Existe ? rs : null, 0, 0);
+                var geoS = new StreamGeometry();
+                using (var sg = geoS.Open())
                 {
-                    var pts = inst.Select(p => S(Cm(p.B), Cm(p.C))).ToList();
-                    var pen = Caneta(bd.Role, 1.4);
-                    for (int i = 0; i + 1 < pts.Count; i++) dc.DrawLine(pen, pts[i], pts[i + 1]);
-                    if (bd.Closed) dc.DrawLine(pen, pts[^1], pts[0]);
+                    sg.BeginFigure(S(_g.AlmaY0 + b - cont[0].X, zb + cont[0].Y), true, true);
+                    foreach (var q in cont.Skip(1)) sg.LineTo(S(_g.AlmaY0 + b - q.X, zb + q.Y), true, false);
                 }
-                // barras cortadas no meio do vão
-                foreach (var bd in _bars.Where(x => x.Normal.A == 0 && x.Role != BarRole.LiftLoop))
-                    foreach (var inst in bd.Instances())
-                        for (int i = 0; i + 1 < inst.Count; i++)
+                geoS.Freeze();
+                dc.DrawGeometry(new SolidColorBrush(WColor.FromRgb(0xF4, 0xF4, 0xF4)), forma, geoS);
+                if (_bars != null)
+                {
+                    // barras planas: de cada papel e lado, a mais perto do corte
+                    var perto = new Dictionary<(BarRole, int), (double Dist, BarDef Bd, List<Loc> Inst)>();
+                    foreach (var bd in _bars.Where(x => x.Normal.A != 0 && x.Role != BarRole.BeamWelded))
+                        foreach (var inst in bd.Instances())
                         {
-                            double a0 = Cm(inst[i].A), a1 = Cm(inst[i + 1].A);
-                            if (Math.Abs(a1 - a0) < 1e-6 || xm < Math.Min(a0, a1) || xm > Math.Max(a0, a1)) continue;
-                            double t = (xm - a0) / (a1 - a0);
-                            var ctr = S(Cm(inst[i].B) + t * (Cm(inst[i + 1].B) - Cm(inst[i].B)), Cm(inst[i].C) + t * (Cm(inst[i + 1].C) - Cm(inst[i].C)));
-                            double r = Math.Max(2.5, bd.DiameterMm / 20 * escS);
-                            dc.DrawEllipse(Caneta(bd.Role).Brush, null, ctr, r, r);
+                            double dd = Math.Abs(Cm(inst[0].A) - xm);
+                            var chave = (bd.Role, Math.Sign(Math.Round(inst.Average(p => Cm(p.B)) - (_g.AlmaY0 + b / 2))));
+                            double xi = Cm(inst[0].A);
+                            if (dd < 30 && Trecho(xi) == Trecho(xm) && (!perto.TryGetValue(chave, out var o) || dd < o.Dist)) perto[chave] = (dd, bd, inst);
                         }
-            }
-            // cotas da seção: largura total embaixo, altura à direita
-            double ySecB = S(0, z0).Y + 10, xSecD = sx0 + bTot * escS + 10;
-            dc.DrawLine(fina, new WPoint(sx0, ySecB), new WPoint(sx0 + bTot * escS, ySecB));
-            Txt(ab != null ? $"{Nf(bTot)} (alma {Nf(b)})" : Nf(b), sx0 + bTot * escS / 2, ySecB + 1, 10, Brushes.DimGray, true);
-            dc.DrawLine(fina, new WPoint(xSecD, S(0, z0 + h + hr).Y), new WPoint(xSecD, S(0, z0).Y));
-            Txt(Nf(h + hr), xSecD + 3, (S(0, z0 + h + hr).Y + S(0, z0).Y) / 2 - 7, 10, Brushes.DimGray);
-
-            // armadura proposta, em texto, ao lado da seção
-            double xTxt = xSecD + 40, yTxt = yBaixo;
-            if (c != null)
-            {
-                Txt("ARMADURA PROPOSTA", xTxt, yTxt, 12, Brushes.DimGray);
-                yTxt += 22;
-                foreach (string l in c.ResumoProposta()) { Txt(l, xTxt, yTxt, 11); yTxt += 17; }
-                yTxt += 8;
-                Txt($"Md,máx = {Nf(c.MdMax, "0.0")} kN·m", xTxt, yTxt, 11, Brushes.DimGray); yTxt += 17;
-                Txt($"Vd = {Nf(c.VdE, "0.0")} / {Nf(c.VdD, "0.0")} kN (apoios E / D)", xTxt, yTxt, 11, Brushes.DimGray);
-            }
-
-            // ---- diagramas (à direita): Md com a linha de zero em cima, Vd no meio; valores nas pontas e no máximo ----
-            if (c == null || c.Diagrama.Count < 2) return;
-            double dx0 = Math.Max(xTxt + 270, W * 0.6), dw = W - dx0 - mx;
-            if (dw < 140) return;
-            double dh = (hBaixo - 10) / 2;
-            void Diagrama(string tit, Func<(double X, double Md, double Vd), double> f, double y0, bool centrado, WColor cor, string un)
-            {
-                var pts = c.Diagrama.Where(p => p.X >= c.ApoioE - 1e-6 && p.X <= L - c.ApoioD + 1e-6).ToList();
-                double vmax = Math.Max(1e-6, pts.Max(p => Math.Abs(f(p))));
-                double alt = dh - 26, yb = centrado ? y0 + 20 + alt / 2 : y0 + 22;
-                double amp = centrado ? alt / 2 - 10 : alt - 18;
-                WPoint D(double x, double val) => new WPoint(dx0 + (x - c.ApoioE) / Math.Max(1, c.Vao) * dw, yb + val / vmax * amp * (centrado ? -1 : 1));
-                Txt(tit, dx0, y0, 12, Brushes.DimGray);
-                dc.DrawLine(fina, new WPoint(dx0, yb), new WPoint(dx0 + dw, yb));
-                var geo = new StreamGeometry();
-                using (var sg = geo.Open())
-                {
-                    sg.BeginFigure(D(pts[0].X, 0), true, true);
-                    foreach (var p in pts) sg.LineTo(D(p.X, f(p)), true, false);
-                    sg.LineTo(D(pts[^1].X, 0), true, false);
+                    foreach (var (_, bd, inst) in perto.Values)
+                    {
+                        var pts = inst.Select(p => S(Cm(p.B), Cm(p.C))).ToList();
+                        var pen = Caneta(bd.Role, 1.4);
+                        for (int i = 0; i + 1 < pts.Count; i++) dc.DrawLine(pen, pts[i], pts[i + 1]);
+                        if (bd.Closed) dc.DrawLine(pen, pts[^1], pts[0]);
+                    }
+                    // barras cortadas (e as pernas dos U horizontais do dente)
+                    foreach (var bd in _bars.Where(x => x.Normal.A == 0 && x.Role != BarRole.LiftLoop))
+                        foreach (var inst in bd.Instances())
+                            for (int i = 0; i + 1 < inst.Count; i++)
+                            {
+                                double a0 = Cm(inst[i].A), a1 = Cm(inst[i + 1].A);
+                                if (Math.Abs(a1 - a0) < 1e-6 || xm < Math.Min(a0, a1) || xm > Math.Max(a0, a1)) continue;
+                                double t = (xm - a0) / (a1 - a0);
+                                var ctr = S(Cm(inst[i].B) + t * (Cm(inst[i + 1].B) - Cm(inst[i].B)), Cm(inst[i].C) + t * (Cm(inst[i + 1].C) - Cm(inst[i].C)));
+                                double r = Math.Max(2.5, bd.DiameterMm / 20 * escS);
+                                dc.DrawEllipse(Caneta(bd.Role).Brush, null, ctr, r, r);
+                            }
                 }
-                geo.Freeze();
-                dc.DrawGeometry(new SolidColorBrush(WColor.FromArgb(0x40, cor.R, cor.G, cor.B)), new Pen(new SolidColorBrush(cor), 1.2), geo);
-                void Rot(double x, double val, bool max)
-                {
-                    var q = D(x, val);
-                    bool emCima = centrado && val >= 0;
-                    string s = Nf(val, "0.0") + (max ? " " + un : "");
-                    var ft = new FormattedText(s, pt, FlowDirection.LeftToRight, tf, 11, Brushes.Black, 1.25);
-                    double xx = Math.Max(dx0, Math.Min(dx0 + dw - ft.Width, q.X - ft.Width / 2));
-                    dc.DrawText(ft, new WPoint(xx, emCima ? q.Y - 16 : q.Y + 2));
-                }
-                if (centrado) { Rot(pts[0].X, f(pts[0]), true); Rot(pts[^1].X, f(pts[^1]), true); }
-                else { var pm = pts.OrderByDescending(p => Math.Abs(f(p))).First(); Rot(pm.X, f(pm), true); }
+                // cotas: largura embaixo, altura à direita
+                double ySecB = S(0, zb).Y + 10, xSecD = sx0 + bTot * escS + 10, yTopoS = S(0, z0 + h + hr).Y;
+                dc.DrawLine(fina, new WPoint(sx0, ySecB), new WPoint(sx0 + bTot * escS, ySecB));
+                Txt(ab != null ? $"{Nf(bTot)} (alma {Nf(b)})" : Nf(b), sx0 + bTot * escS / 2, ySecB + 1, 10, Brushes.DimGray, true);
+                dc.DrawLine(fina, new WPoint(xSecD, yTopoS), new WPoint(xSecD, S(0, zb).Y));
+                Txt(Nf(hSec + hr), xSecD + 3, (yTopoS + S(0, zb).Y) / 2 - 7, 10, Brushes.DimGray);
+                // marca do corte na elevação
+                var pe1 = E(xm, z0 + h + hr); var pe2 = E(xm, zb);
+                var marca = new Pen(Brushes.Black, 1.6); marca.Freeze();
+                dc.DrawLine(marca, new WPoint(pe1.X, pe1.Y - 12), new WPoint(pe1.X, pe1.Y - 4));
+                dc.DrawLine(marca, new WPoint(pe2.X, pe2.Y + 4), new WPoint(pe2.X, pe2.Y + 12));
+                Txt(k == 0 ? "A" : "B", pe1.X + 3, pe1.Y - 16, 10, Brushes.Black);
             }
-            Diagrama("MOMENTO FLETOR Md (kN·m)", p => p.Md, yBaixo, false, WColor.FromRgb(0x1F, 0x5A, 0xA6), "kN·m");
-            Diagrama("CORTANTE Vd (kN)", p => p.Vd, yBaixo + dh + 10, true, WColor.FromRgb(0xC0, 0x6A, 0x1F), "kN");
         }
     }
 }

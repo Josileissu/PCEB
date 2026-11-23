@@ -63,6 +63,11 @@ public class VigaCalculoTests
         Assert.Equal(102.06, r.MdMax, 1);
         Assert.Equal(300, r.XMdMax, 0);
         Assert.Equal(71.82, r.VdE, 2);
+        // para a janela (23/11): MRd da proposta cobre o Md; VRd3 das pontas cobre o Vd; aℓ entre 0,5d e d; zona das pontas antes do meio
+        Assert.True(r.MRd >= r.MdMax - 1e-6 && r.MRd < 1.6 * r.MdMax, $"MRd {r.MRd}");
+        Assert.True(r.VRd3Ponta >= r.VdE - 1e-6 && r.VRd3Vao <= r.VRd3Ponta + 1e-6);
+        Assert.InRange(r.Al, 0.5 * r.Inferior.D - 1e-6, r.Inferior.D + 1e-6);
+        Assert.True(r.XZonaE <= r.L / 2 && r.XZonaD >= r.L / 2);
         Assert.NotNull(r.Inferior);
         Assert.True(r.Inferior.Area >= r.AsNec && r.AsNec > 4.2 && r.AsNec < 4.5, $"As,nec = {r.AsNec}");
         Assert.Equal("4 ø12,5", r.Inferior.Texto);

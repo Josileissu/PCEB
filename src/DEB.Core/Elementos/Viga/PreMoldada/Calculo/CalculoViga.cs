@@ -65,6 +65,16 @@ public sealed class ResultadoCalculoViga
     public double VRd2 { get; set; }
     public double Vc { get; set; }
     public double VdSobreVRd2 => VRd2 > 0 ? Math.Max(VdE, VdD) / VRd2 : 0;
+    /// <summary>Momento resistente de cálculo da armadura inferior proposta (kN·m), com a altura útil dela.</summary>
+    public double MRd { get; set; }
+    /// <summary>Decalagem do diagrama de Md (cm), modelo I: aℓ = d·Vd,máx/(2·(Vd,máx − Vc)), entre 0,5d e d (NBR 6118, 17.4.2.2 c).</summary>
+    public double Al { get; set; }
+    /// <summary>Cortante resistente com os estribos propostos (kN): VRd3 = Vc + Vsw, nas pontas e no vão.</summary>
+    public double VRd3Ponta { get; set; }
+    public double VRd3Vao { get; set; }
+    /// <summary>Fim da zona das pontas (x, cm da ponta esquerda): à esquerda até <see cref="XZonaE"/>, à direita a partir de <see cref="XZonaD"/>.</summary>
+    public double XZonaE { get; set; }
+    public double XZonaD { get; set; }
 
     // ELS
     public double FlechaImediata { get; set; }
@@ -274,6 +284,11 @@ public static class CalculoViga
         {
             r.Inferior = melhor; r.AsNec = asNecMelhor; r.AsComprNec = asComprMelhor;
             double dd = melhor.D;
+            {
+                // MRd da armadura proposta (só a tracionada; a linha neutra limitada ao x/d de ductilidade)
+                double dm = dd + capa, xr = Math.Min(melhor.Area * fyd / (mat.AlfaC * fcd * b * mat.Lambda), mat.XdLim * dm);
+                r.MRd = Math.Min(melhor.Area * fyd, mat.AlfaC * fcd * b * mat.Lambda * xr) * (dm - mat.Lambda * xr / 2) / 100;
+            }
             var f = mat.Armadura(r.MdMax * 100, b, dd + capa, cobT + phiTcm + 0.8);
             m3.Linhas.Add($"d = h − (cobrimento + estribo + CG das barras) = {N(dd, "0.0")} cm" + (capa > 0 ? $" (peça); com a capa, d = {N(dd + capa, "0.0")} cm" : "") + ".");
             m3.Linhas.Add($"x = (d/λ)·[1 − √(1 − 2·Md/(αc·fcd·b·d²))] = {N(f.X, "0.0")} cm → x/d = {N(f.XsobreD, "0.000")}" +
@@ -384,6 +399,12 @@ public static class CalculoViga
                       (zona > 0 ? $"; zona das pontas: {N(zona, "0")} cm a partir da face do dente (ou da ponta)." : "."));
         m5.Linhas.Add($"O padrão do escritório é o mínimo: espaçamentos até {N(espPadP, "0.#")} (pontas) e {N(espPadV, "0.#")} cm (vão), bitola a partir de ø{N(phiT0, "0.#")}.");
         r.Memoria.Add(m5);
+        // para a janela: VRd3 dos estribos propostos, zona das pontas e decalagem aℓ (modelo I)
+        r.VRd3Ponta = r.Vc + 2 * A(phiEst) / sP * 0.9 * dV * fywd;
+        r.VRd3Vao = r.Vc + 2 * A(phiEst) / sV * 0.9 * dV * fywd;
+        r.XZonaE = zona > 0 ? x0E + zona : L / 2; r.XZonaD = zona > 0 ? L - x0D - zona : L / 2;
+        r.Al = vdMax > r.Vc + 1e-9 ? Math.Min(dV, Math.Max(0.5 * dV, dV * vdMax / (2 * (vdMax - r.Vc)))) : dV;
+        m5.Linhas.Add($"VRd3 = Vc + Vsw: pontas {N(r.VRd3Ponta, "0.0")} kN, vão {N(r.VRd3Vao, "0.0")} kN. Decalagem do diagrama de Md: aℓ = {N(r.Al, "0.0")} cm (17.4.2.2 c).");
         r.Verificacoes.Add(K("K5", "Cisalhamento", "Compressão das bielas (VRd2)", $"Vd = {N(vdMax, "0.0")} kN", $"≤ VRd2 = {N(r.VRd2, "0.0")} kN", vdMax > r.VRd2, "NBR 6118, 17.4.2.2",
             dica: "Aumente a largura (b) ou a altura da viga."));
         r.Verificacoes.Add(K("K6", "Cisalhamento", "Estribos nas pontas (Asw/s)", $"{N(2 * A(phiEst) / sP * 100, "0.00")} cm²/m",
