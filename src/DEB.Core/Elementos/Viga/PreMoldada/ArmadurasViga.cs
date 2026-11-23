@@ -25,6 +25,15 @@ public sealed class LinhaLongViga
     public double DobraD { get; set; }
     public double Ini { get; set; }
     public double Fim { get; set; }
+    /// <summary>
+    /// Pele em viga com dente: centros das barras medidos do topo da seção (cm), fixados na seção cheia. Null = distribuídas na
+    /// altura da seção desenhada. A linha da tabela se divide quando parte das barras passa abaixo do fundo do dente
+    /// (<see cref="TemplateVigaPreMoldada.SepararPeloRecorte"/>).
+    /// </summary>
+    public List<double> DoTopo { get; set; }
+    /// <summary>Sufixo do nome da barra quando a linha da tabela se divide (a, b…); vazio na linha inteira.</summary>
+    public string Sufixo { get; set; } = "";
+    public string Nome => "long" + Linha + Sufixo;
     public bool Inferior => Funcao == TemplateVigaPreMoldada.FInferior;
     public bool Pele => Funcao == TemplateVigaPreMoldada.FPele;
 }
@@ -156,6 +165,42 @@ public sealed partial class TemplateVigaPreMoldada
             });
         }
         // pele em viga com h > 60 cm: regra V3 das verificações (VerificacoesViga.Pele)
+        return SepararPeloRecorte(v, r, L, cobPontas, e, d);
+    }
+
+    /// <summary>
+    /// Barras que passam abaixo do fundo do dente (pele, construtiva) param na face do recorte, a cobrimento — senão saem do
+    /// concreto. A pele com parte das barras acima e parte abaixo vira duas linhas (sufixos a, b), com as alturas da seção cheia.
+    /// A inferior já vai entre os recortes (<see cref="TrechoPadrao"/>).
+    /// </summary>
+    public static List<LinhaLongViga> SepararPeloRecorte(ValoresTemplate v, List<LinhaLongViga> linhas, double L, double cobPontas,
+        ExtremidadeViga e, ExtremidadeViga d)
+    {
+        if (!e.TemDente && !d.TemDente) return linhas;
+        double h = v.Numero("H"), cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo"), cobL = v.Numero("CobLateral"), phiT = v.Numero("EstBitola");
+        var r = new List<LinhaLongViga>();
+        foreach (var l in linhas)
+        {
+            if (l.Inferior) { r.Add(l); continue; }
+            var zs = PontosNaSecao(l, b: 10, h, cobF, cobT, cobL, phiT, linhas).Select(p => p.Y).Distinct().OrderByDescending(z => z).ToList();
+            (double Ini, double Fim) Trecho(double z) => (
+                e.TemDente && z < h - e.Dente.Altura + cobF ? Math.Max(l.Ini, e.CompDente + cobPontas) : l.Ini,
+                d.TemDente && z < h - d.Dente.Altura + cobF ? Math.Min(l.Fim, L - d.CompDente - cobPontas) : l.Fim);
+            var grupos = zs.GroupBy(Trecho).Where(g => g.Key.Item2 - g.Key.Item1 >= 10).ToList();
+            for (int k = 0; k < grupos.Count; k++)
+            {
+                var g = grupos[k];
+                r.Add(new LinhaLongViga
+                {
+                    Linha = l.Linha, Funcao = l.Funcao, Bitola = l.Bitola, Camada = l.Camada,
+                    Quantidade = l.Pele ? g.Count() : l.Quantidade,
+                    Ini = g.Key.Ini, Fim = g.Key.Fim,
+                    DobraE = g.Key.Ini == l.Ini ? l.DobraE : 0, DobraD = g.Key.Fim == l.Fim ? l.DobraD : 0,
+                    DoTopo = l.Pele ? g.Select(z => h - z).ToList() : null,
+                    Sufixo = grupos.Count > 1 ? ((char)('a' + k)).ToString() : "",
+                });
+            }
+        }
         return r;
     }
 
@@ -308,7 +353,7 @@ public sealed partial class TemplateVigaPreMoldada
         double hv = c.hV, s = l.Inferior ? 1 : -1;
         var bt = new BarraTemplate
         {
-            Nome = "long" + l.Linha, Bitola = l.Bitola, Aco = aco, Quantidade = l.Quantidade, Repeticoes = l.Pele ? 2 : 1, Escala = esc,
+            Nome = l.Nome, Bitola = l.Bitola, Aco = aco, Quantidade = l.Quantidade, Repeticoes = l.Pele ? 2 : 1, Escala = esc,
             PosicaoDescricao = ((l.Ini + l.Fim) / 2, y + 2.6 * hv),   // acima da cota do comprimento
         };
         if (l.DobraE > 0) bt.Vertices.Add((l.Ini, y + s * l.DobraE));
@@ -332,7 +377,8 @@ public sealed partial class TemplateVigaPreMoldada
         {
             // por face, entre a 1ª camada inferior e a superior
             double y0 = cobF + t + rr, y1 = hSec - cobT - t - rr;
-            var ys = Enumerable.Range(1, l.Quantidade).Select(i => y0 + i * (y1 - y0) / (l.Quantidade + 1)).ToList();
+            var ys = l.DoTopo != null ? l.DoTopo.Select(dt => hSec - dt).Where(yy => yy > 0).ToList()   // alturas da seção cheia (viga com dente)
+                : Enumerable.Range(1, l.Quantidade).Select(i => y0 + i * (y1 - y0) / (l.Quantidade + 1)).ToList();
             return ys.Select(yy => (xl, yy)).Concat(ys.Select(yy => (xr, yy))).ToList();
         }
         bool inf = l.Inferior;
@@ -396,7 +442,7 @@ public sealed partial class TemplateVigaPreMoldada
                 : (sx0 + b / 2 + 2 * hc * kCima, sy1 + (3 + 2 * kCima++) * hc);
             c.R.Faixas.Add(new FaixaTemplate
             {
-                Barra = "long" + l.Linha, Tipo = TipoFaixa.Indicacao, Referencias = l.Pele ? pts.Where(p => p.Item1 > sx0 + b / 2).ToList() : pts,
+                Barra = l.Nome, Tipo = TipoFaixa.Indicacao, Referencias = l.Pele ? pts.Where(p => p.Item1 > sx0 + b / 2).ToList() : pts,
                 Posicao = pos, Escala = c.escC,
             });
         }
