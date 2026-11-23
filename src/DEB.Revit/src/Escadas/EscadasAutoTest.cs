@@ -28,7 +28,7 @@ namespace DEB.Revit.Escadas
             string dir = Path.Combine(DetailingReport.LogDir, "escadas_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
             Directory.CreateDirectory(dir);
             var sb = new StringBuilder();
-            var e = new EscadaLongitudinal
+            var e = new EscadaLaje
             {
                 Desnivel = 144, Espelhos = 8, Piso = 28, Largura = 120, Espessura = 16, EspessuraPatamar = 16,
                 PatamarInferior = 120, PatamarSuperior = 100, Revestimento = 1, Sobrecarga = 3, Fck = 25,
@@ -145,15 +145,15 @@ namespace DEB.Revit.Escadas
             return arq;
         }
 
-        /// <summary>"Chave=valor;…" sobre a entrada (nomes das propriedades de <see cref="EscadaLongitudinal"/>).</summary>
-        private static void Ler(string txt, EscadaLongitudinal e, StringBuilder sb)
+        /// <summary>"Chave=valor;…" sobre a entrada (nomes das propriedades de <see cref="EscadaLaje"/>).</summary>
+        private static void Ler(string txt, EscadaLaje e, StringBuilder sb)
         {
             if (string.IsNullOrWhiteSpace(txt)) return;
             foreach (string par in txt.Split(';'))
             {
                 var kv = par.Split('=');
                 if (kv.Length != 2) continue;
-                var p = typeof(EscadaLongitudinal).GetProperty(kv[0].Trim());
+                var p = typeof(EscadaLaje).GetProperty(kv[0].Trim());
                 if (p == null || !double.TryParse(kv[1].Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double v)) { sb.AppendLine("SD_ESCADA ignorado: " + par); continue; }
                 if (p.PropertyType == typeof(int)) p.SetValue(e, (int)Math.Round(v)); else if (p.PropertyType == typeof(double)) p.SetValue(e, v);
             }

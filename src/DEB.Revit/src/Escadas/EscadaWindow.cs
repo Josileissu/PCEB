@@ -39,11 +39,11 @@ namespace DEB.Revit.Escadas
         private ComparacaoMefEscada _cmp;
         private readonly string _origem;
 
-        public EscadaLongitudinal Entrada { get; private set; }
+        public EscadaLaje Entrada { get; private set; }
         public ResultadoEscada Resultado { get; private set; }
         public TabControl Abas => _abas;
 
-        public EscadaWindow(EscadaLongitudinal entrada, string origem = null)
+        public EscadaWindow(EscadaLaje entrada, string origem = null)
         {
             Entrada = entrada.Copia(); _origem = origem;
             Title = "PCEB — Escada armada longitudinalmente";
@@ -159,9 +159,9 @@ namespace DEB.Revit.Escadas
             p.Children.Add(Estilo.Campo(rotulo, tb, unidade, 150));
         }
 
-        private void Preencher(EscadaLongitudinal e)
+        private void Preencher(EscadaLaje e)
         {
-            foreach (var pr in typeof(EscadaLongitudinal).GetProperties())
+            foreach (var pr in typeof(EscadaLaje).GetProperties())
                 if (_campos.TryGetValue(pr.Name, out var tb))
                 {
                     object v = pr.GetValue(e);
@@ -174,7 +174,7 @@ namespace DEB.Revit.Escadas
         {
             erro = null;
             var e = Entrada.Copia();
-            foreach (var pr in typeof(EscadaLongitudinal).GetProperties())
+            foreach (var pr in typeof(EscadaLaje).GetProperties())
             {
                 if (!_campos.TryGetValue(pr.Name, out var tb)) continue;
                 string s = (tb.Text ?? "").Trim().Replace(',', '.');

@@ -26,7 +26,7 @@ O botão **Escada** fica no painel "Concreto armado" e trata a escada em laje ar
    - preenche os dados das barras: partição = marca da escada e `PCEB_Comprimento (núcleo)`.
 
 ## Núcleo
-- `DEB.Core/Elementos/Escada`: `EscadaLongitudinal` (entrada), `GeometriaEscada`, `CalculoEscada`, `MefEscada`, `OtimizadorEscada`.
+- `DEB.Core/Elementos/Escada`: `EscadaLaje` (entrada), `GeometriaEscada`, `CalculoEscada`, `MefEscada`, `OtimizadorEscada`.
 - `DEB.Core/Analise/Mef`: `Portico2D` (OpenSees), `Chapa2D` (CalculiX) e `FerramentasMef`. Os caminhos dos programas vêm de `%AppData%\PCEB\mef.txt`, com as linhas `python=` e `ccx=`, ou das variáveis `PCEB_PYTHON_OPENSEES` e `PCEB_CCX`.
   - O openseespy do Windows só carrega no **Python 3.12**.
   - Sem os programas, a conferência por MEF fica indisponível e o resto funciona.

@@ -28,7 +28,7 @@ namespace DEB.Revit.Commands
             Document doc = uidoc.Document;
             try
             {
-                var e = new EscadaLongitudinal();
+                var e = new EscadaLaje();
                 var sel = uidoc.Selection.GetElementIds().Select(doc.GetElement)
                     .Where(x => x?.Category != null && (x.Category.Id.Value == (long)BuiltInCategory.OST_StructuralFraming || x.Category.Id.Value == (long)BuiltInCategory.OST_Floors))
                     .ToList();

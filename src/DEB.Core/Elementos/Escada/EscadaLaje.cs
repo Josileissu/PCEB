@@ -4,14 +4,27 @@ using System.Linq;
 
 namespace DEB.Core.Elementos.Escada;
 
+/// <summary>Funcionamento estrutural da escada em laje (apostila de escadas, 7.3.1.2).</summary>
+public enum TipoEscada
+{
+    /// <summary>Armada longitudinalmente: vence o vão entre os apoios das pontas (vigas ou lajes), com patamares opcionais.</summary>
+    Longitudinal = 0,
+    /// <summary>Armada transversalmente: apoiada nas vigas ou paredes dos dois lados do lance; vence a largura.</summary>
+    Transversal = 1,
+    /// <summary>Em balanço, engastada numa viga ou parede de um lado do lance.</summary>
+    Balanco = 2,
+}
+
 /// <summary>
-/// Escada em laje armada longitudinalmente (D42, 1º tipo): um lance reto entre dois apoios (vigas ou lajes), com patamar
-/// inferior e superior opcionais. Entrada digitada pelo engenheiro ou lida do modelo. Unidades: cm, kN, MPa.
+/// Escada em laje (D42): um lance reto, armado longitudinalmente (entre os apoios das pontas, com patamares opcionais),
+/// transversalmente (entre as vigas ou paredes laterais) ou em balanço (de uma viga ou parede lateral). Entrada digitada pelo
+/// engenheiro ou lida do modelo. Unidades: cm, kN, MPa.
 /// Convenção da elevação: x horizontal do eixo do apoio inferior para o superior; z vertical a partir do piso acabado
 /// inferior (topo do patamar inferior = 0; topo do patamar superior = <see cref="Desnivel"/>).
 /// </summary>
-public sealed class EscadaLongitudinal
+public sealed class EscadaLaje
 {
+    public TipoEscada Tipo { get; set; } = TipoEscada.Longitudinal;
     // ---------------- geometria ----------------
     /// <summary>Desnível entre os pisos acabados (cm).</summary>
     public double Desnivel { get; set; } = 288;
@@ -31,7 +44,8 @@ public sealed class EscadaLongitudinal
     public double PatamarInferior { get; set; }
     /// <summary>Patamar superior: distância horizontal do último espelho ao eixo do apoio superior (cm); 0 = sem patamar.</summary>
     public double PatamarSuperior { get; set; }
-    /// <summary>Largura de cada apoio (viga) na direção do vão (cm): a armadura positiva entra no apoio até a face oposta.</summary>
+    /// <summary>Largura de cada apoio (viga ou parede) na direção do vão (cm): a armadura principal entra no apoio até a face oposta.
+    /// Na transversal e no balanço, os apoios são os laterais.</summary>
     public double LarguraApoio { get; set; } = 20;
     /// <summary>Altura livre disponível sob o lance (cm), se conhecida (0 = não verificar).</summary>
     public double AlturaLivre { get; set; }
@@ -55,7 +69,7 @@ public sealed class EscadaLongitudinal
     /// <summary>Bordas com parapeito (0, 1 ou 2).</summary>
     public int BordasComParapeito { get; set; }
 
-    public EscadaLongitudinal Copia() => (EscadaLongitudinal)MemberwiseClone();
+    public EscadaLaje Copia() => (EscadaLaje)MemberwiseClone();
 }
 
 /// <summary>Trecho do eixo da escada na elevação (patamar ou lance).</summary>
@@ -104,7 +118,7 @@ public sealed class GeometriaEscada
         Trechos.FirstOrDefault(t => x >= Math.Min(t.P0.X, t.P1.X) - 1e-9 && x <= Math.Max(t.P0.X, t.P1.X) + 1e-9) ?? Trechos.Last();
 
     /// <summary>Monta a geometria da entrada. Erros de entrada (espelho nulo etc.) vão para <paramref name="erros"/>.</summary>
-    public static GeometriaEscada De(EscadaLongitudinal e, List<string> erros = null)
+    public static GeometriaEscada De(EscadaLaje e, List<string> erros = null)
     {
         erros ??= new List<string>();
         var g = new GeometriaEscada();

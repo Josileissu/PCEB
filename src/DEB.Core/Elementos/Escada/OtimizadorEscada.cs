@@ -9,7 +9,7 @@ namespace DEB.Core.Elementos.Escada;
 /// <summary>Uma opção do otimizador: a entrada, o resultado e o consumo da escada inteira.</summary>
 public sealed class OpcaoEscada
 {
-    public EscadaLongitudinal Entrada { get; set; }
+    public EscadaLaje Entrada { get; set; }
     public ResultadoEscada Resultado { get; set; }
     /// <summary>Concreto da escada inteira (m³).</summary>
     public double Concreto { get; set; }
@@ -60,7 +60,7 @@ public static class OtimizadorEscada
         return (vol, kg);
     }
 
-    public static List<OpcaoEscada> Otimizar(EscadaLongitudinal baseEntrada, CriteriosOtimizacao c = null, CoeficientesViga k = null)
+    public static List<OpcaoEscada> Otimizar(EscadaLaje baseEntrada, CriteriosOtimizacao c = null, CoeficientesViga k = null)
     {
         c ??= new CriteriosOtimizacao();
         var g0 = GeometriaEscada.De(baseEntrada);

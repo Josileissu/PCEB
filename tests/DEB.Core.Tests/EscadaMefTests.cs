@@ -81,4 +81,25 @@ public class EscadaMefTests
         foreach (var p in c.Pontos.Where(p => p.VdChapa.HasValue && c.QuinasX.All(q => Math.Abs(p.X - q) > 30) && p.X > 30 && p.X < r.Geo.Vao - 30))
             Assert.True(Math.Abs(p.VdChapa.Value - p.VdCalculo) < 0.05 * r.VdMax + 0.3, $"V em x = {p.X:0}: {p.VdChapa:0.00} × {p.VdCalculo:0.00}");
     }
+
+    [Theory]
+    [InlineData(TipoEscada.Transversal)]
+    [InlineData(TipoEscada.Balanco)]
+    public void FaixaLateralBateNoOpenSeesENoCalculix(TipoEscada tipo)
+    {
+        var f = FerramentasMef.Padrao;
+        var e = EscadaTests.LanceSimples(); e.Tipo = tipo; e.Parapeito = tipo == TipoEscada.Balanco ? 1 : 0; e.BordasComParapeito = 1;
+        var r = CalculoEscada.Calcular(e);
+        var p = MefEscada.Portico(r);
+        Assert.Equal(1.4 * (r.RaG + r.RbG + r.RaQ + r.RbQ), -p.Casos[MefEscada.CasoElu].Sum(c => c.Fz), 6);
+        if (!f.TemOpenSees || !f.TemCalculix) return;
+        var c = MefEscada.Comparar(r, f);
+        Assert.True(c.TemOpenSees, c.ErroOpenSees);
+        Assert.True(c.TemChapa, c.ErroChapa);
+        Assert.True(c.DifMdOpenSees < 1, $"OpenSees: Md difere {c.DifMdOpenSees:0.00} %");
+        Assert.True(c.DifMdChapa < 5, $"CalculiX: Md difere {c.DifMdChapa:0.00} %");
+        Assert.True(Math.Abs(c.FlechaMaxOpenSees.Value - c.FlechaMaxCalculo) < 0.03 * c.FlechaMaxCalculo, $"flecha {c.FlechaMaxOpenSees} × {c.FlechaMaxCalculo}");
+        Assert.Equal(c.ReacoesCalculo.A, c.ReacoesOpenSees.Value.A, 2);
+        Assert.Equal(c.ReacoesCalculo.A, c.ReacoesChapa.Value.A, 1);
+    }
 }

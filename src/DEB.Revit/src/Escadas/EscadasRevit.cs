@@ -36,7 +36,7 @@ namespace DEB.Revit.Escadas
         public const string PrefixoFamilia = "PCEB_Escada_";
 
         /// <summary>Lê a posição e a geometria inicial de dois apoios selecionados (vigas ou lajes): o mais baixo é o inferior.</summary>
-        public static PosicaoEscada DeApoios(Document doc, IList<Element> apoios, EscadaLongitudinal e)
+        public static PosicaoEscada DeApoios(Document doc, IList<Element> apoios, EscadaLaje e)
         {
             if (apoios.Count != 2) return null;
             var info = apoios.Select(a => (El: a, Bb: a.get_BoundingBox(null), Lc: (a.Location as LocationCurve)?.Curve as Line)).ToList();

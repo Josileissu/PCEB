@@ -36,6 +36,9 @@ public sealed class BarraEscada
     public List<(double X, double Z)> Pontos { get; set; } = new List<(double, double)>();
     /// <summary>Barra transversal (corre na largura): no desenho é um ponto em cada posição.</summary>
     public bool Transversal { get; set; }
+    /// <summary>Forma da barra transversal no corte: (y na largura, deslocamento perpendicular à laje a partir da linha de
+    /// <see cref="Pontos"/>), em cm; y = 0 no meio da largura. Vazio = reta de ponta a ponta da largura (menos o cobrimento).</summary>
+    public List<(double Y, double N)> PerfilY { get; set; } = new List<(double, double)>();
     /// <summary>Comprimento de uma barra (cm).</summary>
     public double Comprimento { get; set; }
     public string Texto => $"{Nome} — {Quantidade} ø{Fmt.Virgula(Bitola, "0.#")} c/{Fmt.Virgula(Espacamento, "0.#")} ({Funcao})";
@@ -44,7 +47,7 @@ public sealed class BarraEscada
 /// <summary>Resultado do cálculo da escada armada longitudinalmente (por metro de largura, salvo onde dito).</summary>
 public sealed class ResultadoEscada
 {
-    public EscadaLongitudinal Entrada { get; set; }
+    public EscadaLaje Entrada { get; set; }
     public GeometriaEscada Geo { get; set; }
     public CoeficientesViga Coef { get; set; }
 
@@ -60,6 +63,15 @@ public sealed class ResultadoEscada
     public double RbG { get; set; }
     public double RbQ { get; set; }
     public double Largura => Entrada.Largura / 100;
+    /// <summary>Comprimento (m) que multiplica as reações por metro para dar o total: a largura (longitudinal) ou o comprimento
+    /// inclinado do lance (transversal e balanço, reações nos apoios laterais).</summary>
+    public double ComprimentoReacao => Entrada.Tipo == TipoEscada.Longitudinal ? Largura : Geo.LanceHorizontal / Geo.Cos / 100;
+    /// <summary>Vão do cálculo (cm): horizontal entre apoios (longitudinal), eixo a eixo dos apoios laterais (transversal) ou da face do
+    /// apoio à borda livre (balanço).</summary>
+    public double VaoCalculo { get; set; }
+    /// <summary>Momento característico no engaste do balanço (kN·m/m), permanente e variável.</summary>
+    public double MEngG { get; set; }
+    public double MEngQ { get; set; }
 
     public List<PontoEscada> Diagrama { get; } = new List<PontoEscada>();
     public double MdMax { get; set; }
@@ -107,7 +119,7 @@ public sealed class ResultadoEscada
 /// cruza na quina reentrante da face inferior (lance com o patamar superior), com o comprimento de ancoragem depois do
 /// cruzamento: a barra que acompanha a quina é arrancada pelo empuxo no vazio.
 /// </summary>
-public static class CalculoEscada
+public static partial class CalculoEscada
 {
     public static readonly double[] BitolasPrincipal = { 6.3, 8, 10, 12.5, 16 };
     public static readonly double[] BitolasDistribuicao = { 5, 6.3, 8 };
@@ -115,10 +127,14 @@ public static class CalculoEscada
     private static string N(double x, string f = "0.##") => Fmt.Virgula(x, f);
     private static double A(double phiMm) => Math.PI * phiMm * phiMm / 400;
 
-    public static ResultadoEscada Calcular(EscadaLongitudinal e, CoeficientesViga k = null)
+    public static ResultadoEscada Calcular(EscadaLaje e, CoeficientesViga k = null)
     {
         k ??= new CoeficientesViga();
+        bool lateral = e.Tipo != TipoEscada.Longitudinal;
+        bool tirouPatamar = lateral && (e.PatamarInferior > 0 || e.PatamarSuperior > 0);
+        if (tirouPatamar) { e = e.Copia(); e.PatamarInferior = 0; e.PatamarSuperior = 0; }
         var r = new ResultadoEscada { Entrada = e.Copia(), Coef = k };
+        if (tirouPatamar) r.Avisos.Add("Escada armada transversalmente ou em balanço: os patamares são lajes à parte (calcule-os como laje); aqui entra só o lance.");
         var erros = new List<string>();
         var g = GeometriaEscada.De(e, erros);
         r.Geo = g;
@@ -166,12 +182,15 @@ public static class CalculoEscada
         m2.Linhas.Add("A carga por m² de superfície inclinada (gi = g·cosα) dá a mesma resultante; o cálculo usa a projeção horizontal, que é o usual.");
         r.Memoria.Add(m2);
 
+        if (lateral) { CalcularLateral(r, k); return r; }
+
         // ---------------- 3. esforços (viga de eixo quebrado biapoiada) ----------------
         var cg = new List<(double X0, double X1, double W)>();
         var cq = new List<(double X0, double X1, double W)>();
         if (g.X1 > 1e-9) { cg.Add((0, g.X1, (r.GPatamar + r.GParapeito) / 100)); cq.Add((0, g.X1, r.Q / 100)); }
         cg.Add((g.X1, g.X2, (r.GLance + r.GParapeito) / 100)); cq.Add((g.X1, g.X2, r.Q / 100));
         if (L - g.X2 > 1e-9) { cg.Add((g.X2, L, (r.GPatamar + r.GParapeito) / 100)); cq.Add((g.X2, L, r.Q / 100)); }
+        r.VaoCalculo = L;
         var eg = new EstaticaEscada(L, cg);
         var eq = new EstaticaEscada(L, cq);
         // cargas em kN/m² ÷ 100 = kN por m de largura e por cm de vão → reações em kN/m de largura, momentos em kN·cm/m

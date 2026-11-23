@@ -69,9 +69,17 @@ public static class MefEscada
     public const string CasoElu = "ELU", CasoQp = "QP";
 
     /// <summary>Carga vertical (kN/m² de projeção) do caso: ELU = γg·g + γq·q; QP = g + ψ2·q.</summary>
+    private static bool Lateral(ResultadoEscada r) => r.Entrada.Tipo != TipoEscada.Longitudinal;
+
     private static double W(ResultadoEscada r, double x, string caso)
     {
         var g = r.Geo; var k = r.Coef;
+        if (Lateral(r))
+        {
+            // faixa de 1 m ao longo do lance: carga perpendicular p1 = p·cosα (a mesma do cálculo)
+            double g1 = r.GLance * g.Cos, q1 = r.Q * g.Cos;
+            return caso == CasoElu ? k.GamaG * g1 + k.GamaQ * q1 : g1 + k.Psi2 * q1;
+        }
         bool lance = x > g.X1 + 1e-9 && x < g.X2 - 1e-9;
         double gg = (lance ? r.GLance : r.GPatamar) + r.GParapeito;
         return caso == CasoElu ? k.GamaG * gg + k.GamaQ * r.Q : gg + k.Psi2 * r.Q;
@@ -82,7 +90,7 @@ public static class MefEscada
     {
         var l = new List<(int, double, double)>();
         var ord = nos.OrderBy(n => n.X).ToList();
-        double L = r.Geo.Vao;
+        double L = r.VaoCalculo;
         for (int i = 0; i < ord.Count; i++)
         {
             double a = i == 0 ? 0 : (ord[i - 1].X + ord[i].X) / 2, b = i == ord.Count - 1 ? L : (ord[i].X + ord[i + 1].X) / 2;
@@ -95,10 +103,13 @@ public static class MefEscada
                 f += W(r, (cortes[s] + cortes[s + 1]) / 2, caso) / 100 * (cortes[s + 1] - cortes[s]);   // kN/m² ÷ 100 × cm = kN/m de largura
             l.Add((ord[i].No, 0, -f));
         }
+        // balanço: parapeito na borda livre
+        if (r.Entrada.Tipo == TipoEscada.Balanco && r.Entrada.Parapeito > 0 && r.Entrada.BordasComParapeito > 0 && ord.Count > 0)
+            l.Add((ord[ord.Count - 1].No, 0, -(caso == CasoElu ? r.Coef.GamaG : 1) * r.Entrada.Parapeito));
         return l;
     }
 
-    private static double Ecs(EscadaLongitudinal e, Viga.PreMoldada.Calculo.CoeficientesViga k)
+    private static double Ecs(EscadaLaje e, Viga.PreMoldada.Calculo.CoeficientesViga k)
     {
         double eci = e.Fck <= 50 ? k.AlfaE * 5600 * Math.Sqrt(e.Fck) : 21500 * k.AlfaE * Math.Pow(e.Fck / 10 + 1.25, 1.0 / 3);
         return Math.Min(1, 0.8 + 0.2 * e.Fck / 80) * eci / 10;   // kN/cm²
@@ -110,6 +121,23 @@ public static class MefEscada
     {
         var g = r.Geo; var p = new Portico2D();
         double E = Ecs(r.Entrada, r.Coef);
+        if (Lateral(r))
+        {
+            // faixa na largura: barra horizontal de y = 0 a ℓ
+            double L = r.VaoCalculo; int n = Math.Max(4, (int)Math.Ceiling(L / passo));
+            for (int i = 0; i <= n; i++)
+            {
+                p.Nos.Add((L * i / n, 0));
+                if (i > 0) p.Barras.Add((i - 1, i, E, 100 * g.H, 100 * Math.Pow(g.H, 3) / 12));
+            }
+            bool bal = r.Entrada.Tipo == TipoEscada.Balanco;
+            p.Apoios.Add((0, true, true, bal));
+            if (!bal) p.Apoios.Add((n, false, true, false));
+            var ns = p.Nos.Select((q, i) => (i, q.X)).ToList();
+            p.Casos[CasoElu] = CargasNodais(r, ns, CasoElu);
+            p.Casos[CasoQp] = CargasNodais(r, ns, CasoQp);
+            return p;
+        }
         foreach (var t in g.Trechos)
         {
             int n = Math.Max(2, (int)Math.Ceiling(t.Comprimento / passo));
@@ -205,6 +233,7 @@ public static class MefEscada
     public static Chapa2D Chapa(ResultadoEscada r, bool degraus, int camadas = 4, double passoPatamar = 10)
     {
         var g = r.Geo; var c = new Chapa2D { E = Ecs(r.Entrada, r.Coef), Nu = 0.2, Espessura = 100 };
+        if (Lateral(r)) return ChapaFaixa(r, c, camadas);
         var cols = Colunas(r, passoPatamar);
         int nz = camadas;
         var ids = new List<int[]>();
@@ -257,6 +286,34 @@ public static class MefEscada
         return c;
     }
 
+    /// <summary>Chapa da faixa na largura (ℓ × h): transversal apoiada no meio da espessura das pontas; balanço com a borda do apoio travada.</summary>
+    private static Chapa2D ChapaFaixa(ResultadoEscada r, Chapa2D c, int nz)
+    {
+        double L = r.VaoCalculo, h = r.Geo.H; int nx = Math.Max(8, (int)Math.Ceiling(L / 5));
+        bool bal = r.Entrada.Tipo == TipoEscada.Balanco;
+        var ids = new List<int[]>();
+        for (int i = 0; i <= nx; i++)
+        {
+            var v = new int[nz + 1];
+            for (int j = 0; j <= nz; j++) v[j] = c.No(L * i / nx, h * j / nz - h / 2);
+            ids.Add(v);
+        }
+        for (int i = 0; i < nx; i++)
+        {
+            var faces = new List<(int, int)>();
+            for (int j = 0; j < nz; j++) faces.Add((c.Quad(ids[i][j], ids[i + 1][j], ids[i + 1][j + 1], ids[i][j + 1]), 2));
+            if (i + 1 < nx) c.Cortes.Add(("C" + (i + 1), faces));
+        }
+        foreach (var v in ids) c.NosLidos.Add(v[nz / 2]);
+        if (bal)
+            for (int j = 0; j <= 2 * nz; j++) c.Apoios.Add((c.No(0, h * j / (2 * nz) - h / 2), true, true));
+        else { c.Apoios.Add((ids[0][nz / 2], true, true)); c.Apoios.Add((ids[nx][nz / 2], false, true)); }
+        var topos = ids.Select(v => (v[nz], c.Nos[v[nz]].X)).ToList();
+        c.Casos[CasoElu] = CargasNodais(r, topos, CasoElu);
+        c.Casos[CasoQp] = CargasNodais(r, topos, CasoQp);
+        return c;
+    }
+
     // ------------------------------------------------------------------ comparação
 
     public static ComparacaoMefEscada Comparar(ResultadoEscada r, FerramentasMef ferr = null, bool openSees = true, bool calculix = true)
@@ -291,14 +348,15 @@ public static class MefEscada
                     double ui = -qp.Deslocamentos[ni].Uz, uj = -qp.Deslocamentos[nj].Uz;
                     pt.FlechaOpenSees = ui + (uj - ui) * u;
                 }
-                var ra = elu.Reacoes[0]; var rb = elu.Reacoes[mod.Nos.Count - 1];
-                cmp.ReacoesOpenSees = (ra.Fz, rb.Fz);
+                var ra = elu.Reacoes[0];
+                double rbz = elu.Reacoes.TryGetValue(mod.Nos.Count - 1, out var rb) ? rb.Fz : 0;
+                cmp.ReacoesOpenSees = (ra.Fz, rbz);
                 cmp.FlechaMaxOpenSees = qp.Deslocamentos.Values.Max(d => -d.Uz);
             }
         }
         if (calculix)
         {
-            foreach (bool comDegraus in new[] { false, true })
+            foreach (bool comDegraus in Lateral(r) ? new[] { false } : new[] { false, true })
             {
                 var ch = Chapa(r, comDegraus);
                 var re = ch.RodarCalculix(CasoElu, ferr);
@@ -316,8 +374,12 @@ public static class MefEscada
                     return a.Uz + (b.Uz - a.Uz) * (x - a.X) / (b.X - a.X);
                 }
                 var rea = re.Reacoes;
-                var ra = rea.TryGetValue(ch.Apoios[0].No, out var r0) ? r0.Fz : 0;
-                var rb = rea.TryGetValue(ch.Apoios[1].No, out var r1) ? r1.Fz : 0;
+                double xMeio = r.VaoCalculo / 2;
+                // o RF do CalculiX não inclui a carga aplicada direto num nó travado: soma por equilíbrio
+                var aplicada = ch.Casos[CasoElu].GroupBy(q => q.No).ToDictionary(gq => gq.Key, gq => gq.Sum(q => q.Fz));
+                double Reacao(int no) => (rea.TryGetValue(no, out var q) ? q.Fz : 0) - (aplicada.TryGetValue(no, out double fz) ? fz : 0);
+                double ra = ch.Apoios.Where(a => ch.Nos[a.No].X < xMeio).Sum(a => Reacao(a.No));
+                double rb = ch.Apoios.Where(a => ch.Nos[a.No].X >= xMeio).Sum(a => Reacao(a.No));
                 if (comDegraus)
                 {
                     foreach (var pt in cmp.Pontos) pt.FlechaChapaDegraus = FlechaEm(pt.X);
@@ -365,7 +427,7 @@ public static class MefEscada
         cmp.Linhas.Add($"Cálculo: Md,máx = {N(r.MdMax, "0.00")} kN·m/m; reações de cálculo {N(cmp.ReacoesCalculo.A, "0.00")} e {N(cmp.ReacoesCalculo.B, "0.00")} kN/m; flecha elástica (QP, Ic) {N(cmp.FlechaMaxCalculo, "0.000")} cm.");
         if (cmp.TemOpenSees)
         {
-            cmp.Linhas.Add($"OpenSees (pórtico no eixo): diferença máx. do Md {N(cmp.DifMdOpenSees.Value, "0.0")} %; reações {N(cmp.ReacoesOpenSees.Value.A, "0.00")} e {N(cmp.ReacoesOpenSees.Value.B, "0.00")} kN/m; flecha {N(cmp.FlechaMaxOpenSees.Value, "0.000")} cm.");
+            cmp.Linhas.Add($"OpenSees ({(Lateral(r) ? "faixa de 1 m na largura" : "pórtico no eixo")}): diferença máx. do Md {N(cmp.DifMdOpenSees.Value, "0.0")} %; reações {N(cmp.ReacoesOpenSees.Value.A, "0.00")} e {N(cmp.ReacoesOpenSees.Value.B, "0.00")} kN/m; flecha {N(cmp.FlechaMaxOpenSees.Value, "0.000")} cm.");
             cmp.Verificacoes.Add(Kc("M1", "Momento fletor: cálculo × OpenSees", $"{N(cmp.DifMdOpenSees.Value, "0.0")} %", "≤ 3 %", cmp.DifMdOpenSees.Value > 3));
             double df = Math.Abs(cmp.FlechaMaxOpenSees.Value - cmp.FlechaMaxCalculo) / Math.Max(1e-9, cmp.FlechaMaxCalculo) * 100;
             cmp.Verificacoes.Add(Kc("M2", "Flecha elástica: cálculo × OpenSees", $"{N(df, "0.0")} %", "≤ 5 %", df > 5));
@@ -373,7 +435,7 @@ public static class MefEscada
         else cmp.Linhas.Add("OpenSees: " + (cmp.ErroOpenSees ?? "não rodado."));
         if (cmp.TemChapa)
         {
-            cmp.Linhas.Add($"CalculiX (chapa da laje, sem degraus): diferença máx. do Md nos cortes {N(cmp.DifMdChapa.Value, "0.0")} % (junto às quinas, {N(cmp.DifMdChapaQuinas ?? 0, "0.0")} %: concentração de tensões); reações {N(cmp.ReacoesChapa.Value.A, "0.00")} e {N(cmp.ReacoesChapa.Value.B, "0.00")} kN/m; flecha {N(cmp.FlechaMaxChapa.Value, "0.000")} cm.");
+            cmp.Linhas.Add($"CalculiX ({(Lateral(r) ? "chapa da faixa" : "chapa da laje, sem degraus")}): diferença máx. do Md nos cortes {N(cmp.DifMdChapa.Value, "0.0")} % (junto às quinas, {N(cmp.DifMdChapaQuinas ?? 0, "0.0")} %: concentração de tensões); reações {N(cmp.ReacoesChapa.Value.A, "0.00")} e {N(cmp.ReacoesChapa.Value.B, "0.00")} kN/m; flecha {N(cmp.FlechaMaxChapa.Value, "0.000")} cm.");
             cmp.Verificacoes.Add(Kc("M3", "Momento fletor: cálculo × CalculiX (chapa)", $"{N(cmp.DifMdChapa.Value, "0.0")} %", "≤ 5 %", cmp.DifMdChapa.Value > 5));
         }
         else cmp.Linhas.Add("CalculiX (chapa): " + (cmp.ErroChapa ?? "não rodado."));
@@ -383,7 +445,7 @@ public static class MefEscada
             cmp.Linhas.Add($"CalculiX (chapa com os degraus): flecha {N(cmp.FlechaMaxChapaDegraus.Value, "0.000")} cm" +
                            (ganho > 0 ? $" — os degraus deixam a escada {N(ganho, "0.0")} vezes mais rígida que a laje sozinha (o cálculo despreza, a favor da segurança)." : "."));
         }
-        else cmp.Linhas.Add("CalculiX (com degraus): " + (cmp.ErroChapaDegraus ?? "não rodado."));
+        else if (!Lateral(r)) cmp.Linhas.Add("CalculiX (com degraus): " + (cmp.ErroChapaDegraus ?? "não rodado."));
         return cmp;
     }
 

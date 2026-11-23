@@ -11,13 +11,13 @@ namespace DEB.Core.Tests;
 public class EscadaTests
 {
     /// <summary>Lance sem patamares: 16 espelhos de 18 cm, piso 28, ℓ = 15 × 28 = 420 cm, h = 12 cm, C25.</summary>
-    public static EscadaLongitudinal LanceSimples() => new EscadaLongitudinal
+    public static EscadaLaje LanceSimples() => new EscadaLaje
     {
         Desnivel = 288, EspelhoAlvo = 18, Piso = 28, Largura = 120, Espessura = 12, Revestimento = 1, Sobrecarga = 2.5, Fck = 25,
     };
 
     /// <summary>Meio lance com patamares (inferior 120, superior 100), 8 espelhos de 18 cm — o caso que tem a quina reentrante.</summary>
-    public static EscadaLongitudinal ComPatamares() => new EscadaLongitudinal
+    public static EscadaLaje ComPatamares() => new EscadaLaje
     {
         Desnivel = 144, Espelhos = 8, Piso = 28, Largura = 120, Espessura = 16, EspessuraPatamar = 16,
         PatamarInferior = 120, PatamarSuperior = 100, Revestimento = 1, Sobrecarga = 3, Fck = 25,
@@ -136,6 +136,54 @@ public class EscadaTests
         // a melhor não custa mais que a escada digitada
         var r0 = CalculoEscada.Calcular(e); var (c0, a0) = OtimizadorEscada.Consumo(r0);
         Assert.True(ops[0].Custo <= c0 * 650 + a0 * 9 + 1e-6);
+    }
+
+    [Fact]
+    public void TransversalBateComAContaAMao()
+    {
+        var e = LanceSimples(); e.Tipo = TipoEscada.Transversal; e.LarguraApoio = 20;
+        var r = CalculoEscada.Calcular(e);
+        double c = Math.Cos(Math.Atan2(18, 28)), pd1 = 1.4 * (r.GLance + 2.5) * c;
+        Assert.Equal(140, r.VaoCalculo, 6);
+        Assert.Equal(pd1 * 1.4 * 1.4 / 8, r.MdMax, 3);              // 2,688 kN·m/m
+        Assert.Equal(pd1 * 1.4 / 2, r.VdMax, 3);
+        Assert.Equal(r.GLance * c * 1.4 / 2, r.RaG, 6);
+        double w = (r.GLance + 0.3 * 2.5) * c / 100, ei = 0.8625 * 28000 / 10 * 100 * 1728.0 / 12;
+        Assert.Equal(5 * w * Math.Pow(140, 4) / (384 * ei), r.FlechaElasticaMax, 4);
+        var n1 = r.Barras.Single(b => b.Nome == "N1");
+        Assert.True(n1.Transversal);
+        Assert.Equal(2 * (60 + 20 - 2.5), n1.Comprimento, 0);          // de apoio a apoio, dentro dos dois
+        Assert.Contains(r.Barras, b => b.Nome == "N3" && b.PerfilY.Count == 3);   // negativa com a perna dentro do apoio
+        Assert.DoesNotContain(r.Verificacoes, v => v.Codigo.StartsWith("K") && v.Situacao == SituacaoVerificacao.NaoAtende);
+    }
+
+    [Fact]
+    public void BalancoBateComAContaAMaoETemBarraNoCantoDosDegraus()
+    {
+        var e = LanceSimples(); e.Tipo = TipoEscada.Balanco; e.LarguraApoio = 20; e.Espessura = 12;
+        var r = CalculoEscada.Calcular(e);
+        double c = Math.Cos(Math.Atan2(18, 28)), pd1 = 1.4 * (r.GLance + 2.5) * c;
+        Assert.Equal(120, r.VaoCalculo, 6);
+        Assert.Equal(pd1 * 1.2 * 1.2 / 2, r.MdMax, 3);              // 7,899 kN·m/m (negativo no engaste)
+        Assert.True(r.Diagrama.First().Md < 0);
+        Assert.Equal(r.GLance * c * 1.2, r.RaG, 6);
+        Assert.Equal(r.GLance * c * 1.2 * 1.2 / 2, r.MEngG, 6);
+        double w = (r.GLance + 0.3 * 2.5) * c / 100, ei = 0.8625 * 28000 / 10 * 100 * 1728.0 / 12;
+        Assert.Equal(w * Math.Pow(120, 4) / (8 * ei), r.FlechaElasticaMax, 4);
+        var n3 = r.Barras.Single(b => b.Nome == "N3");
+        Assert.Equal(15, n3.Quantidade);                             // um por degrau (16 espelhos, 15 pisos)
+        var n1 = r.Barras.Single(b => b.Nome == "N1");
+        Assert.True(n1.PerfilY.Last().N < 0, "dobra para baixo na borda livre");
+        Assert.Contains(r.Verificacoes, v => v.Codigo == "K5");
+    }
+
+    [Fact]
+    public void TransversalIgnoraOsPatamaresComAviso()
+    {
+        var e = ComPatamares(); e.Tipo = TipoEscada.Transversal;
+        var r = CalculoEscada.Calcular(e);
+        Assert.Equal(7 * 28, r.Geo.Vao, 6);
+        Assert.Contains(r.Avisos, a => a.Contains("patamares"));
     }
 
     internal static double Area(IReadOnlyList<(double X, double Z)> p)
