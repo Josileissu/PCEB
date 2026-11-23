@@ -51,6 +51,39 @@ namespace DEB.Revit.Escadas
             double xMin = bbAll.Count > 0 ? bbAll.Min(b => b.Min.X) : 0, yMin = bbAll.Count > 0 ? bbAll.Min(b => b.Min.Y) : 0;
             var nivel = EscadasRevit.NivelAbaixo(doc, 0.01);
             var pos = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20, nivel?.Elevation ?? 0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
+            // duas vigas de apoio (a de cima 144 cm acima, 416 cm adiante, giradas 30° no plano) e a posição lida delas
+            var sym = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).OfCategory(BuiltInCategory.OST_StructuralFraming).Cast<FamilySymbol>().FirstOrDefault();
+            if (sym != null)
+            {
+                double cm = 1 / 30.48, ang = Math.PI / 6;
+                var dd = new XYZ(Math.Cos(ang), Math.Sin(ang), 0); var tt = new XYZ(-dd.Y, dd.X, 0);
+                var o = new XYZ(xMin - 60, yMin - 60, nivel?.Elevation ?? 0);
+                var apoios = new List<Element>();
+                using (var t = new Transaction(doc, "Vigas de apoio (autoteste)"))
+                {
+                    t.Start();
+                    if (!sym.IsActive) sym.Activate();
+                    foreach (var (x, z) in new[] { (0.0, 0.0), (r.Geo.Vao, r.Entrada.Desnivel) })
+                    {
+                        var c0 = o + dd * (x * cm) - tt * (150 * cm) + XYZ.BasisZ * (z * cm);
+                        var c1 = o + dd * (x * cm) + tt * (150 * cm) + XYZ.BasisZ * (z * cm);
+                        var fiv = doc.Create.NewFamilyInstance(Line.CreateBound(c0, c1), sym, nivel, StructuralType.Beam);
+                        apoios.Add(fiv);
+                    }
+                    t.Commit();
+                }
+                var e2 = r.Entrada.Copia();
+                var pos2 = EscadasRevit.DeApoios(doc, apoios, e2);
+                if (pos2 == null) sb.AppendLine("APOIOS: não deu para ler a posição das duas vigas");
+                else
+                {
+                    var g2 = GeometriaEscada.De(e2);
+                    sb.AppendLine($"apoios: {pos2.Origem}; direção {pos2.Direcao.X:0.000},{pos2.Direcao.Y:0.000} (esperado {dd.X:0.000},{dd.Y:0.000}); base z {pos2.Base.Z / cm:0.0} cm; " +
+                                  $"desnível {e2.Desnivel:0.0}; vão lido {g2.Vao:0.0} (esperado {r.Geo.Vao:0.0}); patamares {e2.PatamarInferior:0}/{e2.PatamarSuperior:0}; largura {e2.Largura:0}; apoio {e2.LarguraApoio:0}");
+                    pos = pos2;
+                    r = CalculoEscada.Calcular(e2);
+                }
+            }
             string marca = EscadaCommand.Criar(doc, r, pos, out var log);
             sb.AppendLine($"criada: {marca}");
             foreach (var i in log.Infos) sb.AppendLine("  " + i);
@@ -83,7 +116,7 @@ namespace DEB.Revit.Escadas
                 box.Min = new XYZ(-(r.Geo.Vao + 60) * cm, (r.Geo.Contorno.Min(p => p.Z) - 60) * cm, -(r.Entrada.Largura / 2 + 20) * cm);
                 box.Max = new XYZ(60 * cm, (r.Entrada.Desnivel + 60) * cm, 0);
                 var tr = Autodesk.Revit.DB.Transform.Identity;
-                tr.Origin = o; tr.BasisX = -XYZ.BasisX; tr.BasisY = XYZ.BasisZ; tr.BasisZ = XYZ.BasisY;
+                var dx = pos.Direcao.Normalize(); tr.Origin = o; tr.BasisX = -dx; tr.BasisY = XYZ.BasisZ; tr.BasisZ = (-dx).CrossProduct(XYZ.BasisZ);
                 box.Transform = tr;
                 var sec = ViewSection.CreateSection(doc, tSec.Id, box);
                 sec.Name = "Escada " + marca + " — corte (autoteste)";
