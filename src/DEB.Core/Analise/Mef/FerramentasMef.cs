@@ -27,9 +27,34 @@ public sealed class FerramentasMef
     /// <summary>Procura uma vez por sessão.</summary>
     public static FerramentasMef Padrao => _padrao ??= Procurar();
 
+    /// <summary>Arquivo de configuração (linhas "python=…" e "ccx=…"), comum ao CAD, ao Revit e aos testes.</summary>
+    public static string ArquivoConfig => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PCEB", "mef.txt");
+
+    /// <summary>Grava os caminhos encontrados (ou escolhidos) no arquivo de configuração.</summary>
+    public void Gravar()
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(ArquivoConfig));
+        File.WriteAllLines(ArquivoConfig, new[] { "python=" + (Python ?? ""), "ccx=" + (Ccx ?? "") });
+    }
+
     public static FerramentasMef Procurar(string pastaInicial = null)
     {
         var f = new FerramentasMef();
+        try
+        {
+            if (File.Exists(ArquivoConfig))
+                foreach (string l in File.ReadAllLines(ArquivoConfig))
+                {
+                    int i = l.IndexOf('=');
+                    if (i <= 0) continue;
+                    string k = l.Substring(0, i).Trim().ToLowerInvariant(), v = l.Substring(i + 1).Trim();
+                    if (v.Length == 0 || !File.Exists(v)) continue;
+                    if (k == "python") f.Python = v; else if (k == "ccx") f.Ccx = v;
+                }
+        }
+        catch (Exception) { }
+        if (f.TemOpenSees && f.TemCalculix) return f;
+        string pyCfg = f.Python, ccxCfg = f.Ccx;
         string py = Environment.GetEnvironmentVariable("PCEB_PYTHON_OPENSEES");
         if (!string.IsNullOrEmpty(py) && File.Exists(py)) f.Python = py;
         else
@@ -42,6 +67,8 @@ public sealed class FerramentasMef
         string ccx = Environment.GetEnvironmentVariable("PCEB_CCX");
         if (!string.IsNullOrEmpty(ccx) && File.Exists(ccx)) f.Ccx = ccx;
         else f.Ccx = ProcurarCcx(pastaInicial ?? AppContext.BaseDirectory);
+        if (pyCfg != null) f.Python = pyCfg;
+        if (ccxCfg != null) f.Ccx = ccxCfg;
         return f;
     }
 

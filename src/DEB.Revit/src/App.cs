@@ -122,6 +122,21 @@ namespace DEB.Revit
             };
             precast.AddItem(lajeAlveolar);
 
+            RibbonPanel concreto = application.CreateRibbonPanel(TabName, "Concreto armado");
+            var escada = new PushButtonData("DEB_Escada", "Escada", dll, typeof(EscadaCommand).FullName)
+            {
+                ToolTip = "Escada em laje armada longitudinalmente: calcula, confere por elementos finitos, cria a escada no modelo e arma.",
+                LongDescription =
+                    "Selecione as duas vigas (ou lajes) de apoio — a de baixo e a de cima — e clique; sem seleção, clique o eixo do apoio inferior " +
+                    "e o sentido de subida numa planta. A janela calcula a escada (geometria, cargas, momento, cortante, normal, reações, flecha e " +
+                    "fissuras pela NBR 6118), propõe a armadura com as barras cruzadas na quina do patamar e confere os esforços pelo OpenSees e pelo " +
+                    "CalculiX, se instalados. No aceite, a escada entra como família PCEB (modelo genérico que aceita armadura) com as barras.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "ES"),
+                Image = IconFactory.Create(16, "E")
+            };
+            concreto.AddItem(escada);
+
             AddToolsPanel(application, dll);
             AddFormasPanel(application, dll);
 

@@ -118,6 +118,26 @@ public class EscadaTests
         Assert.Contains(r.Verificacoes, v => v.Codigo == "K6" && v.Situacao == SituacaoVerificacao.NaoAtende);
     }
 
+    [Fact]
+    public void OtimizadorDevolveOpcoesQueAtendemEmOrdemDeCusto()
+    {
+        var e = ComPatamares();
+        var ops = OtimizadorEscada.Otimizar(e);
+        Assert.NotEmpty(ops);
+        double vao = GeometriaEscada.De(e).Vao;
+        foreach (var o in ops)
+        {
+            Assert.DoesNotContain(o.Resultado.Verificacoes, v => v.Codigo.StartsWith("K") && v.Situacao != SituacaoVerificacao.Ok);
+            Assert.InRange(o.Blondel, 61 - 1e-9, 65 + 1e-9);
+            Assert.Equal(vao, o.Resultado.Geo.Vao, 6);                 // os apoios não mudam
+            Assert.Equal(144, o.Resultado.Geo.N * o.Resultado.Geo.Espelho, 6);
+        }
+        for (int i = 1; i < ops.Count; i++) Assert.True(ops[i].Custo >= ops[i - 1].Custo - 1e-9);
+        // a melhor não custa mais que a escada digitada
+        var r0 = CalculoEscada.Calcular(e); var (c0, a0) = OtimizadorEscada.Consumo(r0);
+        Assert.True(ops[0].Custo <= c0 * 650 + a0 * 9 + 1e-6);
+    }
+
     internal static double Area(IReadOnlyList<(double X, double Z)> p)
     {
         double a = 0;

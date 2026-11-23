@@ -98,6 +98,9 @@ namespace DEB.Revit
                     case "vigas":
                         status = "OK " + Vigas.VigasAutoTest.Run(uidoc);
                         break;
+                    case "escadas":
+                        status = "OK " + Escadas.EscadasAutoTest.Run(uidoc);
+                        break;
                     case "conferir":
                         status = "OK " + ReviewAutoTest(uidoc.Document);
                         break;
