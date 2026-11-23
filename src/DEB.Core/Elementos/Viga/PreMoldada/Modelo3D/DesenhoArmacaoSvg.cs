@@ -23,13 +23,14 @@ public static class DesenhoArmacaoSvg
         BarRole.Stirrup => "#2e8b57",
         BarRole.BeamGerber or BarRole.BeamHanger => "#d48a1a",
         BarRole.LiftLoop => "#8e44ad",
+        BarRole.BeamLedge or BarRole.BeamLedgeHairpin or BarRole.BeamLedgeBar or BarRole.BeamUpstand or BarRole.BeamUpstandBar or BarRole.BeamTopping => "#0e8a8a",
         _ => "#1f5aa6",
     };
 
     public static readonly (string Texto, string Cor)[] Legenda =
     {
         ("Longitudinal", "#c01f1f"), ("Estribo", "#2e8b57"), ("Dente: estribos e suspensão", "#d48a1a"),
-        ("Dente: tirante, grampo e costura", "#1f5aa6"), ("Alça CP-190", "#8e44ad"),
+        ("Dente: tirante, grampo e costura", "#1f5aa6"), ("Alça CP-190", "#8e44ad"), ("Aba e ressalto", "#0e8a8a"),
     };
 
     /// <summary>Elevação da viga com as barras (escala vertical ampliada até 3× para a viga baixa e comprida caber).</summary>
@@ -40,7 +41,9 @@ public static class DesenhoArmacaoSvg
         var e = TemplateVigaPreMoldada.LerExtremidade(v, true, TemplateVigaPreMoldada.CatalogoDentes, lix);
         var d = TemplateVigaPreMoldada.LerExtremidade(v, false, TemplateVigaPreMoldada.CatalogoDentes, lix);
         double mx = 20, w = largura - 2 * mx, esc = w / L, escV = Math.Min(3 * esc, 220 / Math.Max(h, 1));
-        double acima = v.SimNao("Alcas") ? v.Numero("AlcaAcima") : 0;
+        var rs = TemplateVigaPreMoldada.LerRessalto(v, v.Numero("B"), h, null);
+        double hr = rs.Existe ? rs.Altura : 0;
+        double acima = Math.Max(hr, v.SimNao("Alcas") ? v.Numero("AlcaAcima") : 0);
         double yTop = 14 + acima * escV, alt = yTop + h * escV + 34;
         string X(double x) => F(mx + x * esc);
         string Y(double z) => F(yTop + (z0 + h - z) * escV);
@@ -54,6 +57,7 @@ public static class DesenhoArmacaoSvg
         else pts.Add((L, z0));
         pts.Add((L, z0 + h)); pts.Add((0, z0 + h));
         sb.Append("<polygon class=\"forma\" points=\"" + string.Join(" ", pts.Select(p => $"{X(p.X)},{Y(p.Z)}")) + "\"/>");
+        if (hr > 0) sb.Append($"<polygon class=\"forma\" points=\"{X(0)},{Y(z0 + h)} {X(L)},{Y(z0 + h)} {X(L)},{Y(z0 + h + hr)} {X(0)},{Y(z0 + h + hr)}\"/>");
         foreach (var b in bars)
         {
             string cor = Cor(b.Role);
@@ -90,30 +94,38 @@ public static class DesenhoArmacaoSvg
         double zb = z0;
         if (e.TemDente && x < e.CompDente) zb = z0 + h - e.Dente.Altura;
         if (d.TemDente && x > L - d.CompDente) zb = z0 + h - d.Dente.Altura;
-        double esc = (tamanho - 50) / Math.Max(b, h), w = b * esc + 60, alt = h * esc + 50;
-        string X(double y) => F(30 + (y - y0) * esc);
-        string Y(double z) => F(26 + (z0 + h - z) * esc);
+        // forma: alma (ou dente) com a aba e o ressalto, pelo contorno da seção do CAD (x da seção = y0 + b − y)
+        var aba = TemplateVigaPreMoldada.LerAba(v, h, L, e, d, null);
+        var rs = TemplateVigaPreMoldada.LerRessalto(v, b, h, null);
+        AbaViga ab = aba.Em(x) ? (zb > z0 ? aba.NoDente(zb - z0) : aba) : null;
+        double hSec = z0 + h - zb, le = ab?.LargE ?? 0, ld = ab?.LargD ?? 0, hr = rs.Existe ? rs.Altura : 0;
+        double baixo = ab != null ? Math.Min(0, ab.Base) : 0;   // aba pendurada abaixo do dente
+        double esc = (tamanho - 50) / Math.Max(b + le + ld, hSec + hr - baixo), w = (b + le + ld) * esc + 60, alt = (hSec + hr - baixo) * esc + 50;
+        string X(double y) => F(30 + (y0 + b - y + le) * esc);
+        string Y(double z) => F(26 + (z0 + h + hr - z) * esc);
         var sb = new StringBuilder();
         sb.Append($"<svg class=\"arm\" viewBox=\"0 0 {F(w)} {F(alt)}\" role=\"img\" aria-label=\"{titulo}\">");
         sb.Append($"<text class=\"rot\" x=\"{F(w / 2)}\" y=\"14\" text-anchor=\"middle\">{titulo}</text>");
-        sb.Append($"<rect class=\"forma\" x=\"{X(y0)}\" y=\"{Y(z0 + h)}\" width=\"{F(b * esc)}\" height=\"{F((z0 + h - zb) * esc)}\"/>");
-        // estribos (fechados ou U) e U horizontais do dente cujo plano passa perto de x
-        var planos = bars.Where(bd => bd.Normal.A != 0 && (bd.Role == BarRole.Stirrup || bd.Role == BarRole.BeamGerber || bd.Role == BarRole.BeamHanger)).ToList();
-        BarDef maisPerto = null; double dist = double.MaxValue; List<Loc> inst0 = null;
+        var cont = TemplateVigaPreMoldada.ContornoSecao(b, hSec, ab, rs.Existe ? rs : null, 0, 0);
+        sb.Append("<polygon class=\"forma\" points=\"" + string.Join(" ", cont.Select(q => $"{X(y0 + b - q.X)},{Y(zb + q.Y)}")) + "\"/>");
+        // barras planas (estribos, grampos, ligação com a capa): de cada conjunto, a barra mais perto de x; uma por papel e lado
+        var planos = bars.Where(bd => bd.Normal.A != 0 && bd.Role != BarRole.BeamWelded).ToList();
+        var perto = new Dictionary<(BarRole, int), (double Dist, BarDef Bd, List<Loc> Inst)>();
         foreach (var bd in planos)
             foreach (var inst in bd.Instances())
             {
                 double dd = Math.Abs(Cm(inst[0].A) - x);
-                if (dd < dist) { dist = dd; maisPerto = bd; inst0 = inst; }
+                var chave = (bd.Role, Math.Sign(Math.Round(inst.Average(p => Cm(p.B)) - (y0 + b / 2))));
+                if (dd < 30 && (!perto.TryGetValue(chave, out var o) || dd < o.Dist)) perto[chave] = (dd, bd, inst);
             }
-        if (maisPerto != null && dist < 30)
+        foreach (var (_, bd, inst) in perto.Values)
         {
-            var lin = string.Join(" ", inst0.Select(p => $"{X(Cm(p.B))},{Y(Cm(p.C))}"));
-            if (maisPerto.Closed) lin += $" {X(Cm(inst0[0].B))},{Y(Cm(inst0[0].C))}";
-            sb.Append($"<polyline fill=\"none\" stroke=\"{Cor(maisPerto.Role)}\" stroke-width=\"1.6\" points=\"{lin}\"/>");
+            var lin = string.Join(" ", inst.Select(p => $"{X(Cm(p.B))},{Y(Cm(p.C))}"));
+            if (bd.Closed) lin += $" {X(Cm(inst[0].B))},{Y(Cm(inst[0].C))}";
+            sb.Append($"<polyline fill=\"none\" stroke=\"{Cor(bd.Role)}\" stroke-width=\"1.6\" points=\"{lin}\"/>");
         }
         // barras cortadas pelo plano x
-        foreach (var bd in bars.Where(bd => bd.Role != BarRole.Stirrup && bd.Role != BarRole.BeamGerber && bd.Role != BarRole.BeamHanger && bd.Role != BarRole.LiftLoop))
+        foreach (var bd in bars.Where(bd => bd.Normal.A == 0 && bd.Role != BarRole.LiftLoop))
             foreach (var inst in bd.Instances())
                 for (int i = 0; i + 1 < inst.Count; i++)
                 {
@@ -124,7 +136,7 @@ public static class DesenhoArmacaoSvg
                     double r = Math.Max(2.2, bd.DiameterMm / 20 * esc);
                     sb.Append($"<circle cx=\"{X(yy)}\" cy=\"{Y(zz)}\" r=\"{F(r)}\" fill=\"{Cor(bd.Role)}\"/>");
                 }
-        sb.Append($"<text class=\"rot\" x=\"{F(w / 2)}\" y=\"{F(alt - 4)}\" text-anchor=\"middle\">{F(b)} × {F(z0 + h - zb)} cm</text>");
+        sb.Append($"<text class=\"rot\" x=\"{F(w / 2)}\" y=\"{F(alt - 4)}\" text-anchor=\"middle\">{F(b)} × {F(hSec)} cm{(ab != null || rs.Existe ? " (alma)" : "")}</text>");
         sb.Append("</svg>");
         return sb.ToString();
     }

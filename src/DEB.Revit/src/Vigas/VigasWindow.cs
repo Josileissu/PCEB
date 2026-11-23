@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 
 using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
+using DEB.Core.Elementos.Viga.PreMoldada;
 using DEB.Core.Elementos.Viga.PreMoldada.Calculo;
 using DEB.Core.Normas.Verificacao;
 using DEB.Revit.Core;
@@ -332,7 +333,7 @@ namespace DEB.Revit.Vigas
         {
             ("Longitudinal", WColor.FromRgb(0xC0, 0x1F, 0x1F)), ("Estribo", WColor.FromRgb(0x2E, 0x8B, 0x57)),
             ("Dente (estribos, suspensão)", WColor.FromRgb(0xD4, 0x8A, 0x1A)), ("Tirante, grampo, costura", WColor.FromRgb(0x1F, 0x5A, 0xA6)),
-            ("Alça CP-190", WColor.FromRgb(0x8E, 0x44, 0xAD)),
+            ("Alça CP-190", WColor.FromRgb(0x8E, 0x44, 0xAD)), ("Aba e ressalto", WColor.FromRgb(0x0E, 0x8A, 0x8A)),
         };
 
         private static Pen Caneta(BarRole r, double esp = 1)
@@ -343,6 +344,8 @@ namespace DEB.Revit.Vigas
                 BarRole.Stirrup => Legenda[1].Item2,
                 BarRole.BeamGerber or BarRole.BeamHanger => Legenda[2].Item2,
                 BarRole.LiftLoop => Legenda[4].Item2,
+                BarRole.BeamLedge or BarRole.BeamLedgeHairpin or BarRole.BeamLedgeBar or BarRole.BeamUpstand or BarRole.BeamUpstandBar
+                    or BarRole.BeamTopping => Legenda[5].Item2,
                 _ => Legenda[3].Item2,
             };
             var p = new Pen(new SolidColorBrush(c), esp); p.Freeze(); return p;
@@ -420,37 +423,64 @@ namespace DEB.Revit.Vigas
             Txt($"L = {L:0.#} cm", mx + larg / 2, yBot + 12, 11, Brushes.DimGray, true);
 
             // ---- seção no meio do vão (embaixo, à esquerda) ----
-            double ySec = yBot + 40, hSecPx = H - ySec - 30, escS = Math.Min(hSecPx / (h + 10), 300 / (b + 10));
+            // seção pelo contorno do CAD (alma, aba e ressalto); x da seção = y0 + b − y (o lado esquerdo das seções é y maior)
+            var lixo = new List<string>();
+            var exE = TemplateVigaPreMoldada.LerExtremidade(v, true, TemplateVigaPreMoldada.CatalogoDentes, lixo);
+            var exD = TemplateVigaPreMoldada.LerExtremidade(v, false, TemplateVigaPreMoldada.CatalogoDentes, lixo);
+            var aba = TemplateVigaPreMoldada.LerAba(v, h, L, exE, exD, null);
+            var rs = TemplateVigaPreMoldada.LerRessalto(v, b, h, null);
+            double xm = L / 2;
+            AbaViga ab = aba.Em(xm) ? aba : null;
+            double le = ab?.LargE ?? 0, bTot = b + le + (ab?.LargD ?? 0), hr = rs.Existe ? rs.Altura : 0;
+            double ySec = yBot + 40, hSecPx = H - ySec - 30, escS = Math.Min(hSecPx / (h + hr + 10), 300 / (bTot + 10));
             double sx0 = mx + 30, sy1 = ySec + 22;
             Txt("SEÇÃO NO MEIO DO VÃO", mx, ySec, 12, Brushes.DimGray);
-            WPoint S(double y, double z) => new WPoint(sx0 + (y - _g.AlmaY0) * escS, sy1 + (_g.AlmaZ0 + h - z) * escS);
-            dc.DrawRectangle(new SolidColorBrush(WColor.FromRgb(0xF2, 0xF2, 0xF2)), forma, new Rect(S(_g.AlmaY0, _g.AlmaZ0 + h), S(_g.AlmaY0 + b, _g.AlmaZ0)));
+            WPoint S(double y, double z) => new WPoint(sx0 + (_g.AlmaY0 + b - y + le) * escS, sy1 + (_g.AlmaZ0 + h + hr - z) * escS);
+            var cont = TemplateVigaPreMoldada.ContornoSecao(b, h, ab, rs.Existe ? rs : null, 0, 0);
+            var geoS = new StreamGeometry();
+            using (var sg = geoS.Open())
+            {
+                sg.BeginFigure(S(_g.AlmaY0 + b - cont[0].X, _g.AlmaZ0 + cont[0].Y), true, true);
+                foreach (var q in cont.Skip(1)) sg.LineTo(S(_g.AlmaY0 + b - q.X, _g.AlmaZ0 + q.Y), true, false);
+            }
+            geoS.Freeze();
+            dc.DrawGeometry(new SolidColorBrush(WColor.FromRgb(0xF2, 0xF2, 0xF2)), forma, geoS);
             if (_bars != null)
             {
-                double xm = L / 2;
-                var est = _bars.Where(x => x.Role == BarRole.Stirrup)
-                    .OrderBy(x => Math.Abs(Cm(x.Points[0].A) + Cm(x.Spacing) * (x.Count - 1) / 2 - xm)).FirstOrDefault();
-                if (est != null)
+                // barras planas: de cada papel e lado, a mais perto do meio do vão
+                var perto = new Dictionary<(BarRole, int), (double Dist, BarDef Bd, List<Loc> Inst)>();
+                foreach (var bd in _bars.Where(x => x.Normal.A != 0 && x.Role != BarRole.BeamWelded))
+                    foreach (var inst in bd.Instances())
+                    {
+                        double dd = Math.Abs(Cm(inst[0].A) - xm);
+                        var chave = (bd.Role, Math.Sign(Math.Round(inst.Average(p => Cm(p.B)) - (_g.AlmaY0 + b / 2))));
+                        if (dd < 40 && (!perto.TryGetValue(chave, out var o) || dd < o.Dist)) perto[chave] = (dd, bd, inst);
+                    }
+                foreach (var (_, bd, inst) in perto.Values)
                 {
-                    var pts = est.Points.Select(p => S(Cm(p.B), Cm(p.C))).ToList();
-                    var pen = Caneta(BarRole.Stirrup, 1.2);
+                    var pts = inst.Select(p => S(Cm(p.B), Cm(p.C))).ToList();
+                    var pen = Caneta(bd.Role, 1.2);
                     for (int i = 0; i + 1 < pts.Count; i++) dc.DrawLine(pen, pts[i], pts[i + 1]);
-                    if (est.Closed) dc.DrawLine(pen, pts[^1], pts[0]);
+                    if (bd.Closed) dc.DrawLine(pen, pts[^1], pts[0]);
                 }
-                foreach (var bd in _bars.Where(x => x.Role == BarRole.Longitudinal))
-                {
-                    double a0 = Cm(bd.Points.Min(p => p.A)), a1 = Cm(bd.Points.Max(p => p.A));
-                    if (xm < a0 || xm > a1) continue;
-                    var ctr = S(Cm(bd.Points[bd.Points.Count > 2 ? 1 : 0].B), Cm(bd.Points[bd.Points.Count > 2 ? 1 : 0].C));
-                    double r = Math.Max(2.5, bd.DiameterMm / 20 * escS);
-                    dc.DrawEllipse(new SolidColorBrush(Legenda[0].Item2), null, ctr, r, r);
-                }
+                // barras cortadas no meio do vão
+                foreach (var bd in _bars.Where(x => x.Normal.A == 0 && x.Role != BarRole.LiftLoop))
+                    foreach (var inst in bd.Instances())
+                        for (int i = 0; i + 1 < inst.Count; i++)
+                        {
+                            double a0 = Cm(inst[i].A), a1 = Cm(inst[i + 1].A);
+                            if (Math.Abs(a1 - a0) < 1e-6 || xm < Math.Min(a0, a1) || xm > Math.Max(a0, a1)) continue;
+                            double t = (xm - a0) / (a1 - a0);
+                            var ctr = S(Cm(inst[i].B) + t * (Cm(inst[i + 1].B) - Cm(inst[i].B)), Cm(inst[i].C) + t * (Cm(inst[i + 1].C) - Cm(inst[i].C)));
+                            double r = Math.Max(2.5, bd.DiameterMm / 20 * escS);
+                            dc.DrawEllipse(Caneta(bd.Role).Brush, null, ctr, r, r);
+                        }
             }
-            Txt($"{b:0.#} × {h:0.#} cm", sx0 + b * escS / 2, sy1 + h * escS + 6, 11, Brushes.DimGray, true);
+            Txt($"{b:0.#} × {h:0.#} cm{(ab != null || rs.Existe ? " (alma)" : "")}", sx0 + bTot * escS / 2, sy1 + (h + hr) * escS + 6, 11, Brushes.DimGray, true);
 
             // ---- diagramas (embaixo, à direita) ----
             if (c == null || c.Diagrama.Count < 2) return;
-            double dx0 = sx0 + b * escS + 80, dw = W - dx0 - mx;
+            double dx0 = sx0 + bTot * escS + 80, dw = W - dx0 - mx;
             if (dw < 120) return;
             double dh = (hSecPx - 30) / 2;
             void Diagrama(string tit, Func<(double X, double Md, double Vd), double> f, double y0, bool baixo, WColor cor)

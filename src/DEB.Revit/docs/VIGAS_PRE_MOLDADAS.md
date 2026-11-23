@@ -41,7 +41,11 @@ Viga biapoiada de concreto armado, com balanços nas pontas até os apoios:
 Códigos K no relatório: K1–K3 flexão, K4 içamento, K5–K7 cortante, K8 ancoragem, K9–K11 dente, K12 flecha, K13 fissuras.
 Com o cálculo, V6/V7 (estribos) e D7 (suspensão) deixam de ser "Conferir".
 
-Não entram ainda (avisados): aba, ressalto, reforço das aberturas e protensão.
+Aba e ressalto (23/11): armados com as mesmas funções da seção do CAD — grampo ou estribo fechado da aba e as longitudinais da ponta;
+estribo do ressalto até o fundo (no dente, até o fundo do dente), construtivas e a barra em L de ligação com a capa. O cálculo usa a
+alma (b × h) e o peso próprio com a aba e o ressalto; a armadura da aba e do ressalto é a do template (padrão), não calculada.
+Não entram ainda (avisados): reforço das aberturas e protensão. A aba que passa por cima do dente (rente ao topo) ainda não é
+reconhecida pelo levantamento do Revit (a peça fica de fora, com nota).
 
 ## Testar (AutoRun)
 `SD_AUTORUN=vigas` no modelo de teste: grava `SD_CARGAS` (`g;q;concentradas`, padrão `12;6;`), calcula, grava os

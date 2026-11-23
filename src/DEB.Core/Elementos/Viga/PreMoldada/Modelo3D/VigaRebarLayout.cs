@@ -15,7 +15,7 @@ namespace DEB.Core.Elementos.Viga.PreMoldada.Modelo3D;
 /// inferior, porta-estribo do 2º estágio e alças de cordoalha.
 /// Sistema local da viga: A ao longo (ponta esquerda em 0), B na largura, C para cima (fundo da alma em <c>z0</c>); pés, como o
 /// modelo 3D do pilar (<see cref="BarDef"/>). A alma começa em <c>y0</c> (a aba fica fora dela).
-/// Ainda não entram (avisos): reforço das aberturas, aba, ressalto e protensão — continuam só no CAD.
+/// Aba e ressalto: as mesmas funções da seção do CAD. Ainda não entram (avisos): reforço das aberturas e protensão — continuam só no CAD.
 /// </summary>
 public static class VigaRebarLayout
 {
@@ -93,8 +93,6 @@ public static class VigaRebarLayout
             zonas = TemplateVigaPreMoldada.ZonasComAberturas(v, cfg, zonas, abs);
             avisos.Add($"{abs.Count} abertura(s) na alma: os estribos curtos e as barras de reforço ainda não são criados no Revit (ficam no detalhamento do CAD).");
         }
-        if (v["Aba"] != "" && v["Aba"] != TemplateVigaPreMoldada.AbaSem) avisos.Add("Aba lateral: a armadura da aba ainda não é criada no Revit (fica no detalhamento do CAD).");
-        if (v["Ressalto"] != "" && v["Ressalto"] != TemplateVigaPreMoldada.RessaltoSem) avisos.Add("Ressalto: a armadura do ressalto ainda não é criada no Revit (fica no detalhamento do CAD).");
         if (v.SimNao("Protendida")) avisos.Add("Viga protendida: as cordoalhas não são criadas no Revit (o cálculo e a armação no Revit são só de concreto armado).");
         double ya0 = y0 + cobL + t / 2, ya1 = y0 + b - cobL - t / 2, za0 = z0 + cobF + t / 2;
         double za1 = z0 + h + capa - cobT - t / 2;
@@ -113,6 +111,9 @@ public static class VigaRebarLayout
                 Role = BarRole.Stirrup, DiameterMm = phiT, Steel = acoT, Points = Estribo(x), Closed = !aberto, Hooks135 = !aberto, Normal = Loc.UnitA,
             });
         }
+
+        // ---------------- aba e ressalto (as mesmas funções da seção do CAD) ----------------
+        AbaERessalto(bars, v, cfg, b, h, L, y0, z0, e, d, avisos);
 
         // ---------------- dentes Gerber (catálogo) ----------------
         foreach (var (x, esq) in new[] { (e, true), (d, false) })
@@ -202,6 +203,90 @@ public static class VigaRebarLayout
                 }
         }
         return bars;
+    }
+
+    /// <summary>
+    /// Armadura da aba (grampo ou estribo fechado da aba e as longitudinais da ponta) e do ressalto (estribo até o fundo, construtivas
+    /// e a barra em L de ligação com a capa), pelas mesmas funções da SEÇÃO - ARMADURA do CAD. A seção do CAD olha a viga com o
+    /// lado esquerdo (y maior) à esquerda: x da seção → y = y0 + b − x. No trecho do dente, o que desceria abaixo do fundo do dente
+    /// para nele (estribo do ressalto, perna da ligação) ou fica de fora (grampo da aba que passa pelo recorte), com aviso.
+    /// </summary>
+    private static void AbaERessalto(List<BarDef> bars, ValoresTemplate v, ConfiguracaoArmadura cfg, double b, double h, double L,
+        double y0, double z0, ExtremidadeViga e, ExtremidadeViga d, List<string> avisos)
+    {
+        double cobF = v.Numero("CobFundo"), cobP = v.Numero("CobPontas");
+        string acoL = v["LongAco"], acoT = v["EstAco"];
+        Loc S(double x, (double X, double Y) q) => P(x, y0 + b - q.X, z0 + q.Y);
+        // fundo do concreto em x (o dente sobe o fundo)
+        double Fundo(double x) => e.TemDente && x < e.CompDente ? h - e.Dente.Altura : d.TemDente && x > L - d.CompDente ? h - d.Dente.Altura : 0;
+
+        var aba = TemplateVigaPreMoldada.LerAba(v, h, L, e, d, null);
+        if (aba.Existe)
+        {
+            var xs = TemplateVigaPreMoldada.PosicoesEstribosAba(v, cfg, aba);
+            double phi = v.Numero("AbaEstBitola"), r = phi / 20;
+            int fora = 0;
+            void Estribos(List<(double X, double Y)> pol, bool fechado)
+            {
+                if (pol == null) return;
+                double yMin = pol.Min(q => q.Y) - r;
+                var ok = xs.Where(x => yMin >= Fundo(x) + cobF / 2).ToList();
+                fora += xs.Count - ok.Count;
+                AdicionarConjuntos(bars, ok, x => new BarDef
+                {
+                    Role = fechado ? BarRole.BeamLedge : BarRole.BeamLedgeHairpin, DiameterMm = phi, Steel = acoT, Normal = Loc.UnitA,
+                    Closed = fechado, Hooks135 = fechado, Points = pol.Select(q => S(x, q)).ToList(),
+                });
+            }
+            if (TemplateVigaPreMoldada.GrampoNaAba(v, aba))
+            {
+                if (aba.Direita) Estribos(TemplateVigaPreMoldada.PoligonoGrampoAba(v, aba, b, 0, 0, true), false);
+                if (aba.Esquerda) Estribos(TemplateVigaPreMoldada.PoligonoGrampoAba(v, aba, b, 0, 0, false), false);
+            }
+            else Estribos(TemplateVigaPreMoldada.PoligonoEstriboAba(v, aba, b, 0, 0), true);
+            if (fora > 0) avisos.Add($"Aba: {fora} grampo(s)/estribo(s) da aba no trecho do dente desceriam abaixo do recorte e não foram criados — conferir.");
+            double x0 = aba.Ini + cobP, x1 = aba.Fim - cobP;
+            if (x1 - x0 >= 10)
+                foreach (var q in TemplateVigaPreMoldada.PontosLongAba(v, aba, b, 0, 0))
+                    bars.Add(new BarDef { Role = BarRole.BeamLedgeBar, DiameterMm = v.Numero("AbaLongBitola"), Steel = acoL, Normal = Loc.UnitB,
+                                          Points = { S(x0, q), S(x1, q) } });
+        }
+
+        var rs = TemplateVigaPreMoldada.LerRessalto(v, b, h, null);
+        if (!rs.Existe) return;
+        // estribo do ressalto: do fundo (ou do fundo do dente) ao topo do ressalto
+        double phiR = v.Numero("RessEstBitola"), tR = phiR / 20;
+        var (bx1, by1, bx2, by2) = TemplateVigaPreMoldada.CaixaEstriboRessalto(v, rs, b, h, 0, 0);
+        if (bx2 - bx1 > 2 && by2 - by1 > 2)
+        {
+            var xs = TemplateVigaPreMoldada.PosicoesAoLongo(v, cfg, L, phiR, v.Numero("RessEstEsp"));
+            foreach (var grupo in xs.GroupBy(Fundo))
+            {
+                double yb = Math.Max(by1, grupo.Key + cobF + tR);
+                if (by2 - yb < 2) continue;
+                AdicionarConjuntos(bars, grupo.ToList(), x => new BarDef
+                {
+                    Role = BarRole.BeamUpstand, DiameterMm = phiR, Steel = acoT, Normal = Loc.UnitA, Closed = true, Hooks135 = true,
+                    Points = { S(x, (bx1, yb)), S(x, (bx2, yb)), S(x, (bx2, by2)), S(x, (bx1, by2)) },
+                });
+            }
+            foreach (var q in TemplateVigaPreMoldada.PontosLongRessalto(v, rs, b, h, 0, 0))
+                bars.Add(new BarDef { Role = BarRole.BeamUpstandBar, DiameterMm = v.Numero("RessLongBitola"), Steel = acoL, Normal = Loc.UnitB,
+                                      Points = { S(cobP, q), S(L - cobP, q) } });
+        }
+        // ligação com a capa (L): perna vertical no ressalto e na alma, perna horizontal saindo para a capa
+        double phiL = v.Numero("LigCapaBitola");
+        var l = TemplateVigaPreMoldada.PoligonoLigacaoCapa(v, rs, b, h, 0, 0);
+        foreach (var grupo in TemplateVigaPreMoldada.PosicoesAoLongo(v, cfg, L, phiL, v.Numero("LigCapaEsp")).GroupBy(Fundo))
+        {
+            double yPe = Math.Max(l[0].Y, grupo.Key + cobF + phiL / 20);
+            if (l[1].Y - yPe < 5) continue;
+            AdicionarConjuntos(bars, grupo.ToList(), x => new BarDef
+            {
+                Role = BarRole.BeamTopping, DiameterMm = phiL, Steel = acoL, Normal = Loc.UnitA,
+                Points = { S(x, (l[0].X, yPe)), S(x, l[1]), S(x, l[2]) },
+            });
+        }
     }
 
     /// <summary>Posições ao longo da viga → conjuntos do Revit: trechos de espaçamento constante viram um conjunto com quantidade.</summary>

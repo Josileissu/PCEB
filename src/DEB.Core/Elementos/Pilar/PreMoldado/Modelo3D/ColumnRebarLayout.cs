@@ -9,7 +9,8 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
     public enum BarRole { Longitudinal, Stirrup, CrossTie, CorbelTie, CorbelSew, LiftLoop,
                             CorbelAnchor, CorbelStirrup, CorbelBottom, CorbelPin,
                             // viga pré-moldada (D40): estribos do dente, suspensão, tirante, grampo, costura e barra transversal soldada
-                            BeamGerber, BeamHanger, BeamTie, BeamHairpin, BeamStitch, BeamWelded }
+                            BeamGerber, BeamHanger, BeamTie, BeamHairpin, BeamStitch, BeamWelded,
+                            BeamLedge, BeamLedgeHairpin, BeamLedgeBar, BeamUpstand, BeamUpstandBar, BeamTopping }
 
     /// <summary>
     /// Uma barra (ou conjunto de barras iguais) em coordenadas locais do pilar.

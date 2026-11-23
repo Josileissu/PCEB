@@ -1,3 +1,4 @@
+using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -189,6 +190,114 @@ public class VigaRebarLayoutTests
         // girada 180°: o dente vai para a ponta direita
         var g = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.VigaRebarLayout.Girar180(bars, 700 / 30.48, 30 / 30.48);
         Assert.Contains(g, b => b.Role == DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.BeamTie && b.Points.All(p => Cm(p.A) > 350));
+    }
+}
+
+/// <summary>Aba e ressalto no Revit (D40): as barras saem das funções da seção do CAD e ficam dentro do concreto.</summary>
+public class VigaAbaRessaltoLayoutTests
+{
+    private static double Cm(double ft) => ft * 30.48;
+    private const double Y0 = 7;
+
+    private static ValoresTemplate Viga(Action<ValoresTemplate> ajustar)
+    {
+        var v = new ValoresTemplate(new TemplateVigaPreMoldada().Parametros);
+        v["B"] = "20"; v["H"] = "60"; v["L"] = "600"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "DG 45x25";
+        ajustar(v);
+        return v;
+    }
+
+    /// <summary>Distância (com sinal: + dentro) do ponto ao contorno do polígono.</summary>
+    private static double Folga(List<(double X, double Y)> pol, double x, double y)
+    {
+        bool dentro = false; double dmin = double.MaxValue;
+        for (int i = 0, j = pol.Count - 1; i < pol.Count; j = i++)
+        {
+            var (xi, yi) = pol[i]; var (xj, yj) = pol[j];
+            if ((yi > y) != (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) dentro = !dentro;
+            double dx = xj - xi, dy = yj - yi, t = Math.Max(0, Math.Min(1, ((x - xi) * dx + (y - yi) * dy) / (dx * dx + dy * dy)));
+            dmin = Math.Min(dmin, Math.Sqrt(Math.Pow(x - xi - t * dx, 2) + Math.Pow(y - yi - t * dy, 2)));
+        }
+        return dentro ? dmin : -dmin;
+    }
+
+    /// <summary>Todo ponto de barra (menos a alça e a perna da ligação que sai para a capa) a pelo menos 1 cm dentro da seção em x.</summary>
+    private static void TudoDentro(ValoresTemplate v, List<BarDef> bars)
+    {
+        double b = v.Numero("B"), h = v.Numero("H"), L = v.Numero("L");
+        var lix = new List<string>();
+        var e = TemplateVigaPreMoldada.LerExtremidade(v, true, TemplateVigaPreMoldada.CatalogoDentes, lix);
+        var d = TemplateVigaPreMoldada.LerExtremidade(v, false, TemplateVigaPreMoldada.CatalogoDentes, lix);
+        var aba = TemplateVigaPreMoldada.LerAba(v, h, L, e, d, null);
+        var rs = TemplateVigaPreMoldada.LerRessalto(v, b, h, null);
+        foreach (var bd in bars.Where(x => x.Role != BarRole.LiftLoop))
+            foreach (var inst in bd.Instances())
+                foreach (var p in bd.Role == BarRole.BeamTopping ? inst.Take(2) : inst)
+                {
+                    double x = Cm(p.A), zb = e.TemDente && x < e.CompDente ? h - e.Dente.Altura : d.TemDente && x > L - d.CompDente ? h - d.Dente.Altura : 0;
+                    AbaViga ab = aba.Em(x) ? (zb > 0 ? aba.NoDente(zb) : aba) : null;
+                    var pol = TemplateVigaPreMoldada.ContornoSecao(b, h - zb, ab, rs.Existe ? rs : null, 0, 0);
+                    double f = Folga(pol, Y0 + b - Cm(p.B), Cm(p.C) - zb);
+                    Assert.True(f >= 1, $"{bd.Role} fora do concreto: x={x:0.#} y={Cm(p.B):0.#} z={Cm(p.C):0.#} (folga {f:0.##} cm)");
+                }
+    }
+
+    [Fact]
+    public void AbaEmLComGrampos()
+    {
+        var v = Viga(v => { v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "15"; v["AbaAltura"] = "20"; });
+        var cfg = new ConfiguracaoArmadura();
+        var avisos = new List<string>();
+        var bars = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.VigaRebarLayout.Compute(v, cfg, Y0, 0, avisos);
+        TudoDentro(v, bars);
+        var lix = new List<string>();
+        var e = TemplateVigaPreMoldada.LerExtremidade(v, true, TemplateVigaPreMoldada.CatalogoDentes, lix);
+        var d = TemplateVigaPreMoldada.LerExtremidade(v, false, TemplateVigaPreMoldada.CatalogoDentes, lix);
+        var aba = TemplateVigaPreMoldada.LerAba(v, 60, 600, e, d, null);
+        Assert.Equal(TemplateVigaPreMoldada.PosicoesEstribosAba(v, cfg, aba).Count, bars.Where(b => b.Role == BarRole.BeamLedgeHairpin).Sum(b => b.Count));
+        Assert.Equal(2, bars.Count(b => b.Role == BarRole.BeamLedgeBar));
+        // aba direita = y menor: a ponta dos grampos e as longitudinais da aba ficam abaixo de y0
+        Assert.All(bars.Where(b => b.Role == BarRole.BeamLedgeBar), b => Assert.True(Cm(b.Points[0].B) < Y0));
+        Assert.DoesNotContain(avisos, a => a.Contains("ainda não é criada"));
+    }
+
+    [Fact]
+    public void TInvertidoComEstriboFechadoERetas()
+    {
+        var v = Viga(v =>
+        {
+            v["ExtE"] = "Reta"; v["ExtD"] = "Reta"; v["Aba"] = TemplateVigaPreMoldada.AbaDois; v["AbaLargura"] = "12"; v["AbaAltura"] = "20";
+            v["AbaAlturaPonta"] = "14"; v["AbaEstForma"] = TemplateVigaPreMoldada.AbaFechado;
+        });
+        var bars = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.VigaRebarLayout.Compute(v, new ConfiguracaoArmadura(), Y0, 0);
+        TudoDentro(v, bars);
+        Assert.Contains(bars, b => b.Role == BarRole.BeamLedge && b.Closed);
+        Assert.Equal(4, bars.Count(b => b.Role == BarRole.BeamLedgeBar));
+        Assert.Contains(bars, b => b.Role == BarRole.BeamLedgeBar && Cm(b.Points[0].B) > Y0 + 20);
+        Assert.Contains(bars, b => b.Role == BarRole.BeamLedgeBar && Cm(b.Points[0].B) < Y0);
+    }
+
+    [Fact]
+    public void RessaltoComAbaEDentes()
+    {
+        var v = Viga(v =>
+        {
+            v["B"] = "30"; v["H"] = "50"; v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "15"; v["AbaAltura"] = "20";
+            v["Ressalto"] = TemplateVigaPreMoldada.RessaltoEsq; v["RessaltoLargura"] = "13"; v["RessaltoAltura"] = "27.5";
+        });
+        var avisos = new List<string>();
+        var bars = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.VigaRebarLayout.Compute(v, new ConfiguracaoArmadura(), Y0, 0, avisos);
+        TudoDentro(v, bars);
+        Assert.Contains(bars, b => b.Role == BarRole.BeamUpstand);
+        Assert.Equal(4, bars.Count(b => b.Role == BarRole.BeamUpstandBar));
+        // ressalto à esquerda (y maior); a ligação sai pela face de dentro, para o lado da laje (y menor), 70 cm
+        var lig = bars.First(b => b.Role == BarRole.BeamTopping);
+        Assert.True(Cm(lig.Points[0].B) > Y0 + 30 - 13);
+        Assert.InRange(Cm(lig.Points[2].B), Y0 + 30 - 13 - 70 - 0.1, Y0 + 30 - 13 - 70 + 0.1);
+        // no dente o estribo do ressalto para no fundo do dente (há estribos de duas alturas)
+        Assert.True(bars.Where(b => b.Role == BarRole.BeamUpstand).Select(b => Math.Round(Cm(b.Points[0].C), 1)).Distinct().Count() >= 2);
+        string svg = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.DesenhoArmacaoSvg.Secao(v, bars, 300, Y0, 0, "MEIO");
+        Assert.Contains("#0e8a8a", svg);
     }
 }
 

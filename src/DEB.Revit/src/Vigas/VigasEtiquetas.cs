@@ -59,8 +59,10 @@ namespace DEB.Revit.Vigas
                 if (papel == RebarFactory.RoleLabel(DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.LiftLoop) ||
                     papel == RebarFactory.RoleLabel(DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D.BarRole.BeamWelded)) continue;
                 XYZ c = Centro(r);
-                bool tipoEstribo = papel.StartsWith("Estribo") || papel.StartsWith("Suspensão");
-                bool acima = !tipoEstribo && (c.DotProduct(cima) > (topo + fundo) / 2 || papel.StartsWith("Tirante") || papel.StartsWith("Grampo") || papel.StartsWith("Costura"));
+                bool tipoEstribo = papel.StartsWith("Estribo") || papel.StartsWith("Suspensão") || papel == "Grampo da aba" || papel == "Ligação com a capa";
+                bool acima = papel.EndsWith("ressalto") || papel == "Ligação com a capa" ||
+                             (!tipoEstribo && !papel.EndsWith("da aba") && (c.DotProduct(cima) > (topo + fundo) / 2 || papel.StartsWith("Tirante") ||
+                                                                         papel.StartsWith("Grampo") || papel.StartsWith("Costura")));
                 double x = c.DotProduct(dir);
                 int linha = 0;
                 while (ocupado.TryGetValue((acima, linha), out var xs) && xs.Any(o => Math.Abs(o - x) < largura)) linha++;

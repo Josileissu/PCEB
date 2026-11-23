@@ -73,7 +73,7 @@ public sealed partial class TemplateVigaPreMoldada
     }
 
     /// <summary>Posições (eixo, cm da ponta esquerda) de uma armadura distribuída ao longo da viga toda, pela regra de faixas do plugin.</summary>
-    private static List<double> PosicoesAoLongo(ValoresTemplate v, ConfiguracaoArmadura cfg, double L, double phiMm, double esp)
+    public static List<double> PosicoesAoLongo(ValoresTemplate v, ConfiguracaoArmadura cfg, double L, double phiMm, double esp)
     {
         double cob = v.Numero("CobPontas"), x0 = cob + phiMm / 20, x1 = L - cob - phiMm / 20;
         if (x1 - x0 < 1) return new List<double>();
@@ -110,6 +110,24 @@ public sealed partial class TemplateVigaPreMoldada
         double xv = fe + s * (cobL + tE + r), yTopo = sy0 + h + rs.Altura - cobT - tE - r;
         double yPe = Math.Max(sy0 + cobF + r, sy0 + h - v.Numero("LigCapaAncoragem"));
         return new List<(double X, double Y)> { (xv, yPe), (xv, yTopo), (fi + s * v.Numero("LigCapaSaida"), yTopo) };
+    }
+
+    /// <summary>
+    /// Centros das construtivas do ressalto na seção: nos cantos do estribo dele, no alto do ressalto e na altura do topo da alma (o
+    /// estribo continua até o fundo); as que passam de 4 sobem pelo meio. Mesma conta para o CAD e o Revit.
+    /// </summary>
+    public static List<(double X, double Y)> PontosLongRessalto(ValoresTemplate v, RessaltoViga rs, double b, double h, double sx0, double sy0)
+    {
+        var pts = new List<(double X, double Y)>();
+        int q = Math.Max(0, v.Inteiro("RessLongQtd"));
+        if (rs == null || !rs.Existe || q == 0) return pts;
+        var (x1, y1, x2, y2) = CaixaEstriboRessalto(v, rs, b, h, sx0, sy0);
+        if (x2 - x1 <= 2 || y2 - y1 <= 2) return pts;
+        double rr = v.Numero("RessLongBitola") / 20, t = v.Numero("RessEstBitola") / 20, yb = sy0 + h + t + rr;
+        var cantos = new[] { (x1 + t + rr, y2 - t - rr), (x2 - t - rr, y2 - t - rr), (x1 + t + rr, yb), (x2 - t - rr, yb) };
+        pts.AddRange(cantos.Take(Math.Min(4, q)));
+        for (int i = 4; i < q; i++) pts.Add(((x1 + x2) / 2, yb + (i - 3) * (y2 - t - rr - yb) / Math.Max(1, q - 3)));
+        return pts;
     }
 
     // ======================== desenho ========================
@@ -173,16 +191,10 @@ public sealed partial class TemplateVigaPreMoldada
             c.Retangulo(x1, y1, x2, y2, "ARM-BARRA-DETALHE");
             c.R.Faixas.Add(new FaixaTemplate { Barra = "ressestribo", Tipo = TipoFaixa.Indicacao, Referencias = { (rs.Esquerda ? x1 : x2, yr) },
                 Posicao = (xt, yr + 1.2 * hc), Escala = c.escC });
-            int q = Math.Max(0, v.Inteiro("RessLongQtd"));
-            double rr = v.Numero("RessLongBitola") / 20, t = v.Numero("RessEstBitola") / 20;
-            var pts = new List<(double X, double Y)>();
-            if (q > 0)
+            double rr = v.Numero("RessLongBitola") / 20;
+            var pts = PontosLongRessalto(v, rs, b, h, sx0, sy0);
+            if (pts.Count > 0)
             {
-                // construtivas: no alto do ressalto e na altura do topo da alma (o estribo continua até o fundo)
-                double yb = sy0 + h + t + rr;
-                var cantos = new[] { (x1 + t + rr, y2 - t - rr), (x2 - t - rr, y2 - t - rr), (x1 + t + rr, yb), (x2 - t - rr, yb) };
-                pts.AddRange(cantos.Take(Math.Min(4, q)));
-                for (int i = 4; i < q; i++) pts.Add(((x1 + x2) / 2, yb + (i - 3) * (y2 - t - rr - yb) / Math.Max(1, q - 3)));
                 foreach (var (px, py) in pts) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = rr, Layer = "ARM-BARRA-SECAO" });
                 c.R.Faixas.Add(new FaixaTemplate { Barra = "resslong", Tipo = TipoFaixa.Indicacao, Referencias = pts, Posicao = (xt, yr - 1.2 * hc), Escala = c.escC });
             }

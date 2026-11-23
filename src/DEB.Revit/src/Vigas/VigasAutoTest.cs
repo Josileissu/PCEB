@@ -16,8 +16,71 @@ namespace DEB.Revit.Vigas
     /// grava o relatório, arma, cria montagens e vistas e exporta PNG das vistas (3D e elevação). SD_SAVEAS = cópia do modelo.
     /// SD_SOCALCULO = 1: só o cálculo (nada muda no modelo). A janela é renderizada em PNG.
     /// </summary>
+    internal sealed class SempreSobrescrever : IFamilyLoadOptions
+    {
+        public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues) { overwriteParameterValues = true; return true; }
+        public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+        { source = FamilySource.Family; overwriteParameterValues = true; return true; }
+    }
+
     internal static class VigasAutoTest
     {
+        /// <summary>
+        /// SD_VIGA_FAMILIA (.rfa) e SD_VIGA_TIPO (nome do tipo; vazio = o 1º): carrega a família e troca o tipo de todas as vigas do
+        /// modelo de teste — para testar seções com aba e ressalto no Teste_PM (o resultado vai para a cópia do SD_SAVEAS).
+        /// </summary>
+        private static void TrocarFamilia(Document doc, string rfa, string tipo, StringBuilder sb)
+        {
+            if (string.IsNullOrWhiteSpace(rfa)) return;
+            // pelo documento da família (fora de transação): o LoadFamily do projeto devolvia falso sem dizer por quê
+            Family fam = null;
+            int jan = AutoRun.Dialogs.Count;
+            try
+            {
+                Document fd = doc.Application.OpenDocumentFile(rfa);
+                try { fam = fd.LoadFamily(doc, new SempreSobrescrever()); }
+                finally { fd.Close(false); }
+            }
+            catch (Exception ex) { sb.AppendLine("ERRO ao carregar a família: " + ex.Message); }
+            if (AutoRun.Dialogs.Count > jan) sb.AppendLine("   janelas fechadas: " + string.Join(", ", AutoRun.Dialogs.Skip(jan)));
+            if (fam == null) { sb.AppendLine("ERRO: família não carregada: " + rfa); return; }
+            using (var t = new Transaction(doc, "Teste: trocar a família das vigas"))
+            {
+                t.Start();
+                var simbolos = fam.GetFamilySymbolIds().Select(id => (FamilySymbol)doc.GetElement(id)).ToList();
+                sb.AppendLine("família de teste: " + fam.Name + " — tipos: " + string.Join(", ", simbolos.Select(s => s.Name)));
+                FamilySymbol sym = simbolos.FirstOrDefault(s => string.IsNullOrWhiteSpace(tipo) || s.Name == tipo) ?? simbolos.First();
+                // SD_VIGA_PARAMS = "b=200;h=500;dz_aba=0;..." (comprimentos em mm; sim/não e inteiros como número) num tipo duplicado
+                string pars = Environment.GetEnvironmentVariable("SD_VIGA_PARAMS");
+                if (!string.IsNullOrWhiteSpace(pars))
+                {
+                    sym = (FamilySymbol)sym.Duplicate("PCEB teste " + DateTime.Now.ToString("HHmmss"));
+                    foreach (string kv in pars.Split(';').Where(x => x.Contains("=")))
+                    {
+                        string nome = kv.Split('=')[0].Trim();
+                        double val = double.Parse(kv.Split('=')[1].Trim(), CultureInfo.InvariantCulture);
+                        Parameter p = sym.LookupParameter(nome);
+                        try
+                        {
+                            if (p == null || p.IsReadOnly) sb.AppendLine($"   parâmetro {nome}: {(p == null ? "não existe" : "só leitura")}");
+                            else if (p.StorageType == StorageType.Double) p.Set(UnitUtils.ConvertToInternalUnits(val, UnitTypeId.Millimeters));
+                            else if (p.StorageType == StorageType.Integer) p.Set((int)val);
+                        }
+                        catch (Exception ex) { sb.AppendLine($"   parâmetro {nome}: {ex.Message}"); }
+                    }
+                }
+                if (!sym.IsActive) sym.Activate();
+                int n = 0;
+                foreach (FamilyInstance fi in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
+                             .WhereElementIsNotElementType().OfType<FamilyInstance>().ToList())
+                {
+                    try { fi.Symbol = sym; n++; } catch (Exception ex) { sb.AppendLine("   troca falhou: " + ex.Message); }
+                }
+                t.Commit();
+                sb.AppendLine($"   {n} viga(s) trocadas para \"{sym.Name}\".");
+            }
+        }
+
         public static string Run(UIDocument uidoc)
         {
             Document doc = uidoc.Document;
@@ -25,6 +88,7 @@ namespace DEB.Revit.Vigas
             Directory.CreateDirectory(dir);
             var sb = new StringBuilder();
             var notas = new List<string>();
+            TrocarFamilia(doc, Environment.GetEnvironmentVariable("SD_VIGA_FAMILIA"), Environment.GetEnvironmentVariable("SD_VIGA_TIPO"), sb);
             List<GrupoViga> grupos = VigasPreMoldadas.Levantar(doc, notas);
             foreach (string n in notas) sb.AppendLine("nota: " + n);
             string[] c = (Environment.GetEnvironmentVariable("SD_CARGAS") ?? "12;6;").Split(';');

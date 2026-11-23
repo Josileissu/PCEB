@@ -44,7 +44,8 @@ namespace DEB.Revit.Precast
             // (MoveBarInSet), como se faz à mão no Revit. Assim a quantidade (8 N1) sai do próprio conjunto na etiqueta, na
             // tabela e no detalhe de curvatura em escala (que não desenha barra de forma livre).
             var groups = all.Where(b => (b.Role == BarRole.Longitudinal || b.Role == BarRole.LiftLoop || b.Role == BarRole.BeamTie ||
-                                         b.Role == BarRole.BeamHairpin || b.Role == BarRole.BeamStitch) && b.Count <= 1 && b.HostCorbel == null && !b.Closed)
+                                         b.Role == BarRole.BeamHairpin || b.Role == BarRole.BeamStitch || b.Role == BarRole.BeamLedgeBar ||
+                                         b.Role == BarRole.BeamUpstandBar) && b.Count <= 1 && b.HostCorbel == null && !b.Closed)
                 .GroupBy(ShapeKey).Where(g => g.Count() > 1).Select(g => g.ToList()).ToList();
             var grouped = new HashSet<BarDef>();
             foreach (List<BarDef> g in groups)
@@ -348,7 +349,7 @@ namespace DEB.Revit.Precast
 
         /// <summary>Estribos e grampos (estilo de estribo do Revit; pinos da tabela 9.2 da NBR 6118).</summary>
         private static bool IsTie(BarRole r) => r == BarRole.Stirrup || r == BarRole.CrossTie || r == BarRole.CorbelSew || r == BarRole.CorbelStirrup ||
-                                                r == BarRole.BeamGerber || r == BarRole.BeamHanger;
+                                                r == BarRole.BeamGerber || r == BarRole.BeamHanger || r == BarRole.BeamLedge || r == BarRole.BeamUpstand;
 
         public static string RoleLabel(BarRole r) => r switch
         {
@@ -368,6 +369,12 @@ namespace DEB.Revit.Precast
             BarRole.BeamHairpin => "Grampo do dente",
             BarRole.BeamStitch => "Costura do dente",
             BarRole.BeamWelded => "Barra transversal soldada",
+            BarRole.BeamLedge => "Estribo da aba",
+            BarRole.BeamLedgeHairpin => "Grampo da aba",
+            BarRole.BeamLedgeBar => "Longitudinal da aba",
+            BarRole.BeamUpstand => "Estribo do ressalto",
+            BarRole.BeamUpstandBar => "Longitudinal do ressalto",
+            BarRole.BeamTopping => "Ligação com a capa",
             _ => r.ToString()
         };
 

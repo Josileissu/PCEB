@@ -235,6 +235,41 @@ public sealed partial class TemplateVigaPreMoldada
         return SemColineares(p);
     }
 
+    /// <summary>
+    /// Centros das longitudinais na ponta da(s) aba(s), na seção com o canto inferior esquerdo da alma em (sx0, sy0): dentro da dobra
+    /// do grampo ou do estribo fechado da aba, <c>AbaLongQtd</c> por aba, de baixo para cima. Mesma conta para o CAD e o Revit.
+    /// </summary>
+    public static List<(double X, double Y)> PontosLongAba(ValoresTemplate v, AbaViga a, double b, double sx0, double sy0)
+    {
+        var pts = new List<(double X, double Y)>();
+        int q0 = Math.Max(0, v.Inteiro("AbaLongQtd"));
+        if (a == null || !a.Existe || q0 == 0) return pts;
+        double rr = v.Numero("AbaLongBitola") / 20, t = v.Numero("AbaEstBitola") / 20;
+        if (GrampoNaAba(v, a))
+        {
+            foreach (bool dir in new[] { true, false })
+            {
+                if (dir ? !a.Direita : !a.Esquerda) continue;
+                var g = PoligonoGrampoAba(v, a, b, sx0, sy0, dir);
+                if (g == null) continue;
+                double xp = g[1].X, ya = g[2].Y, yb = g[1].Y, xx = xp + (dir ? -1 : 1) * (t + rr);
+                for (int i = 0; i < q0; i++) pts.Add((xx, q0 == 1 ? yb - t - rr : ya + t + rr + i * (yb - ya - 2 * t - 2 * rr) / (q0 - 1)));
+            }
+            return pts;
+        }
+        var pol = PoligonoEstriboAba(v, a, b, sx0, sy0);
+        if (pol == null) return pts;
+        double x1 = pol.Min(q => q.X), x2 = pol.Max(q => q.X), y2 = pol.Max(q => q.Y);
+        double xpA = a.Esquerda ? x1 : x2, yp = pol.Where(q => Math.Abs(q.X - xpA) < 1e-6).Min(q => q.Y);
+        foreach (bool lado in new[] { true, false })
+        {
+            if (lado ? !a.Esquerda : !a.Direita) continue;
+            double xx = lado ? x1 + t + rr : x2 - t - rr, yaa = yp + t + rr, ybb = y2 - t - rr;
+            for (int i = 0; i < q0; i++) pts.Add((xx, q0 == 1 ? ybb : yaa + i * (ybb - yaa) / (q0 - 1)));
+        }
+        return pts;
+    }
+
     // ======================== desenho ========================
 
     /// <summary>A(s) aba(s) na planta, ao lado da alma (que vai de yP a yP + b).</summary>
@@ -304,16 +339,9 @@ public sealed partial class TemplateVigaPreMoldada
         {
             Barra = "abaestribo", Tipo = TipoFaixa.Indicacao, Referencias = { (xp, ym) }, Posicao = (xt, ym - 1.2 * hc), Escala = c.escC,
         });
-        int q0 = Math.Max(0, v.Inteiro("AbaLongQtd"));
-        if (q0 == 0) return;
-        double phi = v.Numero("AbaLongBitola"), rr = phi / 20, t = v.Numero("AbaEstBitola") / 20;
-        var pts = new List<(double X, double Y)>();
-        foreach (bool lado in new[] { true, false })
-        {
-            if (lado ? !a.Esquerda : !a.Direita) continue;
-            double xx = lado ? x1 + t + rr : x2 - t - rr, ya = yp + t + rr, yb = y2 - t - rr;
-            for (int i = 0; i < q0; i++) pts.Add((xx, q0 == 1 ? yb : ya + i * (yb - ya) / (q0 - 1)));
-        }
+        var pts = PontosLongAba(v, a, b, sx0, sy0);
+        if (pts.Count == 0) return;
+        double rr = v.Numero("AbaLongBitola") / 20;
         foreach (var (px, py) in pts) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = rr, Layer = "ARM-BARRA-SECAO" });
         c.R.Faixas.Add(new FaixaTemplate
         {
@@ -325,9 +353,8 @@ public sealed partial class TemplateVigaPreMoldada
     /// <summary>Os grampos da(s) aba(s) na SEÇÃO - ARMADURA, as longitudinais na ponta (dentro da dobra) e uma indicação de cada.</summary>
     private static void GramposNaSecaoArmadura(Ctx c, ValoresTemplate v, AbaViga a, double b, double sx0, double sy0)
     {
-        double hc = c.hC, phi = v.Numero("AbaLongBitola"), rr = phi / 20, t = v.Numero("AbaEstBitola") / 20;
-        int q0 = Math.Max(0, v.Inteiro("AbaLongQtd"));
-        var pts = new List<(double X, double Y)>();
+        double hc = c.hC, rr = v.Numero("AbaLongBitola") / 20;
+        var pts = PontosLongAba(v, a, b, sx0, sy0);
         bool indicou = false;
         foreach (bool dir in new[] { true, false })
         {
@@ -341,8 +368,6 @@ public sealed partial class TemplateVigaPreMoldada
                 c.R.Faixas.Add(new FaixaTemplate { Barra = "abaestribo", Tipo = TipoFaixa.Indicacao, Referencias = { (xp, ym) }, Posicao = (xt, ym - 1.2 * hc), Escala = c.escC });
                 indicou = true;
             }
-            double xx = xp + (dir ? -1 : 1) * (t + rr);
-            for (int i = 0; i < q0; i++) pts.Add((xx, q0 == 1 ? yb - t - rr : ya + t + rr + i * (yb - ya - 2 * t - 2 * rr) / (q0 - 1)));
         }
         foreach (var (px, py) in pts) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = rr, Layer = "ARM-BARRA-SECAO" });
         if (pts.Count > 0)

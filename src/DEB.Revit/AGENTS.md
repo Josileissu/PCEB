@@ -56,6 +56,9 @@ $p.WaitForExit(540000)
   `precast`: fluxo completo de pilares com armadura padrão + PNG da prancha e da janela. `SD_LINHAS=1`: armadura por linha de
   teste (cantos ø20, faces 2 e 4 com redução ø16 → ø12,5, faces 1 e 3 em feixe de 2); o log traz x, y e z das longitudinais.
 - `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
+  `SD_VIGA_FAMILIA` (.rfa; copie com nome sem acento), `SD_VIGA_TIPO` e `SD_VIGA_PARAMS` (`b=200;h=500;dz_aba=300;...`, mm, num tipo
+  duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEBariantes_PCEB`
+  (as de "aba laje e aba superior" são do 2026). A família entra pelo documento dela (`fd.LoadFamily(doc)`): o `doc.LoadFamily` devolvia falso.
 - `exportarpecas` (`SD_EXPORT` = caminho), `conferir`, `conferireditar`, `furos`: ver `docs/EXPORTAR_PARA_O_CAD.md` e `docs/CONFERIR_PECAS.md`.
   Tarefas `formas*`: `docs/FORMAS.md`. `contarlegendas`: `docs/DETALHES_PADRAO.md`.
 - Sem projeto aberto (`src/Precast/TestModel.cs`): `familias` (relatório de `SD_FAMILIAS`, .rfa separados por `;`) e
