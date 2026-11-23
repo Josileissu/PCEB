@@ -59,6 +59,9 @@ $p.WaitForExit(540000)
   paginação de laje alveolar) — `src/UI/JanelasDemo.cs`. As janelas com abas (vigas, pilares) gravam uma imagem por aba (`janela_2.png`…).
 - **Padrão visual das janelas (D41)**: use o kit `src/UI/Estilo.cs` (`Estilo.Aplicar`, `Cabecalho`, `Cartao`, `Selo`, `Campo`,
   `TabelaVerificacoes`, `Grafico`); janela nova de ferramenta pelo `ToolDialogs.NewWindow` (já aplica o kit). Cores só da identidade.
+- `escadas`: escada em laje armada longitudinalmente (D42) — cálculo, MEF, otimizador, janela em PNG, duas vigas de apoio de teste,
+  família PCEB e barras, corte e 3D exportados; ver `docs/ESCADAS.md`. MEF: caminhos em `%AppData%\PCEB\mef.txt` (`python=` Python 3.12
+  com openseespy; `ccx=` CalculiX).
 - `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
   `SD_VIGA_FAMILIA` (.rfa; copie com nome sem acento), `SD_VIGA_TIPO` e `SD_VIGA_PARAMS` (`b=200;h=500;dz_aba=300;...`, mm, num tipo
   duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEBariantes_PCEB`
@@ -106,6 +109,7 @@ src/
   Formas/        pranchas de formas (docs/FORMAS.md)
   Tools/         painel "Ferramentas" (docs/FERRAMENTAS.md)
   Vigas/         vigas pré-moldadas: cargas PCEB_, cálculo e armação pelo núcleo, janela com prévia (docs/VIGAS_PRE_MOLDADAS.md, D40)
+  Escadas/       escada armada longitudinalmente: janela, família gerada, barras, autoteste (docs/ESCADAS.md, D42)
 ```
 Fluxo dos pré-moldados: levantamento → grupos de peças iguais → janela (armadura por grupo) →
 para cada pilar: limpar → marca → barras → dados das barras → assembly (pilar + consolos + barras) →
