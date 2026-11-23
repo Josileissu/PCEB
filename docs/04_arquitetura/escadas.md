@@ -95,6 +95,6 @@ Para a carga `p = g + q` em projeção, o vão horizontal `ℓ` e o ângulo `α`
 - **Otimizador**: procura n, ae e ad (Blondel), a espessura h e o arranjo dos patamares que cabem no espaço e no desnível,
   ordenados por consumo de concreto e de aço e pela flecha.
 
-## 6. Pontos a decidir com o usuário
+## 6. Decisões
 
-Ver a tarefa `docs/00_escopo/tarefas/P1-13.md`.
+Decididos em 23/11; ver a tarefa `docs/00_escopo/tarefas/P1-13.md`.
