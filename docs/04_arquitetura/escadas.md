@@ -104,6 +104,48 @@ Para a carga `p = g + q` em projeção, o vão horizontal `ℓ` e o ângulo `α`
 - **Otimizador**: procura n, ae e ad (Blondel), a espessura h e o arranjo dos patamares que cabem no espaço e no desnível,
   ordenados por consumo de concreto e de aço e pela flecha.
 
-## 6. Decisões
+## 6. Escada pré-moldada (D43)
+
+Pedido do usuário (23/11/2026): "vamos trabalhar com as escadas pré-moldadas, com apoio nos tipos definidos e com pinos". Os tipos
+de apoio são os do arquivo de configurações que está sendo criado em outra branch. A geometria continua a mesma; o que muda são
+as ligações, a divisão em peças e as fases transitórias.
+
+- **Execução** é uma opção da escada: moldada no local ou pré-moldada. A pré-moldada é montada por **peças**.
+  - Cada **lance** é uma peça biapoiada; o vão vai de centro de apoio a centro de apoio.
+  - O **patamar intermediário** (escadas em L e em U) é uma peça própria, apoiada nas vigas ou paredes. Ela recebe as
+    reações dos lances que se apoiam nela.
+- **Ligação em cada ponta**, de dois tipos:
+  - *apoio direto*, sem recorte (NBR 9062, 7.5). O tirante As = (Fd/1,2 + Hd)/fyd e a costura Ash = Asv = Fd/(8·fyd) são feitos com
+    grampos em U na ponta;
+  - *dente* (7.4), com tirante, suspensão e biela, como nas vigas pré-moldadas.
+
+  Nas duas, o patamar de apoio da peça tem pelo menos meio comprimento de apoio para cada lado do centro.
+- **Força horizontal no apoio** (7.3.9), Hd = k·Fd:
+
+  | Apoio | k |
+  |---|---|
+  | junta seca | 0,8 |
+  | argamassa | 0,5 |
+  | concreto com chapa | 0,4 |
+  | chapas não soldadas | 0,25 |
+  | elastômero (padrão) | 0,16 |
+  | PTFE | 0,08 |
+
+  Os valores padrão vêm de uma classe só, que vai ler o arquivo de configurações quando ele chegar.
+- **Pinos** (chumbadores grauteados, que passam por furo na peça e entram no apoio): resistem ao Hd por corte.
+  - Resistência por pino: Rvd = 1,0·φ²·√(fcd·fyd), valor conservador da literatura de ligações com pino; a conferir com o usuário.
+  - Distâncias e embutimento pela NBR 9062, Tabela 12: embutimento de 8φ a 20φ; distância à borda de no mínimo 4φ, crítica 7φ.
+  - Furo maior que o pino, para a tolerância de montagem.
+- **Barras**: todas ficam dentro da peça, com cobrimento nas pontas. Saem as negativas que entravam na viga (moldada no
+  local). Entram a armadura superior de içamento e construtiva e os grampos de apoio.
+- **Içamento** (NBR 9062, 5.3), com coeficiente dinâmico de 1,3:
+  - 4 alças a 0,207 do comprimento da peça a partir das pontas;
+  - momentos negativo e positivo com fcj de desforma;
+  - força por alça (com 3 alças trabalhando), para escolher o inserto.
+- **No Revit**: a família ganha o recorte do dente e os furos dos pinos. As barras saem do mesmo resultado da prévia.
+
+Ordem: (1) lance pré-moldado com as ligações, pinos e içamento; (2) patamar intermediário e as escadas em L e U por peças.
+
+## 7. Decisões
 
 Decididos em 23/11; ver a tarefa `docs/00_escopo/tarefas/P1-13.md`.
