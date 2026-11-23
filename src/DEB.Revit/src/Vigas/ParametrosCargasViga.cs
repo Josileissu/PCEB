@@ -37,7 +37,14 @@ namespace DEB.Revit.Vigas
         public static readonly Def ApoioD = D("PCEB_Apoio direito (cm)", "3c7d9a20-5e1f-4a2b-8c3d-7b6a5f4e0005", SpecTypeId.Number,
             "Distância da ponta direita ao eixo do apoio, cm. 0 = automática.");
 
-        public static IEnumerable<Def> Todos => new[] { G, Q, Concentradas, ApoioE, ApoioD };
+        public static readonly Def GAba = D("PCEB_Carga permanente na aba (kN/m)", "3c7d9a20-5e1f-4a2b-8c3d-7b6a5f4e0006", SpecTypeId.Number,
+            "Carga permanente apoiada NA ABA, por lado (laje), característica, kN/m. Não está incluída na carga permanente acima; fora do eixo da alma, gera torção.");
+        public static readonly Def QAba = D("PCEB_Carga variável na aba (kN/m)", "3c7d9a20-5e1f-4a2b-8c3d-7b6a5f4e0007", SpecTypeId.Number,
+            "Carga variável apoiada NA ABA, por lado (sobrecarga pela laje), característica, kN/m. Não está incluída na carga variável acima.");
+        public static readonly Def ExcAba = D("PCEB_Excentricidade da carga na aba (cm)", "3c7d9a20-5e1f-4a2b-8c3d-7b6a5f4e0008", SpecTypeId.Number,
+            "Distância do eixo da alma à linha da carga na aba, cm. 0 = automática (meio do balanço da aba).");
+
+        public static IEnumerable<Def> Todos => new[] { G, Q, Concentradas, ApoioE, ApoioD, GAba, QAba, ExcAba };
 
         /// <summary>Cria (e vincula ao Framing estrutural) os que faltam; precisa de transação. Devolve quantos criou.</summary>
         public static int Garantir(Document doc, List<string> avisos)
@@ -92,6 +99,7 @@ namespace DEB.Revit.Vigas
         public static CargasViga Ler(Element e, List<string> erros = null) => new CargasViga
         {
             G = Num(e, G), Q = Num(e, Q), ApoioE = Num(e, ApoioE), ApoioD = Num(e, ApoioD),
+            GAba = Num(e, GAba), QAba = Num(e, QAba), ExcAba = Num(e, ExcAba),
             Concentradas = CargasViga.LerConcentradas(P(e, Concentradas)?.AsString() ?? "", erros),
         };
 
@@ -102,6 +110,9 @@ namespace DEB.Revit.Vigas
             P(e, Q)?.Set(c.Q);
             P(e, ApoioE)?.Set(c.ApoioE);
             P(e, ApoioD)?.Set(c.ApoioD);
+            P(e, GAba)?.Set(c.GAba);
+            P(e, QAba)?.Set(c.QAba);
+            P(e, ExcAba)?.Set(c.ExcAba);
             P(e, Concentradas)?.Set(CargasViga.TextoConcentradas(c.Concentradas));
         }
     }

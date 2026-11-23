@@ -27,11 +27,21 @@ public sealed class CargasViga
     public double Q { get; set; }
     public List<CargaConcentrada> Concentradas { get; set; } = new List<CargaConcentrada>();
 
+    /// <summary>
+    /// Carga apoiada NA ABA, por lado (kN/m, característica): a laje que descarrega na aba. Soma-se às cargas verticais (G e Q
+    /// acima não a incluem) e, fora do eixo da alma, gera TORÇÃO (NBR 6118, 17.5). No T invertido o cálculo considera a montagem
+    /// com laje de um lado só e a sobrecarga de um lado só.
+    /// </summary>
+    public double GAba { get; set; }
+    public double QAba { get; set; }
+    /// <summary>Distância do eixo da alma à linha da carga na aba (cm); 0 = automática (meio do balanço da aba).</summary>
+    public double ExcAba { get; set; }
+
     /// <summary>Distância da ponta ao eixo do apoio (cm); 0 = automática (furo do pino, meio do dente ou 10 cm).</summary>
     public double ApoioE { get; set; }
     public double ApoioD { get; set; }
 
-    public bool Vazia => Math.Abs(G) < 1e-9 && Math.Abs(Q) < 1e-9 && Concentradas.Count == 0;
+    public bool Vazia => Math.Abs(G) < 1e-9 && Math.Abs(Q) < 1e-9 && Math.Abs(GAba) < 1e-9 && Math.Abs(QAba) < 1e-9 && Concentradas.Count == 0;
 
     /// <summary>Envoltória de várias vigas do mesmo grupo: maiores distribuídas e todas as concentradas (cada uma com o seu x).</summary>
     public static CargasViga Envoltoria(IEnumerable<CargasViga> cargas)
@@ -46,6 +56,7 @@ public sealed class CargasViga
             Concentradas = l.SelectMany(c => c.Concentradas).GroupBy(p => Math.Round(p.X / 5))
                 .Select(g => new CargaConcentrada { X = g.First().X, G = g.Max(p => p.G), Q = g.Max(p => p.Q) }).ToList(),
             ApoioE = l.Max(c => c.ApoioE), ApoioD = l.Max(c => c.ApoioD),
+            GAba = l.Max(c => c.GAba), QAba = l.Max(c => c.QAba), ExcAba = l.Max(c => c.ExcAba),
         };
     }
 
