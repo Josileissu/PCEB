@@ -85,6 +85,15 @@ Para a carga `p = g + q` em projeção, o vão horizontal `ℓ` e o ângulo `α`
 3. **Biblioteca própria** de MEF: barras e cascas no núcleo. Fica para depois, quando os casos de teste dos externos estiverem
    prontos para servir de referência.
 
+### Ferramentas instaladas (23/11/2026, fora do Git, em `programas/`)
+- **OpenSees**: openseespy 3.8 no **Python 3.12** (`py -3.12`). O pacote do Windows só carrega no 3.12; o 3.13 continua
+  como padrão. Rodas em `programas/python312/` para instalar sem rede. Conferido com uma viga biapoiada de 4 m e
+  q = 10 kN/m: reação de 20,0 kN.
+- **CalculiX 2.22**: `programas/calculix/calculix_2.22_4win/ccx_static.exe`, do site do autor. Conferido com um balanço e
+  carga na ponta; a flecha bate com a de Timoshenko. Em `*BEAM SECTION RECT a,b`, a dimensão `a` fica na direção 1, que é o
+  vetor da linha seguinte.
+- **Firewall**: regra de saída "Python 3.13 (PCEB)" para o pip. Programa novo que use rede precisa de regra própria (UAC).
+
 ## 5. Plugin, posicionamento e janela
 
 - **Janela de prévia** no kit `UI/Estilo` (D41), com abas Geometria, Cargas, Esforços (M, V, N), Reações, Deformada, MEF × cálculo
