@@ -88,9 +88,10 @@ public sealed partial class TemplateVigaPreMoldada
                      "\"Passa\" com a aba descendo abaixo do recorte = ela fica pendurada abaixo do dente (aba de escada)."),
         P(G10, "AbaIni", "Aba: início (0 = pela opção dos dentes)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda."),
         P(G10, "AbaFim", "Aba: fim (0 = pela opção dos dentes)", "0", "cm", min: 0, descricao: "Distância da ponta esquerda."),
-        P(G10, "AbaEstForma", "Armadura da aba de laje", AbaGrampo, tipo: TipoParametro.Opcao, opcoes: new[] { AbaGrampo, AbaFechado },
-          descricao: "Grampo (padrão do escritório, 2026-11-11): U deitado, aberto para a alma — o ramo de cima vai da face oposta da alma " +
-                     "à ponta da aba, desce pela ponta e volta pelo fundo, acompanhando a inclinação. Fechado: estribo que abraça a alma e a aba. " +
+        P(G10, "AbaEstForma", "Armadura da aba de laje", AbaEstribo, tipo: TipoParametro.Opcao, opcoes: new[] { AbaEstribo, AbaGrampo, AbaFechado },
+          descricao: "Estribo da aba (sugestão do usuário, 2026-11-23: a seção em L fica com dois estribos, o da alma e o da aba): fechado, " +
+                     "da face oposta da alma à ponta da aba, com o ramo de baixo acompanhando a inclinação. Grampo (padrão do escritório, " +
+                     "2026-11-11): a mesma forma aberta para a alma. Fechado (abraça a alma e a aba): um estribo só, em volta de tudo. " +
                      "O consolo curto (até 60 cm) usa sempre o fechado."),
         P(G10, "AbaEstBitola", "Estribo da aba: bitola", "8", "mm", TipoParametro.Bitola, 5, 16,
           descricao: "Grampo ou estribo da aba; o ramo de cima é o tirante da aba (consolo corrido)."),
@@ -192,9 +193,22 @@ public sealed partial class TemplateVigaPreMoldada
         return CalculoFaixa.Posicoes(x1 - x0, n, esp, cfg.EspacamentoInicialFaixa).Select(s => x0 + s).ToList();
     }
 
-    public const string AbaGrampo = "Grampo (U aberto para a alma)", AbaFechado = "Fechado (abraça a alma e a aba)";
+    public const string AbaGrampo = "Grampo (U aberto para a alma)", AbaFechado = "Fechado (abraça a alma e a aba)",
+                        AbaEstribo = "Estribo da aba (fechado, da face oposta da alma à ponta)";
 
-    /// <summary>A aba de laje leva o grampo (U aberto) em vez do estribo fechado: opção padrão, nunca no consolo curto.</summary>
+    /// <summary>Estribo próprio da aba: a forma do grampo fechada na face oposta da alma (dois estribos na seção em L).</summary>
+    public static bool EstriboNaAba(ValoresTemplate v, AbaViga a) => GrampoNaAba(v, a) && v["AbaEstForma"] == AbaEstribo;
+
+    /// <summary>O estribo da aba fechado, anti-horário a partir do canto de baixo junto da alma (a partir do polígono do grampo).</summary>
+    public static List<(double X, double Y)> PoligonoEstriboProprioAba(ValoresTemplate v, AbaViga a, double b, double sx0, double sy0, bool direita)
+    {
+        var g = PoligonoGrampoAba(v, a, b, sx0, sy0, direita);
+        if (g == null) return null;
+        var p = new List<(double X, double Y)> { g[3], g[2], g[1], g[0] };
+        return direita ? p : new List<(double X, double Y)> { g[2], g[3], g[0], g[1] };
+    }
+
+    /// <summary>A aba de laje leva a forma de grampo (U aberto, ou fechado como estribo da aba) em vez do estribo que abraça tudo; nunca no consolo curto.</summary>
     public static bool GrampoNaAba(ValoresTemplate v, AbaViga a) => a != null && a.Existe && !a.Consolo && v["AbaEstForma"] != AbaFechado;
 
     /// <summary>
@@ -361,7 +375,7 @@ public sealed partial class TemplateVigaPreMoldada
             if (dir ? !a.Direita : !a.Esquerda) continue;
             var g = PoligonoGrampoAba(v, a, b, sx0, sy0, dir);
             if (g == null) continue;
-            c.R.Contornos.Add(new ContornoTemplate { Vertices = g, Fechado = false, Layer = "ARM-BARRA-DETALHE" });
+            c.R.Contornos.Add(new ContornoTemplate { Vertices = g, Fechado = EstriboNaAba(v, a), Layer = "ARM-BARRA-DETALHE" });
             double xp = g[1].X, ya = g[2].Y, yb = g[1].Y, ym = (ya + yb) / 2, xt = dir ? sx0 + b + a.Largura + 4 * hc : sx0 - a.Largura - 4 * hc;
             if (!indicou)
             {
@@ -419,6 +433,19 @@ public sealed partial class TemplateVigaPreMoldada
     /// <summary>Forma do estribo da aba (fechado, com ganchos) para a relação do aço; o canto inferior esquerdo em (x, y).</summary>
     private static BarraTemplate FormaEstriboAba(ValoresTemplate v, ConfiguracaoArmadura cfg, AbaViga a, double b, double x, double y)
     {
+        if (EstriboNaAba(v, a))
+        {
+            var pe = PoligonoEstriboProprioAba(v, a, b, 0, 0, true);
+            if (pe == null) return null;
+            double ex = pe.Min(q => q.X), ey = pe.Min(q => q.Y), phiE = v.Numero("AbaEstBitola");
+            var fe = GeradorEstribo.FechadoPadrao(pe.Select(q => (q.X - ex + x, q.Y - ey + y)).ToList(), phiE, v["EstAco"], cfg.Dobramento);
+            var be = new BarraTemplate { Nome = "abaestribo", Bitola = phiE, Aco = v["EstAco"], Estribo = true, Escala = 0, Quantidade = 1 };
+            be.Vertices.AddRange(fe.Vertices.Select(q => (q.X, q.Y)));
+            be.Formatos.AddRange(fe.Formatos);
+            foreach (var sb in fe.Sobrepostos) be.Sobrepostos.Add(sb);
+            foreach (var sc in fe.Cotados) be.Cotados.Add(sc);
+            return be;
+        }
         if (GrampoNaAba(v, a))
         {
             // o grampo como na prancha: aberto à esquerda, ponta à direita (a forma não depende do lado)

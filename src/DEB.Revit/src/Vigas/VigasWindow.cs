@@ -380,71 +380,94 @@ namespace DEB.Revit.Vigas
                 dc.DrawText(ft, new WPoint(centro ? x - ft.Width / 2 : x, y));
             }
 
-            // ---- elevação (faixa de cima) ----
-            double mx = 20, larg = W - 2 * mx, esc = larg / L;
-            double hElev = Math.Min(h * esc * 2.2, H * 0.32);   // altura exagerada para ver as barras (escala vertical própria)
-            double escV = hElev / h, yTop = 34, yBot = yTop + hElev;
-            WPoint E(double x, double z) => new WPoint(mx + x * esc, yBot - (z - _g.AlmaZ0) * escV);
-            Txt("ELEVAÇÃO (escala vertical ampliada)", mx, 8, 12, Brushes.DimGray);
-            var e = _g.Peca;
-            var contorno = new StreamGeometry();
-            using (var sg = contorno.Open())
-            {
-                double hdE = e?.DenteE?.Altura ?? h, cdE = e?.DenteE?.Comprimento ?? 0, hdD = e?.DenteD?.Altura ?? h, cdD = e?.DenteD?.Comprimento ?? 0;
-                sg.BeginFigure(E(0, _g.AlmaZ0 + h - hdE), false, true);
-                sg.LineTo(E(cdE, _g.AlmaZ0 + h - hdE), true, false); sg.LineTo(E(cdE, _g.AlmaZ0), true, false);
-                sg.LineTo(E(L - cdD, _g.AlmaZ0), true, false); sg.LineTo(E(L - cdD, _g.AlmaZ0 + h - hdD), true, false);
-                sg.LineTo(E(L, _g.AlmaZ0 + h - hdD), true, false); sg.LineTo(E(L, _g.AlmaZ0 + h), true, false); sg.LineTo(E(0, _g.AlmaZ0 + h), true, false);
-            }
-            contorno.Freeze();
-            dc.DrawGeometry(new SolidColorBrush(WColor.FromRgb(0xF2, 0xF2, 0xF2)), forma, contorno);
-            if (_bars != null)
-                foreach (BarDef bd in _bars)
-                    foreach (var inst in bd.Instances())
-                    {
-                        var pts = inst.Select(p => E(Cm(p.A), Cm(p.C))).ToList();
-                        if (bd.Role == BarRole.BeamHairpin || bd.Role == BarRole.BeamStitch || bd.Role == BarRole.BeamWelded)
-                            pts = new List<WPoint> { pts.First(), new WPoint(pts.Max(q => q.X), pts[0].Y), pts.Last() };
-                        var pen = Caneta(bd.Role, bd.Role == BarRole.Stirrup ? 0.7 : 1.3);
-                        for (int i = 0; i + 1 < pts.Count; i++) dc.DrawLine(pen, pts[i], pts[i + 1]);
-                        if (bd.Closed && pts.Count > 2) dc.DrawLine(pen, pts[^1], pts[0]);
-                        if (bd.ArcMid.Count > 0) foreach (var kv in bd.ArcMid) { var m = E(Cm(kv.Value.A), Cm(kv.Value.C)); dc.DrawLine(pen, pts[kv.Key], m); dc.DrawLine(pen, m, pts[kv.Key + 1]); }
-                    }
-            // apoios
+            var pt = CultureInfo.GetCultureInfo("pt-BR");
+            string Nf(double x, string f = "0.#") => x.ToString(f, pt);
             var c = _g.Calculo;
-            if (c != null)
-                foreach (double xa in new[] { c.ApoioE, L - c.ApoioD })
-                {
-                    var p0 = E(xa, _g.AlmaZ0);
-                    var tri = new StreamGeometry();
-                    using (var sg = tri.Open()) { sg.BeginFigure(p0, true, true); sg.LineTo(new WPoint(p0.X - 6, p0.Y + 10), true, false); sg.LineTo(new WPoint(p0.X + 6, p0.Y + 10), true, false); }
-                    tri.Freeze(); dc.DrawGeometry(Brushes.Black, null, tri);
-                }
-            Txt($"L = {L:0.#} cm", mx + larg / 2, yBot + 12, 11, Brushes.DimGray, true);
-
-            // ---- seção no meio do vão (embaixo, à esquerda) ----
-            // seção pelo contorno do CAD (alma, aba e ressalto); x da seção = y0 + b − y (o lado esquerdo das seções é y maior)
+            var tracejada = new Pen(Brushes.Gray, 0.8) { DashStyle = DashStyles.Dash }; tracejada.Freeze();
             var lixo = new List<string>();
             var exE = TemplateVigaPreMoldada.LerExtremidade(v, true, TemplateVigaPreMoldada.CatalogoDentes, lixo);
             var exD = TemplateVigaPreMoldada.LerExtremidade(v, false, TemplateVigaPreMoldada.CatalogoDentes, lixo);
             var aba = TemplateVigaPreMoldada.LerAba(v, h, L, exE, exD, null);
             var rs = TemplateVigaPreMoldada.LerRessalto(v, b, h, null);
+            double hr = rs.Existe ? rs.Altura : 0;
+
+            // ---- elevação (faixa de cima): espaço para as alças acima da viga; escala vertical ampliada ----
+            double z0 = _g.AlmaZ0, zTopoBarras = _bars == null || _bars.Count == 0 ? z0 + h : _bars.SelectMany(x => x.Points).Max(p => Cm(p.C));
+            double acima = Math.Max(hr, zTopoBarras - (z0 + h));
+            double mx = 24, larg = W - 2 * mx - 40, esc = larg / L;
+            double hElev = Math.Min(h * esc * 2.2, H * 0.30), escV = hElev / h;
+            if (acima * escV > 60) escV = 60 / Math.Max(acima, 1);
+            hElev = h * escV;
+            double yTop = 30 + acima * escV, yBot = yTop + hElev;
+            WPoint E(double x, double z) => new WPoint(mx + x * esc, yTop + (z0 + h - z) * escV);
+            Txt("ELEVAÇÃO", mx, 6, 12, Brushes.DimGray);
+            Txt("escala vertical ampliada", mx + 72, 8, 10, Brushes.Gray);
+            var contorno = new StreamGeometry();
+            using (var sg = contorno.Open())
+            {
+                double hdE = exE.TemDente ? exE.Dente.Altura : h, cdE = exE.TemDente ? exE.CompDente : 0, hdD = exD.TemDente ? exD.Dente.Altura : h, cdD = exD.TemDente ? exD.CompDente : 0;
+                sg.BeginFigure(E(0, z0 + h - hdE), true, true);
+                sg.LineTo(E(cdE, z0 + h - hdE), true, false); sg.LineTo(E(cdE, z0), true, false);
+                sg.LineTo(E(L - cdD, z0), true, false); sg.LineTo(E(L - cdD, z0 + h - hdD), true, false);
+                sg.LineTo(E(L, z0 + h - hdD), true, false); sg.LineTo(E(L, z0 + h + hr), true, false); sg.LineTo(E(0, z0 + h + hr), true, false);
+            }
+            contorno.Freeze();
+            dc.DrawGeometry(new SolidColorBrush(WColor.FromRgb(0xF4, 0xF4, 0xF4)), forma, contorno);
+            if (hr > 0) dc.DrawLine(fina, E(0, z0 + h), E(L, z0 + h));                       // topo da alma (o ressalto em cima)
+            if (aba.Existe)                                                                   // aba: topo e fundo, tracejados
+            {
+                dc.DrawLine(tracejada, E(aba.Ini, z0 + aba.Base + aba.Altura), E(aba.Fim, z0 + aba.Base + aba.Altura));
+                if (aba.Base > 0) dc.DrawLine(tracejada, E(aba.Ini, z0 + aba.Base), E(aba.Fim, z0 + aba.Base));
+            }
+            if (_bars != null)
+                foreach (BarDef bd in _bars.OrderBy(x => x.Normal.A != 0 ? 0 : 1))      // estribos por baixo, longitudinais por cima
+                    foreach (var inst in bd.Instances())
+                    {
+                        var pts = inst.Select(p => E(Cm(p.A), Cm(p.C))).ToList();
+                        // U horizontais (grampo e costura do dente) e a barra soldada: vistos de lado, um traço de ponta a ponta
+                        if (bd.Role == BarRole.BeamHairpin || bd.Role == BarRole.BeamStitch || bd.Role == BarRole.BeamWelded)
+                            pts = new List<WPoint> { new WPoint(pts.Min(q => q.X), pts[0].Y), new WPoint(pts.Max(q => q.X), pts[0].Y) };
+                        bool plano = bd.Normal.A != 0 && bd.Role != BarRole.BeamWelded;
+                        var pen = Caneta(bd.Role, plano ? 0.7 : 1.4);
+                        for (int i = 0; i + 1 < pts.Count; i++) dc.DrawLine(pen, pts[i], pts[i + 1]);
+                        if (bd.Closed && pts.Count > 2) dc.DrawLine(pen, pts[^1], pts[0]);
+                        if (bd.ArcMid.Count > 0) foreach (var kv in bd.ArcMid) { var m = E(Cm(kv.Value.A), Cm(kv.Value.C)); dc.DrawLine(pen, pts[kv.Key], m); dc.DrawLine(pen, m, pts[kv.Key + 1]); }
+                    }
+            // apoios e cotas
+            if (c != null)
+                foreach (double xa in new[] { c.ApoioE, L - c.ApoioD })
+                {
+                    var p0 = E(xa, z0);
+                    var tri = new StreamGeometry();
+                    using (var sg = tri.Open()) { sg.BeginFigure(p0, true, true); sg.LineTo(new WPoint(p0.X - 6, p0.Y + 10), true, false); sg.LineTo(new WPoint(p0.X + 6, p0.Y + 10), true, false); }
+                    tri.Freeze(); dc.DrawGeometry(Brushes.Black, null, tri);
+                }
+            double yCota = yBot + 20;
+            dc.DrawLine(fina, new WPoint(E(0, z0).X, yCota), new WPoint(E(L, z0).X, yCota));
+            foreach (double xx in new[] { 0.0, L }) dc.DrawLine(fina, new WPoint(E(xx, z0).X, yCota - 4), new WPoint(E(xx, z0).X, yCota + 4));
+            Txt($"L = {Nf(L)} cm" + (c != null ? $"   (vão de cálculo {Nf(c.Vao)} cm)" : ""), mx + larg / 2, yCota + 2, 11, Brushes.DimGray, true);
+            double xh = E(L, z0).X + 10;
+            dc.DrawLine(fina, new WPoint(xh, E(L, z0 + h).Y), new WPoint(xh, E(L, z0).Y));
+            Txt($"h = {Nf(h)}", xh + 3, (E(L, z0 + h).Y + E(L, z0).Y) / 2 - 7, 10, Brushes.DimGray);
+
+            // ---- embaixo: seção no meio do vão | armadura proposta | diagramas ----
+            double yBaixo = yCota + 30, hBaixo = H - yBaixo - 10;
             double xm = L / 2;
             AbaViga ab = aba.Em(xm) ? aba : null;
-            double le = ab?.LargE ?? 0, bTot = b + le + (ab?.LargD ?? 0), hr = rs.Existe ? rs.Altura : 0;
-            double ySec = yBot + 40, hSecPx = H - ySec - 30, escS = Math.Min(hSecPx / (h + hr + 10), 300 / (bTot + 10));
-            double sx0 = mx + 30, sy1 = ySec + 22;
-            Txt("SEÇÃO NO MEIO DO VÃO", mx, ySec, 12, Brushes.DimGray);
-            WPoint S(double y, double z) => new WPoint(sx0 + (_g.AlmaY0 + b - y + le) * escS, sy1 + (_g.AlmaZ0 + h + hr - z) * escS);
+            double le = ab?.LargE ?? 0, ld = ab?.LargD ?? 0, bTot = b + le + ld;
+            double escS = Math.Min((hBaixo - 60) / (h + hr), 220 / bTot);
+            double sx0 = mx + 10, sy1 = yBaixo + 22;
+            Txt("SEÇÃO NO MEIO DO VÃO", mx, yBaixo, 12, Brushes.DimGray);
+            WPoint S(double y, double z) => new WPoint(sx0 + (_g.AlmaY0 + b - y + le) * escS, sy1 + (z0 + h + hr - z) * escS);
             var cont = TemplateVigaPreMoldada.ContornoSecao(b, h, ab, rs.Existe ? rs : null, 0, 0);
             var geoS = new StreamGeometry();
             using (var sg = geoS.Open())
             {
-                sg.BeginFigure(S(_g.AlmaY0 + b - cont[0].X, _g.AlmaZ0 + cont[0].Y), true, true);
-                foreach (var q in cont.Skip(1)) sg.LineTo(S(_g.AlmaY0 + b - q.X, _g.AlmaZ0 + q.Y), true, false);
+                sg.BeginFigure(S(_g.AlmaY0 + b - cont[0].X, z0 + cont[0].Y), true, true);
+                foreach (var q in cont.Skip(1)) sg.LineTo(S(_g.AlmaY0 + b - q.X, z0 + q.Y), true, false);
             }
             geoS.Freeze();
-            dc.DrawGeometry(new SolidColorBrush(WColor.FromRgb(0xF2, 0xF2, 0xF2)), forma, geoS);
+            dc.DrawGeometry(new SolidColorBrush(WColor.FromRgb(0xF4, 0xF4, 0xF4)), forma, geoS);
             if (_bars != null)
             {
                 // barras planas: de cada papel e lado, a mais perto do meio do vão
@@ -459,7 +482,7 @@ namespace DEB.Revit.Vigas
                 foreach (var (_, bd, inst) in perto.Values)
                 {
                     var pts = inst.Select(p => S(Cm(p.B), Cm(p.C))).ToList();
-                    var pen = Caneta(bd.Role, 1.2);
+                    var pen = Caneta(bd.Role, 1.4);
                     for (int i = 0; i + 1 < pts.Count; i++) dc.DrawLine(pen, pts[i], pts[i + 1]);
                     if (bd.Closed) dc.DrawLine(pen, pts[^1], pts[0]);
                 }
@@ -476,19 +499,37 @@ namespace DEB.Revit.Vigas
                             dc.DrawEllipse(Caneta(bd.Role).Brush, null, ctr, r, r);
                         }
             }
-            Txt($"{b:0.#} × {h:0.#} cm{(ab != null || rs.Existe ? " (alma)" : "")}", sx0 + bTot * escS / 2, sy1 + (h + hr) * escS + 6, 11, Brushes.DimGray, true);
+            // cotas da seção: largura total embaixo, altura à direita
+            double ySecB = S(0, z0).Y + 10, xSecD = sx0 + bTot * escS + 10;
+            dc.DrawLine(fina, new WPoint(sx0, ySecB), new WPoint(sx0 + bTot * escS, ySecB));
+            Txt(ab != null ? $"{Nf(bTot)} (alma {Nf(b)})" : Nf(b), sx0 + bTot * escS / 2, ySecB + 1, 10, Brushes.DimGray, true);
+            dc.DrawLine(fina, new WPoint(xSecD, S(0, z0 + h + hr).Y), new WPoint(xSecD, S(0, z0).Y));
+            Txt(Nf(h + hr), xSecD + 3, (S(0, z0 + h + hr).Y + S(0, z0).Y) / 2 - 7, 10, Brushes.DimGray);
 
-            // ---- diagramas (embaixo, à direita) ----
+            // armadura proposta, em texto, ao lado da seção
+            double xTxt = xSecD + 40, yTxt = yBaixo;
+            if (c != null)
+            {
+                Txt("ARMADURA PROPOSTA", xTxt, yTxt, 12, Brushes.DimGray);
+                yTxt += 22;
+                foreach (string l in c.ResumoProposta()) { Txt(l, xTxt, yTxt, 11); yTxt += 17; }
+                yTxt += 8;
+                Txt($"Md,máx = {Nf(c.MdMax, "0.0")} kN·m", xTxt, yTxt, 11, Brushes.DimGray); yTxt += 17;
+                Txt($"Vd = {Nf(c.VdE, "0.0")} / {Nf(c.VdD, "0.0")} kN (apoios E / D)", xTxt, yTxt, 11, Brushes.DimGray);
+            }
+
+            // ---- diagramas (à direita): Md com a linha de zero em cima, Vd no meio; valores nas pontas e no máximo ----
             if (c == null || c.Diagrama.Count < 2) return;
-            double dx0 = sx0 + bTot * escS + 80, dw = W - dx0 - mx;
-            if (dw < 120) return;
-            double dh = (hSecPx - 30) / 2;
-            void Diagrama(string tit, Func<(double X, double Md, double Vd), double> f, double y0, bool baixo, WColor cor)
+            double dx0 = Math.Max(xTxt + 270, W * 0.6), dw = W - dx0 - mx;
+            if (dw < 140) return;
+            double dh = (hBaixo - 10) / 2;
+            void Diagrama(string tit, Func<(double X, double Md, double Vd), double> f, double y0, bool centrado, WColor cor, string un)
             {
                 var pts = c.Diagrama.Where(p => p.X >= c.ApoioE - 1e-6 && p.X <= L - c.ApoioD + 1e-6).ToList();
                 double vmax = Math.Max(1e-6, pts.Max(p => Math.Abs(f(p))));
-                double yb = y0 + 18 + dh / 2;
-                WPoint D(double x, double val) => new WPoint(dx0 + (x - c.ApoioE) / Math.Max(1, c.Vao) * dw, yb + (baixo ? 1 : -1) * val / vmax * (dh / 2 - 6));
+                double alt = dh - 26, yb = centrado ? y0 + 20 + alt / 2 : y0 + 22;
+                double amp = centrado ? alt / 2 - 10 : alt - 18;
+                WPoint D(double x, double val) => new WPoint(dx0 + (x - c.ApoioE) / Math.Max(1, c.Vao) * dw, yb + val / vmax * amp * (centrado ? -1 : 1));
                 Txt(tit, dx0, y0, 12, Brushes.DimGray);
                 dc.DrawLine(fina, new WPoint(dx0, yb), new WPoint(dx0 + dw, yb));
                 var geo = new StreamGeometry();
@@ -500,11 +541,20 @@ namespace DEB.Revit.Vigas
                 }
                 geo.Freeze();
                 dc.DrawGeometry(new SolidColorBrush(WColor.FromArgb(0x40, cor.R, cor.G, cor.B)), new Pen(new SolidColorBrush(cor), 1.2), geo);
-                var pm = pts.OrderByDescending(p => Math.Abs(f(p))).First();
-                Txt(Math.Abs(f(pm)).ToString("0.0", CultureInfo.GetCultureInfo("pt-BR")), D(pm.X, f(pm)).X, D(pm.X, f(pm)).Y + (baixo ? 2 : -16), 11, Brushes.Black, true);
+                void Rot(double x, double val, bool max)
+                {
+                    var q = D(x, val);
+                    bool emCima = centrado && val >= 0;
+                    string s = Nf(val, "0.0") + (max ? " " + un : "");
+                    var ft = new FormattedText(s, pt, FlowDirection.LeftToRight, tf, 11, Brushes.Black, 1.25);
+                    double xx = Math.Max(dx0, Math.Min(dx0 + dw - ft.Width, q.X - ft.Width / 2));
+                    dc.DrawText(ft, new WPoint(xx, emCima ? q.Y - 16 : q.Y + 2));
+                }
+                if (centrado) { Rot(pts[0].X, f(pts[0]), true); Rot(pts[^1].X, f(pts[^1]), true); }
+                else { var pm = pts.OrderByDescending(p => Math.Abs(f(p))).First(); Rot(pm.X, f(pm), true); }
             }
-            Diagrama("Md (kN·m)", p => p.Md, ySec, true, WColor.FromRgb(0x1F, 0x5A, 0xA6));
-            Diagrama("Vd (kN)", p => p.Vd, ySec + dh + 30, false, WColor.FromRgb(0xC0, 0x6A, 0x1F));
+            Diagrama("MOMENTO FLETOR Md (kN·m)", p => p.Md, yBaixo, false, WColor.FromRgb(0x1F, 0x5A, 0xA6), "kN·m");
+            Diagrama("CORTANTE Vd (kN)", p => p.Vd, yBaixo + dh + 10, true, WColor.FromRgb(0xC0, 0x6A, 0x1F), "kN");
         }
     }
 }

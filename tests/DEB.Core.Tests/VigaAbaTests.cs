@@ -55,7 +55,7 @@ public class VigaAbaTests
         var r = Gerar(v =>
         {
             v["Nome"] = "V129"; v["B"] = "40"; v["H"] = "50"; v["L"] = "600"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "DG 45x25";
-            v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "15"; v["AbaAltura"] = "20";
+            v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "15"; v["AbaAltura"] = "20"; v["AbaEstForma"] = TemplateVigaPreMoldada.AbaGrampo;
         });
         // cotas da aba: balanço 15 (planta e seção) e altura 20 (elevação e seção)
         Assert.True(TemCota(r, 15));
@@ -140,6 +140,19 @@ public class VigaAbaTests
     {
         v["Nome"] = "V119"; v["B"] = "19"; v["H"] = "70"; v["L"] = "457"; v["ExtE"] = "DG 45x25"; v["ExtD"] = "DG 45x25";
         v["Aba"] = TemplateVigaPreMoldada.AbaDir; v["AbaLargura"] = "20"; v["AbaAltura"] = "22"; v["AbaAlturaPonta"] = "15"; v["AbaBase"] = "25";
+        v["AbaEstForma"] = TemplateVigaPreMoldada.AbaGrampo;   // o padrão do escritório desta peça (o estribo da aba é o padrão desde 23/11)
+    }
+
+    [Fact]
+    public void EstriboDaAbaFechadoEhOPadrao()
+    {
+        var r = Gerar(v => { AbaElevadaInclinada(v); v["AbaEstForma"] = TemplateVigaPreMoldada.AbaEstribo; });
+        // estribo fechado na relação (com ganchos) e contorno fechado de 4 vértices na seção, com o fundo inclinado
+        var est = r.Barras.Single(b => b.Nome == "abaestribo");
+        Assert.True(est.Estribo);
+        var k = r.Contornos.First(c => c.Layer == "ARM-BARRA-DETALHE" && c.Fechado && c.Vertices.Count == 4 && c.Vertices.Max(p => p.X) - c.Vertices.Min(p => p.X) > 30);
+        Assert.True(k.Vertices.Select(p => p.Y).Distinct().Count() >= 3);
+        Assert.Equal(TemplateVigaPreMoldada.AbaEstribo, new ValoresTemplate(new TemplateVigaPreMoldada().Parametros)["AbaEstForma"]);
     }
 
     [Fact]

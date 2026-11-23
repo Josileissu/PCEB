@@ -238,7 +238,12 @@ public static class VigaRebarLayout
                     Closed = fechado, Hooks135 = fechado, Points = pol.Select(q => S(x, q)).ToList(),
                 });
             }
-            if (TemplateVigaPreMoldada.GrampoNaAba(v, aba))
+            if (TemplateVigaPreMoldada.EstriboNaAba(v, aba))
+            {
+                if (aba.Direita) Estribos(TemplateVigaPreMoldada.PoligonoEstriboProprioAba(v, aba, b, 0, 0, true), true);
+                if (aba.Esquerda) Estribos(TemplateVigaPreMoldada.PoligonoEstriboProprioAba(v, aba, b, 0, 0, false), true);
+            }
+            else if (TemplateVigaPreMoldada.GrampoNaAba(v, aba))
             {
                 if (aba.Direita) Estribos(TemplateVigaPreMoldada.PoligonoGrampoAba(v, aba, b, 0, 0, true), false);
                 if (aba.Esquerda) Estribos(TemplateVigaPreMoldada.PoligonoGrampoAba(v, aba, b, 0, 0, false), false);

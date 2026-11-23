@@ -254,7 +254,14 @@ public class VigaAbaRessaltoLayoutTests
         var e = TemplateVigaPreMoldada.LerExtremidade(v, true, TemplateVigaPreMoldada.CatalogoDentes, lix);
         var d = TemplateVigaPreMoldada.LerExtremidade(v, false, TemplateVigaPreMoldada.CatalogoDentes, lix);
         var aba = TemplateVigaPreMoldada.LerAba(v, 60, 600, e, d, null);
-        Assert.Equal(TemplateVigaPreMoldada.PosicoesEstribosAba(v, cfg, aba).Count, bars.Where(b => b.Role == BarRole.BeamLedgeHairpin).Sum(b => b.Count));
+        // padrão (23/11): estribo próprio da aba, fechado — dois estribos na seção em L
+        Assert.Equal(TemplateVigaPreMoldada.PosicoesEstribosAba(v, cfg, aba).Count, bars.Where(b => b.Role == BarRole.BeamLedge && b.Closed).Sum(b => b.Count));
+        // grampo (padrão anterior do escritório): a mesma forma aberta
+        v["AbaEstForma"] = TemplateVigaPreMoldada.AbaGrampo;
+        var g = DEB.Core.Elementos.Viga.PreMoldada.Modelo3D.VigaRebarLayout.Compute(v, cfg, Y0, 0);
+        TudoDentro(v, g);
+        Assert.Equal(TemplateVigaPreMoldada.PosicoesEstribosAba(v, cfg, aba).Count, g.Where(b => b.Role == BarRole.BeamLedgeHairpin && !b.Closed).Sum(b => b.Count));
+        v["AbaEstForma"] = TemplateVigaPreMoldada.AbaEstribo;
         Assert.Equal(2, bars.Count(b => b.Role == BarRole.BeamLedgeBar));
         // aba direita = y menor: a ponta dos grampos e as longitudinais da aba ficam abaixo de y0
         Assert.All(bars.Where(b => b.Role == BarRole.BeamLedgeBar), b => Assert.True(Cm(b.Points[0].B) < Y0));
