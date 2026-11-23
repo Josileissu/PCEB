@@ -1,6 +1,11 @@
 # Escada (D42)
 
-O botão **Escada** fica no painel "Concreto armado" e trata a escada em laje armada longitudinalmente: um lance reto entre dois apoios, com patamares opcionais.
+O botão **Escada** fica no painel "Concreto armado" e trata a escada em laje de lance reto. Ela pode ser de três tipos, escolhidos na janela:
+- **armada longitudinalmente**: entre os apoios das pontas, com patamares opcionais;
+- **armada transversalmente**: entre as vigas ou paredes laterais;
+- **em balanço**: engastada numa viga ou parede de um lado. O apoio fica à esquerda de quem sobe.
+
+Na transversal e no balanço o cálculo é feito numa faixa de 1 m ao longo do lance. A prévia mostra também o corte transversal no meio do lance, com as barras na largura e as dobras.
 
 ## Como usar
 1. Selecione as **duas vigas** (ou lajes) de apoio, a de baixo e a de cima, e clique em **Escada**. O programa lê da seleção:
