@@ -15,6 +15,84 @@ public enum TipoEscada
     Balanco = 2,
 }
 
+/// <summary>Como a escada é executada (D43).</summary>
+public enum ExecucaoEscada
+{
+    MoldadaNoLocal = 0,
+    /// <summary>Pré-moldada: peças biapoiadas com ligação em cada ponta (apoio direto ou dente), pinos e içamento.</summary>
+    PreMoldada = 1,
+}
+
+/// <summary>Material entre a peça e o apoio: define a força horizontal Hd = k·Fd (NBR 9062, 7.3.9).</summary>
+public enum ApoioPreMoldado
+{
+    Elastomero = 0,
+    Argamassa = 1,
+    JuntaSeca = 2,
+    ChapasNaoSoldadas = 3,
+    PTFE = 4,
+    ConcretoChapa = 5,
+}
+
+/// <summary>Forma da ponta da peça pré-moldada.</summary>
+public enum PontaPreMoldada
+{
+    /// <summary>Apoio direto, sem recorte (NBR 9062, 7.5): a ponta do patamar assenta no apoio.</summary>
+    ApoioDireto = 0,
+    /// <summary>Dente (NBR 9062, 7.4): a ponta tem a altura reduzida e assenta num apoio mais alto.</summary>
+    Dente = 1,
+}
+
+/// <summary>Valores padrão da escada pré-moldada. Vão ser lidos do arquivo de configurações do PCEB (em criação noutra branch).</summary>
+public static class PadroesPreMoldado
+{
+    /// <summary>k de Hd = k·Fd (NBR 9062, 7.3.9).</summary>
+    public static double CoefHd(ApoioPreMoldado a) => a switch
+    {
+        ApoioPreMoldado.JuntaSeca => 0.8,
+        ApoioPreMoldado.Argamassa => 0.5,
+        ApoioPreMoldado.ConcretoChapa => 0.4,
+        ApoioPreMoldado.ChapasNaoSoldadas => 0.25,
+        ApoioPreMoldado.PTFE => 0.08,
+        _ => 0.16,
+    };
+
+    public static string Nome(ApoioPreMoldado a) => a switch
+    {
+        ApoioPreMoldado.JuntaSeca => "junta seca",
+        ApoioPreMoldado.Argamassa => "argamassa",
+        ApoioPreMoldado.ConcretoChapa => "concreto com chapa metálica",
+        ApoioPreMoldado.ChapasNaoSoldadas => "chapas não soldadas",
+        ApoioPreMoldado.PTFE => "PTFE",
+        _ => "elastômero",
+    };
+
+    public const double CoefDinamico = 1.3;
+}
+
+/// <summary>Ligação de uma ponta da escada pré-moldada (D43): forma, apoio e pinos.</summary>
+public sealed class LigacaoEscada
+{
+    public PontaPreMoldada Ponta { get; set; } = PontaPreMoldada.ApoioDireto;
+    /// <summary>Comprimento de apoio (cm): a peça vai meio comprimento além do centro do apoio.</summary>
+    public double ComprimentoApoio { get; set; } = 15;
+    /// <summary>Dente: altura da parte que assenta (cm) e comprimento do recorte a partir da ponta (cm).</summary>
+    public double AlturaDente { get; set; } = 10;
+    public double ComprimentoDente { get; set; } = 25;
+    public ApoioPreMoldado Apoio { get; set; } = ApoioPreMoldado.Elastomero;
+    /// <summary>Pinos (chumbadores grauteados) na ponta: quantidade, bitola (mm), furo na peça (mm) e embutimento no apoio (cm).</summary>
+    public int Pinos { get; set; } = 2;
+    public double BitolaPino { get; set; } = 16;
+    public double FuroPino { get; set; } = 40;
+    public double EmbutimentoPino { get; set; } = 20;
+
+    public LigacaoEscada Copia() => (LigacaoEscada)MemberwiseClone();
+    /// <summary>Distância horizontal do centro do apoio à ponta da peça (cm).</summary>
+    public double Balanco => ComprimentoApoio / 2;
+    /// <summary>Altura que a peça tem sobre o apoio (cm): a do dente ou a do patamar.</summary>
+    public double AlturaNoApoio(double hp) => Ponta == PontaPreMoldada.Dente ? Math.Min(AlturaDente, hp) : hp;
+}
+
 /// <summary>
 /// Escada em laje (D42): um lance reto, armado longitudinalmente (entre os apoios das pontas, com patamares opcionais),
 /// transversalmente (entre as vigas ou paredes laterais) ou em balanço (de uma viga ou parede lateral). Entrada digitada pelo
@@ -25,6 +103,14 @@ public enum TipoEscada
 public sealed class EscadaLaje
 {
     public TipoEscada Tipo { get; set; } = TipoEscada.Longitudinal;
+    public ExecucaoEscada Execucao { get; set; } = ExecucaoEscada.MoldadaNoLocal;
+    /// <summary>Pré-moldada: ligação da ponta de baixo e da de cima.</summary>
+    public LigacaoEscada LigacaoInferior { get; set; } = new LigacaoEscada();
+    public LigacaoEscada LigacaoSuperior { get; set; } = new LigacaoEscada();
+    /// <summary>Içamento: coeficiente dinâmico (NBR 9062, 5.3) e fcj na desforma (MPa; 0 = 70 % do fck).</summary>
+    public double CoefDinamico { get; set; } = PadroesPreMoldado.CoefDinamico;
+    public double FcjIcamento { get; set; }
+    public bool PreMoldada => Execucao == ExecucaoEscada.PreMoldada && Tipo == TipoEscada.Longitudinal;
     // ---------------- geometria ----------------
     /// <summary>Desnível entre os pisos acabados (cm).</summary>
     public double Desnivel { get; set; } = 288;
@@ -69,7 +155,12 @@ public sealed class EscadaLaje
     /// <summary>Bordas com parapeito (0, 1 ou 2).</summary>
     public int BordasComParapeito { get; set; }
 
-    public EscadaLaje Copia() => (EscadaLaje)MemberwiseClone();
+    public EscadaLaje Copia()
+    {
+        var c = (EscadaLaje)MemberwiseClone();
+        c.LigacaoInferior = LigacaoInferior.Copia(); c.LigacaoSuperior = LigacaoSuperior.Copia();
+        return c;
+    }
 }
 
 /// <summary>Trecho do eixo da escada na elevação (patamar ou lance).</summary>
@@ -113,6 +204,16 @@ public sealed class GeometriaEscada
     public (double X, double Z)? QuinaReentrante { get; set; }
     /// <summary>Quina da face inferior do lance com o patamar inferior (saliente).</summary>
     public (double X, double Z)? QuinaInferior { get; set; }
+    /// <summary>Pré-moldada: x das pontas da peça (além dos centros dos apoios em 0 e no vão) e das faces dos recortes dos dentes
+    /// (= ponta quando não há dente); z do assento em cada apoio (face de baixo da peça sobre o apoio).</summary>
+    public double XPontaInf { get; set; }
+    public double XPontaSup { get; set; }
+    public double XRecorteInf { get; set; }
+    public double XRecorteSup { get; set; }
+    public double ZAssentoInf { get; set; }
+    public double ZAssentoSup { get; set; }
+    /// <summary>Ajustes feitos na entrada (não impedem o cálculo).</summary>
+    public List<string> Avisos { get; } = new List<string>();
 
     public TrechoEscada TrechoEm(double x) =>
         Trechos.FirstOrDefault(t => x >= Math.Min(t.P0.X, t.P1.X) - 1e-9 && x <= Math.Max(t.P0.X, t.P1.X) + 1e-9) ?? Trechos.Last();
@@ -132,6 +233,15 @@ public sealed class GeometriaEscada
         g.H = e.Espessura;
         g.Hp = e.EspessuraPatamar > 0 ? e.EspessuraPatamar : e.Espessura;
         double pi = Math.Max(0, e.PatamarInferior), ps = Math.Max(0, e.PatamarSuperior);
+        bool pm = e.PreMoldada;
+        if (pm)
+        {
+            // a peça pré-moldada assenta num patamar horizontal: pelo menos o comprimento de apoio (ou o dente) de cada lado
+            double minI = Math.Max(e.LigacaoInferior.ComprimentoApoio, e.LigacaoInferior.Ponta == PontaPreMoldada.Dente ? e.LigacaoInferior.ComprimentoDente : 0);
+            double minS = Math.Max(e.LigacaoSuperior.ComprimentoApoio, e.LigacaoSuperior.Ponta == PontaPreMoldada.Dente ? e.LigacaoSuperior.ComprimentoDente : 0);
+            if (pi < minI) { g.Avisos.Add($"Pré-moldada: patamar inferior aumentado para {minI:0} cm (a ponta assenta num trecho horizontal)."); pi = minI; }
+            if (ps < minS) { g.Avisos.Add($"Pré-moldada: patamar superior aumentado para {minS:0} cm (a ponta assenta num trecho horizontal)."); ps = minS; }
+        }
         g.X1 = pi;
         g.X2 = pi + g.LanceHorizontal;
         g.Vao = g.X2 + ps;
@@ -153,26 +263,53 @@ public sealed class GeometriaEscada
 
         // contorno real (anti-horário a partir do canto inferior esquerdo)
         var k = g.Contorno;
+        double hpI = hp, hpS = hp;
+        g.XPontaInf = 0; g.XPontaSup = g.Vao; g.XRecorteInf = 0; g.XRecorteSup = g.Vao; g.ZAssentoInf = -hp; g.ZAssentoSup = H - hp;
+        if (pm)
+        {
+            var li = e.LigacaoInferior; var ls = e.LigacaoSuperior;
+            g.XPontaInf = -li.Balanco; g.XPontaSup = g.Vao + ls.Balanco;
+            bool di = li.Ponta == PontaPreMoldada.Dente, ds = ls.Ponta == PontaPreMoldada.Dente;
+            g.XRecorteInf = di ? g.XPontaInf + li.ComprimentoDente : g.XPontaInf;
+            g.XRecorteSup = ds ? g.XPontaSup - ls.ComprimentoDente : g.XPontaSup;
+            g.ZAssentoInf = -li.AlturaNoApoio(hp); g.ZAssentoSup = H - ls.AlturaNoApoio(hp);
+            if (di && g.XRecorteInf > xb1Previo(e, g, h, c, tg) - 1) erros.Add("Dente inferior mais comprido que o patamar: aumente o patamar ou encurte o dente.");
+        }
         // face inferior: patamar inferior → lance → patamar superior
         double xb1 = pi > 0 ? g.X1 + (h / c - hp) / tg : 0;          // quina da face inferior com o patamar inferior
         double xb2 = ps > 0 ? g.X1 + (H - hp + h / c) / tg : g.Vao;  // quina da face inferior com o patamar superior
-        if (pi > 0) { k.Add((0, -hp)); k.Add((xb1, -hp)); g.QuinaInferior = (xb1, -hp); }
+        if (pm)
+        {
+            // ponta de baixo: dente (sobe a face de baixo até a altura do dente) ou apoio direto
+            if (g.XRecorteInf > g.XPontaInf + 1e-9) { k.Add((g.XPontaInf, g.ZAssentoInf)); k.Add((g.XRecorteInf, g.ZAssentoInf)); }
+            k.Add((g.XRecorteInf, -hp)); k.Add((xb1, -hp)); g.QuinaInferior = (xb1, -hp);
+        }
+        else if (pi > 0) { k.Add((0, -hp)); k.Add((xb1, -hp)); g.QuinaInferior = (xb1, -hp); }
         else k.Add((0, ZFundoLance(0)));
-        if (ps > 0) { k.Add((xb2, H - hp)); k.Add((g.Vao, H - hp)); g.QuinaReentrante = (xb2, H - hp); }
+        if (pm)
+        {
+            k.Add((xb2, H - hp)); g.QuinaReentrante = (xb2, H - hp);
+            k.Add((g.XRecorteSup, H - hp));
+            if (g.XRecorteSup < g.XPontaSup - 1e-9) { k.Add((g.XRecorteSup, g.ZAssentoSup)); k.Add((g.XPontaSup, g.ZAssentoSup)); }
+        }
+        else if (ps > 0) { k.Add((xb2, H - hp)); k.Add((g.Vao, H - hp)); g.QuinaReentrante = (xb2, H - hp); }
         else k.Add((g.Vao, ZFundoLance(g.Vao)));
         // face superior, da direita para a esquerda: piso do patamar superior, degraus, piso do patamar inferior
         // (sem patamar superior o último espelho é a face da ponta, encostada no apoio)
-        k.Add((g.Vao, H));
+        k.Add((pm ? g.XPontaSup : g.Vao, H));
         for (int i = n; i >= 1; i--)
         {
             double xr = g.X1 + (i - 1) * g.Piso;   // espelho i (1 = o primeiro), de (i−1)·e até i·e; piso i à direita dele
             k.Add((xr, i * g.Espelho));
             k.Add((xr, (i - 1) * g.Espelho));
         }
-        if (pi > 0) k.Add((0, 0));
+        if (pm) k.Add((g.XPontaInf, 0));
+        else if (pi > 0) k.Add((0, 0));
         LimparContorno(k);
         return g;
     }
+
+    private static double xb1Previo(EscadaLaje e, GeometriaEscada g, double h, double c, double tg) => g.X1 + (h / c - g.Hp) / tg;
 
     /// <summary>Tira pontos repetidos e pontos no meio de um segmento reto (colineares).</summary>
     public static void LimparContorno(List<(double X, double Z)> k)

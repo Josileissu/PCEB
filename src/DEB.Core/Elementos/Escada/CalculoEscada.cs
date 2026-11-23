@@ -167,6 +167,7 @@ public static partial class CalculoEscada
             r.Verificacoes.Add(K("E6", "Geometria", "Altura livre sob o lance", $"{N(e.AlturaLivre, "0")} cm", "≥ 200 cm", e.AlturaLivre < 200 - 1e-9, "Apostila 7.1; NBR 9077"));
         r.Verificacoes.Add(K("E7", "Geometria", "Espessura mínima da laje", $"{N(Math.Min(h, hp), "0.#")} cm", "≥ 8 cm (laje de piso)", Math.Min(h, hp) < 8 - 1e-9, "NBR 6118, 13.2.4.1"));
         foreach (string er in r.Erros) r.Avisos.Add(er);
+        r.Avisos.AddRange(g.Avisos);
 
         // ---------------- 2. cargas ----------------
         r.GLance = gc * (h / c + g.Espelho / 2) / 100 + e.Revestimento;
@@ -322,9 +323,9 @@ public static partial class CalculoEscada
         if (g.QuinaReentrante.HasValue)
             m7.Linhas.Add("Quina reentrante (face inferior do lance com o patamar superior): as barras inferiores do lance e do patamar SE CRUZAM e seguem retas " +
                           $"até a face oposta, com lb,nec = {N(r.LbNec, "0")} cm depois do cruzamento. A barra dobrada acompanhando a quina seria arrancada pelo empuxo no vazio.");
-        m7.Linhas.Add($"Nos apoios a armadura positiva entra {N(ancApoio, "0")} cm (largura do apoio − cobrimento); exigido ≥ 10φ = {N(phiP, "0")} cm.");
+        if (!e.PreMoldada) m7.Linhas.Add($"Nos apoios a armadura positiva entra {N(ancApoio, "0")} cm (largura do apoio − cobrimento); exigido ≥ 10φ = {N(phiP, "0")} cm.");
         r.Memoria.Add(m7);
-        r.Verificacoes.Add(K("K5", "Ancoragem", "Armadura positiva dentro do apoio", $"{N(ancApoio, "0")} cm", $"≥ 10φ = {N(phiP, "0")} cm", ancApoio < phiP - 1e-9, "NBR 6118, 18.3.2.4.1",
+        if (!e.PreMoldada) r.Verificacoes.Add(K("K5", "Ancoragem", "Armadura positiva dentro do apoio", $"{N(ancApoio, "0")} cm", $"≥ 10φ = {N(phiP, "0")} cm", ancApoio < phiP - 1e-9, "NBR 6118, 18.3.2.4.1",
             dica: "Use gancho na ponta ou um apoio mais largo."));
 
         // ---------------- 8. ELS: flecha e fissuras ----------------
@@ -408,7 +409,8 @@ public static partial class CalculoEscada
         r.Memoria.Add(m8);
 
         // ---------------- 9. barras na elevação ----------------
-        if (r.Principal.Esp > 0) GerarBarras(r);
+        if (e.PreMoldada) CalcularPreMoldada(r, k);
+        else if (r.Principal.Esp > 0) GerarBarras(r);
         return r;
     }
 
