@@ -632,6 +632,11 @@ public sealed class EstruturaObjetos
     public List<LajeObjeto> Lajes { get; } = new List<LajeObjeto>();
     /// <summary>Pilares e vigas de aço (D48).</summary>
     public List<BarraMetalicaObjeto> Metalicas { get; } = new List<BarraMetalicaObjeto>();
+    /// <summary>Ligações flexíveis das vigas de aço (chapa de alma), criadas por <see cref="PrepararMetalicas"/>.</summary>
+    public List<LigacaoMetalica> LigacoesMetalicas { get; } = new List<LigacaoMetalica>();
+    /// <summary>Aço da chapa e parafuso das ligações propostas (da configuração).</summary>
+    public DEB.Core.Elementos.Metalica.AcoEstrutural AcoChapas { get; set; }
+    public DEB.Core.Elementos.Metalica.TipoParafuso ParafusoLigacoes { get; set; }
     public ModeloBarras Modelo { get; private set; }
     public Dictionary<string, ResultadoCaso> Casos { get; private set; }
     public Dictionary<string, ResultadoCaso> Combinacoes { get; } = new Dictionary<string, ResultadoCaso>();
@@ -698,10 +703,13 @@ public sealed class EstruturaObjetos
     public void PrepararMetalicas()
     {
         foreach (var b in Metalicas) b.PontosInternos.Clear();
+        LigacoesMetalicas.Clear();
         var pilares = Metalicas.Where(x => x.Pilar).ToList();
         var vigas = Metalicas.Where(x => !x.Pilar).ToList();
-        Vetor3 Levar(BarraMetalicaObjeto v, Vetor3 p, bool soPilares)
+        var ligadas = new HashSet<(BarraMetalicaObjeto, bool)>();
+        Vetor3 Levar(BarraMetalicaObjeto v, Vetor3 p, bool soPilares, bool pontaI)
         {
+            if (ligadas.Contains((v, pontaI))) return p;
             foreach (var alvo in soPilares ? pilares : vigas.Where(x => x != v))
             {
                 var (dist, t) = alvo.Projecao(p);
@@ -710,6 +718,15 @@ public sealed class EstruturaObjetos
                 if (dist > tol || t < (soPilares ? -1 : 1) || t > L + (soPilares ? 1 : -1)) continue;
                 t = Math.Max(0, Math.Min(L, t));
                 if (t > 1 && t < L - 1) alvo.PontosInternos.Add(t);
+                ligadas.Add((v, pontaI));
+                if ((pontaI ? v.LigacaoI : v.LigacaoJ) == LigacaoExtremidade.Flexivel)
+                    LigacoesMetalicas.Add(new LigacaoMetalica
+                    {
+                        Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{v.Dono.Id}-{(pontaI ? "I" : "J")}", Nome = $"chapa de alma {Curto(v.Dono)} ({(pontaI ? "I" : "J")}) → {Curto(alvo.Dono)}" },
+                        Viga = v, PontaI = pontaI, Suporte = alvo,
+                        Chapa = DEB.Core.Elementos.Metalica.DadosChapaAlma.Proposta(v.Perfil, v.Aco,
+                            AcoChapas ?? DEB.Core.Elementos.Metalica.AcoEstrutural.Buscar("A36"), ParafusoLigacoes ?? DEB.Core.Elementos.Metalica.TipoParafuso.Lista[2]),
+                    });
                 return alvo.PontoI + alvo.Direcao * t;
             }
             return p;
@@ -717,9 +734,16 @@ public sealed class EstruturaObjetos
         foreach (bool soPilares in new[] { true, false })
             foreach (var v in vigas)
             {
-                v.PontoI = Levar(v, v.PontoI, soPilares);
-                v.PontoJ = Levar(v, v.PontoJ, soPilares);
+                v.PontoI = Levar(v, v.PontoI, soPilares, true);
+                v.PontoJ = Levar(v, v.PontoJ, soPilares, false);
             }
+    }
+
+    /// <summary>Marca da peça ou, sem marca, o id (para os nomes das ligações).</summary>
+    private static string Curto(Dono d)
+    {
+        string n = d.Nome.Split(' ')[0];
+        return n == "viga" || n == "pilar" || n == "" ? (d.Id != "" ? d.Id : d.Nome) : n;
     }
 
     /// <summary>

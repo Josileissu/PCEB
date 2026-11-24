@@ -94,6 +94,7 @@ public static class DimensionamentoObjetos
         foreach (var l in e.Ligacoes) r.Add(Consolo(e, l, cfg));
         foreach (var l in e.Lajes) r.Add(Laje(e, l, cfg));
         foreach (var b in e.Metalicas) r.Add(Metalica(e, b, cfg));
+        foreach (var l in e.LigacoesMetalicas) r.Add(LigacaoMetalica(e, l, cfg));
         return r;
     }
 
@@ -173,6 +174,28 @@ public static class DimensionamentoObjetos
         }
         double etaMax = v.Where(x => x.Valor.StartsWith("η")).Select(x => double.Parse(x.Valor.Substring(4).Split(' ')[0].Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture)).DefaultIfEmpty(0).Max();
         r.Resumo.Add($"{o.Perfil.Nome} · η = {N(etaMax, "0.00")} · Nc,Rd {N(res.NcRd, "0")} kN · Mx,Rd {N(res.MxRd / 100, "0.0")} kN·m ({res.GovernaMx})");
+        return r;
+    }
+
+    /// <summary>Ligação flexível por chapa de alma: Vd e Nd da ponta da viga em cada combinação ELU.</summary>
+    public static ResultadoPeca LigacaoMetalica(EstruturaObjetos e, LigacaoMetalica l, ConfiguracaoProjeto cfg)
+    {
+        var r = new ResultadoPeca { Dono = l.Dono, Chave = Chave(l.Dono) };
+        var b = l.PontaI ? l.Viga.Barras[0] : l.Viga.Barras[l.Viga.Barras.Count - 1];
+        var casos = new List<(string, double, double)>();
+        foreach (var comb in e.DefinicaoCombinacoes.Where(x => x.Tipo == "ELU"))
+        {
+            var est = e.Estacoes(comb.Nome)[b.Id];
+            var s = l.PontaI ? est[0] : est[est.Length - 1];
+            casos.Add((comb.Nome, Math.Sqrt(s[3] * s[3] + s[2] * s[2]), s[1]));
+        }
+        var v = LigacaoChapaAlma.Verificar(l.Chapa, casos, "Ligação — " + l.Dono, out var mem, cfg.Numero("normas.gamaA1"), cfg.Numero("normas.gamaA2"));
+        r.Memoria = mem;
+        r.Memoria.Titulo = $"{l.Dono} — {mem.Titulo}";
+        r.Memoria.Linhas.Insert(0, $"Viga {l.Viga.Dono} apoiada em {l.Suporte.Dono}; Vd,máx = {N(casos.Max(c => c.Item2), "0.0")} kN; " +
+                                   $"Nd entre {N(casos.Min(c => c.Item3), "0.0")} e {N(casos.Max(c => c.Item3), "0.0")} kN (proposta do PCEB: confira e ajuste a ligação).");
+        foreach (var x in v) r.Verificacoes.Add(x);
+        r.Resumo.Add($"{l.Chapa.N} ø{N(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} · chapa {N(l.Chapa.Tp, "0.#")} × {N(l.Chapa.AlturaChapa, "0")} mm · Vd {N(casos.Max(c => c.Item2), "0")} kN");
         return r;
     }
 

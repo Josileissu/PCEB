@@ -98,6 +98,11 @@ public class EstruturaMetalicaTests
         Assert.Contains(v.Verificacoes, x => x.Codigo == "MT9");
         Assert.Contains("W310X38.7", v.Resumo[0]);
         Assert.Contains(v.Memoria.Linhas, l => l.Contains("Cb = 1,1"));    // carga uniforme, viga biapoiada destravada: Cb ≈ 1,14
+        // ligações flexíveis das duas pontas: chapa de alma proposta e verificada com o cortante da ponta
+        Assert.Equal(2, e.LigacoesMetalicas.Count);
+        var lig = res.Single(r => r.Dono.Tipo == TipoDono.Ligacao && r.Dono.Nome.Contains("(I)"));
+        Assert.Contains(lig.Verificacoes, x => x.Codigo == "LC1" && x.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok);
+        Assert.Contains("chapa", lig.Resumo[0]);
         var p = res.Single(r => r.Dono.Nome == "P1");
         Assert.Contains(p.Verificacoes, x => x.Codigo == "MT2" && x.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok);
     }

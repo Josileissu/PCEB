@@ -47,3 +47,13 @@ dimensionamento (verificações e memória).
 AutoRun `analitico` (sem gravar): grava `janela_<vista>.png` de seis vistas e o resumo do dimensionamento com a memória.
 `SD_LAJE=1` cria um piso de 12 cm sobre as vigas do modelo aberto, para exercitar as lajes. Prévia fora do Revit: o teste
 `EstruturaObjetosTests` com `PCEB_PREVIA=<pasta>` grava `previa_analise.html` e `previa_laje.html` (abrir no navegador).
+
+## Estruturas de aço (D48)
+- Vigas e pilares com material estrutural "Aço" viram `BarraMetalicaObjeto` (`src/Analise/MetalicaRevit.cs`): perfil pelo nome do
+  tipo (`W310X38.7`, `W 310 x 38,7`, `CVS 400x200x9.5x6.3`) ou pelas dimensões da seção da família; aço pelo material (A572, A992,
+  A36, MR250…) ou pela configuração. A altura do perfil do pilar segue o eixo Y da família.
+- A viga que chega perto do eixo de um pilar ou de outra viga de aço vai para o eixo dele (o suporte ganha nó). Ligação padrão
+  flexível (rótula) ou rígida e base engastada ou rotulada: configuração do projeto, grupo Análise.
+- Cada ponta flexível ganha uma `LigacaoMetalica` (chapa de alma proposta pela altura da viga), verificada com o V e o N da ponta
+  (códigos LC1–LC9). As barras: MT1–MT9 (NBR 8800:2024). Núcleo: `DEB.Core/Elementos/Metalica`.
+

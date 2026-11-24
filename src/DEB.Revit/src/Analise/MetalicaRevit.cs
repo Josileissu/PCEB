@@ -54,6 +54,8 @@ namespace DEB.Revit.Analise
         public static HashSet<long> Ler(Document doc, EstruturaObjetos e, ConfiguracaoProjeto cfg, List<string> notas)
         {
             var lidos = new HashSet<long>();
+            e.AcoChapas = AcoEstrutural.Buscar(cfg.Texto("materiais.acoChapa"));
+            e.ParafusoLigacoes = TipoParafuso.Buscar(cfg.Texto("materiais.parafuso"));
             var lig = cfg.Texto("analise.ligacaoMetalica").StartsWith("R") ? LigacaoExtremidade.Rigida : LigacaoExtremidade.Flexivel;
             var bas = cfg.Texto("analise.baseMetalica").StartsWith("R") ? BasePilarMetalico.Rotulada : BasePilarMetalico.Engastada;
             int semPerfil = 0, giradas = 0;

@@ -13,6 +13,19 @@ public enum LigacaoExtremidade { Flexivel, Rigida }
 public enum BasePilarMetalico { Engastada, Rotulada }
 
 /// <summary>
+/// Ligação flexível de uma ponta de viga de aço (D46/D48): objeto próprio entre a viga e o suporte (pilar ou viga), com a chapa
+/// de alma proposta e verificada pelos esforços da ponta (V e N) de cada combinação. No modelo de barras é a rótula da ponta.
+/// </summary>
+public sealed class LigacaoMetalica
+{
+    public Dono Dono { get; set; } = new Dono { Tipo = TipoDono.Ligacao };
+    public BarraMetalicaObjeto Viga { get; set; }
+    public bool PontaI { get; set; }
+    public BarraMetalicaObjeto Suporte { get; set; }
+    public DadosChapaAlma Chapa { get; set; }
+}
+
+/// <summary>
 /// Barra metálica como objeto da análise (D46/D48): pilar ou viga de perfil I/H laminado ou soldado entre dois pontos do eixo,
 /// com a orientação da alma, as ligações das pontas e as cargas das vigas. Os nós coincidentes com os de outra peça metálica são o
 /// mesmo nó (o modelo junta pela tolerância); a viga que chega num pilar ou noutra viga é levada ao eixo dela por

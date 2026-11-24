@@ -65,6 +65,7 @@ public static class VisualizacaoAnalise
             Obj(b.Dono, $"{b.Perfil.Nome} ({b.Aco.Nome}), {Fmt.Virgula(b.Comprimento, "0")} cm" + (b.Pilar ? $", base {(b.Base == BasePilarMetalico.Engastada ? "engastada" : "rotulada")}"
                 : $", ligações {(b.LigacaoI == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}/{(b.LigacaoJ == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}, g = {Fmt.Virgula(b.G, "0.##")} kN/m, q = {Fmt.Virgula(b.Q, "0.##")} kN/m"));
         foreach (var l in e.Ligacoes) Obj(l.Dono, l.Observacao);
+        foreach (var l in e.LigacoesMetalicas) Obj(l.Dono, $"chapa de alma {Fmt.Virgula(l.Chapa.Tp, "0.#")} × {Fmt.Virgula(l.Chapa.AlturaChapa, "0")} mm, {l.Chapa.N} parafusos ø{Fmt.Virgula(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome}");
         foreach (var la in e.Lajes) Obj(la.Dono, $"h = {Fmt.Virgula(la.Espessura, "0.#")} cm, g = {Fmt.Virgula(la.G, "0.##")} kN/m², q = {Fmt.Virgula(la.Q, "0.##")} kN/m², malha {Fmt.Virgula(la.Sx, "0")} × {Fmt.Virgula(la.Sy, "0")} cm");
 
         // lajes: malha (nós por i, j) e contorno no sistema da laje
