@@ -65,7 +65,7 @@ public class LigacoesAcoTests
         try
         {
             var b = BibliotecaLigacoes.Carregar(null, arq);
-            Assert.Equal(8, b.Pceb.Count);
+            Assert.Equal(15, b.Pceb.Count);
             foreach (TipoLigacao t in System.Enum.GetValues(typeof(TipoLigacao))) Assert.NotNull(b.Padrao(t));
             Assert.All(b.Pceb, m => Assert.Empty(m.Erros()));
             // escritório: muda a chapa padrão para 8 mm e cria uma ligação nova
@@ -77,7 +77,7 @@ public class LigacoesAcoTests
             var b2 = BibliotecaLigacoes.Carregar(null, arq);
             Assert.Equal(8.0, b2.Buscar("PCEB-CA-19").Numero("tp"));
             Assert.Equal(OrigemLigacao.Escritorio, b2.Buscar("PCEB-CA-19").Origem);
-            Assert.Equal(9, b2.Todos.Count);
+            Assert.Equal(b2.Pceb.Count + 1, b2.Todos.Count);
             Assert.Equal("ASTM F3125 A325", b2.Buscar("ESC-CA-16").Texto("parafuso"));   // padrão do esquema
             // valor inválido aparece nos erros
             var ruim = new ModeloLigacao { Tipo = TipoLigacao.ChapaAlma, Valores = { ["tp"] = "100", ["parafuso"] = "X" } };
@@ -190,7 +190,7 @@ public class LigacoesAcoTests
         // prévia para captura de tela (fora do Git): $env:PCEB_PREVIA_LIGACOES = "<pasta>"
         string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_LIGACOES");
         if (!string.IsNullOrEmpty(pasta))
-            foreach (var id in new[] { "PCEB-CA-19", "PCEB-CT-22", "PCEB-PB-25", "PCEB-CD-76" })
+            foreach (var id in new[] { "PCEB-CA-19", "PCEB-CT-22", "PCEB-PB-25", "PCEB-CD-76", "PCEB-AT-12", "PCEB-CN-L63", "PCEB-TF-101", "PCEB-ET-19" })
             {
                 s.Receber("{\"acao\":\"selecionar\",\"id\":\"" + id + "\"}");
                 System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "ligacao_" + id + ".html"), s.PaginaComDados());
@@ -207,8 +207,66 @@ public class LigacoesAcoTests
             var cx = GeometriaLigacao.Montar(m, viga, pilar);
             Assert.Contains(cx, c => c.Papel == PapelSolido.Membro);
             Assert.Contains(cx, c => c.Papel == PapelSolido.Chapa);
-            Assert.True(cx.Count(c => c.Papel == PapelSolido.Parafuso) >= 2, m.Id);
+            Assert.True(cx.Count(c => c.Papel == PapelSolido.Parafuso) >= 2 || m.Tipo == TipoLigacao.TuboFendido && cx.Count(c => c.Papel == PapelSolido.Solda) >= 4, m.Id);
             Assert.All(cx, c => Assert.True(c.X1 > c.X0 && c.Y1 > c.Y0 && c.Z1 > c.Z0, m.Id + " " + c.Rotulo));
         }
+    }
+
+    private static ModeloLigacao Modelo(TipoLigacao t, params (string, string)[] v)
+    {
+        var m = new ModeloLigacao { Id = "T", Nome = "T", Tipo = t };
+        foreach (var (k, x) in v) m.Valores[k] = x;
+        return m;
+    }
+
+    [Fact]
+    public void Tubo_em_fenda_reduz_a_secao_liquida_so_com_solda_curta()
+    {
+        var d = DadosTuboFendido.DoModelo(Modelo(TipoLigacao.TuboFendido, ("lw", "110")));
+        var v = LigacaoTuboFendido.Verificar(d, new[] { new EsforcoLigacao("T", 300) }, "g", out var mem);
+        // Ct = 1 − (D/π)/Lw = 1 − 32,34/110 = 0,706; An = Ag − 2·(12,5 + 2)·6
+        Assert.Contains(mem.Linhas, l => l.Contains("Ct = 0,71"));
+        double ag = System.Math.PI * (101.6 * 101.6 - 89.6 * 89.6) / 4, an = ag - 2 * 14.5 * 6, nt = System.Math.Min(ag * 345 / 1.10, 0.706 * an * 450 / 1.35) / 1000;
+        var tf2 = v.Single(x => x.Codigo == "TF2");
+        Assert.Equal(System.Math.Round(300 / nt, 2), double.Parse(tf2.Valor.Substring(4, 4).Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture), 2);
+        var longo = DadosTuboFendido.DoModelo(Modelo(TipoLigacao.TuboFendido, ("lw", "140")));
+        LigacaoTuboFendido.Verificar(longo, new[] { new EsforcoLigacao("T", 300) }, "g", out var mem2);
+        Assert.Contains(mem2.Linhas, l => l.Contains("Ct = 1,00"));
+    }
+
+    [Fact]
+    public void Capacidade_por_bissecao_bate_com_a_verificacao_linear()
+    {
+        // contraventamento: a resistência à tração é o menor dos limites lineares; com Nd = R, o pior η = 1
+        var d = DadosChapaNo.DoModelo(Modelo(TipoLigacao.ChapaNo));
+        var (r, gov) = FuncoesLigacao.Capacidade(s => LigacaoChapaNo.Verificar(d, new[] { new EsforcoLigacao("", s) }, "", out _));
+        Assert.False(string.IsNullOrEmpty(gov));
+        var v = LigacaoChapaNo.Verificar(d, new[] { new EsforcoLigacao("", r * 0.999) }, "", out _);
+        Assert.DoesNotContain(v, x => x.Valor.StartsWith("η") && x.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.NaoAtende);
+        Assert.Equal(2 * 120 * System.Math.Tan(System.Math.PI / 6), d.Whitmore, 6);
+    }
+
+    [Fact]
+    public void Emenda_divide_o_momento_entre_mesas_e_alma()
+    {
+        var viga = PerfilI.Buscar("W310X38.7");
+        var d = DadosEmendaTalas.DoModelo(Modelo(TipoLigacao.EmendaTalas), viga, AcoEstrutural.Buscar("A572"));
+        var v = LigacaoEmendaTalas.Verificar(d, new[] { new EsforcoLigacao("M", 0, 0, 50) }, "g", out var mem);
+        double hw = viga.D - 2 * viga.Tf, im = 2 * viga.Bf * viga.Tf * System.Math.Pow((viga.D - viga.Tf) / 2, 2), ia = viga.Tw * hw * hw * hw / 12, fa = ia / (im + ia);
+        double ff = 50000 * (1 - fa) / (viga.D - viga.Tf), fv = ComponentesLigacao.CisalhamentoParafuso(19.05, TipoParafuso.Buscar("A325"), true);
+        var et1 = v.Single(x => x.Codigo == "ET1");
+        Assert.StartsWith("η = " + DEB.Core.Fmt.Virgula(ff / 6 / fv, "0.00"), et1.Valor);
+        Assert.True(d.Na >= 2);
+    }
+
+    [Fact]
+    public void Apoio_de_terca_combina_corte_e_tracao_nos_parafusos()
+    {
+        var d = DadosApoioTerca.DoModelo(Modelo(TipoLigacao.ApoioTerca));
+        double fv = ComponentesLigacao.CisalhamentoParafuso(12.7, TipoParafuso.Buscar("A307"), true), ft = ComponentesLigacao.TracaoParafuso(12.7, TipoParafuso.Buscar("A307"));
+        var v = LigacaoApoioTerca.Verificar(d, new[] { new EsforcoLigacao("C", 4, 6, 0, 0) }, "g", out _);
+        double eta = System.Math.Pow(6.0 / 2 / fv, 2) + System.Math.Pow(4.0 / 2 / ft, 2);
+        Assert.StartsWith("η = " + DEB.Core.Fmt.Virgula(eta, "0.00"), v.Single(x => x.Codigo == "AT1").Valor);
+        Assert.True(d.Hp >= 0.75 * 150 - 1e-9);
     }
 }

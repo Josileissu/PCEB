@@ -127,6 +127,103 @@ public static class GeometriaLigacao
                         l.Add(new Caixa(PapelSolido.Parafuso, -pilar.Tf - 1.2 * d.Db, tp + 1.2 * d.Db, s * d.G / 2 - d.Db / 2, s * d.G / 2 + d.Db / 2, z - d.Db / 2, z + d.Db / 2, $"ø{d.Db:0.#}"));
                 break;
             }
+            case TipoLigacao.ApoioTerca:
+            {
+                // viga de apoio (ou banzo) ao longo de y com a mesa superior em z = 0; chapa no plano xz (espessura em y), largura bp ao
+                // longo de x; terça Ue ao longo de x com a alma encostada na face +y da chapa e as abas para +y
+                var d = DadosApoioTerca.DoModelo(m);
+                double L = Math.Max(3 * viga.Bf, 500), ht = d.HTerca, bt = Math.Max(50, 0.4 * ht), tt = d.TTerca, y0 = d.Tp / 2, Lt = Math.Max(4 * ht, 3 * d.Bp);
+                l.Add(new Caixa(PapelSolido.Membro, -viga.Bf / 2, viga.Bf / 2, -L / 2, L / 2, -viga.Tf, 0, "viga de apoio " + viga.Nome));
+                l.Add(new Caixa(PapelSolido.Membro, -viga.Tw / 2, viga.Tw / 2, -L / 2, L / 2, -viga.D + viga.Tf, -viga.Tf, "viga de apoio " + viga.Nome));
+                l.Add(new Caixa(PapelSolido.Membro, -viga.Bf / 2, viga.Bf / 2, -L / 2, L / 2, -viga.D, -viga.D + viga.Tf, "viga de apoio " + viga.Nome));
+                l.Add(new Caixa(PapelSolido.Chapa, -d.Bp / 2, d.Bp / 2, -d.Tp / 2, d.Tp / 2, 0, d.Hp, $"chapa {d.Bp:0} × {d.Hp:0} × {d.Tp:0.#} mm"));
+                foreach (int sy in new[] { 1, -1 })
+                    l.Add(new Caixa(PapelSolido.Solda, -d.Bp / 2, d.Bp / 2, sy > 0 ? y0 : -y0 - d.Perna, sy > 0 ? y0 + d.Perna : -y0, 0, d.Perna, "filete"));
+                double zc = d.ZCentro, zb = Math.Max(d.Perna + 2, zc - ht / 2);
+                l.Add(new Caixa(PapelSolido.Membro, -Lt / 2, Lt / 2, y0, y0 + tt, zb, zb + ht, "terça (alma)"));
+                l.Add(new Caixa(PapelSolido.Membro, -Lt / 2, Lt / 2, y0, y0 + bt, zb, zb + tt, "terça (mesa)"));
+                l.Add(new Caixa(PapelSolido.Membro, -Lt / 2, Lt / 2, y0, y0 + bt, zb + ht - tt, zb + ht, "terça (mesa)"));
+                for (int i = 0; i < d.N; i++)
+                {
+                    double z = d.Hp - d.Ev - i * d.S;
+                    l.Add(new Caixa(PapelSolido.Parafuso, -d.Db / 2, d.Db / 2, -y0 - 1.2 * d.Db, y0 + tt + 1.2 * d.Db, z - d.Db / 2, z + d.Db / 2, $"ø{d.Db:0.#}"));
+                }
+                break;
+            }
+            case TipoLigacao.ChapaNo:
+            {
+                // suporte: mesa do pilar na face x = 0; chapa de nó no plano xz (espessura em y); barra ao longo de x
+                var d = DadosChapaNo.DoModelo(m);
+                double lg = d.Comprimento + d.Ev + 80, hg = Math.Max(d.Lw, d.Whitmore + 60);
+                l.AddRange(Suporte(pilar, 0));
+                l.Add(new Caixa(PapelSolido.Chapa, 0, lg, 0, d.Tg, -hg / 2, hg / 2, $"chapa de nó {d.Tg:0.#} mm"));
+                foreach (int sy in new[] { 1, -1 })
+                    l.Add(new Caixa(PapelSolido.Solda, 0, d.Perna, sy > 0 ? d.Tg : -d.Perna, sy > 0 ? d.Tg + d.Perna : 0, -d.Lw / 2, d.Lw / 2, "filete"));
+                double xb0 = lg - d.Ev - d.Comprimento - d.Ev, Lb = 3 * lg;
+                // barra encostada na face +y da chapa; a fila de parafusos em z = 0
+                double zb = d.Cantoneira ? -d.G : -d.Bb / 2;
+                l.Add(new Caixa(PapelSolido.Membro, xb0, xb0 + Lb, d.Tg, d.Tg + d.Tb, zb, zb + d.Bb, d.Cantoneira ? "cantoneira (aba ligada)" : "barra chata"));
+                if (d.Cantoneira) l.Add(new Caixa(PapelSolido.Membro, xb0, xb0 + Lb, d.Tg, d.Tg + d.Bb, zb, zb + d.Tb, "cantoneira (aba livre)"));
+                for (int i = 0; i < d.N; i++)
+                {
+                    double x = lg - d.Ev - i * d.S;
+                    l.Add(new Caixa(PapelSolido.Parafuso, x - d.Db / 2, x + d.Db / 2, -1.2 * d.Db, d.Tg + d.Tb + 1.2 * d.Db, -d.Db / 2, d.Db / 2, $"ø{d.Db:0.#}"));
+                }
+                break;
+            }
+            case TipoLigacao.TuboFendido:
+            {
+                // chapa de nó soldada à mesa do pilar (x = 0), tubo ao longo de x encaixado nela pela fenda (o tubo aparece como prisma)
+                var d = DadosTuboFendido.DoModelo(m);
+                double lg = d.Lw + 60, hg = d.D + 2 * d.Lw * Math.Tan(Math.PI / 6);
+                l.AddRange(Suporte(pilar, 0));
+                l.Add(new Caixa(PapelSolido.Chapa, 0, lg, -d.Tg / 2, d.Tg / 2, -hg / 2, hg / 2, $"chapa de nó {d.Tg:0.#} mm"));
+                double xt = lg - d.Lw, r = d.D / 2;
+                // tubo em 8 faixas (octógono) para o desenho
+                for (int k = 0; k < 8; k++)
+                {
+                    double a0 = k * Math.PI / 4, ym = r * Math.Cos(a0 + Math.PI / 8), zm = r * Math.Sin(a0 + Math.PI / 8), w = 2 * r * Math.Sin(Math.PI / 8);
+                    bool hor = Math.Abs(Math.Cos(a0 + Math.PI / 8)) < Math.Abs(Math.Sin(a0 + Math.PI / 8));
+                    if (hor) l.Add(new Caixa(PapelSolido.Membro, xt, xt + 4 * d.D, ym - w / 2, ym + w / 2, zm - d.T / 2, zm + d.T / 2, $"tubo ø{d.D:0.#} × {d.T:0.#}"));
+                    else l.Add(new Caixa(PapelSolido.Membro, xt, xt + 4 * d.D, ym - d.T / 2, ym + d.T / 2, zm - w / 2, zm + w / 2, $"tubo ø{d.D:0.#} × {d.T:0.#}"));
+                }
+                foreach (int sz in new[] { 1, -1 })
+                    foreach (int sy in new[] { 1, -1 })
+                        l.Add(new Caixa(PapelSolido.Solda, xt, lg, sy > 0 ? d.Tg / 2 : -d.Tg / 2 - d.Perna, sy > 0 ? d.Tg / 2 + d.Perna : -d.Tg / 2, sz * (r - d.T) - d.Perna / 2, sz * (r - d.T) + d.Perna / 2, "filete"));
+                foreach (int sy in new[] { 1, -1 })
+                    l.Add(new Caixa(PapelSolido.Solda, 0, d.Perna, sy > 0 ? d.Tg / 2 : -d.Tg / 2 - d.Perna, sy > 0 ? d.Tg / 2 + d.Perna : -d.Tg / 2, -hg / 2, hg / 2, "filete no suporte"));
+                break;
+            }
+            case TipoLigacao.EmendaTalas:
+            {
+                // duas vigas ao longo de x com a junta em x = 0; talas externas nas mesas e duas talas na alma
+                var d = DadosEmendaTalas.DoModelo(m, viga, AcoEstrutural.Buscar("A572"));
+                double g = d.Folga / 2, Lv = d.LTalaMesa / 2 + 300, h2 = viga.D / 2;
+                l.AddRange(PerfilI(viga, g, g + Lv, false, "viga " + viga.Nome));
+                l.AddRange(PerfilI(viga, -g - Lv, -g, false, "viga " + viga.Nome));
+                double lm = d.LTalaMesa / 2, ha = d.HTalaAlma / 2, la = d.Folga / 2 + 2 * d.E;
+                l.Add(new Caixa(PapelSolido.Chapa, -lm, lm, -d.BTalaMesa / 2, d.BTalaMesa / 2, h2, h2 + d.Tm, $"tala de mesa {d.BTalaMesa:0} × {d.Tm:0.#}"));
+                l.Add(new Caixa(PapelSolido.Chapa, -lm, lm, -d.BTalaMesa / 2, d.BTalaMesa / 2, -h2 - d.Tm, -h2, $"tala de mesa {d.BTalaMesa:0} × {d.Tm:0.#}"));
+                foreach (int sy in new[] { 1, -1 })
+                    l.Add(new Caixa(PapelSolido.Chapa, -la, la, sy * viga.Tw / 2, sy * (viga.Tw / 2 + d.Ta), -ha, ha, $"tala de alma {d.Ta:0.#} × {d.HTalaAlma:0}"));
+                foreach (int sx in new[] { 1, -1 })
+                {
+                    for (int i = 0; i < d.Nm; i++)
+                    {
+                        double x = sx * (g + d.E + i * d.Sm);
+                        foreach (int sy in new[] { 1, -1 })
+                            foreach (int sz in new[] { 1, -1 })
+                                l.Add(new Caixa(PapelSolido.Parafuso, x - d.Db / 2, x + d.Db / 2, sy * d.Gm / 2 - d.Db / 2, sy * d.Gm / 2 + d.Db / 2,
+                                                sz > 0 ? h2 - viga.Tf - 1.2 * d.Db : -h2 - d.Tm - 1.2 * d.Db, sz > 0 ? h2 + d.Tm + 1.2 * d.Db : -h2 + viga.Tf + 1.2 * d.Db, $"ø{d.Db:0.#}"));
+                    }
+                    for (int i = 0; i < d.Na; i++)
+                    {
+                        double x = sx * (g + d.E), z = (i - (d.Na - 1) / 2.0) * d.Sa;
+                        l.Add(new Caixa(PapelSolido.Parafuso, x - d.Db / 2, x + d.Db / 2, -viga.Tw / 2 - d.Ta - 1.2 * d.Db, viga.Tw / 2 + d.Ta + 1.2 * d.Db, z - d.Db / 2, z + d.Db / 2, $"ø{d.Db:0.#}"));
+                    }
+                }
+                break;
+            }
             default:
             {
                 var d = DadosPlacaBase.DoModelo(m, pilar, 1.4);

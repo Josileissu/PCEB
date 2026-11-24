@@ -123,7 +123,8 @@ public sealed class SessaoBiblioteca
 
     private string NovoId(TipoLigacao t)
     {
-        string pre = t switch { TipoLigacao.ChapaAlma => "ESC-CA-", TipoLigacao.CantoneiraDupla => "ESC-CD-", TipoLigacao.ChapaTopo => "ESC-CT-", _ => "ESC-PB-" };
+        string pre = t switch { TipoLigacao.ChapaAlma => "ESC-CA-", TipoLigacao.CantoneiraDupla => "ESC-CD-", TipoLigacao.ChapaTopo => "ESC-CT-", TipoLigacao.PlacaBase => "ESC-PB-",
+                                TipoLigacao.ApoioTerca => "ESC-AT-", TipoLigacao.ChapaNo => "ESC-CN-", TipoLigacao.TuboFendido => "ESC-TF-", _ => "ESC-ET-" };
         int k = 1;
         while (Biblioteca.Buscar(pre + k) != null) k++;
         return pre + k;
@@ -190,6 +191,7 @@ public sealed class SessaoBiblioteca
         }
         ValorJson L(params double[] v) { var l = ValorJson.NovaLista(); foreach (double x in v) l.Adicionar(ValorJson.De(x)); return l; }
         o.Definir("viga", Perfil(viga)); o.Definir("pilar", Perfil(pilar));
+        string Res((double R, string Gov) r, string un = "kN") => double.IsInfinity(r.R) ? "—" : $"{Fmt.Virgula(r.R, "0")} {un} ({r.Gov})";
         // sólidos da ligação (D50, item 4): [papel, x0, x1, y0, y1, z0, z1, rótulo] em mm
         var cx = ValorJson.NovaLista(); o.Definir("caixas", cx);
         foreach (var c in GeometriaLigacao.Montar(m, viga, pilar))
@@ -234,6 +236,43 @@ public sealed class SessaoBiblioteca
                 o.Definir("topo", topo); o.Definir("base", base0); o.Definir("tp", d.Tp);
                 o.Definir("texto", $"{d.NTotal} parafusos ø{Fmt.Virgula(d.Db, "0.#")} (g = {Fmt.Virgula(d.G, "0")} mm) · chapa {Fmt.Virgula(d.BpEf, "0")} mm de largura, " +
                                    (d.Tp > 0 ? $"{Fmt.Virgula(d.Tp, "0.#")} mm" : "espessura pelo cálculo") + (d.Estendida ? " · estendida" : ""));
+                break;
+            }
+            case TipoLigacao.ApoioTerca:
+            {
+                var d = DadosApoioTerca.DoModelo(m);
+                var rv = FuncoesLigacao.Capacidade(s => LigacaoApoioTerca.Verificar(d, new[] { new EsforcoLigacao("", 0, s) }, "", out _));
+                var rn = FuncoesLigacao.Capacidade(s => LigacaoApoioTerca.Verificar(d, new[] { new EsforcoLigacao("", s) }, "", out _));
+                var rh = FuncoesLigacao.Capacidade(s => LigacaoApoioTerca.Verificar(d, new[] { new EsforcoLigacao("", 0, 0, 0, s) }, "", out _));
+                o.Definir("texto", $"chapa {Fmt.Virgula(d.Bp, "0")} × {Fmt.Virgula(d.Hp, "0")} × {Fmt.Virgula(d.Tp, "0.#")} mm · {d.N} parafusos ø{Fmt.Virgula(d.Db, "0.#")} {d.Parafuso.Nome} · " +
+                                   $"resistências: reação vertical {Res(rv)}, axial da terça {Res(rh)}, perpendicular à chapa {Res(rn)}");
+                break;
+            }
+            case TipoLigacao.ChapaNo:
+            {
+                var d = DadosChapaNo.DoModelo(m);
+                var rt = FuncoesLigacao.Capacidade(s => LigacaoChapaNo.Verificar(d, new[] { new EsforcoLigacao("", s) }, "", out _));
+                var rc = FuncoesLigacao.Capacidade(s => LigacaoChapaNo.Verificar(d, new[] { new EsforcoLigacao("", -s) }, "", out _));
+                o.Definir("texto", $"{(d.Cantoneira ? "L" : "barra chata")} {Fmt.Virgula(d.Bb, "0.#")} × {Fmt.Virgula(d.Tb, "0.##")} · {d.N} parafusos ø{Fmt.Virgula(d.Db, "0.#")} · chapa de nó {Fmt.Virgula(d.Tg, "0.#")} mm · " +
+                                   $"resistências da ligação: tração {Res(rt)}, compressão {Res(rc)}");
+                break;
+            }
+            case TipoLigacao.TuboFendido:
+            {
+                var d = DadosTuboFendido.DoModelo(m);
+                var rt = FuncoesLigacao.Capacidade(s => LigacaoTuboFendido.Verificar(d, new[] { new EsforcoLigacao("", s) }, "", out _));
+                var rc = FuncoesLigacao.Capacidade(s => LigacaoTuboFendido.Verificar(d, new[] { new EsforcoLigacao("", -s) }, "", out _));
+                o.Definir("texto", $"tubo ø{Fmt.Virgula(d.D, "0.#")} × {Fmt.Virgula(d.T, "0.#")} · chapa {Fmt.Virgula(d.Tg, "0.#")} mm · 4 filetes {Fmt.Virgula(d.Perna, "0")} × {Fmt.Virgula(d.Lw, "0")} mm · " +
+                                   $"resistências: tração {Res(rt)}, compressão {Res(rc)}");
+                break;
+            }
+            case TipoLigacao.EmendaTalas:
+            {
+                var d = DadosEmendaTalas.DoModelo(m, viga, aco);
+                var rm = FuncoesLigacao.Capacidade(s => LigacaoEmendaTalas.Verificar(d, new[] { new EsforcoLigacao("", 0, 0, s) }, "", out _));
+                var rv = FuncoesLigacao.Capacidade(s => LigacaoEmendaTalas.Verificar(d, new[] { new EsforcoLigacao("", 0, s) }, "", out _));
+                o.Definir("texto", $"talas de mesa {Fmt.Virgula(d.BTalaMesa, "0")} × {Fmt.Virgula(d.Tm, "0.#")} × {Fmt.Virgula(d.LTalaMesa, "0")} mm ({2 * d.Nm} parafusos por lado) · " +
+                                   $"2 talas de alma {Fmt.Virgula(d.Ta, "0.#")} × {Fmt.Virgula(d.HTalaAlma, "0")} mm ({d.Na} por lado) · resistências em {viga.Nome}: momento {Res(rm, "kN·m")}, cortante {Res(rv)}");
                 break;
             }
             default:

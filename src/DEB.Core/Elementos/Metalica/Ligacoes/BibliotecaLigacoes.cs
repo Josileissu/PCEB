@@ -9,8 +9,8 @@ using DEB.Core.Persistencia;
 
 namespace DEB.Core.Elementos.Metalica.Ligacoes;
 
-/// <summary>Tipos de ligação metálica da biblioteca do PCEB (D49).</summary>
-public enum TipoLigacao { ChapaAlma, CantoneiraDupla, ChapaTopo, PlacaBase }
+/// <summary>Tipos de ligação metálica da biblioteca do PCEB (D49; apoio de terça, chapa de nó, tubo em fenda e emenda: D50, item 5).</summary>
+public enum TipoLigacao { ChapaAlma, CantoneiraDupla, ChapaTopo, PlacaBase, ApoioTerca, ChapaNo, TuboFendido, EmendaTalas }
 
 /// <summary>De onde vem o modelo de ligação: o PCEB (vem com o programa), o escritório ou o projeto (D45: o nível de baixo vale).</summary>
 public enum OrigemLigacao { Pceb, Escritorio, Projeto }
@@ -162,6 +162,74 @@ public static class EsquemasLigacao
             N("perna", "Perna do filete pilar–placa", "Solda", "mm", "8", 3, 16),
             N("fw", "Resistência do eletrodo", "Solda", "MPa", "485", 415, 550),
         },
+        [TipoLigacao.ApoioTerca] = new[]
+        {
+            O("parafuso", "Parafuso", "Parafusos", Parafusos, "ASTM A307"),
+            N("db", "Diâmetro", "Parafusos", "mm", "12.7", 10, 24),
+            O("rosca", "Rosca no plano de corte", "Parafusos", SimNao, "Sim"),
+            N("n", "Número de parafusos (uma fila vertical)", "Parafusos", "", "2", 1, 4),
+            N("s", "Passo vertical", "Parafusos", "mm", "60", 30, 150),
+            O("acoChapa", "Aço da chapa", "Chapa", Acos, "ASTM A36"),
+            N("tp", "Espessura da chapa", "Chapa", "mm", "6.3", 4.75, 19),
+            N("hp", "Altura da chapa (acima da mesa)", "Chapa", "mm", "auto", 60, 400, true, "auto: o que cabe os parafusos com borda, pelo menos 3/4 da altura da terça."),
+            N("bp", "Largura da chapa (ao longo da terça)", "Chapa", "mm", "80", 50, 250),
+            N("ev", "Borda superior até o 1º parafuso", "Chapa", "mm", "30", 15, 80),
+            N("hTerca", "Altura da terça", "Terça", "mm", "150", 75, 350),
+            N("tTerca", "Espessura da alma da terça", "Terça", "mm", "2.65", 1.5, 8, false, "Perfil formado a frio: a pressão de contato na alma costuma governar."),
+            O("acoTerca", "Aço da terça", "Terça", Acos, "ASTM A36"),
+            N("perna", "Perna do filete (cada lado)", "Solda", "mm", "5", 3, 12),
+            N("fw", "Resistência do eletrodo", "Solda", "MPa", "485", 415, 550),
+        },
+        [TipoLigacao.ChapaNo] = new[]
+        {
+            O("tipoBarra", "Barra", "Barra", new[] { "Cantoneira simples", "Barra chata" }, "Cantoneira simples"),
+            N("bb", "Aba (cantoneira) ou largura (barra chata)", "Barra", "mm", "63.5", 25, 203),
+            N("tb", "Espessura da barra", "Barra", "mm", "6.35", 3, 25),
+            O("acoBarra", "Aço da barra", "Barra", Acos, "ASTM A36"),
+            O("parafuso", "Parafuso", "Parafusos", Parafusos, "ASTM F3125 A325"),
+            N("db", "Diâmetro", "Parafusos", "mm", "15.88", 12, 30),
+            O("rosca", "Rosca no plano de corte", "Parafusos", SimNao, "Sim"),
+            N("n", "Número de parafusos (uma fila)", "Parafusos", "", "3", 1, 10),
+            N("s", "Passo", "Parafusos", "mm", "60", 30, 150),
+            N("ev", "Borda na direção da força", "Parafusos", "mm", "35", 15, 100),
+            N("g", "Gabarito (do dorso da cantoneira à fila)", "Parafusos", "mm", "35", 15, 120),
+            O("acoChapa", "Aço da chapa de nó", "Chapa de nó", Acos, "ASTM A36"),
+            N("tg", "Espessura da chapa de nó", "Chapa de nó", "mm", "9.5", 6.3, 31.5),
+            N("lc", "Comprimento livre médio (compressão)", "Chapa de nó", "mm", "150", 20, 800, false, "Da seção de Whitmore até o apoio da chapa (Thornton: média de L1, L2, L3)."),
+            N("angulo", "Ângulo entre a barra e o suporte", "Chapa de nó", "°", "45", 15, 90),
+            N("lw", "Comprimento da chapa na solda", "Solda", "mm", "250", 80, 1000),
+            N("perna", "Perna do filete (cada lado)", "Solda", "mm", "6", 3, 16),
+            N("fw", "Resistência do eletrodo", "Solda", "MPa", "485", 415, 550),
+        },
+        [TipoLigacao.TuboFendido] = new[]
+        {
+            N("d", "Diâmetro externo do tubo", "Tubo", "mm", "101.6", 26.7, 610),
+            N("t", "Espessura do tubo", "Tubo", "mm", "6", 2, 25),
+            O("acoTubo", "Aço do tubo", "Tubo", Acos, "ASTM A572 Gr. 50"),
+            O("acoChapa", "Aço da chapa de nó", "Chapa de nó", Acos, "ASTM A36"),
+            N("tg", "Espessura da chapa de nó", "Chapa de nó", "mm", "12.5", 6.3, 37.5),
+            N("folga", "Folga da fenda (além da chapa)", "Chapa de nó", "mm", "2", 0, 6),
+            N("lc", "Comprimento livre médio (compressão)", "Chapa de nó", "mm", "150", 20, 800),
+            N("lw", "Comprimento de solda (sobreposição)", "Solda", "mm", "150", 40, 1000, false, "Lw ≥ 1,3·D dispensa a redução da seção líquida (Ct = 1)."),
+            N("perna", "Perna do filete", "Solda", "mm", "6", 3, 16),
+            N("fw", "Resistência do eletrodo", "Solda", "MPa", "485", 415, 550),
+        },
+        [TipoLigacao.EmendaTalas] = new[]
+        {
+            O("parafuso", "Parafuso", "Parafusos", Parafusos, "ASTM F3125 A325"),
+            N("db", "Diâmetro", "Parafusos", "mm", "19.05", 12, 36),
+            O("rosca", "Rosca no plano de corte", "Parafusos", SimNao, "Sim"),
+            N("nm", "Linhas de parafusos na mesa (cada lado da junta)", "Mesas", "", "3", 1, 10, false, "Dois parafusos por linha."),
+            N("sm", "Passo na mesa", "Mesas", "mm", "75", 40, 200),
+            N("gm", "Gabarito na mesa", "Mesas", "mm", "100", 50, 300),
+            N("tm", "Espessura da tala de mesa", "Mesas", "mm", "12.5", 6.3, 50),
+            N("na", "Parafusos na alma (cada lado da junta)", "Alma", "", "auto", 2, 12, true, "auto: o maior que cabe na altura livre da alma."),
+            N("sa", "Passo na alma", "Alma", "mm", "75", 40, 200),
+            N("ta", "Espessura das talas de alma (cada)", "Alma", "mm", "8", 4.75, 25),
+            N("e", "Bordas das talas", "Talas", "mm", "38", 15, 100),
+            N("folga", "Folga entre as vigas", "Talas", "mm", "10", 0, 30),
+            O("acoTala", "Aço das talas", "Talas", Acos, "ASTM A36"),
+        },
     };
 
     public static IReadOnlyList<ParametroLigacao> Do(TipoLigacao t) => _esq[t];
@@ -174,7 +242,11 @@ public static class EsquemasLigacao
         TipoLigacao.ChapaAlma => "Chapa de alma (flexível)",
         TipoLigacao.CantoneiraDupla => "Cantoneira dupla (flexível)",
         TipoLigacao.ChapaTopo => "Chapa de topo (rígida)",
-        _ => "Placa de base",
+        TipoLigacao.PlacaBase => "Placa de base",
+        TipoLigacao.ApoioTerca => "Apoio de terça",
+        TipoLigacao.ChapaNo => "Contraventamento em chapa de nó",
+        TipoLigacao.TuboFendido => "Tubo com chapa de nó em fenda",
+        _ => "Emenda de viga com talas",
     };
 }
 

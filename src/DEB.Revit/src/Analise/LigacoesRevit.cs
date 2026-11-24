@@ -47,7 +47,8 @@ namespace DEB.Revit.Analise
                             case TipoLigacao.ChapaAlma: ChapaAlma(doc, l, chapa, parafuso, ids); break;
                             case TipoLigacao.CantoneiraDupla: Cantoneira(doc, l, chapa, parafuso, ids); break;
                             case TipoLigacao.ChapaTopo: ChapaTopo(doc, l, chapa, parafuso, ids); break;
-                            default: PlacaBase(doc, l, chapa, parafuso, ids); break;
+                            case TipoLigacao.PlacaBase: PlacaBase(doc, l, chapa, parafuso, ids); break;
+                            default: log.AppendLine($"{l.Dono}: tipo {l.Tipo} ainda sem modelagem no Revit."); continue;
                         }
                         foreach (var id in ids) doc.GetElement(id).LookupParameter(FamiliasLigacoes.PLigacao)?.Set(l.Dono.Id);
                         if (ids.Count > 1)

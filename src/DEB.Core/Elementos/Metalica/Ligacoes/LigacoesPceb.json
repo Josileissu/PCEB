@@ -23,6 +23,27 @@
       "valores": { "nChumb": "4", "dChumb": "25", "tp": "auto", "b": "auto", "h": "auto" } },
     { "id": "PCEB-PB-32", "nome": "Placa de base com 4 chumbadores ø32", "tipo": "PlacaBase",
       "descricao": "Bases com tração ou momento maiores.",
-      "valores": { "nChumb": "4", "dChumb": "32", "tp": "auto", "b": "auto", "h": "auto" } }
+      "valores": { "nChumb": "4", "dChumb": "32", "tp": "auto", "b": "auto", "h": "auto" } },
+    { "id": "PCEB-AT-12", "nome": "Apoio de terça — chapa 6,3, 2 × ø12,7", "tipo": "ApoioTerca",
+      "descricao": "Chapa soldada na mesa da viga ou no banzo da tesoura; terça Ue 150 parafusada com dois parafusos A307 de meia polegada.",
+      "valores": { "db": "12.7", "n": "2", "tp": "6.3", "hp": "auto", "hTerca": "150", "tTerca": "2.65" } },
+    { "id": "PCEB-AT-16", "nome": "Apoio de terça — chapa 8, 2 × ø16", "tipo": "ApoioTerca",
+      "descricao": "Terças maiores (Ue 200 a 250) ou vãos longos.",
+      "valores": { "db": "15.88", "n": "2", "s": "70", "tp": "8", "hp": "auto", "bp": "100", "hTerca": "200", "tTerca": "3" } },
+    { "id": "PCEB-CN-L63", "nome": "Contraventamento L 63 × 6,3 — 3 × ø16", "tipo": "ChapaNo",
+      "descricao": "Diagonal em cantoneira simples parafusada numa fila em chapa de nó de 9,5 mm soldada ao suporte.",
+      "valores": { "tipoBarra": "Cantoneira simples", "bb": "63.5", "tb": "6.35", "db": "15.88", "n": "3", "tg": "9.5" } },
+    { "id": "PCEB-CN-BC", "nome": "Contraventamento em barra chata 76 × 9,5 — 2 × ø16", "tipo": "ChapaNo",
+      "descricao": "Diagonal só tracionada em barra chata.",
+      "valores": { "tipoBarra": "Barra chata", "bb": "76.2", "tb": "9.53", "db": "15.88", "n": "2", "g": "38", "tg": "9.5" } },
+    { "id": "PCEB-TF-101", "nome": "Tubo ø101,6 em chapa de nó com fenda", "tipo": "TuboFendido",
+      "descricao": "Diagonal tubular encaixada na chapa de nó, quatro filetes de 150 mm.",
+      "valores": { "d": "101.6", "t": "6", "tg": "12.5", "lw": "150" } },
+    { "id": "PCEB-TF-141", "nome": "Tubo ø141,3 em chapa de nó com fenda", "tipo": "TuboFendido",
+      "descricao": "Diagonal tubular maior; Lw ≥ 1,3·D (sem redução da seção líquida).",
+      "valores": { "d": "141.3", "t": "6.55", "tg": "16", "lw": "190", "perna": "8" } },
+    { "id": "PCEB-ET-19", "nome": "Emenda de viga com talas — ø19", "tipo": "EmendaTalas",
+      "descricao": "Emenda parafusada: talas externas nas mesas e duas talas na alma.",
+      "valores": { "db": "19.05", "nm": "3", "tm": "12.5", "na": "auto", "ta": "8" } }
   ]
 }
