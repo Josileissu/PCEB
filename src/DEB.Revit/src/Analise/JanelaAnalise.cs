@@ -21,6 +21,8 @@ namespace DEB.Revit.Analise
         public string Captura { get; set; }
         public string ModoCaptura { get; set; } = "";
         public string Erro { get; private set; }
+        /// <summary>Sessão com ajustes (D50): as mensagens "ajustar"/"restaurar" vão para ela e a página recebe o JSON novo.</summary>
+        public SessaoAnalise Sessao { get; set; }
 
         public JanelaAnalise(string json, string titulo)
         {
@@ -46,8 +48,14 @@ namespace DEB.Revit.Analise
                 w.WebMessageReceived += (s, e) =>
                 {
                     string m = e.TryGetWebMessageAsString() ?? "";
-                    if (m.Contains("\"pronto\"")) w.PostWebMessageAsString(_json);
+                    if (m.Contains("\"pronto\"")) w.PostWebMessageAsString(Sessao != null ? Sessao.Json() : _json);
                     else if (m.Contains("\"fechar\"")) Close();
+                    else if (Sessao != null)
+                    {
+                        Cursor = System.Windows.Input.Cursors.Wait;
+                        try { string r = Sessao.Receber(m); if (r.Length > 0) w.PostWebMessageAsString(r); }
+                        finally { Cursor = null; }
+                    }
                 };
                 string pagina = VisualizacaoAnalise.Pagina();
                 if (Captura != null)

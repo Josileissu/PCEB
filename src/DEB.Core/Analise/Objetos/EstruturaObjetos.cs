@@ -34,6 +34,8 @@ public sealed class PilarObjeto
     public List<double> Niveis { get; } = new List<double>();
     /// <summary>Fator de rigidez à flexão (NBR 6118 15.7.3: 0,8 na 2ª ordem global); 1 = elástica.</summary>
     public double FatorFlexao { get; set; } = 1;
+    /// <summary>Base articulada no lugar do engaste no cálice (ajuste da janela de análise, D50).</summary>
+    public bool BaseArticulada { get; set; }
     /// <summary>Armadura longitudinal desenhada (cm, eixos da seção; ø em mm); vazia = o dimensionamento propõe uma.</summary>
     public List<(double Y, double Z, double Phi)> Armadura { get; } = new List<(double, double, double)>();
 
@@ -62,7 +64,7 @@ public sealed class PilarObjeto
             b.FatorFlexao = FatorFlexao;
             Barras.Add(b);
         }
-        m.Apoio(Nos[0].No, ApoioNo.Engaste, Dono);
+        m.Apoio(Nos[0].No, BaseArticulada ? new[] { true, true, true, false, false, true } : ApoioNo.Engaste, Dono);   // articulada: giro em torno do eixo preso
     }
 
     /// <summary>Nó do pilar na altura z (o mais próximo).</summary>
@@ -645,6 +647,19 @@ public sealed class EstruturaObjetos
         DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaTopo => "chapa de topo",
         _ => "placa de base",
     };
+    /// <summary>Valores lidos do hospedeiro antes dos ajustes da janela (D50): "restaurar" volta a eles.</summary>
+    public Dictionary<string, Dictionary<string, string>> ValoresDePartida { get; set; }
+    /// <summary>Modelo da biblioteca escolhido por ligação metálica (chave Ligacao:id → id do modelo), dos ajustes da janela (D50).</summary>
+    public Dictionary<string, string> ModelosLigacaoEscolhidos { get; } = new Dictionary<string, string>();
+
+    private DEB.Core.Elementos.Metalica.Ligacoes.ModeloLigacao ModeloPara(string idLigacao, DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao tipo)
+    {
+        var bib = Biblioteca ??= DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes.Carregar();
+        if (ModelosLigacaoEscolhidos.TryGetValue(TipoDono.Ligacao + ":" + idLigacao, out string id) && bib.Buscar(id) is DEB.Core.Elementos.Metalica.Ligacoes.ModeloLigacao m && m.Tipo == tipo)
+            return m;
+        return bib.Padrao(tipo);
+    }
+
     /// <summary>γc do concreto dos blocos sob as placas de base (da configuração).</summary>
     public double GamaCBases { get; set; } = 1.4;
     public ModeloBarras Modelo { get; private set; }
@@ -735,7 +750,7 @@ public sealed class EstruturaObjetos
                 if (rigida && !alvo.Pilar) Avisos.Add($"{v.Dono}: ligação rígida em outra viga — a chapa de topo da biblioteca é só viga–pilar; confira a ligação.");
                 else
                 {
-                    var modelo = bib.Padrao(tipo);
+                    var modelo = ModeloPara($"{v.Dono.Id}-{(pontaI ? "I" : "J")}", tipo);
                     var lig = new LigacaoMetalica
                     {
                         Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{v.Dono.Id}-{(pontaI ? "I" : "J")}",
@@ -789,7 +804,7 @@ public sealed class EstruturaObjetos
                 for (int g = 0; g < 3; g++) travado[g] = true;
                 if (pil.Obj.Base == BasePilarMetalico.Engastada) for (int g = 3; g < 6; g++) travado[g] = true;
                 var bib = Biblioteca ??= DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes.Carregar();
-                var mod = bib.Padrao(DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.PlacaBase);
+                var mod = ModeloPara(pil.Obj.Dono.Id + "-base", DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.PlacaBase);
                 LigacoesMetalicas.Add(new LigacaoMetalica
                 {
                     Dono = new Dono { Tipo = TipoDono.Ligacao, Id = pil.Obj.Dono.Id + "-base", Nome = $"placa de base {Curto(pil.Obj.Dono)}" },

@@ -74,6 +74,15 @@ td{font-family:var(--f-dado)}
 .verif td{font-family:var(--f-texto);white-space:normal;text-align:left;vertical-align:top}
 .verif td.v{font-family:var(--f-dado)}
 details{font-size:.8rem}details summary{cursor:pointer;color:var(--suave)}
+.aj{display:grid;grid-template-columns:1fr 118px 34px 18px;gap:4px 6px;align-items:center;font-size:.8rem}
+.aj .g{grid-column:1/-1;font-size:.7rem;color:var(--suave);text-transform:uppercase;letter-spacing:.04em;margin-top:6px}
+.aj input,.aj select{width:100%;font:inherit;font-family:var(--f-dado);font-size:.78rem;padding:2px 4px;border:1px solid var(--linha);border-radius:4px;background:var(--card);color:var(--fg);text-align:right}
+.aj select{text-align:left;font-family:var(--f-texto)}
+.aj .mudou{border-color:var(--ipe);background:color-mix(in srgb,var(--ipe) 14%,var(--card))}
+.aj .un{color:var(--suave);font-size:.72rem}
+.aj button{border:0;background:transparent;color:var(--suave);cursor:pointer;padding:0;font-size:.85rem}
+.aj-nota{font-size:.72rem;color:var(--suave);margin-top:4px}
+.erro-aj{background:var(--erro);color:#fff;font-size:.8rem;padding:6px 8px;border-radius:5px}
 details p{margin:4px 0}
 @media (max-width:1000px){.corpo{grid-template-columns:190px minmax(0,1fr)}.lateral{display:none}}
 @media (max-width:640px){.corpo{grid-template-columns:1fr;grid-template-rows:auto minmax(320px,1fr)}.lista{border-right:0;border-bottom:1px solid var(--linha);max-height:150px}}
@@ -146,19 +155,23 @@ const valor = (k, v) => ehMomento(k) ? fmt(v / 100, 2) + " kN·m" : fmt(v, 2) + 
 function enviar(m) { if (host) host.postMessage(JSON.stringify(m)); }
 function receber(txt) {
   const m = typeof txt === "string" ? JSON.parse(txt) : txt;
-  if (m.tipo === "modelo") { D = m; iniciar(); }
+  if (m.tipo === "modelo") { const primeira = !D, res = $("resultado").value; D = m; iniciar(primeira, res); if (m.erro) aviso(m.erro); }
   else if (m.tipo === "aviso") alert(m.texto);
 }
 if (host) host.addEventListener("message", ev => receber(ev.data));
 
 // ---------------------------------------------------------------- dados
-function iniciar() {
+function aviso(t) { const b = $("lateral"); const d = document.createElement("div"); d.className = "erro-aj"; d.textContent = t; b.prepend(d); setTimeout(() => d.remove(), 7000); }
+function iniciar(primeira = true, resAnt = "") {
   $("titulo").textContent = D.titulo || "análise por objetos (D46)";
   const s = $("resultado"); s.textContent = "";
   D.resultados.forEach((r, i) => { const o = document.createElement("option"); o.value = i; o.textContent = (r.tipo === "caso" ? "Caso " : "") + r.nome; s.append(o); });
-  const elu = D.resultados.findIndex(r => r.tipo === "ELU"); s.value = elu >= 0 ? elu : 0;
+  const elu = D.resultados.findIndex(r => r.tipo === "ELU"); s.value = !primeira && resAnt !== "" && D.resultados[+resAnt] ? resAnt : elu >= 0 ? elu : 0;
   R = D.resultados[+s.value];
-  lista(); ajustar(); lateral(); desenhar();
+  if (sel && !D.objetos.some(o => o.chave === sel)) sel = null;
+  if (selBarra >= D.barras.length) selBarra = -1;
+  lista(); if (primeira) ajustar(); lateral(); desenhar();
+  if (!primeira) return;
   // #diagrama, #mapa, #deformada: abre no modo (prévia e autoteste)
   const h = location.hash.slice(1); if (h) { const b = document.querySelector(`[data-modo="${h}"]`) || document.querySelector(`[data-aba="${h}"]`); if (b) b.click(); }
 }
@@ -490,6 +503,26 @@ function lateral() {
   if (!chave) { const v = document.createElement("div"); v.className = "vazio"; v.textContent = "Clique numa barra ou num objeto da lista."; sec("Seleção", v); resumoResultado(sec, kv); return; }
   const o = D.objetos.find(x => x.chave === chave) || { nome: chave, resumo: "" };
   sec(o.nome, kv([["tipo", o.tipo === "Ligacao" ? "ligação" : (o.tipo || "").toLowerCase()], ["", o.resumo]]));
+  // ajustes do modelo analítico (D50): o valor vem do Revit; o ajustado vale por cima, gravado no modelo
+  if (o.ajustes && o.ajustes.length) {
+    const g = document.createElement("div"); g.className = "aj"; let grupo = "";
+    for (const p of o.ajustes) {
+      if (p.grupo !== grupo) { grupo = p.grupo; const h = document.createElement("div"); h.className = "g"; h.textContent = grupo; g.append(h); }
+      const l = document.createElement("label"); l.textContent = p.rotulo; if (p.dica) l.title = p.dica;
+      let c;
+      if (p.opcoes.length) { c = document.createElement("select"); p.opcoes.forEach(x => { const op = document.createElement("option"); op.textContent = x; if (x === p.valor) op.selected = true; c.append(op); }); }
+      else { c = document.createElement("input"); const num = /^-?[0-9.]+$/.test(String(p.valor)); c.value = num ? String(p.valor).replace(".", ",") : p.valor; c.dataset.num = num ? "1" : ""; }
+      if (p.alterado) c.className = "mudou";
+      c.addEventListener("change", () => enviar({ acao: "ajustar", chave, prop: p.id, valor: c.dataset.num ? c.value.replace(",", ".") : c.value }));
+      const un = document.createElement("span"); un.className = "un"; un.textContent = p.unidade;
+      const r = document.createElement("button"); r.textContent = p.alterado ? "↺" : ""; r.title = "Voltar ao valor do Revit";
+      if (p.alterado) r.addEventListener("click", () => enviar({ acao: "restaurar", chave, prop: p.id }));
+      g.append(l, c, un, r);
+    }
+    const n = document.createElement("div"); n.className = "aj-nota";
+    n.textContent = host ? "A análise refaz na hora; os ajustes ficam gravados no modelo ao fechar a janela." : "Prévia sem o Revit: os ajustes não recalculam.";
+    sec("Ajustes do modelo", g, n);
+  }
   const dm = dimDe(chave);
   if (dm) {
     const d = document.createElement("div");

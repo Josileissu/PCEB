@@ -533,6 +533,23 @@ namespace DEB.Revit
                 var m = e.Modelo;
                 sb.AppendLine($"Modelo: {e.Pilares.Count} pilares, {e.Vigas.Count} vigas, {e.Metalicas.Count} peças de aço, {e.Ligacoes.Count} ligações; {m.Nos.Count} nós, {m.Barras.Count} barras, " +
                               $"{m.Molas.Count} aparelhos, {m.Vinculos.Count} vínculos");
+                // ajustes da janela (D50): consolo articulado, gravado no modelo e relido numa montagem nova
+                if (e.Ligacoes.Count > 0)
+                {
+                    var ses = new DEB.Core.Analise.Objetos.SessaoAnalise(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc), doc.Title, DEB.Revit.Analise.AjustesRevit.Ler(doc));
+                    var lc = e.Ligacoes[0];
+                    string ch = DEB.Core.Analise.Objetos.AjustesAnalise.Chave(lc.Dono);
+                    string kAntes = lc.Mola?.K[0].ToString("0.#") ?? "?";
+                    string resp = ses.Receber("{\"acao\":\"ajustar\",\"chave\":\"" + ch + "\",\"prop\":\"representacao\",\"valor\":\"Barra rígida + articulação\"}");
+                    sb.AppendLine($"Ajuste {ch}: Kh {kAntes} → {lc.Mola?.K[0]:0.#} kN/cm; resposta {resp.Length / 1024} kB{(resp.Contains("\"erro\"") ? " COM ERRO" : "")}");
+                    DEB.Revit.Analise.AjustesRevit.Gravar(doc, ses.Ajustes);
+                    var notas2 = new List<string>();
+                    var e2 = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, notas2);
+                    var lc2 = e2?.Ligacoes.FirstOrDefault(x => x.Dono.Id == lc.Dono.Id);
+                    sb.AppendLine($"Relido do modelo: representação {lc2?.Representacao}; {notas2.FirstOrDefault(n => n.Contains("Ajustes do modelo"))}");
+                    DEB.Revit.Analise.AjustesRevit.Gravar(doc, new Dictionary<string, Dictionary<string, string>>());
+                    e = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, new List<string>()) ?? e;
+                }
                 string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 sb.AppendLine($"JSON da janela: {json.Length / 1024} kB");
                 var dim = DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.Verificar(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));

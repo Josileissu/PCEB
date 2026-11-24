@@ -14,7 +14,7 @@ namespace DEB.Revit.Commands
     /// "Modelo de análise" (D46): monta a estrutura por objetos (pilares pré-moldados, vigas apoiadas nos consolos, ligações),
     /// analisa e mostra na janela própria do PCEB (3D, deformada, diagramas, mapa de cores). Não escreve no modelo do Revit.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     public class ModeloAnaliticoCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -28,10 +28,17 @@ namespace DEB.Revit.Commands
                 TaskDialog.Show("Modelo de análise", "Não foi possível montar a estrutura (pilares, vigas e pisos).\n\n" + string.Join("\n", notas.Take(10)));
                 return Result.Cancelled;
             }
-            var win = new JanelaAnalise(VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc)), doc.Title);
+            var sessao = new SessaoAnalise(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc), doc.Title, AjustesRevit.Ler(doc));
+            var win = new JanelaAnalise(sessao.Json(), doc.Title) { Sessao = sessao };
             new WindowInteropHelper(win) { Owner = uiapp.MainWindowHandle };
             win.ShowDialog();
             if (win.Erro != null) TaskDialog.Show("Modelo de análise", win.Erro);
+            if (sessao.Alterado)
+            {
+                AjustesRevit.Gravar(doc, sessao.Ajustes);
+                TaskDialog.Show("Modelo de análise", $"Ajustes do modelo analítico gravados no modelo ({sessao.Ajustes.Count} objetos ajustados). " +
+                                "Eles valem também no cálculo dos pilares, das vigas e das ligações.");
+            }
             return Result.Succeeded;
         }
 
@@ -49,7 +56,15 @@ namespace DEB.Revit.Commands
             }
             catch (System.Exception ex) { notas.Add("Vigas pré-moldadas não levantadas: " + ex.Message); }
             EstruturaObjetos e = EstruturaRevit.Montar(doc, grupos, porId, cfg, notas, out _);
-            if (e.Pilares.Count + e.Vigas.Count + e.Lajes.Count == 0) return null;
+            if (e.Pilares.Count + e.Vigas.Count + e.Lajes.Count + e.Metalicas.Count == 0) return null;
+            // ajustes da janela de análise gravados no modelo (D50): valem por cima do que foi lido
+            e.ValoresDePartida = SessaoAnalise.Valores(e);
+            var ajustes = AjustesRevit.Ler(doc, notas);
+            if (ajustes.Count > 0)
+            {
+                notas.AddRange(AjustesAnalise.Aplicar(e, ajustes));
+                notas.Add($"Ajustes do modelo analítico aplicados em {ajustes.Count} objetos (janela \"Modelo de análise\").");
+            }
             try { e.Analisar(cfg); }
             catch (DEB.Core.Analise.Barras.ErroAnalise ex) { notas.Add("Análise: " + ex.Message); return null; }
             foreach (string n in notas) e.Avisos.Add(n);

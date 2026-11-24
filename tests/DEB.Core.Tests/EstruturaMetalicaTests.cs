@@ -121,4 +121,45 @@ public class EstruturaMetalicaTests
         Assert.Contains(topo.Verificacoes, x => x.Codigo == "CT1");
         Assert.Contains("PCEB-CT-22", topo.Resumo[0]);
     }
+
+    [Fact]
+    public void Ajustes_da_janela_mudam_o_modelo_e_voltam()
+    {
+        var e = Portico(LigacaoExtremidade.Flexivel);
+        e.ValoresDePartida = SessaoAnalise.Valores(e);
+        var s = new SessaoAnalise(e, new ConfiguracaoProjeto(), "teste", null);
+        Assert.Contains("\"ajustes\"", s.Json());
+        double mFlex = Est(e, e.Metalicas.Single(x => x.Dono.Nome == "V1"), EstruturaObjetos.CasoG).First()[5];
+        string chave = AjustesAnalise.Chave(e.Metalicas.Single(x => x.Dono.Nome == "V1").Dono);
+        foreach (var p in new[] { "ligI", "ligJ" })
+            s.Receber("{\"acao\":\"ajustar\",\"chave\":\"" + chave + "\",\"prop\":\"" + p + "\",\"valor\":\"Rígida\"}");
+        var v = e.Metalicas.Single(x => x.Dono.Nome == "V1");
+        Assert.Equal(1905.96, System.Math.Abs(Est(e, v, EstruturaObjetos.CasoG).First()[5]), 1905.96 * 0.003);   // o pórtico rígido do OpenSees
+        Assert.Equal(2, e.LigacoesMetalicas.Count(x => x.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaTopo));
+        Assert.True(s.Alterado);
+        // modelo da biblioteca escolhido para uma ligação
+        string lig = AjustesAnalise.Chave(e.LigacoesMetalicas.First(x => x.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaTopo).Dono);
+        s.Receber("{\"acao\":\"ajustar\",\"chave\":\"" + lig + "\",\"prop\":\"modelo\",\"valor\":\"PCEB-CT-25\"}");
+        Assert.Equal("PCEB-CT-25", e.LigacoesMetalicas.Single(x => AjustesAnalise.Chave(x.Dono) == lig).Modelo.Id);
+        // perfil inválido: erro, nada muda
+        string r = s.Receber("{\"acao\":\"ajustar\",\"chave\":\"" + chave + "\",\"prop\":\"perfil\",\"valor\":\"XPTO\"}");
+        Assert.Contains("\"erro\"", r);
+        Assert.Equal("W310X38.7", v.Perfil.Nome);
+        // restaurar a viga inteira: volta a flexível
+        s.Receber("{\"acao\":\"restaurar\",\"chave\":\"" + chave + "\"}");
+        Assert.Equal(mFlex, Est(e, v, EstruturaObjetos.CasoG).First()[5], 6);
+        // prévia da janela com a viga selecionada (fora do Git): $env:PCEB_PREVIA_ANALISE = "<pasta>"
+        string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_ANALISE");
+        if (!string.IsNullOrEmpty(pasta))
+        {
+            s.Receber("{\"acao\":\"ajustar\",\"chave\":\"" + chave + "\",\"prop\":\"g\",\"valor\":\"12\"}");
+            string html = VisualizacaoAnalise.Pagina().Replace("<script>", "<script>window.DADOS_DEMO = " + s.Json() + ";</script><script>", System.StringComparison.Ordinal);
+            int k = html.LastIndexOf("</body>", System.StringComparison.Ordinal);
+            html = html.Insert(k, "<script>setTimeout(() => { const b = [...document.querySelectorAll('#lista button')].find(x => x.textContent.includes('V1')); if (b) b.click(); }, 300);</script>");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "analise_ajustes.html"), html);
+        }
+        // gravado e relido
+        var json = AjustesAnalise.ParaJson(s.Ajustes);
+        Assert.Equal("PCEB-CT-25", AjustesAnalise.DeJson(json)[lig]["modelo"]);
+    }
 }

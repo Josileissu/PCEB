@@ -36,8 +36,10 @@ public static class VisualizacaoAnalise
     private static ValorJson Vet(Vetor3 v) => Lista(new[] { v.X, v.Y, v.Z });
 
     /// <summary>JSON completo para a página: modelo, cargas e resultados (casos e combinações).</summary>
-    public static string Json(EstruturaObjetos e, string titulo = "", Configuracao.Projeto.ConfiguracaoProjeto cfg = null)
+    public static string Json(EstruturaObjetos e, string titulo = "", Configuracao.Projeto.ConfiguracaoProjeto cfg = null,
+                              Dictionary<string, Dictionary<string, string>> ajustes = null)
     {
+        var objAjuste = AjustesAnalise.Objetos(e);
         ModeloBarras m = e.Modelo;
         var raiz = ValorJson.NovoObjeto();
         raiz.Definir("tipo", "modelo");
@@ -57,6 +59,24 @@ public static class VisualizacaoAnalise
         {
             var o = ValorJson.NovoObjeto();
             o.Definir("chave", Chave(d)); o.Definir("tipo", d.Tipo.ToString()); o.Definir("nome", d.ToString()); o.Definir("resumo", resumo);
+            // ajustes da janela (D50): propriedades editáveis, valor em vigor e se foi ajustado
+            if (objAjuste.TryGetValue(Chave(d), out object alvo))
+            {
+                var aj = ValorJson.NovaLista(); o.Definir("ajustes", aj);
+                Dictionary<string, string> feitos = null;
+                ajustes?.TryGetValue(Chave(d), out feitos);
+                var props = AjustesAnalise.Do(alvo).Select(p => (p.Id, p.Rotulo, p.Grupo, p.Unidade, p.Opcoes, p.Dica, Valor: p.Ler(alvo))).ToList();
+                if (alvo is LigacaoMetalica lm)
+                    props.Add(("modelo", "Modelo da biblioteca de ligações", "Ligação", "", AjustesAnalise.ModelosLigacao(e, lm), "", lm.Modelo?.Id ?? ""));
+                foreach (var p in props)
+                {
+                    var q = ValorJson.NovoObjeto(); aj.Adicionar(q);
+                    q.Definir("id", p.Id); q.Definir("rotulo", p.Rotulo); q.Definir("grupo", p.Grupo); q.Definir("unidade", p.Unidade); q.Definir("dica", p.Dica);
+                    q.Definir("valor", p.Valor); q.Definir("alterado", feitos != null && feitos.ContainsKey(p.Id));
+                    var ops = ValorJson.NovaLista(); q.Definir("opcoes", ops);
+                    foreach (string x in p.Opcoes) ops.Adicionar(ValorJson.De(x));
+                }
+            }
             donos.Adicionar(o);
         }
         foreach (var p in e.Pilares) Obj(p.Dono, $"seção {Fmt.Virgula(p.Secao.B, "0.#")}×{Fmt.Virgula(p.Secao.H, "0.#")} cm, {Fmt.Virgula(p.Comprimento, "0")} cm, engaste a {Fmt.Virgula(p.Embutimento, "0")} cm da base");
