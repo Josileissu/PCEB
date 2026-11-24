@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Muro de arrimo</title>
+<style>
+/* Janela do muro de arrimo do PCEB (D47): dados | seção com empuxo, forças e tensões | resultados. Identidade mata e ipê. Sem rede. */
+:root{
+  --ok:#2f6b3f; --conf:#b07a12; --nao:#9b2c1f;
+  --mata:#123a2c; --mata-claro:#e7efe9; --ipe:#e3a92b; --ocre:#8a5a00; --anil:#1d3f6e;
+  --papel:#f2f1ec; --tinta:#13201a; --suave:#5d665f; --linha:#d9d7cf; --branco:#ffffff;
+  --bg:var(--papel); --fg:var(--tinta); --card:var(--branco); --campo:#fbfaf7;
+  --concreto:#c9c8c1; --concreto-borda:#6f716b; --solo:#d9c39a; --solo-borda:#9c8456; --solo-fund:#cdb68a; --agua:#4f8fd1;
+  --empuxo:#c0582b; --peso:#5d665f; --base:#2f6b3f; --aco:#9b2c1f; --cota:#5d665f;
+  --f-titulo:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif; --f-texto:"Segoe UI",system-ui,sans-serif; --f-dado:Consolas,"Cascadia Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --concreto:#59605a; --concreto-borda:#a3ada5; --solo:#5b4a2c; --solo-borda:#9c8456; --solo-fund:#4d3f26; --agua:#79b0ea;
+  --empuxo:#f0915f; --peso:#a3ada5; --base:#7fc48f; --aco:#f08a7a; --cota:#a3ada5; --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --concreto:#59605a; --concreto-borda:#a3ada5; --solo:#5b4a2c; --solo-borda:#9c8456; --solo-fund:#4d3f26; --agua:#79b0ea;
+  --empuxo:#f0915f; --peso:#a3ada5; --base:#7fc48f; --aco:#f08a7a; --cota:#a3ada5; --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-texto);font-size:13.5px;line-height:1.45}
+.app{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr)}
+.topo{background:var(--mata);color:#fff;display:flex;align-items:center;gap:14px;padding:9px 14px;flex-wrap:wrap}
+.topo .nome{font-family:var(--f-titulo);font-size:1.05rem}
+.topo .sub{color:#c9d6cd;font-size:.8rem}
+.topo .esp{flex:1}
+.btn{border:1px solid var(--linha);background:var(--card);color:var(--fg);font:inherit;font-size:.84rem;padding:5px 12px;border-radius:5px;cursor:pointer}
+.btn.prim{background:var(--ipe);color:#13201a;border-color:var(--ipe);font-family:var(--f-titulo)}
+.topo .btn{background:#1d4a39;color:#fff;border-color:#3d6252}
+.topo .btn.prim{background:var(--ipe);color:#13201a;border-color:var(--ipe)}
+.barra{display:flex;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--linha);flex-wrap:wrap;background:var(--card)}
+.seg{display:flex;border:1px solid var(--linha);border-radius:6px;overflow:hidden}
+.seg button{background:var(--card);color:var(--fg);border:0;border-right:1px solid var(--linha);padding:4px 11px;font:inherit;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--mata);color:#fff}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ipe);outline-offset:1px}
+.corpo{display:grid;grid-template-columns:262px minmax(0,1fr) 330px;min-height:0}
+.dados{border-right:1px solid var(--linha);background:var(--campo);overflow:auto;padding:8px 10px 16px}
+.dados h4{margin:12px 2px 4px;font-family:var(--f-titulo);font-weight:600;font-size:.84rem;color:var(--suave);text-transform:uppercase;letter-spacing:.04em}
+.campo{display:grid;grid-template-columns:1fr 78px 38px;gap:6px;align-items:center;padding:2px 2px}
+.campo label{font-size:.84rem}
+.campo input,.campo select{width:100%;font:inherit;font-family:var(--f-dado);font-size:.84rem;padding:3px 5px;border:1px solid var(--linha);border-radius:4px;background:var(--card);color:var(--fg);text-align:right}
+.campo select{text-align:left;font-family:var(--f-texto)}
+.campo .un{color:var(--suave);font-size:.76rem}
+.campo.metodo{grid-template-columns:1fr 116px}
+.vista{min-width:0;min-height:0;background:var(--card);overflow:hidden;display:grid;grid-template-rows:minmax(0,1fr) auto}
+.tela{position:relative;min-height:0}
+svg{position:absolute;inset:0;width:100%;height:100%}
+.painel{display:none;position:absolute;inset:0;overflow:auto;padding:16px 22px}
+.vista[data-aba="fuste"] #pFuste,.vista[data-aba="memoria"] #pMemoria{display:block}
+.vista:not([data-aba="secao"]) #svg{display:none}
+.legenda{margin:0 10px 8px;background:var(--campo);border:1px solid var(--linha);border-radius:6px;padding:4px 10px;font-size:.76rem;display:flex;gap:12px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+.vista:not([data-aba="secao"]) .legenda{display:none}
+.legenda span{display:flex;align-items:center;gap:5px}
+.legenda i{width:14px;height:10px;border-radius:2px;display:inline-block}
+.lateral{border-left:1px solid var(--linha);background:var(--campo);overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+.lateral h4{margin:0 0 6px;font-family:var(--f-titulo);font-weight:600;font-size:.9rem}
+.fs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cartao{background:var(--card);border:1px solid var(--linha);border-radius:8px;padding:8px 9px}
+.cartao .r{font-size:.74rem;color:var(--suave)}
+.cartao .v{font-family:var(--f-dado);font-size:1.25rem;font-weight:600}
+.cartao .l{font-size:.72rem;color:var(--suave)}
+.medidor{height:5px;border-radius:3px;background:var(--linha);margin-top:5px;overflow:hidden}
+.medidor b{display:block;height:100%}
+table{border-collapse:collapse;width:100%;font-size:.8rem}
+th,td{padding:3px 5px;border-bottom:1px solid var(--linha);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--suave);font-weight:600}
+td{font-family:var(--f-dado)}
+.verif td{font-family:var(--f-texto);white-space:normal;text-align:left;vertical-align:top}
+.verif td.v{font-family:var(--f-dado);font-size:.76rem}
+.ponto{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:1px}
+.selo{display:inline-block;font-size:.74rem;padding:1px 9px;border-radius:9px;color:#fff;white-space:nowrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.82rem}
+.kv b{font-weight:500;color:var(--suave)}
+.kv span{font-family:var(--f-dado)}
+.mem h3{font-family:var(--f-titulo);font-size:.98rem;margin:16px 0 6px;color:var(--mata)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .mem h3{color:var(--ipe)}}
+.mem p{margin:3px 0;max-width:110ch}
+.mem p.ind{padding-left:18px;font-family:var(--f-dado);font-size:.8rem;color:var(--suave)}
+.graficos{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;min-height:360px;height:calc(100% - 10px)}
+.graficos figure{margin:0;background:var(--campo);border:1px solid var(--linha);border-radius:8px;padding:8px;display:flex;flex-direction:column}
+.graficos figcaption{font-family:var(--f-titulo);font-size:.86rem;margin-bottom:4px}
+.graficos svg{position:static;flex:1}
+.vazio{color:var(--suave);font-size:.86rem}
+@media (max-width:1100px){.corpo{grid-template-columns:230px minmax(0,1fr)}.lateral{grid-column:1/-1;border-left:0;border-top:1px solid var(--linha);max-height:40vh}}
+@media (max-width:700px){.corpo{grid-template-columns:1fr}.dados{max-height:34vh;border-right:0;border-bottom:1px solid var(--linha)}.vista{min-height:360px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topo">
+    <div><div class="nome">Muro de arrimo em balanço</div><div class="sub" id="sub">PCEB · D47</div></div>
+    <span id="selo" class="selo"></span>
+    <div class="esp"></div>
+    <button class="btn" id="bTema" title="Claro / escuro">◐</button>
+    <button class="btn" id="bFechar">Fechar</button>
+    <button class="btn prim" id="bAplicar">Aplicar ao elemento</button>
+  </div>
+  <div class="barra">
+    <div class="seg" role="tablist">
+      <button data-aba="secao" aria-pressed="true">Seção</button>
+      <button data-aba="fuste" aria-pressed="false">Esforços no fuste</button>
+      <button data-aba="memoria" aria-pressed="false">Memória</button>
+    </div>
+    <span class="vazio" id="info"></span>
+  </div>
+  <div class="corpo">
+    <aside class="dados" id="dados"></aside>
+    <main class="vista" id="vista" data-aba="secao">
+      <div class="tela">
+      <svg id="svg" role="img" aria-label="Seção do muro com empuxo, forças e tensões na base"></svg>
+      <div class="painel" id="pFuste"><div class="graficos" id="graficos"></div></div>
+      <div class="painel mem" id="pMemoria"></div>
+      </div>
+      <div class="legenda">
+        <span><i style="background:var(--concreto);border:1px solid var(--concreto-borda)"></i>concreto</span>
+        <span><i style="background:var(--solo)"></i>aterro</span>
+        <span><i style="background:var(--empuxo);opacity:.55"></i>empuxo (solo + sobrecarga)</span>
+        <span><i style="background:var(--agua);opacity:.55"></i>água</span>
+        <span><i style="background:var(--base);opacity:.5"></i>tensão na base</span>
+        <span><i style="background:var(--aco);height:3px"></i>armadura principal</span>
+      </div>
+    </main>
+    <aside class="lateral" id="lateral"></aside>
+  </div>
+</div>
+<script>
+"use strict";
+const host = window.chrome && window.chrome.webview;
+let E = /*DADOS*/null;
+const $ = s => document.querySelector(s);
+const fmt = (x, c = 2) => (x == null || !isFinite(x)) ? "—" : Number(x).toLocaleString("pt-BR", { minimumFractionDigits: c, maximumFractionDigits: c });
+const COR = { Ok: "var(--ok)", Conferir: "var(--conf)", NaoAtende: "var(--nao)" };
+const TXT = { Ok: "Atende", Conferir: "Conferir", NaoAtende: "Não atende" };
+function enviar(m) { if (host) host.postMessage(JSON.stringify(m)); }
+if (host) host.addEventListener("message", ev => { try { E = typeof ev.data === "string" ? JSON.parse(ev.data) : ev.data; tudo(); } catch (e) { } });
+
+// ---------------------------------------------------------------- abas, tema, botões
+document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
+  if (b.tagName !== "BUTTON") return;
+  document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  $("#vista").dataset.aba = b.dataset.aba; desenhar();
+}));
+$("#bTema").onclick = () => { const r = document.documentElement; const esc = matchMedia("(prefers-color-scheme: dark)").matches;
+  const atual = r.dataset.theme || (esc ? "dark" : "light"); r.dataset.theme = atual === "dark" ? "light" : "dark"; desenhar(); };
+$("#bFechar").onclick = () => enviar({ tipo: "fechar" });
+$("#bAplicar").onclick = () => enviar({ tipo: "aplicar", dados: lerForm() });
+addEventListener("resize", () => desenhar());
+
+// ---------------------------------------------------------------- formulário
+let formMontado = false, espera = 0;
+function montarForm() {
+  const box = $("#dados"); box.innerHTML = "";
+  let grupo = "";
+  for (const c of E.campos) {
+    if (c.grupo !== grupo) {
+      grupo = c.grupo; const h = document.createElement("h4"); h.textContent = grupo; box.appendChild(h);
+      if (grupo === "Aterro") {
+        const d = document.createElement("div"); d.className = "campo metodo";
+        d.innerHTML = `<label for="f_metodo">Empuxo ativo</label><select id="f_metodo"><option>Rankine</option><option>Coulomb</option></select>`;
+        box.appendChild(d); d.querySelector("select").value = E.metodo; d.querySelector("select").onchange = recalcular;
+      }
+    }
+    const d = document.createElement("div"); d.className = "campo"; if (c.dica) d.title = c.dica;
+    d.innerHTML = `<label for="f_${c.id}">${c.rotulo}</label><input id="f_${c.id}" type="number" step="${c.passo}" min="${c.min}" max="${c.max}" value="${c.valor}"><span class="un">${c.unidade}</span>`;
+    d.querySelector("input").addEventListener("input", recalcular);
+    box.appendChild(d);
+  }
+  formMontado = true;
+}
+function lerForm() {
+  const o = { metodo: $("#f_metodo").value };
+  for (const c of E.campos) { const v = parseFloat($("#f_" + c.id).value.replace(",", ".")); if (isFinite(v)) o[c.id] = v; }
+  return o;
+}
+function recalcular() { clearTimeout(espera); espera = setTimeout(() => enviar({ tipo: "calcular", dados: lerForm() }), 220); }
+
+// ---------------------------------------------------------------- tudo
+function tudo() {
+  if (!E) return;
+  if (!formMontado) montarForm();
+  $("#sub").textContent = "PCEB · D47" + (E.titulo ? " · " + E.titulo : "");
+  const s = E.res.situacao; const selo = $("#selo"); selo.textContent = TXT[s]; selo.style.background = COR[s];
+  $("#info").textContent = `B = ${fmt(E.geo.B)} m · H = ${fmt(E.geo.H)} m · Ka = ${fmt(E.res.ka, 3)} (${E.metodo})`;
+  lateral(); memoria(); desenhar();
+}
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function lateral() {
+  const r = E.res;
+  const card = (rot, v, lim, cod) => {
+    const vf = E.verificacoes.find(x => x.codigo === cod); const sit = vf ? vf.situacao : "Conferir";
+    const pct = Math.max(4, Math.min(100, v / (lim * 1.6) * 100));
+    return `<div class="cartao"><div class="r"><span class="ponto" style="background:${COR[sit]}"></span>${rot}</div><div class="v">${v >= 99 ? "∞" : fmt(v)}</div>
+      <div class="l">mín. ${fmt(lim, 1)}</div><div class="medidor"><b style="width:${pct}%;background:${COR[sit]}"></b></div></div>`;
+  };
+  let h = `<section><h4>Estabilidade</h4><div class="fs">${card("Tombamento", r.fsT, r.fsTLim, "MA1")}${card("Deslizamento", r.fsD, r.fsDLim, "MA2")}${card("Capacidade", r.fsC, r.fsCLim, "MA4")}</div></section>`;
+  h += `<section><h4>Base</h4><div class="kv"><b>N</b><span>${fmt(r.n, 1)} kN/m</span><b>H</b><span>${fmt(r.hb, 1)} kN/m</span>
+        <b>e</b><span>${fmt(r.e, 3)} m (B/6 = ${fmt(E.geo.B / 6, 3)} m)</span><b>σmáx · σmín</b><span>${fmt(r.sMax, 1)} · ${fmt(r.sMin, 1)} kPa</span>
+        <b>Base comprimida</b><span>${fmt(r.bc, 2)} de ${fmt(E.geo.B, 2)} m</span><b>qu</b><span>${fmt(r.qu, 0)} kPa</span></div></section>`;
+  h += `<section><h4>Armaduras (por metro)</h4><table><tr><th>Peça</th><th>Md</th><th>As</th><th>Arranjo</th></tr>` +
+    E.partes.map(p => `<tr title="${p.face}; distribuição ${p.dist}; Vd ${fmt(p.vd, 1)} ≤ VRd1 ${fmt(p.vrd1, 1)} kN/m"><td>${p.nome}</td><td>${fmt(p.md, 1)}</td><td>${fmt(Math.max(p.as, p.asMin))}</td><td>${p.arranjo.replace(/ \(.*/, "")}</td></tr>`).join("") +
+    `</table><div class="vazio" style="font-size:.74rem;margin-top:3px">Md em kN·m/m; As em cm²/m; passe o mouse para a distribuição e o cortante.</div></section>`;
+  h += `<section><h4>Verificações</h4><table class="verif">` + E.verificacoes.map(v =>
+    `<tr title="${v.referencia}${v.dica ? " — " + v.dica : ""}"><td><span class="ponto" style="background:${COR[v.situacao]}"></span><b>${v.codigo}</b> ${v.descricao}</td><td class="v">${v.valor}${v.limite ? " · " + v.limite : ""}</td></tr>`).join("") + `</table></section>`;
+  $("#lateral").innerHTML = h;
+}
+function memoria() {
+  $("#pMemoria").innerHTML = E.memoria.map(p => `<h3>${p.titulo}</h3>` + p.linhas.map(l => `<p class="${l.startsWith("  ") ? "ind" : ""}">${l.trim()}</p>`).join("")).join("")
+    + `<h3>Verificações</h3>` + E.verificacoes.map(v => `<p><span class="ponto" style="background:${COR[v.situacao]}"></span><b>${v.codigo}</b> ${v.descricao}: ${v.valor}${v.limite ? " (limite " + v.limite + ")" : ""} — ${v.referencia}.${v.dica ? " " + v.dica : ""}</p>`).join("");
+}
+
+// ---------------------------------------------------------------- desenho da seção (SVG)
+function val(id) { const c = E.campos.find(x => x.id === id); return c ? c.valor : 0; }
+function desenhar() {
+  if (!E) return;
+  const aba = $("#vista").dataset.aba;
+  if (aba === "fuste") return graficos();
+  if (aba !== "secao") return;
+  const svg = $("#svg"), W = svg.clientWidth || 800, Hh = svg.clientHeight || 600;
+  const B = E.geo.B, H = E.geo.H, xf = E.geo.xf, xt = E.geo.xt;
+  const h = val("h"), tt = val("tt"), tb = val("tb"), es = val("es"), df = val("df"), beta = val("beta") * Math.PI / 180, na = val("na");
+  const dH = val("denteH"), dB = val("denteB"), dX = val("denteX");
+  const hv = H + (B - xt) * Math.tan(beta);
+  const pMax = Math.max(1, ...E.empuxo.map(p => p[1] + p[2]));
+  const larguraEmp = Math.max(0.9, 0.32 * H);
+  const sMax = Math.max(1, E.res.sMax), altBase = Math.max(0.5, 0.18 * H);
+  // janela do mundo (m)
+  const x0 = -Math.max(1.3, 0.3 * B), x1 = B + larguraEmp + 1.0, y0 = -(dH + altBase + 1.0), y1 = hv + 0.55;
+  const esc = Math.min((W - 40) / (x1 - x0), (Hh - 60) / (y1 - y0));
+  const ox = 20 + ((W - 40) - (x1 - x0) * esc) / 2, oy = 30 + ((Hh - 60) - (y1 - y0) * esc) / 2;
+  const X = x => ox + (x - x0) * esc, Y = y => oy + (y1 - y) * esc;
+  const P = pts => pts.map(([x, y]) => `${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" ");
+  const fs = Math.max(10, Math.min(13, esc * 0.11));
+  let s = `<defs>
+    <pattern id="hSolo" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="${css("--solo")}"/><line x1="0" y1="0" x2="0" y2="9" stroke="${css("--solo-borda")}" stroke-width="0.8" opacity=".45"/></pattern>
+    <pattern id="hFund" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="10" height="10" fill="${css("--solo-fund")}"/><line x1="0" y1="0" x2="0" y2="10" stroke="${css("--solo-borda")}" stroke-width="0.8" opacity=".45"/></pattern>
+    <marker id="sE" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${css("--empuxo")}"/></marker>
+    <marker id="sP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${css("--peso")}"/></marker>
+    <marker id="sB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${css("--base")}"/></marker>
+    <marker id="sC" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M2 8L8 2" stroke="${css("--cota")}" stroke-width="1.4"/></marker>
+  </defs>`;
+  // solo de fundação e da frente
+  s += `<polygon points="${P([[x0, 0], [x1, 0], [x1, y0 + 0.25], [x0, y0 + 0.25]])}" fill="url(#hFund)" opacity=".55"/>`;
+  if (df > 0) s += `<polygon points="${P([[x0, 0], [0, 0], [0, Math.min(df, es)], [xf, Math.min(df, es)], [xf, df], [x0, df]])}" fill="url(#hFund)" opacity=".85"/>`;
+  // aterro: do fuste ao fim da janela
+  const xa = x1 - 0.2, ya = H + (xa - xt) * Math.tan(beta);
+  s += `<polygon points="${P([[xt, es], [xt, H], [xa, ya], [xa, es]])}" fill="url(#hSolo)"/>`;
+  s += `<polygon points="${P([[B, 0], [xa, 0], [xa, es], [B, es]])}" fill="url(#hSolo)"/>`;
+  s += `<line x1="${X(xt)}" y1="${Y(H)}" x2="${X(xa)}" y2="${Y(ya)}" stroke="${css("--solo-borda")}" stroke-width="1.6"/>`;
+  // água
+  if (na > 0) {
+    s += `<polygon points="${P([[xt, Math.max(es, 0)], [xt, Math.min(na, H)], [xa, Math.min(na, ya)], [xa, 0], [B, 0], [B, es]])}" fill="${css("--agua")}" opacity=".18"/>`;
+    s += `<line x1="${X(xt)}" y1="${Y(na)}" x2="${X(xa)}" y2="${Y(na)}" stroke="${css("--agua")}" stroke-width="1.4" stroke-dasharray="7 4"/>`;
+    const xn = xt + 0.55 * (xa - xt);
+    s += `<polygon points="${X(xn) - 6},${Y(na) - 10} ${X(xn) + 6},${Y(na) - 10} ${X(xn)},${Y(na) - 1}" fill="${css("--agua")}"/><text x="${X(xn) + 10}" y="${Y(na) - 4}" font-size="${fs}" fill="${css("--agua")}">NA</text>`;
+  }
+  // sobrecarga
+  const q = val("q");
+  if (q > 0) {
+    const n = 7;
+    for (let i = 0; i <= n; i++) { const x = xt + (xa - 0.3 - xt) * i / n, y = H + (x - xt) * Math.tan(beta);
+      s += `<line x1="${X(x)}" y1="${Y(y) - 26}" x2="${X(x)}" y2="${Y(y) - 3}" stroke="${css("--empuxo")}" stroke-width="1.2" marker-end="url(#sE)"/>`; }
+    s += `<line x1="${X(xt)}" y1="${Y(H) - 26}" x2="${X(xa - 0.3)}" y2="${Y(H + (xa - 0.3 - xt) * Math.tan(beta)) - 26}" stroke="${css("--empuxo")}" stroke-width="1.2"/>`;
+    s += `<text x="${X(xt) + 6}" y="${Y(H) - 31}" font-size="${fs}" fill="${css("--empuxo")}">q = ${fmt(q, 0)} kN/m²</text>`;
+  }
+  // concreto: fuste + sapata + dente
+  const conc = [[0, 0], ...(dH > 0 ? [[dX, 0], [dX, -dH], [dX + dB, -dH], [dX + dB, 0]] : []), [B, 0], [B, es], [xt, es], [xt, H], [xt - tt, H], [xf, es], [0, es]];
+  s += `<polygon points="${P(conc)}" fill="${css("--concreto")}" stroke="${css("--concreto-borda")}" stroke-width="1.6" stroke-linejoin="round"/>`;
+  // armaduras principais (traço), a partir do cobrimento visual
+  const c = 0.06;
+  const aco = css("--aco");
+  s += `<polyline points="${P([[xt - c, H - c], [xt - c, c + 0.04], [xt - c - Math.min(0.5, xf + tb - 0.1), c + 0.04]])}" fill="none" stroke="${aco}" stroke-width="2.2" stroke-linecap="round"/>`;
+  s += `<polyline points="${P([[xt - 0.3, es - c], [B - c, es - c], [B - c, es - 0.25]])}" fill="none" stroke="${aco}" stroke-width="2.2" stroke-linecap="round"/>`;
+  s += `<polyline points="${P([[c, es - 0.2], [c, c], [xt + 0.3, c]])}" fill="none" stroke="${aco}" stroke-width="2.2" stroke-linecap="round"/>`;
+  const parte = n => E.partes.find(p => p.nome.startsWith(n));
+  const rot = (x, y, dx, dy, t, ancora = "start") => {
+    s += `<line x1="${X(x)}" y1="${Y(y)}" x2="${X(x) + dx}" y2="${Y(y) + dy}" stroke="${aco}" stroke-width=".9"/><circle cx="${X(x)}" cy="${Y(y)}" r="2.4" fill="${aco}"/>`;
+    s += `<text x="${X(x) + dx + (ancora === "end" ? -4 : 4)}" y="${Y(y) + dy + 4}" font-size="${fs}" fill="${aco}" text-anchor="${ancora}" font-weight="600">${t}</text>`;
+  };
+  const pf = parte("Fuste (base)"), pt = parte("Talão"), pp = parte("Ponta");
+  if (pf) rot(xt - c, es + 0.78 * h, -46, -16, pf.arranjo.replace(/ \(.*/, ""), "end");
+  if (pt && B - xt > 0.2) rot(xt + 0.6 * (B - xt), es - c, 0, -0.62 * esc * Math.min(1, h / 3) - 30, "talão " + pt.arranjo.replace(/ \(.*/, ""));
+  if (pp && xf > 0.15) rot(0.45 * xf, c, -10, 40 + dH * esc, "ponta " + pp.arranjo.replace(/ \(.*/, ""), "end");
+  // plano vertical do empuxo e diagrama de pressões
+  s += `<line x1="${X(B)}" y1="${Y(hv)}" x2="${X(B)}" y2="${Y(0)}" stroke="${css("--empuxo")}" stroke-width="1" stroke-dasharray="4 4"/>`;
+  const kx = larguraEmp / pMax;
+  const emp = E.empuxo.slice().sort((a, b) => b[0] - a[0]);
+  const ptsS = [[B, hv], ...emp.map(p => [B + p[1] * kx, p[0]]), [B + emp[emp.length - 1][1] * kx, 0], [B, 0]];
+  s += `<polygon points="${P(ptsS)}" fill="${css("--empuxo")}" opacity=".28" stroke="${css("--empuxo")}" stroke-width="1"/>`;
+  if (na > 0) {
+    const ptsW = [[B, na], ...emp.filter(p => p[0] < na).map(p => [B + (p[1] + p[2]) * kx, p[0]]), [B + (emp[emp.length - 1][1] + 10 * na) * kx, 0], [B + emp[emp.length - 1][1] * kx, 0],
+      ...emp.filter(p => p[0] < na).reverse().map(p => [B + p[1] * kx, p[0]])];
+    s += `<polygon points="${P(ptsW)}" fill="${css("--agua")}" opacity=".3" stroke="${css("--agua")}" stroke-width="1"/>`;
+  }
+  const pBase = emp[emp.length - 1];
+  s += `<text x="${X(B + (pBase[1] + pBase[2]) * kx) + 5}" y="${Y(0.12)}" font-size="${fs}" fill="${css("--empuxo")}">${fmt(pBase[1] + pBase[2], 1)} kPa</text>`;
+  // resultantes do empuxo (setas horizontais) e pesos
+  for (const f of E.forcas) {
+    if (f.tipo === "Empuxo" || (f.tipo === "Sobrecarga" && f.fx !== 0) || (f.tipo === "Agua" && f.fx !== 0)) {
+      const L = Math.min(1.2, 0.25 + Math.abs(f.fx) / 120);
+      const cor = f.tipo === "Agua" ? css("--agua") : css("--empuxo");
+      s += `<line x1="${X(B + larguraEmp + L)}" y1="${Y(f.y)}" x2="${X(B + larguraEmp + 0.05)}" y2="${Y(f.y)}" stroke="${cor}" stroke-width="2.2" marker-end="url(#sE)"/>`;
+      s += `<text x="${X(B + larguraEmp + 0.12)}" y="${Y(f.y) - 5}" font-size="${fs}" fill="${cor}">${fmt(-f.fx, 1)} kN/m</text>`;
+    } else if (f.fy < 0 && f.tipo !== "Sobrecarga") {
+      const L = Math.min(0.9, 0.2 + -f.fy / 150);
+      s += `<line x1="${X(f.x)}" y1="${Y(f.y + L / 2)}" x2="${X(f.x)}" y2="${Y(f.y - L / 2)}" stroke="${css("--peso")}" stroke-width="1.5" marker-end="url(#sP)" opacity=".85"/>`;
+      s += `<text x="${X(f.x) + 4}" y="${Y(f.y + L / 2) + 2}" font-size="${fs - 1.5}" fill="${css("--peso")}">${fmt(-f.fy, 1)}</text>`;
+    }
+  }
+  // tensões na base (abaixo do dente)
+  const yb = -dH - 0.12, k = altBase / sMax;
+  const r = E.res; const e = r.e;
+  let base;
+  if (r.bc >= B - 1e-6) { const s0 = e >= 0 ? r.sMax : r.sMin, sB = e >= 0 ? r.sMin : r.sMax; base = [[0, yb], [0, yb - s0 * k], [B, yb - sB * k], [B, yb]]; }
+  else if (e >= 0) base = [[0, yb], [0, yb - r.sMax * k], [r.bc, yb], [B, yb]];
+  else base = [[0, yb], [B - r.bc, yb], [B, yb - r.sMax * k], [B, yb]];
+  s += `<polygon points="${P(base)}" fill="${css("--base")}" opacity=".22" stroke="${css("--base")}" stroke-width="1.2"/>`;
+  for (let i = 1; i < 10; i++) { const x = B * i / 10; const yv = base.length === 4 && r.bc >= B - 1e-6 ? yb - ((r.sMax + r.sMin) / 2 + (e >= 0 ? 1 : -1) * (r.sMax - r.sMin) * (0.5 - i / 10)) * k : null;
+    if (yv != null) s += `<line x1="${X(x)}" y1="${Y(yv)}" x2="${X(x)}" y2="${Y(yb) - 1}" stroke="${css("--base")}" stroke-width="1" marker-end="url(#sB)" opacity=".7"/>`; }
+  s += `<text x="${X(0) - 4}" y="${Y(yb - (e >= 0 ? r.sMax : r.sMin) * k) + 4}" font-size="${fs}" text-anchor="end" fill="${css("--base")}">${fmt(e >= 0 ? r.sMax : r.sMin, 1)} kPa</text>`;
+  s += `<text x="${X(B) + 4}" y="${Y(yb - (e >= 0 ? r.sMin : r.sMax) * k) + 4}" font-size="${fs}" fill="${css("--base")}">${fmt(e >= 0 ? r.sMin : r.sMax, 1)} kPa</text>`;
+  // resultante e núcleo central
+  const xr = B / 2 - e;
+  s += `<line x1="${X(B / 3)}" y1="${Y(yb) + 6}" x2="${X(2 * B / 3)}" y2="${Y(yb) + 6}" stroke="${css("--base")}" stroke-width="3" opacity=".45"/>`;
+  s += `<line x1="${X(xr)}" y1="${Y(yb) - 34}" x2="${X(xr)}" y2="${Y(yb) - 2}" stroke="${css("--fg") || "#000"}" stroke-width="2" marker-end="url(#sP)"/>`;
+  s += `<text x="${X(xr) + 5}" y="${Y(yb) - 22}" font-size="${fs}" fill="currentColor">R · e = ${fmt(e, 3)} m</text>`;
+  // cotas
+  const cota = (xa1, ya1, xb, yb2, t, dx, dy, vertical) => {
+    const a = [X(xa1) + dx, Y(ya1) + dy], b = [X(xb) + dx, Y(yb2) + dy];
+    s += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${css("--cota")}" stroke-width=".9" marker-start="url(#sC)" marker-end="url(#sC)"/>`;
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+    s += vertical ? `<text x="${mx - 5}" y="${my}" font-size="${fs}" fill="${css("--cota")}" text-anchor="end" dominant-baseline="middle">${t}</text>`
+                  : `<text x="${mx}" y="${my + 14}" font-size="${fs}" fill="${css("--cota")}" text-anchor="middle">${t}</text>`;
+  };
+  const yc = yb - altBase - 0.05;
+  cota(0, yc, xf, yc, fmt(xf), 0, 0); cota(xf, yc, xt, yc, fmt(tb), 0, 0); cota(xt, yc, B, yc, fmt(B - xt), 0, 0);
+  cota(0, yc - 0.32, B, yc - 0.32, "B = " + fmt(B), 0, 0);
+  cota(x0 + 0.25, 0, x0 + 0.25, H, "H = " + fmt(H), 0, 0, true);
+  cota(x0 + 0.6, es, x0 + 0.6, H, "h = " + fmt(h), 0, 0, true);
+  s += `<text x="${X(xt - tt / 2)}" y="${Y(H) - 6}" font-size="${fs}" text-anchor="middle" fill="${css("--cota")}">${fmt(tt)}</text>`;
+  svg.innerHTML = s;
+  svg.style.color = css("--fg");
+}
+
+// ---------------------------------------------------------------- esforços no fuste
+function graficos() {
+  const box = $("#graficos");
+  const d = E.fuste.slice().sort((a, b) => a[0] - b[0]);
+  const h = val("h");
+  const fig = (titulo, idx, un, cor) => {
+    const max = Math.max(1e-6, ...d.map(p => Math.abs(p[idx])));
+    const W = 220, H = 300, mx = 34, my = 14;
+    const X = v => mx + (W - 2 * mx) * (v / max) * 0.92, Y = y => my + (H - 2 * my) * (1 - y / h);
+    let s = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">`;
+    s += `<line x1="${mx}" y1="${my}" x2="${mx}" y2="${H - my}" stroke="${css("--concreto-borda")}" stroke-width="3"/>`;
+    s += `<polygon points="${mx},${Y(h)} ${d.slice().reverse().map(p => `${X(Math.abs(p[idx])).toFixed(1)},${Y(p[0]).toFixed(1)}`).join(" ")} ${mx},${Y(0)}" fill="${cor}" opacity=".25" stroke="${cor}" stroke-width="1.4"/>`;
+    const b = d[0];
+    s += `<text x="${X(Math.abs(b[idx])) + 4}" y="${Y(0) - 4}" font-size="11" fill="${cor}" font-weight="600">${fmt(b[idx], 1)}</text>`;
+    for (let i = 0; i <= 4; i++) { const y = h * i / 4; s += `<text x="${mx - 5}" y="${Y(y) + 4}" font-size="9" text-anchor="end" fill="${css("--suave")}">${fmt(y, 1)}</text>`; }
+    s += `</svg>`;
+    return `<figure><figcaption>${titulo} <span class="vazio">(${un})</span></figcaption>${s}</figure>`;
+  };
+  box.innerHTML = fig("Pressão horizontal", 1, "kPa", css("--empuxo")) + fig("Cortante Vk", 2, "kN/m", css("--anil")) + fig("Momento Mk", 3, "kN·m/m", css("--aco"));
+}
+
+if (E) tudo(); else enviar({ tipo: "pronto" });
+// prévia: #fuste ou #memoria abre a aba (captura de tela fora do hospedeiro)
+if (location.hash.length > 1) { const b = document.querySelector(`.seg button[data-aba="${location.hash.slice(1)}"]`); if (b) b.click(); }
+</script>
+</body>
+</html>

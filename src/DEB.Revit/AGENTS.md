@@ -62,6 +62,9 @@ $p.WaitForExit(540000)
 - `analitico`: análise por objetos e janela do modelo de análise (D46) — imagens das vistas e o dimensionamento; `SD_LAJE=1` cria um
   piso de teste sobre as vigas (sem gravar). `configuracao`: grava/relê a configuração do projeto no modelo e a imagem da tela (D45).
   Ver `docs/ANALISE.md`.
+- `muro`: muro de arrimo (D47) — cria uma parede de 3,5 m com sapata corrida de arrimo (sem salvar), lê, grava e relê os dados na parede
+  e grava as três abas da janela (`janela_secao.png`…). A sapata de arrimo do Revit: "Uso estrutural" = Retenção (inteiro 0), ponta e
+  talão em `CONTINUOUS_FOOTING_TOP_TOE`/`_HEEL`; o solo fica do lado do talão.
 - `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
   `SD_VIGA_FAMILIA` (.rfa; copie com nome sem acento), `SD_VIGA_TIPO` e `SD_VIGA_PARAMS` (`b=200;h=500;dz_aba=300;...`, mm, num tipo
   duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEBariantes_PCEB`
