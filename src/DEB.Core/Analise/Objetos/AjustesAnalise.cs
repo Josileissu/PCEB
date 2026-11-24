@@ -223,6 +223,15 @@ public sealed class SessaoAnalise
         string acao = m?["acao"]?.Texto ?? "";
         if (acao == "pronto") return Json();
         if (acao == "carga") return Carga(m);
+        if (acao == "detalhe")
+        {
+            // detalhe do consolo (item 3): chapa e biela-tirante calculados sob demanda
+            string ch = m["chave"]?.Texto ?? "";
+            var lc = Estrutura.Ligacoes.FirstOrDefault(x => AjustesAnalise.Chave(x.Dono) == ch);
+            if (lc == null) return "";
+            try { return DEB.Core.Analise.Chapas.DetalheConsolo.Json(Estrutura, lc, Cfg, ch); }
+            catch (Exception ex) { return "{\"tipo\":\"consolo\",\"chave\":" + Persistencia.Json.Gravar(ValorJson.De(ch), false) + ",\"erro\":" + Persistencia.Json.Gravar(ValorJson.De(ex.Message), false) + "}"; }
+        }
         if (acao == "enviarCargas") { EnviarCargas = true; return Json().Insert(1, "\"aviso\":\"As cargas do PCEB serão criadas no Revit ao fechar a janela.\","); }
         if (acao != "ajustar" && acao != "restaurar") return "";
         string chave = m["chave"]?.Texto ?? "", prop = m["prop"]?.Texto ?? "";

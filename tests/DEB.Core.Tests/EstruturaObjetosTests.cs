@@ -298,4 +298,36 @@ public class EstruturaObjetosTests
         Assert.Equal(15, b.Average(x => x.Y), 6);
         Assert.Equal(30, b.Average(x => x.Z), 6);
     }
+
+    [Fact]
+    public void Detalhe_do_consolo_equilibra_e_da_biela_e_tirante()
+    {
+        var e = Portico(Elastomero);
+        e.Ligacoes[0].Consolo = new DEB.Core.Normas.Verificacao.DadosConsolo { Nome = "teste", B = 40, A = 30, H = 40, H1 = 20, Cob = 2.5, TirN = 3, TirPhi = 12.5, CostN = 2, CostPhi = 8, VertN = 2, VertPhi = 8 };
+        e.Analisar();
+        var r = DEB.Core.Analise.Chapas.DetalheConsolo.Calcular(e, e.Ligacoes[0], new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto());
+        var c = r.Chapa;
+        // equilíbrio vertical: reações = Vd + N do pilar acima
+        double ry = Enumerable.Range(0, c.Nos.Count).Sum(i => c.Reacoes[i * 2 + 1]);
+        Perto(r.Vd + r.Nacima, ry, 1e-6, 1e-6);
+        // biela e tirante: z = 0,9 d; Rs = Vd·a/z + Hd⁺
+        Perto(0.9 * (40 - 2.5 - 0.625), r.Z, 1e-9);
+        Perto(r.Vd * r.Pos / r.Z + System.Math.Max(0, r.Hd), r.Rs, 1e-9);
+        // a compressão é máxima perto do aparelho/biela e há tração no topo do consolo (região do tirante)
+        Assert.True(c.Elementos.Where(x => x.Regiao == "consolo").Min(x => x.S2) < 0);
+        Assert.True(c.Elementos.Where(x => x.Regiao == "consolo" && c.Nos[x.Nos[3]].Y > -3).Max(x => x.S1) > 0);
+        string json = DEB.Core.Analise.Chapas.DetalheConsolo.Json(e, e.Ligacoes[0], new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto(), "Ligacao:P1·V1");
+        Assert.Contains("\"mef\"", json);
+        string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_ANALISE");
+        if (!string.IsNullOrEmpty(pasta))
+        {
+            string chave = AjustesAnalise.Chave(e.Ligacoes[0].Dono);
+            json = DEB.Core.Analise.Chapas.DetalheConsolo.Json(e, e.Ligacoes[0], new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto(), chave);
+            string html = VisualizacaoAnalise.Pagina().Replace("<script>", "<script>window.DADOS_DEMO = " + VisualizacaoAnalise.Json(e, "teste") + ";</script><script>");
+            int k = html.LastIndexOf("</body>", System.StringComparison.Ordinal);
+            html = html.Insert(k, "<script>setTimeout(() => { sel = " + DEB.Core.Persistencia.Json.Gravar(DEB.Core.Persistencia.ValorJson.De(chave), false) + "; receber(" + json +
+                                  "); document.querySelector('[data-aba=\"peca\"]').click(); lateral(); }, 300);</script>");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "consolo_detalhe.html"), html);
+        }
+    }
 }
