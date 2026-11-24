@@ -162,4 +162,33 @@ public class EstruturaMetalicaTests
         var json = AjustesAnalise.ParaJson(s.Ajustes);
         Assert.Equal("PCEB-CT-25", AjustesAnalise.DeJson(json)[lig]["modelo"]);
     }
+
+    [Fact]
+    public void Cargas_lancadas_na_janela_entram_na_analise()
+    {
+        var e = Portico(LigacaoExtremidade.Flexivel);
+        var s = new SessaoAnalise(e, new ConfiguracaoProjeto(), "teste", null);
+        var v = e.Metalicas.Single(x => x.Dono.Nome == "V1");
+        var p1 = e.Metalicas.Single(x => x.Dono.Nome == "P1"); var p2 = e.Metalicas.Single(x => x.Dono.Nome == "P2");
+        string kv = AjustesAnalise.Chave(v.Dono), kp = AjustesAnalise.Chave(p1.Dono);
+        Assert.Contains("\"tiposCarga\"", s.Json());
+        // +10 kN/m permanente na viga inteira: o momento de G dobra (0,2·600²/8)
+        s.Receber("{\"acao\":\"carga\",\"op\":\"adicionar\",\"alvo\":\"" + kv + "\",\"tipo\":\"Linear\",\"caso\":\"G\",\"valor\":\"10\"}");
+        Assert.Equal(9000, Est(e, v, EstruturaObjetos.CasoG).Max(x => System.Math.Abs(x[5])), 2);
+        // 10 kN horizontais no topo do P1 (caso Q): a viga leva metade ao P2; cada base engastada fica com 5·400 kN·cm
+        s.Receber("{\"acao\":\"carga\",\"op\":\"adicionar\",\"alvo\":\"" + kp + "\",\"tipo\":\"Pontual\",\"caso\":\"Q\",\"valor\":\"10\",\"posicao\":\"400\",\"direcao\":\"X\"}");
+        double m1 = System.Math.Abs(Est(e, p1, EstruturaObjetos.CasoQ).First()[5]), m2 = System.Math.Abs(Est(e, p2, EstruturaObjetos.CasoQ).First()[5]);
+        Assert.Equal(2000, m1, 20.0); Assert.Equal(2000, m2, 20.0);
+        Assert.True(s.CargasAlteradas);
+        // tipo errado para o objeto: erro; remover a carga da viga volta ao momento original
+        Assert.Contains("\"erro\"", s.Receber("{\"acao\":\"carga\",\"op\":\"adicionar\",\"alvo\":\"" + kp + "\",\"tipo\":\"Superficie\",\"valor\":\"1\"}"));
+        string id = e.Cargas.First(c => c.Alvo == kv).Id;
+        s.Receber("{\"acao\":\"carga\",\"op\":\"remover\",\"id\":\"" + id + "\"}");
+        Assert.Equal(4500, Est(e, v, EstruturaObjetos.CasoG).Max(x => System.Math.Abs(x[5])), 2);
+        // gravação: só as do PCEB
+        e.Cargas.Add(new CargaObjeto { Alvo = kv, Tipo = TipoCargaObjeto.Linear, Valor = 3, Origem = OrigemCarga.Revit });
+        var lidas = CargasObjetos.DeJson(CargasObjetos.ParaJson(e.Cargas));
+        Assert.Single(lidas);
+        Assert.Equal("X", lidas[0].Direcao);
+    }
 }

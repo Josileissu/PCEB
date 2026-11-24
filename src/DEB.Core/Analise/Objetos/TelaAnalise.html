@@ -523,6 +523,31 @@ function lateral() {
     n.textContent = host ? "A análise refaz na hora; os ajustes ficam gravados no modelo ao fechar a janela." : "Prévia sem o Revit: os ajustes não recalculam.";
     sec("Ajustes do modelo", g, n);
   }
+  // cargas do objeto (item 2): as do Revit aparecem para conferir; as do PCEB se lançam e removem aqui
+  if (o.tiposCarga && o.tiposCarga.length) {
+    const box2 = document.createElement("div");
+    (o.cargas || []).forEach(c => {
+      const r = document.createElement("div"); r.className = "kv"; r.style.gridTemplateColumns = "1fr auto auto";
+      const t = document.createElement("span"); t.textContent = c.texto; t.title = c.descricao || "";
+      const og = document.createElement("b"); og.textContent = c.origem === "Revit" ? "Revit" : "PCEB";
+      const x = document.createElement("button"); x.className = "btn"; x.style.padding = "0 6px"; x.textContent = c.origem === "Revit" ? "" : "✕"; x.title = "Remover";
+      if (c.origem !== "Revit") x.addEventListener("click", () => enviar({ acao: "carga", op: "remover", id: c.id }));
+      r.append(t, og, x); box2.append(r);
+    });
+    if (!(o.cargas || []).length) { const v = document.createElement("div"); v.className = "vazio"; v.textContent = "Sem cargas além do peso próprio e das cargas da peça."; box2.append(v); }
+    const f = document.createElement("div"); f.className = "aj"; f.style.marginTop = "8px";
+    const NOMES = { Linear: "Linear (kN/m)", Pontual: "Pontual (kN)", Superficie: "Superfície (kN/m²)" };
+    const campo = (rot, el, un = "") => { const l = document.createElement("label"); l.textContent = rot; const u = document.createElement("span"); u.className = "un"; u.textContent = un; f.append(l, el, u, document.createElement("span")); return el; };
+    const sel = (ops, nomes) => { const s2 = document.createElement("select"); ops.forEach(v => { const op = document.createElement("option"); op.value = v; op.textContent = nomes ? nomes[v] : v; s2.append(op); }); return s2; };
+    const inp = v => { const i = document.createElement("input"); i.value = v; return i; };
+    const tipo = campo("Tipo", sel(o.tiposCarga, NOMES)), caso = campo("Caso", sel(["G", "Q"], { G: "G · permanente", Q: "Q · variável" }));
+    const val = campo("Valor (Z: + para baixo)", inp(""), ""), dir = campo("Direção", sel(["Z", "X", "Y"]));
+    const pos = campo(o.tipo === "Pilar" ? "Altura z (da base)" : "Posição / início x", inp("0"), "cm"), fim = campo("Fim do trecho (0 = até J)", inp("0"), "cm");
+    const add = document.createElement("button"); add.className = "btn"; add.textContent = "Adicionar carga"; add.style.marginTop = "6px";
+    add.addEventListener("click", () => enviar({ acao: "carga", op: "adicionar", alvo: chave, tipo: tipo.value, caso: caso.value, valor: val.value.replace(",", "."),
+      posicao: pos.value.replace(",", "."), fim: fim.value.replace(",", "."), direcao: dir.value }));
+    sec("Cargas", box2, f, add);
+  }
   const dm = dimDe(chave);
   if (dm) {
     const d = document.createElement("div");

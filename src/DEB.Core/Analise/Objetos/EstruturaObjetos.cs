@@ -632,6 +632,8 @@ public sealed class EstruturaObjetos
     public List<LigacaoPilarViga> LigacoesDiretas { get; } = new List<LigacaoPilarViga>();
     public List<LigacaoVigaViga> LigacoesVigaViga { get; } = new List<LigacaoVigaViga>();
     public List<LajeObjeto> Lajes { get; } = new List<LajeObjeto>();
+    /// <summary>Cargas por objeto (D50, item 2): lançadas na janela de análise ou lidas do Revit.</summary>
+    public List<CargaObjeto> Cargas { get; } = new List<CargaObjeto>();
     /// <summary>Pilares e vigas de aço (D48).</summary>
     public List<BarraMetalicaObjeto> Metalicas { get; } = new List<BarraMetalicaObjeto>();
     /// <summary>Ligações flexíveis das vigas de aço (chapa de alma), criadas por <see cref="PrepararMetalicas"/>.</summary>
@@ -682,6 +684,9 @@ public sealed class EstruturaObjetos
         foreach (var v in Vigas) v.PontosInternos.Clear();
         foreach (var l in LigacoesVigaViga) l.Preparar();
         foreach (var la in Lajes) la.Preparar(Vigas, Pilares);
+        // cargas pontuais nos pilares: nó na altura da carga
+        foreach (var c in Cargas.Where(c => c.Tipo == TipoCargaObjeto.Pontual))
+            if (Pilares.FirstOrDefault(p => AjustesAnalise.Chave(p.Dono) == c.Alvo) is PilarObjeto pc && !pc.Niveis.Contains(c.Posicao)) pc.Niveis.Add(c.Posicao);
         foreach (var p in Pilares) p.Gerar(m);
         foreach (var v in Vigas) v.Gerar(m, g, q);
         foreach (var l in LigacoesDiretas) l.Gerar(m);
@@ -689,13 +694,18 @@ public sealed class EstruturaObjetos
         if (Metalicas.Count > 0)
         {
             PrepararMetalicas();
+            foreach (var c in Cargas.Where(c => c.Tipo == TipoCargaObjeto.Pontual))
+                if (Metalicas.FirstOrDefault(b => AjustesAnalise.Chave(b.Dono) == c.Alvo) is BarraMetalicaObjeto bc && bc.Pilar) bc.PontosInternos.Add(c.Posicao);
             foreach (var b in Metalicas.Where(x => x.Pilar)) b.Gerar(m, g, q);
             foreach (var b in Metalicas.Where(x => !x.Pilar)) b.Gerar(m, g, q);
             ApoiosMetalicos(m);
         }
         foreach (var la in Lajes)
         {
-            la.Gerar(m, pp, g, q);
+            var (sg, sq) = CargasObjetos.Superficie(this, la);
+            la.G += sg; la.Q += sq;
+            try { la.Gerar(m, pp, g, q); }
+            finally { la.G -= sg; la.Q -= sq; }
             if (la.NosLivresNaBorda > 0) Avisos.Add($"{la.Dono}: {la.NosLivresNaBorda} nós da borda sem viga nem pilar embaixo (borda livre).");
         }
         double gEl = cfg.Numero("acoes.gElastomero") / 10;   // MPa → kN/cm²
@@ -714,6 +724,7 @@ public sealed class EstruturaObjetos
                     m.Apoio(i ? v.NoEixoI : v.NoEixoJ, new[] { true, true, true, Math.Abs(v.Direcao.X) >= Math.Abs(v.Direcao.Y), Math.Abs(v.Direcao.Y) > Math.Abs(v.Direcao.X), false }, v.Dono);   // no eixo (mestre): o nó do apoio é escravo
                     Avisos.Add($"{v.Dono}: ponta {(i ? "I" : "J")} sem consolo ligado — apoio articulado fixo.");
                 }
+        CargasObjetos.Aplicar(this, m, Avisos);
         Modelo = m;
         DefinicaoCombinacoes.Clear();
         DefinicaoCombinacoes.AddRange(Combinacoes8681(cfg));

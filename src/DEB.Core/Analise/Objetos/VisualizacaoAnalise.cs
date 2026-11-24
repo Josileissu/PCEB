@@ -62,6 +62,14 @@ public static class VisualizacaoAnalise
             // ajustes da janela (D50): propriedades editáveis, valor em vigor e se foi ajustado
             if (objAjuste.TryGetValue(Chave(d), out object alvo))
             {
+                var tc = ValorJson.NovaLista(); o.Definir("tiposCarga", tc);
+                foreach (var t in CargasObjetos.Aceitas(alvo)) tc.Adicionar(ValorJson.De(t.ToString()));
+                var cs = ValorJson.NovaLista(); o.Definir("cargas", cs);
+                foreach (var c in e.Cargas.Where(x => x.Alvo == Chave(d)))
+                {
+                    var q = ValorJson.NovoObjeto(); cs.Adicionar(q);
+                    q.Definir("id", c.Id); q.Definir("texto", c.Texto()); q.Definir("origem", c.Origem.ToString()); q.Definir("descricao", c.Descricao);
+                }
                 var aj = ValorJson.NovaLista(); o.Definir("ajustes", aj);
                 Dictionary<string, string> feitos = null;
                 ajustes?.TryGetValue(Chave(d), out feitos);

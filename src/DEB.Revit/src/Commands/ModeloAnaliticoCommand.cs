@@ -33,6 +33,7 @@ namespace DEB.Revit.Commands
             new WindowInteropHelper(win) { Owner = uiapp.MainWindowHandle };
             win.ShowDialog();
             if (win.Erro != null) TaskDialog.Show("Modelo de análise", win.Erro);
+            if (sessao.CargasAlteradas) CargasRevit.GravarPceb(doc, e.Cargas);
             if (sessao.Alterado)
             {
                 AjustesRevit.Gravar(doc, sessao.Ajustes);
@@ -59,6 +60,10 @@ namespace DEB.Revit.Commands
             if (e.Pilares.Count + e.Vigas.Count + e.Lajes.Count + e.Metalicas.Count == 0) return null;
             // ajustes da janela de análise gravados no modelo (D50): valem por cima do que foi lido
             e.ValoresDePartida = SessaoAnalise.Valores(e);
+            // cargas (D50, item 2): as lançadas no PCEB (gravadas no modelo) e as nativas do Revit
+            e.Cargas.AddRange(CargasRevit.LerPceb(doc, notas));
+            try { e.Cargas.AddRange(CargasRevit.LerNativas(doc, e, notas)); }
+            catch (System.Exception ex) { notas.Add("Cargas do Revit não lidas: " + ex.Message); }
             var ajustes = AjustesRevit.Ler(doc, notas);
             if (ajustes.Count > 0)
             {

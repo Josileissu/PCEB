@@ -202,6 +202,8 @@ public sealed class SessaoAnalise
     public string Titulo { get; }
     public Dictionary<string, Dictionary<string, string>> Ajustes { get; }
     public bool Alterado { get; private set; }
+    /// <summary>As cargas lançadas na janela mudaram (o hospedeiro grava).</summary>
+    public bool CargasAlteradas { get; private set; }
 
     public SessaoAnalise(EstruturaObjetos e, ConfiguracaoProjeto cfg, string titulo, Dictionary<string, Dictionary<string, string>> ajustes)
     {
@@ -218,6 +220,7 @@ public sealed class SessaoAnalise
         try { m = Persistencia.Json.Ler(mensagem ?? ""); } catch (ErroJson) { return ""; }
         string acao = m?["acao"]?.Texto ?? "";
         if (acao == "pronto") return Json();
+        if (acao == "carga") return Carga(m);
         if (acao != "ajustar" && acao != "restaurar") return "";
         string chave = m["chave"]?.Texto ?? "", prop = m["prop"]?.Texto ?? "";
         string erro = null;
@@ -281,6 +284,41 @@ public sealed class SessaoAnalise
     }
 
     private Dictionary<string, Dictionary<string, string>> _partida;
+
+    /// <summary>Cargas (item 2): op "adicionar" (alvo, tipo, caso, valor, posicao, fim, direcao) ou "remover" (id). Só as do PCEB mudam.</summary>
+    private string Carga(ValorJson m)
+    {
+        string op = m["op"]?.Texto ?? "", erro = null;
+        var e = Estrutura;
+        double N(string k) => m[k] == null ? 0 : m[k].Tipo == TipoJson.Numero ? m[k].Numero
+            : double.TryParse((m[k].Texto ?? "").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double x) ? x : 0;
+        if (op == "adicionar")
+        {
+            string alvo = m["alvo"]?.Texto ?? "";
+            if (!AjustesAnalise.Objetos(e).TryGetValue(alvo, out object o)) erro = "objeto não encontrado";
+            else if (!Enum.TryParse(m["tipo"]?.Texto ?? "", out TipoCargaObjeto t) || !CargasObjetos.Aceitas(o).Contains(t)) erro = "esse objeto não recebe esse tipo de carga";
+            else if (Math.Abs(N("valor")) < 1e-12) erro = "valor da carga vazio";
+            else
+                e.Cargas.Add(new CargaObjeto
+                {
+                    Alvo = alvo, Tipo = t, Caso = (m["caso"]?.Texto ?? "G") == "Q" ? EstruturaObjetos.CasoQ : EstruturaObjetos.CasoG, Valor = N("valor"),
+                    Posicao = N("posicao"), Fim = N("fim"), Direcao = m["direcao"]?.Texto is string d && (d == "X" || d == "Y") ? d : "Z", Origem = OrigemCarga.Pceb,
+                });
+        }
+        else if (op == "remover")
+        {
+            string id = m["id"]?.Texto ?? "";
+            if (e.Cargas.RemoveAll(c => c.Id == id && c.Origem == OrigemCarga.Pceb) == 0) erro = "só as cargas lançadas no PCEB são removidas aqui (as do Revit, no Revit)";
+        }
+        if (erro == null)
+        {
+            CargasAlteradas = true;
+            try { e.Gerar(Cfg); e.Analisar(Cfg); }
+            catch (Exception ex) { erro = ex.Message; }
+        }
+        string j = Json();
+        return erro == null ? j : j.Insert(1, "\"erro\":" + Persistencia.Json.Gravar(ValorJson.De("Carga: " + erro), false) + ",");
+    }
 
     /// <summary>Guarda os valores de partida antes do primeiro ajuste (chamar logo depois de montar, antes de aplicar ajustes gravados).</summary>
     public void GuardarPartida(Dictionary<string, Dictionary<string, string>> partida) => _partida = partida;

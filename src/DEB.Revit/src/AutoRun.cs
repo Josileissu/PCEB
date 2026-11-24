@@ -526,6 +526,7 @@ namespace DEB.Revit
             // SD_ACO = 1: pórtico de aço de teste ao lado (4 pilares W250X32.7 de 4 m, vigas W310X38.7 e uma secundária W200X15 sobre as
             // vigas), com as famílias W métricas da biblioteca do Revit — no documento aberto, sem gravar
             if (Environment.GetEnvironmentVariable("SD_ACO") == "1") sb.AppendLine(CriarPorticoAco(doc));
+            if (Environment.GetEnvironmentVariable("SD_ACO") == "1") sb.AppendLine(CargasNativasTeste(doc));
             var e = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, notas);
             foreach (string n in notas) sb.AppendLine("NOTA: " + n);
             if (e != null)
@@ -552,6 +553,7 @@ namespace DEB.Revit
                 }
                 string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 sb.AppendLine($"JSON da janela: {json.Length / 1024} kB");
+                foreach (var c in e.Cargas) sb.AppendLine($"  carga em {c.Alvo}: {c.Texto()} [{c.Origem}] {c.Descricao}");
                 var dim = DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.Verificar(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 if (Environment.GetEnvironmentVariable("SD_ACO") == "1")
                 {
@@ -597,6 +599,53 @@ namespace DEB.Revit
                 }
                 return FailureProcessingResult.Continue;
             }
+        }
+
+        /// <summary>Cargas nativas do Revit no pórtico de aço (item 2): linear de 5 kN/m na 1ª viga W310 e pontual de 20 kN no topo de um pilar.</summary>
+        private static string CargasNativasTeste(Document doc)
+        {
+            var viga = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().OfType<FamilyInstance>()
+                .FirstOrDefault(f => f.Symbol.Name == "W310X38.7");
+            var pilar = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType().OfType<FamilyInstance>()
+                .FirstOrDefault(f => f.Symbol.Name == "W250X32.7");
+            if (viga == null || pilar == null) return "Cargas nativas: pórtico de aço não encontrado.";
+            var tl = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Structure.LineLoadType)).Cast<Autodesk.Revit.DB.Structure.LineLoadType>().FirstOrDefault();
+            var tp = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Structure.PointLoadType)).Cast<Autodesk.Revit.DB.Structure.PointLoadType>().FirstOrDefault();
+            var txt = new StringBuilder();
+            using (var t = new Transaction(doc, "Cargas nativas de teste"))
+            {
+                t.Start();
+                // no Revit 2025 a carga é hospedada num elemento analítico: o associado à peça, ou um novo pela linha da peça
+                var am = Autodesk.Revit.DB.Structure.AnalyticalToPhysicalAssociationManager.GetAnalyticalToPhysicalAssociationManager(doc);
+                ElementId Analitico(FamilyInstance fi)
+                {
+                    ElementId id = am.GetAssociatedElementId(fi.Id);
+                    if (id != null && id != ElementId.InvalidElementId) return id;
+                    var membro = Autodesk.Revit.DB.Structure.AnalyticalMember.Create(doc, ((LocationCurve)fi.Location).Curve);
+                    am.AddAssociation(membro.Id, fi.Id);
+                    return membro.Id;
+                }
+                try
+                {
+                    var lc = (LocationCurve)viga.Location;
+                    XYZ a = lc.Curve.GetEndPoint(0), b = lc.Curve.GetEndPoint(1);
+                    double f = UnitUtils.ConvertToInternalUnits(-5, UnitTypeId.KilonewtonsPerMeter);
+                    var ll = Autodesk.Revit.DB.Structure.LineLoad.Create(doc, Analitico(viga), Line.CreateBound(a, b), new XYZ(0, 0, f), XYZ.Zero, tl);
+                    txt.Append($"linear {ll?.Id.Value} ({ll?.LoadCaseName}); ");
+                }
+                catch (Exception ex) { txt.Append("linear não criada: " + ex.Message + "; "); }
+                try
+                {
+                    var c = (LocationCurve)pilar.Location;
+                    XYZ topo = c.Curve.GetEndPoint(0).Z > c.Curve.GetEndPoint(1).Z ? c.Curve.GetEndPoint(0) : c.Curve.GetEndPoint(1);
+                    double f = UnitUtils.ConvertToInternalUnits(-20, UnitTypeId.Kilonewtons);
+                    var pl = Autodesk.Revit.DB.Structure.PointLoad.Create(doc, Analitico(pilar), Autodesk.Revit.DB.Structure.AnalyticalElementSelector.EndOrTop, new XYZ(0, 0, f), XYZ.Zero, tp);
+                    txt.Append($"pontual {pl?.Id.Value} ({pl?.LoadCaseName})");
+                }
+                catch (Exception ex) { txt.Append("pontual não criada: " + ex.Message); }
+                t.Commit();
+            }
+            return "Cargas nativas de teste: " + txt;
         }
 
         private static string CriarPorticoAco(Document doc)
