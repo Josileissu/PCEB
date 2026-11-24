@@ -114,6 +114,36 @@ namespace DEB.Revit.Escadas
                 RenderToPng(w, Path.Combine(dir, "janela_premoldada.png"));
                 var p = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - 3 * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
                 Criar(doc, w.Resultado, p, dir, "premoldada", sb);
+
+                // ---- 5. escada em U por peças: os dois lances chegam pelo lado do patamar, que apoia na viga do patamar ----
+                var c = new ConjuntoEscada();
+                c.Pecas.Add(("L1", ep)); c.Pecas.Add(("L2", ep.Copia()));
+                var pat = new EscadaLaje
+                {
+                    Peca = PecaEscada.Patamar, ComprimentoPatamar = 150, Largura = 255, Espessura = 16, Execucao = ExecucaoEscada.PreMoldada,
+                    LigacaoInferior = new LigacaoEscada { Ponta = PontaPreMoldada.ApoioDireto, ComprimentoApoio = 15, Apoio = ApoioPreMoldado.Elastomero, Pinos = 2, BitolaPino = 16 },
+                    LigacaoSuperior = new LigacaoEscada { Ponta = PontaPreMoldada.ApoioDireto, ComprimentoApoio = 15, Apoio = ApoioPreMoldado.Argamassa, Pinos = 2, BitolaPino = 16 },
+                };
+                c.Pecas.Add(("PAT", pat));
+                c.Vigas.Add(new VigaPatamar { Nome = "VE", B = 20, H = 50, Comprimento = 320, ApoioE = 10, ApoioD = 10, Fck = 40 });
+                c.Apoios.Add(new ApoioEntrePecas { Apoiada = "L1", Ponta = PontaPeca.Superior, Suporte = "PAT", X = 15 });
+                c.Apoios.Add(new ApoioEntrePecas { Apoiada = "L2", Ponta = PontaPeca.Inferior, Suporte = "PAT", X = 15 });
+                c.Apoios.Add(new ApoioEntrePecas { Apoiada = "PAT", Ponta = PontaPeca.Superior, Suporte = "VE", X = 160, Direcao = DirecaoApoio.AoLongo });
+                var rc = CalculoConjuntoEscada.Calcular(c);
+                sb.AppendLine($"== conjunto em U: ordem {string.Join(" → ", rc.Ordem)}; erros: {string.Join(" | ", rc.Erros)}");
+                foreach (string t in rc.Transferencias) sb.AppendLine("  " + t);
+                foreach (var re in rc.ReacoesExternas) sb.AppendLine($"  sai do conjunto: {re.Peca} ({re.Ponta}) G {re.G:0.0} + Q {re.Q:0.0} kN");
+                if (rc.Vigas.TryGetValue("VE", out var rv)) sb.AppendLine($"  VE 20×50: Md {rv.MdMax:0.0} kN·m, reações G {rv.RkE_G:0.0}/{rv.RkD_G:0.0} kN, flecha {rv.FlechaTotal:0.00} cm");
+                if (rc.Pecas.TryGetValue("PAT", out var rp))
+                {
+                    var wp = new EscadaWindow(rp.Entrada, "Autoteste");
+                    wp.ConferirMefAgora();
+                    Escrever(sb, "patamar", wp.Resultado);
+                    foreach (var lc in wp.Resultado.Ligacoes) sb.AppendLine($"  ligação {lc.Lado}: Fd {lc.Fd:0.0} kN/m, Hd {lc.Hd:0.0} kN/m");
+                    RenderToPng(wp, Path.Combine(dir, "janela_patamar.png"));
+                    var pp = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - 4 * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
+                    Criar(doc, wp.Resultado, pp, dir, "patamar", sb);
+                }
             }
             sb.AppendLine("diálogos fechados: " + string.Join(" | ", AutoRun.Dialogs));
             string arq = Path.Combine(dir, "resultado.txt");

@@ -175,6 +175,22 @@ public class EscadaConjuntoTests
     }
 
     [Fact]
+    public void TextoDasCargasApoiadasIdaEVolta()
+    {
+        var erros = new System.Collections.Generic.List<string>();
+        var l = CargaApoiada.LerTexto("10 15: 9,5 + 3; 120,5 120: 6", erros);
+        Assert.Empty(erros);
+        Assert.Equal(2, l.Count);
+        Assert.Equal(2.5, l[0].X, 9); Assert.Equal(15, l[0].Comprimento, 9); Assert.Equal(9.5, l[0].G, 9); Assert.Equal(3, l[0].Q, 9);
+        Assert.Equal(60.5, l[1].X, 9); Assert.Equal(0, l[1].Q, 9);
+        var volta = CargaApoiada.LerTexto(CargaApoiada.Texto(l), erros);
+        Assert.Empty(erros);
+        Assert.Equal(l.Select(a => (a.X, a.Comprimento, a.G, a.Q)), volta.Select(a => (a.X, a.Comprimento, a.G, a.Q)));
+        CargaApoiada.LerTexto("10: 5", erros);
+        Assert.NotEmpty(erros);
+    }
+
+    [Fact]
     public void ApoioEmCicloEReferenciaErradaDaoErro()
     {
         var c = new ConjuntoEscada();

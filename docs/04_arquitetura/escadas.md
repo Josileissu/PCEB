@@ -144,7 +144,35 @@ as ligações, a divisão em peças e as fases transitórias.
   - força por alça (com 3 alças trabalhando), para escolher o inserto.
 - **No Revit**: a família ganha o recorte do dente e os furos dos pinos. As barras saem do mesmo resultado da prévia.
 
-Ordem: (1) lance pré-moldado com as ligações, pinos e içamento; (2) patamar intermediário e as escadas em L e U por peças.
+Ordem: (1) lance pré-moldado com as ligações, pinos e içamento (feito em 23/11); (2) patamar intermediário e as escadas em L e U
+por peças (núcleo, janela e Revit feitos em 24/11).
+
+### 6.1 Patamar intermediário e escadas em L e U (24/11/2026)
+
+Resposta do usuário: "o patamar de uma escada apoia no patamar da outra escada, mas há casos em que se faz um elemento parecido com uma
+viga para apoiar" (há um projeto do escritório com a viga do patamar). Pesquisa (literatura de pré-fabricados e catálogos): além desses
+dois, aparecem o patamar apoiado em cantoneiras ou consolos metálicos embutidos em paredes ou pilares e a escada "jacaré" (degraus
+sobre vigas denteadas). Os dois primeiros e o apoio em consolo (que é uma ponta apoiada fora do conjunto) estão cobertos; a "jacaré"
+fica para depois, como tipo próprio.
+
+- **Peça "patamar"**: laje plana biapoiada, no local ou pré-moldada, com as mesmas ligações (apoio direto ou dente), pinos, içamento,
+  barras e MEF do lance. Na janela: "Peça" = Patamar e o vão do patamar.
+- **Cargas de outras peças** (`CargaApoiada`): a reação de uma ponta apoiada vira carga na peça que a recebe, por metro de largura
+  dela, espalhada:
+  - no comprimento de apoio, quando a borda da ponta atravessa a largura do suporte (peças em linha ou em L: o patamar de um lance
+    sobre o patamar do outro);
+  - na largura da peça apoiada, quando a borda corre ao longo do vão do suporte (em U, os lances chegam pelo lado do patamar).
+
+  O cálculo por faixa de 1 m usa a média na largura do suporte e avisa quando a peça apoiada é bem mais estreita. Na janela, o campo
+  "Cargas de outras peças" aceita `x comprimento: G + Q; …`.
+- **Conjunto** (`ConjuntoEscada`): peças e vigas do patamar ligadas pelas pontas. O cálculo vai das peças apoiadas para as que suportam
+  (apoio em ciclo é erro), passa as reações (com o trecho da peça além do apoio) e lista o que sai do conjunto para a estrutura.
+- **Viga do patamar** (`VigaPatamar`): retangular, pré-moldada, biapoiada; recebe o patamar como carga distribuída (borda cobrindo o
+  vão) ou em concentradas, e é calculada pelo cálculo da viga pré-moldada (D40).
+- Conferido: patamar à mão (pℓ²/8 e reações), equilíbrio da escada em U (o que as peças pesam = o que sai pelas pontas + o que vai para
+  a viga), patamar sobre patamar, MEF do patamar com as cargas dos lances (OpenSees 0,4 %, CalculiX 2,2 % no Md).
+- Falta: janela do conjunto (hoje o conjunto é calculado no núcleo e no autoteste; na janela de cada peça as cargas são digitadas) e
+  posicionar o conjunto no Revit de uma vez.
 
 ## 7. Decisões
 

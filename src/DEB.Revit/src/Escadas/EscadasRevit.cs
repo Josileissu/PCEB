@@ -209,7 +209,7 @@ namespace DEB.Revit.Escadas
             fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.Set(marca);
             var g = r.Geo;
             fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.Set(
-                $"Escada PCEB {marca}: {g.N} × {g.Espelho:0.0#}/{g.Piso:0.#} cm, h = {g.H:0.#} cm, vão {g.Vao:0} cm — " + string.Join("; ", r.Barras.Select(b => $"{b.Nome} ø{b.Bitola:0.#} c/{b.Espacamento:0.#}")));
+                (r.Entrada.SoPatamar ? $"Patamar PCEB {marca}: hp = {g.Hp:0.#} cm, vão {g.Vao:0} cm — " : $"Escada PCEB {marca}: {g.N} × {g.Espelho:0.0#}/{g.Piso:0.#} cm, h = {g.H:0.#} cm, vão {g.Vao:0} cm — ") + string.Join("; ", r.Barras.Select(b => $"{b.Nome} ø{b.Bitola:0.#} c/{b.Espacamento:0.#}")));
             doc.Regenerate();
 
             // barras: sistema local (x ao longo, y na largura, z vertical) → modelo

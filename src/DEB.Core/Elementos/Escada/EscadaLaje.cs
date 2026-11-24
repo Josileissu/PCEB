@@ -64,6 +64,39 @@ public sealed class CargaApoiada
     public double G { get; set; }
     public double Q { get; set; }
     public CargaApoiada Copia() => (CargaApoiada)MemberwiseClone();
+
+    /// <summary>Texto da janela: "x comprimento: G + Q; ..." (cm e kN/m; x = centro da carga; vírgula ou ponto decimal).
+    /// Ex.: "10 15: 9,5 + 3; 120,5 120: 6 + 2". "x,comprimento" sem espaço também vale. Q ausente = 0.</summary>
+    public static List<CargaApoiada> LerTexto(string texto, List<string> erros = null)
+    {
+        var r = new List<CargaApoiada>();
+        if (string.IsNullOrWhiteSpace(texto)) return r;
+        foreach (string parte0 in texto.Split(';'))
+        {
+            string parte = parte0.Trim();
+            if (parte.Length == 0) continue;
+            int dp = parte.IndexOf(':');
+            if (dp < 0) { erros?.Add($"Carga apoiada sem \":\": \"{parte}\"."); continue; }
+            string pos = parte.Substring(0, dp), val = parte.Substring(dp + 1);
+            // posição: "x comprimento" (separados por espaço; vírgula decimal aceita) ou "x, comprimento" (sem espaço: a vírgula separa)
+            var p = pos.Trim().Contains(" ") ? pos.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(t => t.Trim(',')).Where(t => t.Length > 0).ToArray()
+                                              : pos.Split(',');
+            var v = val.Split('+');
+            if (p.Length != 2 || v.Length > 2 || !Num(p[0], out double x) || !Num(p[1], out double c) || !Num(v[0], out double g))
+            { erros?.Add($"Carga apoiada inválida: \"{parte}\" (use \"x comprimento: G + Q\")."); continue; }
+            double q = 0;
+            if (v.Length == 2 && !Num(v[1], out q)) { erros?.Add($"Carga apoiada inválida: \"{parte}\"."); continue; }
+            r.Add(new CargaApoiada { Nome = "carga " + (r.Count + 1), X = x - c / 2, Comprimento = c, G = g, Q = q });
+        }
+        return r;
+    }
+
+    /// <summary>O inverso de <see cref="LerTexto"/> (x = centro da carga).</summary>
+    public static string Texto(IEnumerable<CargaApoiada> l) =>
+        string.Join("; ", l.Select(a => $"{Fmt.N(a.X + a.Comprimento / 2)} {Fmt.N(a.Comprimento)}: {Fmt.Virgula(a.G, "0.##")} + {Fmt.Virgula(a.Q, "0.##")}"));
+
+    private static bool Num(string s, out double v) =>
+        double.TryParse(s.Trim().Replace(',', '.'), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v);
 }
 
 /// <summary>Valores padrão da escada pré-moldada. Vão ser lidos do arquivo de configurações do PCEB (em criação noutra branch).</summary>

@@ -13,6 +13,11 @@ A escada armada longitudinalmente pode ser **pré-moldada** (D43). O cartão "Pr
 
 A aba "Ligações e içamento" mostra Fd e Hd, o tirante, a suspensão e a biela do dente, a resistência dos pinos, o peso da peça e a força por alça. Todas as barras ficam dentro da peça. A família tem o recorte do dente e os furos dos pinos.
 
+Em "Peça" escolhe-se **Lance** ou **Patamar** (laje plana, para o patamar intermediário como peça à parte; usa o vão do patamar e a
+espessura do patamar). O campo "Cargas de outras peças" recebe as pontas que se apoiam nesta peça: `x comprimento: G + Q; …` (cm; kN por
+metro de largura; x = centro da carga a partir do apoio de baixo). O autoteste monta uma escada em U (dois lances, patamar e viga do
+patamar), mostra as transferências no `resultado.txt` e cria o patamar.
+
 Na transversal e no balanço o cálculo é feito numa faixa de 1 m ao longo do lance. A prévia mostra também o corte transversal no meio do lance, com as barras na largura e as dobras.
 
 ## Como usar

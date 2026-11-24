@@ -34,6 +34,9 @@ namespace DEB.Revit.Escadas
         private static readonly string[] Apoios = Enum.GetValues(typeof(ApoioPreMoldado)).Cast<ApoioPreMoldado>()
             .Select(a => $"{PadroesPreMoldado.Nome(a)} · Hd = {PadroesPreMoldado.CoefHd(a).ToString("0.##", CultureInfo.GetCultureInfo("pt-BR"))} Fd").ToArray();
         private readonly ComboBox _exec = new ComboBox { ItemsSource = Execucoes };
+        private static readonly string[] PecasNomes = { "Lance (com os patamares das pontas)", "Patamar (peça plana)" };
+        private readonly ComboBox _peca = new ComboBox { ItemsSource = PecasNomes };
+        private readonly TextBox _cargasApoiadas = new TextBox { TextWrapping = TextWrapping.Wrap, AcceptsReturn = false, MinHeight = 38 };
         private readonly Dictionary<string, (ComboBox Ponta, ComboBox Apoio, Dictionary<string, TextBox> Campos)> _lig = new Dictionary<string, (ComboBox, ComboBox, Dictionary<string, TextBox>)>();
         private readonly ContentControl _ligacoes = new ContentControl();
         private bool _carregando;
@@ -96,6 +99,11 @@ namespace DEB.Revit.Escadas
             geo.Children.Add(_tipo);
             _tipo.Margin = new Thickness(0, 0, 0, 6);
             _tipo.SelectionChanged += (s, ev) => { if (!_carregando) Calcular(); };
+            geo.Children.Add(new TextBlock { Text = "Peça", Foreground = Estilo.B(Estilo.Suave), Margin = new Thickness(0, 0, 0, 2) });
+            geo.Children.Add(_peca);
+            _peca.Margin = new Thickness(0, 0, 0, 6);
+            _peca.SelectionChanged += (s, ev) => { if (!_carregando) Calcular(); };
+            Campo(geo, "ComprimentoPatamar", "Vão do patamar (peça plana)", "cm");
             Campo(geo, "Desnivel", "Desnível", "cm");
             Campo(geo, "Espelhos", "Nº de espelhos (0 = auto)", "");
             Campo(geo, "EspelhoAlvo", "Espelho desejado", "cm");
@@ -118,6 +126,9 @@ namespace DEB.Revit.Escadas
             Campo(cg, "Parapeito", "Parapeito (por borda)", "kN/m");
             Campo(cg, "BordasComParapeito", "Bordas com parapeito", "");
             cg.Children.Add(new TextBlock { Text = "Por m² de projeção horizontal; o peso próprio é calculado.", Foreground = Estilo.B(Estilo.Concreto), FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 4) });
+            cg.Children.Add(new TextBlock { Text = "Cargas de outras peças apoiadas nesta", Foreground = Estilo.B(Estilo.Suave), Margin = new Thickness(0, 4, 0, 2) });
+            cg.Children.Add(_cargasApoiadas);
+            cg.Children.Add(new TextBlock { Text = "x comprimento: G + Q; … (cm; kN por metro de largura; x = centro, a partir do apoio de baixo). Ex.: 10 15: 9,5 + 3", Foreground = Estilo.B(Estilo.Concreto), FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 4) });
             cg.Children.Add(Estilo.Primario("Calcular", () => Calcular()));
             esq.Children.Add(Estilo.Cartao("Cargas (características)", cg));
             var pm = new StackPanel();
@@ -213,7 +224,8 @@ namespace DEB.Revit.Escadas
                     tb.Text = v is double d ? d.ToString("0.##", Pt) : v?.ToString() ?? "";
                 }
             _classe.SelectedItem = Classes.Contains(e.ClasseAgressividade) ? e.ClasseAgressividade : "II";
-            _carregando = true; _tipo.SelectedIndex = (int)e.Tipo; _exec.SelectedIndex = (int)e.Execucao;
+            _carregando = true; _tipo.SelectedIndex = (int)e.Tipo; _exec.SelectedIndex = (int)e.Execucao; _peca.SelectedIndex = (int)e.Peca;
+            _cargasApoiadas.Text = CargaApoiada.Texto(e.CargasApoiadas);
             foreach (var (chave, lig) in new[] { ("inf", e.LigacaoInferior), ("sup", e.LigacaoSuperior) })
             {
                 var (cp, ca, campos) = _lig[chave];
@@ -241,6 +253,11 @@ namespace DEB.Revit.Escadas
             e.ClasseAgressividade = _classe.SelectedItem as string ?? "II";
             e.Tipo = (TipoEscada)Math.Max(0, _tipo.SelectedIndex);
             e.Execucao = (ExecucaoEscada)Math.Max(0, _exec.SelectedIndex);
+            e.Peca = (PecaEscada)Math.Max(0, _peca.SelectedIndex);
+            var errosCa = new List<string>();
+            var cas = CargaApoiada.LerTexto(_cargasApoiadas.Text, errosCa);
+            if (errosCa.Count > 0) { erro = errosCa[0]; return false; }
+            e.CargasApoiadas = cas;
             foreach (var (chave, lig) in new[] { ("inf", e.LigacaoInferior), ("sup", e.LigacaoSuperior) })
             {
                 var (cp, ca, campos) = _lig[chave];
@@ -275,6 +292,10 @@ namespace DEB.Revit.Escadas
             var todas = r.Verificacoes.Concat(_cmp?.Verificacoes ?? Enumerable.Empty<ResultadoVerificacao>()).ToList();
             _seloGeral.Content = Estilo.Selo(todas.Count == 0 ? (SituacaoVerificacao?)null : todas.Max(v => v.Situacao), 110, 11);
             bool lat = r.Entrada.Tipo != TipoEscada.Longitudinal, bal = r.Entrada.Tipo == TipoEscada.Balanco;
+            if (r.Entrada.SoPatamar)
+                _subtitulo.Text = $"Patamar (peça plana){(r.Entrada.PreMoldada ? ", pré-moldado" : "")} · vão ℓ = {F(r.VaoCalculo, "0")} cm · hp = {F(g.Hp, "0.#")} cm · largura {F(r.Entrada.Largura, "0")} cm" +
+                                  $"{(r.Entrada.CargasApoiadas.Count > 0 ? $" · {r.Entrada.CargasApoiadas.Count} carga(s) de outras peças" : "")} · {Estilo.Contagem(todas)}";
+            else
             _subtitulo.Text = $"{Tipos[(int)r.Entrada.Tipo].Split('(')[0].Trim()} · {g.N} espelhos de {F(g.Espelho, "0.0#")} cm · piso {F(g.Piso, "0.#")} · α = {F(g.Alfa * 180 / Math.PI, "0.0")}° · " +
                               $"vão de cálculo ℓ = {F(r.VaoCalculo, "0")} cm{(lat ? " (na largura)" : "")} · h = {F(g.H, "0.#")} cm · largura {F(r.Entrada.Largura, "0")} cm · {Estilo.Contagem(todas)}";
             _previa.Resultado = r; _previa.InvalidateVisual();
@@ -343,7 +364,7 @@ namespace DEB.Revit.Escadas
             {
                 ("Md,máx", $"{F(r.MdMax)} kN·m/m"), ("As,nec / As,ef", $"{F(r.AsNec)} / {F(r.AsPrincipal)} cm²/m"),
                 ("MRd", $"{F(r.MRd)} kN·m/m"), ("Vd / VRd1", $"{F(r.VdMax, "0.0")} / {F(r.VRd1, "0.0")} kN/m"),
-                (lat ? "lb,nec (apoio)" : "lb,nec (quina)", $"{F(r.LbNec, "0")} cm"),
+                (lat ? "lb,nec (apoio)" : r.Entrada.SoPatamar ? "lb,nec" : "lb,nec (quina)", $"{F(r.LbNec, "0")} cm"),
             }, 110));
             foreach (string a in r.Avisos)
                 _proposta.Children.Add(new Border { Background = Estilo.B(Estilo.Hex("#fff4dc")), CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 3, 6, 3), Margin = new Thickness(0, 4, 0, 0),
@@ -514,6 +535,7 @@ namespace DEB.Revit.Escadas
         public void Otimizar()
         {
             if (!Ler(out string erro)) { MessageBox.Show(this, erro, "Escada"); return; }
+            if (Entrada.SoPatamar) { _tabelaOtim.Content = new TextBlock { Text = "O otimizador é do lance (espelhos, piso e espessura). No patamar, ajuste a espessura e veja as verificações.", Foreground = Estilo.B(Estilo.Suave), TextWrapping = TextWrapping.Wrap }; return; }
             double Num(TextBox t, double padrao) => double.TryParse((t.Text ?? "").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : padrao;
             var c = new CriteriosOtimizacao { PrecoConcreto = Num(_precoConc, 650), PrecoAco = Num(_precoAco, 9), EspessuraMin = Num(_hMin, 10), EspessuraMax = Num(_hMax, 22) };
             var ops = OtimizadorEscada.Otimizar(Entrada, c);

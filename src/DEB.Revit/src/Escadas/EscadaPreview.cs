@@ -156,13 +156,28 @@ namespace DEB.Revit.Escadas
             var penCota = new Pen(suave, 0.8); penCota.Freeze();
             double zc = g.Contorno.Min(p => p.Z) - 30;
             Cota(dc, P(0, zc), P(g.Vao, zc), $"ℓ = {Fmt(g.Vao, "0")} cm", penCota, Ft, suave, true);
-            if (g.X1 > 1e-9) Cota(dc, P(0, zc + 14), P(g.X1, zc + 14), Fmt(g.X1, "0"), penCota, Ft, suave, true);
-            Cota(dc, P(g.X1, zc + 14), P(g.X2, zc + 14), $"{g.N - 1} × {Fmt(g.Piso, "0.#")} = {Fmt(g.LanceHorizontal, "0")}", penCota, Ft, suave, true);
-            if (g.Vao - g.X2 > 1e-9) Cota(dc, P(g.X2, zc + 14), P(g.Vao, zc + 14), Fmt(g.Vao - g.X2, "0"), penCota, Ft, suave, true);
-            double xd = g.Vao + la / 2 + 4;
-            Cota(dc, P(xd, 0), P(xd, e.Desnivel), $"{g.N} × {Fmt(g.Espelho, "0.0#")} = {Fmt(e.Desnivel, "0.#")}", penCota, Ft, suave, false);
+            if (g.N > 0)
+            {
+                if (g.X1 > 1e-9) Cota(dc, P(0, zc + 14), P(g.X1, zc + 14), Fmt(g.X1, "0"), penCota, Ft, suave, true);
+                Cota(dc, P(g.X1, zc + 14), P(g.X2, zc + 14), $"{g.N - 1} × {Fmt(g.Piso, "0.#")} = {Fmt(g.LanceHorizontal, "0")}", penCota, Ft, suave, true);
+                if (g.Vao - g.X2 > 1e-9) Cota(dc, P(g.X2, zc + 14), P(g.Vao, zc + 14), Fmt(g.Vao - g.X2, "0"), penCota, Ft, suave, true);
+                double xd = g.Vao + la / 2 + 4;
+                Cota(dc, P(xd, 0), P(xd, e.Desnivel), $"{g.N} × {Fmt(g.Espelho, "0.0#")} = {Fmt(e.Desnivel, "0.#")}", penCota, Ft, suave, false);
+            }
+            // cargas de outras peças: seta e texto sobre a peça
+            for (int ic = 0; ic < e.CargasApoiadas.Count; ic++)
+            {
+                var ca = e.CargasApoiadas[ic];
+                double xc = ca.X + ca.Comprimento / 2, zt = g.TrechoEm(Math.Max(0, Math.Min(g.Vao, xc))).ZEm(xc) + g.TrechoEm(xc).H / 2;
+                var pa = P(xc, zt + 40 + 14 * ic); var pb = P(xc, zt + 2);
+                var pc = new Pen(Estilo.B(Estilo.Ocre), 1.6); pc.Freeze();
+                dc.DrawLine(pc, pa, pb);
+                dc.DrawLine(pc, pb, new WPoint(pb.X - 4, pb.Y - 7)); dc.DrawLine(pc, pb, new WPoint(pb.X + 4, pb.Y - 7));
+                var fc = Ft($"{ca.Nome}: {Fmt(ca.G, "0.#")} + {Fmt(ca.Q, "0.#")} kN/m", 9.5, Estilo.B(Estilo.Ocre));
+                dc.DrawText(fc, new WPoint(pa.X - fc.Width / 2, pa.Y - fc.Height - 1));
+            }
             // espessura
-            var lt = g.Trechos.First(t => t.Inclinado);
+            var lt = g.Trechos.FirstOrDefault(t => t.Inclinado) ?? g.Trechos[0];
             var mid = ((lt.P0.X + lt.P1.X) / 2, (lt.P0.Z + lt.P1.Z) / 2);
             var fth = Ft($"h = {Fmt(g.H, "0.#")}", 10.5, tinta);
             var pm = P(mid.Item1, mid.Item2 - g.H / g.Cos);

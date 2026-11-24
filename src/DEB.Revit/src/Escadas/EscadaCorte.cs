@@ -39,7 +39,7 @@ namespace DEB.Revit.Escadas
             WPoint P(double y, double t) => new WPoint(ox + (y - y0) * esc, oy - (t - t0) * esc);
             FormattedText Ft(string s, double t, Brush b) => new FormattedText(s, Pt, FlowDirection.LeftToRight, Tf, t, b, 1.25);
             var tinta = Estilo.B(Estilo.Tinta); var suave = Estilo.B(Estilo.Suave);
-            dc.DrawText(Ft("Corte transversal (meio do lance)", 11.5, tinta), new WPoint(8, 4));
+            dc.DrawText(Ft(g.N > 0 ? "Corte transversal (meio do lance)" : "Corte transversal (meio do patamar)", 11.5, tinta), new WPoint(8, 4));
 
             // apoios laterais
             var fundoApoio = Estilo.B(Estilo.Hex("#d9d8d2")); var penA = new Pen(Estilo.B(Estilo.Concreto), 1); penA.Freeze();
@@ -49,12 +49,15 @@ namespace DEB.Revit.Escadas
             var penC = new Pen(tinta, 1.3); penC.Freeze();
             dc.DrawRectangle(Estilo.B(Estilo.Hex("#eeede6")), penC, new Rect(P(-B / 2, h), P(B / 2, 0)));
             var penD = new Pen(suave, 0.9) { DashStyle = DashStyles.Dash }; penD.Freeze();
-            dc.DrawRectangle(null, penD, new Rect(P(-B / 2, h + hDeg), P(B / 2, h)));
-            var fd = Ft("degrau", 9.5, suave); dc.DrawText(fd, new WPoint(P(B / 2, h + hDeg).X - fd.Width - 4, P(0, h + hDeg).Y + 2));
+            if (hDeg > 1e-9)
+            {
+                dc.DrawRectangle(null, penD, new Rect(P(-B / 2, h + hDeg), P(B / 2, h)));
+                var fd = Ft("degrau", 9.5, suave); dc.DrawText(fd, new WPoint(P(B / 2, h + hDeg).X - fd.Width - 4, P(0, h + hDeg).Y + 2));
+            }
 
             // distância perpendicular de um ponto da elevação à face de baixo do lance
             double T((double X, double Z) p) => (p.Z - ((p.X - g.X1) * tg - h / c)) * c;
-            double xm = (g.X1 + g.X2) / 2;
+            double xm = g.N > 0 ? (g.X1 + g.X2) / 2 : g.Vao / 2;   // corte no meio do lance (ou do patamar)
             foreach (var b in r.Barras)
             {
                 var cor = EscadaPreview.CorDe(b);
