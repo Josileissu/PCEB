@@ -220,7 +220,7 @@ internal static class ServicoBarra
         }
 
         if (pl.Visible != d.Visivel) { if (!pl.IsWriteEnabled) pl.UpgradeOpen(); pl.Visible = d.Visivel; }
-        if (d.Rebatidas.Count > 0) d.Rebatidas = ServicoRebatida.Atualizar(tr, pl, d, hBarra);
+        if (d.Rebatidas.Count > 0) d.Rebatidas = ServicoRebatida.Atualizar(tr, pl, d, hBarra, cfg);
         if (!d.EhBarraComum || d.PartesDesenho.Count > 0) d.PartesDesenho = ServicoDesenhoGerado.Atualizar(tr, pl, d, hBarra, cfg);
         XDataCad.GravarSeMudou(pl, d);
     }

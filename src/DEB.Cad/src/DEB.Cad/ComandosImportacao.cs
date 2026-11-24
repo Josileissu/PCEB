@@ -144,7 +144,7 @@ public sealed class ComandosImportacao
                 ServicoBarra.Criar(tr, pl, d, cfg);
                 if (volta.HasValue)
                 {
-                    ServicoRebatida.Rebater(tr, pl, volta.Value);
+                    ServicoRebatida.Rebater(tr, pl, volta.Value, cfg);
                     ServicoBarra.Atualizar(tr, pl, cfg);
                     nRebatidas++;
                 }

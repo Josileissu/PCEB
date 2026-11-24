@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DEB.Cad.Infra;
+using DEB.Core.Configuracao;
 using DEB.Core.Modelo;
 using DEB.Core.Persistencia;
 
@@ -17,7 +18,7 @@ internal static class ServicoRebatida
     /// <summary>
     /// ARMREBATER: a barra (com descrição) vai para o destino e fica uma rebatida na posição original.
     /// </summary>
-    public static ObjectId Rebater(Transaction tr, Polyline barra, Vector2d deslocamento)
+    public static ObjectId Rebater(Transaction tr, Polyline barra, Vector2d deslocamento, ConfiguracaoArmadura cfg)
     {
         var db = barra.Database;
         var d = XDataCad.LerBarra(barra);
@@ -31,6 +32,8 @@ internal static class ServicoRebatida
         {
             Tipo = TipoParte.Rebatida, HandleBarra = hBarra, Dx = deslocamento.X, Dy = deslocamento.Y,
         });
+        reb.LineWeight = LineWeight.ByLayer;
+        Aparencia(tr, barra, reb, cfg);
 
         // a barra e a descrição vão para o destino (as cotas acompanham na atualização)
         var m = Matrix3d.Displacement(new Vector3d(deslocamento.X, deslocamento.Y, 0));
@@ -95,7 +98,7 @@ internal static class ServicoRebatida
     }
 
     /// <summary>Barra → rebatidas: mesma forma, cada uma no seu deslocamento. Retorna as válidas.</summary>
-    public static List<string> Atualizar(Transaction tr, Polyline barra, DadosArmadura d, string hBarra)
+    public static List<string> Atualizar(Transaction tr, Polyline barra, DadosArmadura d, string hBarra, ConfiguracaoArmadura cfg)
     {
         var validas = new List<string>();
         foreach (var h in d.Rebatidas.Distinct(StringComparer.OrdinalIgnoreCase))
@@ -119,15 +122,42 @@ internal static class ServicoRebatida
                 reb.UpgradeOpen();
                 Copiar(barra, reb, desl);
             }
-            if (reb.Visible != d.Visivel || reb.LayerId != barra.LayerId)
+            if (reb.Visible != d.Visivel)
             {
                 if (!reb.IsWriteEnabled) reb.UpgradeOpen();
                 reb.Visible = d.Visivel;
-                reb.LayerId = barra.LayerId;
             }
+            Aparencia(tr, barra, reb, cfg);
         }
         return validas;
     }
+
+    /// <summary>
+    /// Layer e cor da rebatida (pedido do usuário, 24/11/2026): layer próprio (<see cref="ConfiguracaoArmadura.LayerRebatida"/>,
+    /// 0,15 mm no padrão de layers) e a cor da barra de referência. A rebatida que está no layer da barra (recém-criada ou
+    /// de desenho antigo) vai para o layer das rebatidas; a que o usuário pôs noutro layer fica onde ele pôs.
+    /// </summary>
+    private static void Aparencia(Transaction tr, Polyline barra, Polyline reb, ConfiguracaoArmadura cfg)
+    {
+        var layer = reb.LayerId;
+        if (layer == barra.LayerId && !string.IsNullOrWhiteSpace(cfg.LayerRebatida))
+            layer = Desenho.GarantirLayer(barra.Database, tr, cfg.LayerRebatida, cfg.CorBarra);
+        var corBarra = barra.Color.ColorMethod == ColorMethod.ByLayer ? CorDoLayer(tr, barra.LayerId) : barra.Color;
+        // "ByLayer" quando o layer da rebatida já tem a cor da barra
+        var cor = MesmaCor(corBarra, CorDoLayer(tr, layer)) ? Color.FromColorIndex(ColorMethod.ByLayer, 256) : corBarra;
+        if (reb.LayerId == layer && MesmaCor(reb.Color, cor)) return;
+        if (!reb.IsWriteEnabled) reb.UpgradeOpen();
+        reb.LayerId = layer;
+        reb.Color = cor;
+    }
+
+    private static Color CorDoLayer(Transaction tr, ObjectId layer) =>
+        ((LayerTableRecord)tr.GetObject(layer, OpenMode.ForRead)).Color;
+
+    private static bool MesmaCor(Color a, Color b) =>
+        a.ColorMethod == b.ColorMethod &&
+        (a.ColorMethod == ColorMethod.ByAci ? a.ColorIndex == b.ColorIndex
+            : a.ColorMethod != ColorMethod.ByColor || (a.Red == b.Red && a.Green == b.Green && a.Blue == b.Blue));
 
     public static void ApagarTodas(Transaction tr, Database db, DadosArmadura d, string hBarra)
     {

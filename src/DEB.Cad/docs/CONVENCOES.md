@@ -14,6 +14,10 @@ Consulte quando for mexer na funcionalidade. O que vale em toda sessão (compila
 - Partes vinculadas: descrição/cota (→ barra), faixa (→ barra; lista "FX"), corte/chamada (→ faixa),
   rebatida (→ barra; lista "RB"). Vínculo só vale se for recíproco. Cópia de faixa/rebatida = nova da
   mesma barra; cópia de barra nasce sem faixas/rebatidas.
+- Rebatida (pedido do usuário, 2026-11-24): layer próprio (`LayerRebatida`, padrão ARM-REBATIDA, 0,15 mm) e cor da barra de
+  referência (ByLayer se o layer já tem essa cor; senão a cor vai na entidade). `ServicoRebatida.Aparencia`: a rebatida que
+  está no layer da barra (nova ou de desenho antigo) vai para o layer das rebatidas; noutro layer, fica onde o usuário pôs.
+  `Desenho.GarantirLayer`: layer que o layers.csv do usuário não lista usa o padrão de fábrica, se houver.
 - Detalhamento = bloco (decisão do usuário, 2026-10-26). `ServicoRA.Coletar` percorre os layouts e
   desce nos BlockReference (× inserções); `Desenho.Entidades(incluirBlocos: true)` inclui definições.
 - Treliça e tela são `DadosArmadura` com `Trelica`/`Tela` (modelo do catálogo); o desenho gerado são

@@ -62,7 +62,7 @@ public sealed class ComandosFaixa
         var desl = destWcs - baseWcs.Value;
         using var tr = new TransacaoSegura(db);
         var pl = (Polyline)tr.GetObject(barraId, OpenMode.ForWrite);
-        ServicoRebatida.Rebater(tr, pl, new Vector2d(desl.X, desl.Y));
+        ServicoRebatida.Rebater(tr, pl, new Vector2d(desl.X, desl.Y), cfg);
         ServicoBarra.Atualizar(tr, pl, cfg);
         tr.Commit();
         ed.WriteMessage("\nBarra rebatida: editar a rebatida ou a barra muda as duas.");

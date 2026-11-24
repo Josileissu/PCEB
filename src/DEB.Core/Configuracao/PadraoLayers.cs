@@ -42,6 +42,7 @@ public static class PadroesLayers
         // Armadura, DT-Forma, Cortes, DIM/Cotas, TEXTOS, DT-Pontilhado, DT-Barras no corte/na forma, Pilares, Insertos…
         L("ARM-BARRA", 1, 0.30, "", "Barras (Armadura)"),
         L("ARM-BARRA-2", 5, 0.30, "", "Grampos U do topo/base e pinos dos consolos (Armadura, em azul)"),
+        L("ARM-REBATIDA", 1, 0.15, "", "Armaduras rebatidas (a cor acompanha a barra de referência)"),
         L("ARM-TEXTO", 7, 0.05, "", "Descrições e cotas das barras (Descrição da armadura / Textos armaduras)"),
         L("ARM-FAIXA", 7, 0.09, "", "Faixas de distribuição e indicações (Cotas)"),
         L("ARM-CORTE", 7, 0.09, "", "Marcas de corte e cortes das faixas (DIM)"),

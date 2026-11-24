@@ -467,6 +467,13 @@ public sealed class AutoTeste
                 var vR = XDataCad.LerVinculo(reb);
                 Checar(Math.Abs(vR.Dx - (-100)) < 1e-6 && Math.Abs(vR.Dy - (-250)) < 1e-6, $"deslocamento guardado ({vR.Dx}, {vR.Dy})");
                 Checar(!reb.Database.Equals(null) && XDataCad.LerBarra(reb) == null, "rebatida não entra como barra na relação do aço");
+                // layer próprio, 0,15 mm, cor da barra (pedido do usuário, 24/11/2026) — e continua lá depois das atualizações
+                var layerReb = (LayerTableRecord)tr.GetObject(reb.LayerId, OpenMode.ForRead);
+                Checar(reb.Layer == cfg.LayerRebatida && plR.Layer == cfg.LayerBarra, $"rebatida no layer das rebatidas ({reb.Layer})");
+                Checar((int)layerReb.LineWeight == 15 && reb.LineWeight == LineWeight.ByLayer, $"layer das rebatidas com 0,15 mm ({layerReb.LineWeight})");
+                short CorEfetiva(Entity e) => e.Color.ColorMethod == ColorMethod.ByLayer
+                    ? ((LayerTableRecord)tr.GetObject(e.LayerId, OpenMode.ForRead)).Color.ColorIndex : e.Color.ColorIndex;
+                Checar(CorEfetiva(reb) == CorEfetiva(plR), $"rebatida com a cor da barra ({CorEfetiva(reb)} × {CorEfetiva(plR)})");
                 H["rebatida"] = dR.Rebatidas[0];
             }
             var descR = Ent<MText>(tr, db, dR.HandleDescricao);

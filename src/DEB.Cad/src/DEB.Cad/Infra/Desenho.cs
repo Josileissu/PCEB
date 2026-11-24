@@ -30,8 +30,11 @@ internal static class Desenho
         if (lt.Has(nome)) return lt[nome];
         lt.UpgradeOpen();
         var l = new LayerTableRecord { Name = nome };
-        // padrão do layers.csv; fora dele, a cor dada e espessura 0,00 mm (nunca a "padrão" do CAD — pedido de 2026-10-30)
-        var p = Layers.Obter(nome) ?? new Core.Configuracao.PadraoLayer { Nome = nome, Cor = cor == 2 ? (short)7 : cor };
+        // padrão do layers.csv; layer que o arquivo do usuário ainda não lista (criado numa versão mais nova) = o de fábrica;
+        // fora dos dois, a cor dada e espessura 0,00 mm (nunca a "padrão" do CAD — pedido de 2026-10-30)
+        var p = Layers.Obter(nome)
+                ?? PadroesLayers.Padrao().Find(x => x.Nome.Equals(nome, System.StringComparison.OrdinalIgnoreCase))
+                ?? new PadraoLayer { Nome = nome, Cor = cor == 2 ? (short)7 : cor };
         var id = lt.Add(l);
         tr.AddNewlyCreatedDBObject(l, true);
         Layers.Aplicar(db, tr, l, p);

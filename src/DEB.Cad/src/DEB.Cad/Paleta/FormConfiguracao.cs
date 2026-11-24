@@ -188,6 +188,8 @@ internal sealed class ConfiguracaoEditavel
 
     [Category(GDes), DisplayName("Layer das barras")] public string LayerBarra { get => _c.LayerBarra; set => _c.LayerBarra = value; }
     [Category(GDes), DisplayName("Cor das barras")] public short CorBarra { get => _c.CorBarra; set => _c.CorBarra = value; }
+    [Category(GDes), DisplayName("Layer das rebatidas"), Description("Layer das armaduras rebatidas; a cor acompanha a barra de referência.")]
+    public string LayerRebatida { get => _c.LayerRebatida; set => _c.LayerRebatida = value; }
     [Category(GDes), DisplayName("Layer dos textos")] public string LayerTexto { get => _c.LayerTexto; set => _c.LayerTexto = value; }
     [Category(GDes), DisplayName("Cor dos textos")] public short CorTexto { get => _c.CorTexto; set => _c.CorTexto = value; }
     [Category(GDes), DisplayName("Layer das tabelas")] public string LayerTabela { get => _c.LayerTabela; set => _c.LayerTabela = value; }
