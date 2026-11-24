@@ -404,6 +404,8 @@ public sealed class LigacaoConsolo
     /// <summary>Aparelho de apoio (D36): tipo e medidas (cm); null = sem informação (articulação fixa).</summary>
     public ApoioPeca Aparelho { get; set; }
     public RepresentacaoLigacao Representacao { get; set; } = RepresentacaoLigacao.BarraRigidaEMola;
+    /// <summary>Geometria e armadura do consolo (do detalhamento do pilar), para o cálculo; null = só os esforços.</summary>
+    public DEB.Core.Normas.Verificacao.DadosConsolo Consolo { get; set; }
 
     // gerado
     public int NoPilar { get; private set; }
@@ -572,9 +574,51 @@ public sealed class EstruturaObjetos
         if (Modelo == null) Gerar(cfg);
         _solver = new SolverBarras(Modelo);
         Casos = _solver.Resolver();
+        _estacoes.Clear();
         Combinacoes.Clear();
         foreach (var c in DefinicaoCombinacoes)
             Combinacoes[c.Nome] = ResultadoCaso.Combinar(c.Nome, c.Fatores.Select(f => (Casos[f.Caso], f.Fator)));
+    }
+
+    /// <summary>Estações por barra: [x, N, Vy, Vz, T, My, Mz, dx, dy, dz] (11 por barra; deslocamento global em cm).</summary>
+    public const int NumEstacoes = 11;
+    private readonly Dictionary<string, double[][][]> _estacoes = new Dictionary<string, double[][][]>();
+
+    /// <summary>Esforços e deformada ao longo das barras para um caso ou combinação (cache; combinações por superposição).</summary>
+    public double[][][] Estacoes(string resultado)
+    {
+        if (_estacoes.TryGetValue(resultado, out var r)) return r;
+        var m = Modelo;
+        var caso = m.Casos.FirstOrDefault(c => c.Nome == resultado);
+        if (caso != null)
+        {
+            r = m.Barras.Select(b =>
+            {
+                double L = m.Comprimento(b);
+                return Enumerable.Range(0, NumEstacoes).Select(k =>
+                {
+                    double x = L * k / (NumEstacoes - 1);
+                    double xs = k == 0 ? 1e-6 : k == NumEstacoes - 1 ? L - 1e-6 : x;   // pontas: carga pontual na ponta fica do lado certo
+                    var s = _solver.Esforcos(Casos[caso.Nome], caso, b, xs);
+                    var d = _solver.Deformada(Casos[caso.Nome], caso, b, x);
+                    return new[] { x, s.N, s.Vy, s.Vz, s.T, s.My, s.Mz, d.X, d.Y, d.Z };
+                }).ToArray();
+            }).ToArray();
+        }
+        else
+        {
+            var def = DefinicaoCombinacoes.First(c => c.Nome == resultado);
+            var partes = def.Fatores.Select(f => (Est: Estacoes(f.Caso), f.Fator)).ToList();
+            r = m.Barras.Select((b, ib) => Enumerable.Range(0, NumEstacoes).Select(k =>
+            {
+                var s = new double[10];
+                s[0] = partes[0].Est[ib][k][0];
+                foreach (var (est, f) in partes) for (int q = 1; q < 10; q++) s[q] += f * est[ib][k][q];
+                return s;
+            }).ToArray()).ToArray();
+        }
+        _estacoes[resultado] = r;
+        return r;
     }
 
     /// <summary>O que a viga põe no consolo, num resultado (caso ou combinação): mola nos eixos dela (x' ao longo da viga, z' vertical).</summary>

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using DEB.Core.Analise.Barras;
 using DEB.Core.Analise.Objetos;
+using DEB.Core.Analise.Dimensionamento;
 using DEB.Core.Elementos.Consolo;
 using DEB.Core.Intercambio;
 using DEB.Core.Normas.Verificacao;
@@ -203,5 +204,32 @@ public class EstruturaObjetosTests
         Assert.True(e.Vigas[0].Barras.Count > 5);
         var (uz, mx, _, _) = laje.Resultados(q);
         Assert.True(mx[laje.Nx / 2, laje.Ny / 2] > 0);
+    }
+
+    [Fact]
+    public void DimensionamentoPelaAnalise()
+    {
+        var e = Portico(Elastomero);
+        e.Analisar();
+        var res = DimensionamentoObjetos.Verificar(e);
+        Assert.Equal(5, res.Count);
+        // viga: Md+ ≈ 1,4·(pp + g + q)·L²/8 (biapoiada nos aparelhos; a mola horizontal muda pouco)
+        var viga = res.First(x => x.Dono.Tipo == TipoDono.Viga);
+        double q = 0.25 * 10 * 0 + 25e-6 * 1000 * 100 + 10 + 5;   // kN/m: pp 2,5 + 15
+        double md = 1.4 * q * 7.3 * 7.3 / 8;
+        var a1 = viga.Verificacoes.First(v => v.Codigo == "A1");
+        double mdObtido = double.Parse(a1.Valor.Split('=')[1].Split('k')[0].Trim().Replace(",", "."), System.Globalization.CultureInfo.InvariantCulture);
+        Assert.True(Math.Abs(mdObtido - md) < 0.02 * md, $"Md+ {mdObtido} × {md}; " + string.Join(" | ", viga.Memoria.Linhas));
+        Assert.Contains(viga.Verificacoes, v => v.Codigo == "A3" && v.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok);
+        // pilar em balanço no cálice: le = 2·600 = 1200; λ = 1200·√12/40 = 103,9 → conferir 2ª ordem
+        var pil = res.First(x => x.Dono.Tipo == TipoDono.Pilar);
+        Assert.Contains(pil.Memoria.Linhas, l => l.Contains("λ = 103,9"));
+        Assert.Equal(DEB.Core.Normas.Verificacao.SituacaoVerificacao.Conferir, pil.Situacao);
+        // consolo sem armadura informada: conferir; com armadura: o cálculo do núcleo
+        var lig = res.First(x => x.Dono.Tipo == TipoDono.Ligacao);
+        Assert.Contains(lig.Verificacoes, v => v.Codigo == "CC0");
+        e.Ligacoes[0].Consolo = new DadosConsolo { Nome = "c", B = 40, A = 30, H = 40, H1 = 20, Cob = 2.5, TirN = 4, TirPhi = 12.5, CostN = 3, CostPhi = 8, VertN = 2, VertPhi = 8 };
+        var lig2 = DimensionamentoObjetos.Consolo(e, e.Ligacoes[0], new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto());
+        Assert.Contains(lig2.Verificacoes, v => v.Codigo == "CC3");
     }
 }

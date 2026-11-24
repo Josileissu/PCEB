@@ -17,7 +17,7 @@ namespace DEB.Core.Analise.Objetos;
 public static class VisualizacaoAnalise
 {
     /// <summary>Estações por barra para os diagramas: [x, N, Vy, Vz, T, My, Mz, dx, dy, dz] (deslocamento global, cm).</summary>
-    public const int Estacoes = 11;
+    public const int Estacoes = EstruturaObjetos.NumEstacoes;
 
     public static string Pagina()
     {
@@ -39,7 +39,6 @@ public static class VisualizacaoAnalise
     public static string Json(EstruturaObjetos e, string titulo = "")
     {
         ModeloBarras m = e.Modelo;
-        var solver = new SolverBarras(m);
         var raiz = ValorJson.NovoObjeto();
         raiz.Definir("tipo", "modelo");
         raiz.Definir("titulo", titulo);
@@ -125,23 +124,6 @@ public static class VisualizacaoAnalise
             cargas.Definir(c.Nome, l);
         }
 
-        // resultados: casos, depois combinações (estações combinadas por superposição)
-        var estCaso = new Dictionary<string, double[][][]>();
-        foreach (var c in m.Casos)
-            estCaso[c.Nome] = m.Barras.Select(b =>
-            {
-                double L = m.Comprimento(b);
-                return Enumerable.Range(0, Estacoes).Select(k =>
-                {
-                    double x = L * k / (Estacoes - 1);
-                    // pontas: um pouco para dentro, para a carga pontual na ponta ficar do lado certo
-                    double xs = k == 0 ? 1e-6 : k == Estacoes - 1 ? L - 1e-6 : x;
-                    var s = solver.Esforcos(e.Casos[c.Nome], c, b, xs);
-                    var d = solver.Deformada(e.Casos[c.Nome], c, b, x);
-                    return new[] { x, s.N, s.Vy, s.Vz, s.T, s.My, s.Mz, d.X, d.Y, d.Z };
-                }).ToArray();
-            }).ToArray();
-
         var res = ValorJson.NovaLista(); raiz.Definir("resultados", res);
         void Resultado(string nome, string tipo, ResultadoCaso r, double[][][] est)
         {
@@ -158,18 +140,8 @@ public static class VisualizacaoAnalise
             o.Definir("reacoes", re);
             res.Adicionar(o);
         }
-        foreach (var c in m.Casos) Resultado(c.Nome, "caso", e.Casos[c.Nome], estCaso[c.Nome]);
-        foreach (var def in e.DefinicaoCombinacoes)
-        {
-            var est = m.Barras.Select((b, ib) => Enumerable.Range(0, Estacoes).Select(k =>
-            {
-                var s = new double[10];
-                s[0] = estCaso[m.Casos[0].Nome][ib][k][0];
-                foreach (var (caso, f) in def.Fatores) for (int q = 1; q < 10; q++) s[q] += f * estCaso[caso][ib][k][q];
-                return s;
-            }).ToArray()).ToArray();
-            Resultado(def.Nome, def.Tipo, e.Combinacoes[def.Nome], est);
-        }
+        foreach (var c in m.Casos) Resultado(c.Nome, "caso", e.Casos[c.Nome], e.Estacoes(c.Nome));
+        foreach (var def in e.DefinicaoCombinacoes) Resultado(def.Nome, def.Tipo, e.Combinacoes[def.Nome], e.Estacoes(def.Nome));
 
         var av = ValorJson.NovaLista(); foreach (string a in e.Avisos.Distinct()) av.Adicionar(ValorJson.De(a));
         raiz.Definir("avisos", av);

@@ -193,6 +193,7 @@ public static class CatalogoConfiguracao
         O("durab", "controleRigido", "Controle rígido (Δc = 5 mm)", new[] { "Sim", "Não" }, "NBR 6118 7.4.7.4", "Reduz o cobrimento em 5 mm com controle rígido de execução.");
         N("durab", "cobPilar", "Cobrimento · pilar", 0.030, "m", "NBR 6118 Tab. 7.2", "Cobrimento nominal do pilar.", 0.015, null);
         N("durab", "cobViga", "Cobrimento · viga", 0.025, "m", "NBR 6118 Tab. 7.2", "Cobrimento nominal da viga.", 0.015, null);
+        N("durab", "cobLaje", "Cobrimento · laje", 0.020, "m", "NBR 6118 Tab. 7.2", "Cobrimento nominal da laje (CAA II: 25 mm; com controle rígido: 20 mm).", 0.015, null);
         N("durab", "cobConsolo", "Cobrimento · consolo", 0.025, "m", "NBR 9062 7.3.3", "Cobrimento do consolo.", 0.015, null);
         N("durab", "wk", "Abertura de fissura limite", 0.3, "mm", "NBR 6118 Tab. 13.4", "wk da classe de agressividade.", 0, 0.4);
 
