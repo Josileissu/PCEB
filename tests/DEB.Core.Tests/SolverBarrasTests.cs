@@ -49,6 +49,9 @@ public class SolverBarrasTests
         var meio = s.Esforcos(r, c, barra, 300);
         Perto(-0.1 * 600 * 600 / 8, meio.My);      // convenção vetorial: My < 0 traciona embaixo (viga com z para cima)
         Perto(0, meio.Vz, 1e-6, 1e-6);
+        // deformada no meio: 5qL⁴/(384EI) (Hermite com as rotações + solução particular)
+        Perto(-5 * 0.1 * Math.Pow(600, 4) / (384 * Mat.E * Sec.Iy), s.Deformada(r, c, barra, 300).Z, 1e-9);
+        Perto(-0.1 * 150 * (Math.Pow(600, 3) - 2 * 600 * 150 * 150 + Math.Pow(150, 3)) / (24 * Mat.E * Sec.Iy), s.Deformada(r, c, barra, 150).Z, 1e-9);
         var ponta = s.Esforcos(r, c, barra, 0.001);
         Perto(30, Math.Abs(ponta.Vz), 1e-3);
     }

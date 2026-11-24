@@ -119,4 +119,28 @@ public class EstruturaObjetosTests
         Assert.Equal(0, art[4]);
         Assert.Contains("argamassa", obs);
     }
+
+    [Fact]
+    public void DadosDaJanelaDoModeloDeAnalise()
+    {
+        var e = Portico(Elastomero);
+        e.Analisar();
+        string json = VisualizacaoAnalise.Json(e, "pórtico de teste");
+        var d = DEB.Core.Persistencia.Json.Ler(json);
+        Assert.Equal(e.Modelo.Nos.Count, d["nos"].Quantidade);
+        Assert.Equal(e.Modelo.Barras.Count, d["barras"].Quantidade);
+        Assert.Equal(5, d["objetos"].Quantidade);                       // 2 pilares, 1 viga, 2 ligações
+        Assert.Equal(3 + 5, d["resultados"].Quantidade);                // casos + combinações
+        // estações da combinação = soma das estações dos casos (superposição): momento no meio da viga
+        int ib = e.Vigas[0].Barra.Id, meio = VisualizacaoAnalise.Estacoes / 2;
+        double M(string nome) => d["resultados"].Itens.First(r => r["nome"].Texto == nome)["estacoes"][ib][meio][5].Numero;
+        double elu = M(e.DefinicaoCombinacoes[0].Nome);
+        Perto(1.4 * (M("PP") + M("G")) + 1.4 * M("Q"), elu, 1e-6);
+        Assert.Contains("chrome.webview", VisualizacaoAnalise.Pagina());
+        // prévia para olhar no navegador (PCEB_PREVIA = pasta)
+        string pasta = Environment.GetEnvironmentVariable("PCEB_PREVIA");
+        if (!string.IsNullOrEmpty(pasta))
+            System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "previa_analise.html"),
+                VisualizacaoAnalise.Pagina().Replace("<script>", "<script>window.DADOS_DEMO = " + json + ";</script><script>"));
+    }
 }

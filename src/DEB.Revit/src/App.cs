@@ -89,6 +89,15 @@ namespace DEB.Revit
             };
             precast.AddItem(vigas);
 
+            var analitico = new PushButtonData("DEB_ModeloAnalitico", "Modelo\nanalítico", dll, typeof(ModeloAnaliticoCommand).FullName)
+            {
+                ToolTip = "Monta pilares, vigas e ligações por consolo como objetos (D46), analisa e gera as barras no modelo analítico do Revit.",
+                LongDescription = "Cada barra guarda o dono (pilar, viga ou ligação). Consolo = barra rígida até o ponto de apoio; aparelho de apoio = mola pela rigidez do elastômero.",
+                LargeImage = IconFactory.Create(32, "⌗"),
+                Image = IconFactory.Create(16, "⌗")
+            };
+            precast.AddItem(analitico);
+
             var conferir = new PushButtonData("DEB_ConferirPecas", "Conferir\npeças", dll, typeof(ReviewPiecesCommand).FullName)
             {
                 ToolTip = "Confere vigas e pilares antes de exportar: seção medida na geometria × nome do tipo, trechos e seções cotadas.",

@@ -95,6 +95,9 @@ namespace DEB.Revit
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
                         break;
+                    case "analitico":
+                        status = "OK " + AnaliticoAutoTest(uidoc);
+                        break;
                     case "configuracao":
                         status = "OK " + ConfiguracaoAutoTest(uidoc);
                         break;
@@ -458,6 +461,63 @@ namespace DEB.Revit
         /// SD_VARIAR = 1: pilares "50x50" ficam 1,50 m mais altos (comprimentos diferentes) e cada grupo recebe outra
         /// armadura (bitolas e quantidades diferentes), para testar pranchas com barras e comprimentos variados.
         /// </summary>
+        /// <summary>
+        /// Modelo analítico (D46): monta e analisa a estrutura por objetos, gera as barras no Revit (duas vezes: a segunda substitui a
+        /// primeira), confere papéis, donos e associações e exporta uma vista 3D só com o analítico.
+        /// </summary>
+        private static string AnaliticoAutoTest(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            string dir = Path.Combine(DetailingReport.LogDir, "analitico_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var sb = new StringBuilder();
+            var notas = new List<string>();
+            List<ColumnGroup> groups = PrecastSurvey.Run(doc, out List<string> n0);
+            var cfg = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notas);
+            ReacoesNosConsolos.Aplicar(doc, groups, notas, cfg, out var e);
+            foreach (string n in notas) sb.AppendLine("NOTA: " + n);
+            if (e == null) { File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8); return Path.Combine(dir, "resultado.txt"); }
+            var avisos = new List<string>();
+            sb.AppendLine("1ª geração: " + DEB.Revit.Analise.ModeloAnaliticoRevit.Gerar(doc, e, avisos));
+            sb.AppendLine("2ª geração: " + DEB.Revit.Analise.ModeloAnaliticoRevit.Gerar(doc, e, avisos));
+            var gerados = DEB.Revit.Analise.ModeloAnaliticoRevit.Gerados(doc);
+            sb.AppendLine($"Elementos analíticos do PCEB no modelo: {gerados.Count}");
+            var mgr = Autodesk.Revit.DB.Structure.AnalyticalToPhysicalAssociationManager.GetAnalyticalToPhysicalAssociationManager(doc);
+            foreach (var grupo in gerados.Select(id => doc.GetElement(id)).GroupBy(x => DEB.Revit.Analise.ModeloAnaliticoRevit.Ler(x)?.Papel.Split(':')[0]))
+                sb.AppendLine($"  {grupo.Key}: {grupo.Count()} (associados ao físico: {grupo.Count(x => mgr.HasAssociation(x.Id))})");
+            foreach (string a in avisos.Distinct()) sb.AppendLine("AVISO: " + a);
+
+            // vista 3D só com o analítico
+            using (var t = new Transaction(doc, "Vista do analítico"))
+            {
+                t.Start();
+                var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().First(x => x.ViewFamily == ViewFamily.ThreeDimensional);
+                View3D v = View3D.CreateIsometric(doc, vft.Id);
+                v.Name = "PCEB analítico " + DateTime.Now.ToString("HHmmss");
+                v.AreAnalyticalModelCategoriesHidden = false;
+                foreach (BuiltInCategory c in new[] { BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming, BuiltInCategory.OST_GenericModel,
+                                                      BuiltInCategory.OST_StructConnections, BuiltInCategory.OST_Floors, BuiltInCategory.OST_Levels, BuiltInCategory.OST_Grids })
+                {
+                    Category cat = Category.GetCategory(doc, c);
+                    if (cat != null && v.CanCategoryBeHidden(cat.Id)) v.SetCategoryHidden(cat.Id, true);
+                }
+                v.DetailLevel = ViewDetailLevel.Fine;
+                t.Commit();
+                var ieo = new ImageExportOptions
+                {
+                    ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, "analitico"), FitDirection = FitDirectionType.Horizontal,
+                    HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG, ImageResolution = ImageResolution.DPI_150,
+                    PixelSize = 2000, ZoomType = ZoomFitType.FitToPage,
+                };
+                ieo.SetViewsAndSheets(new List<ElementId> { v.Id });
+                doc.ExportImage(ieo);
+            }
+            string saveAs = Environment.GetEnvironmentVariable("SD_SAVEAS");
+            if (!string.IsNullOrWhiteSpace(saveAs)) { doc.SaveAs(saveAs, new SaveAsOptions { OverwriteExistingFile = true }); sb.AppendLine("Modelo salvo em " + saveAs); }
+            File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
+            return Path.Combine(dir, "resultado.txt");
+        }
+
         /// <summary>
         /// Configuração do projeto (D45): grava e relê o nível do projeto no modelo (sem a cópia .pceb.json e sem tocar no arquivo do
         /// escritório) e grava a imagem da tela (WebView2) com um γc fora da norma.

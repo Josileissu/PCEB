@@ -19,6 +19,8 @@ public sealed class ResultadoCaso
     public double[][] ForcasBarras { get; set; }
     /// <summary>Forças nas molas, nos eixos da mola: o que o nó J recebe da mola é −F; F = k·(uJ − uI).</summary>
     public double[][] ForcasMolas { get; set; }
+    /// <summary>Deslocamentos das pontas de cada barra no sistema LOCAL (12), com os graus das rótulas já recuperados.</summary>
+    public double[][] DeslocBarras { get; set; }
 
     /// <summary>Soma linear de resultados (superposição): Σ fator·caso.</summary>
     public static ResultadoCaso Combinar(string nome, IEnumerable<(ResultadoCaso R, double Fator)> partes)
@@ -29,12 +31,14 @@ public sealed class ResultadoCaso
         var r = new ResultadoCaso
         {
             Nome = nome, Deslocamentos = Z(b.Deslocamentos), Reacoes = Z(b.Reacoes), ForcasBarras = Z(b.ForcasBarras), ForcasMolas = Z(b.ForcasMolas),
+            DeslocBarras = b.DeslocBarras == null ? null : Z(b.DeslocBarras),
         };
         void Soma(double[][] dst, double[][] src, double f) { for (int i = 0; i < dst.Length; i++) if (dst[i] != null) for (int k = 0; k < dst[i].Length; k++) dst[i][k] += f * src[i][k]; }
         foreach (var (R, f) in l)
         {
             Soma(r.Deslocamentos, R.Deslocamentos, f); Soma(r.Reacoes, R.Reacoes, f);
             Soma(r.ForcasBarras, R.ForcasBarras, f); Soma(r.ForcasMolas, R.ForcasMolas, f);
+            if (r.DeslocBarras != null && R.DeslocBarras != null) Soma(r.DeslocBarras, R.DeslocBarras, f);
         }
         return r;
     }
@@ -563,6 +567,7 @@ public sealed class SolverBarras
             Deslocamentos = Enumerable.Range(0, nn).Select(i => u.Skip(i * 6).Take(6).ToArray()).ToArray(),
             ForcasBarras = new double[_m.Barras.Count][],
             ForcasMolas = new double[_m.Molas.Count][],
+            DeslocBarras = new double[_m.Barras.Count][],
             Reacoes = new double[nn][],
         };
         // força interna em cada nó (soma do que os elementos recebem) para as reações
@@ -588,6 +593,7 @@ public sealed class SolverBarras
             for (int a = 0; a < 12; a++) { double s = f0[a]; for (int bb = 0; bb < 12; bb++) s += kl[a, bb] * dl[bb]; fl[a] = s; }
             for (int k = 0; k < 12; k++) if (lib[k]) fl[k] = 0;
             res.ForcasBarras[i] = fl;
+            res.DeslocBarras[i] = dl;
             double[] fg = Tt(t, fl);
             for (int a = 0; a < 12; a++) interna[gd[a]] += fg[a];
         }
@@ -631,6 +637,54 @@ public sealed class SolverBarras
             res.Reacoes[a.No] = rr;
         }
         return res;
+    }
+
+    // ------------------------------------------------------------------ deformada ao longo da barra
+
+    /// <summary>
+    /// Deslocamento (global, cm) num ponto a x do nó I: Hermite com os deslocamentos e rotações locais das pontas (rótulas incluídas)
+    /// mais a solução particular de engastamento perfeito das cargas do vão (exata para pontuais; distribuídas por Gauss). Para
+    /// combinação, some os casos (linear).
+    /// </summary>
+    public Vetor3 Deformada(ResultadoCaso r, CasoCarga caso, BarraPortico b, double x)
+    {
+        var e = Eixos(_m, b);
+        double L = e.L, s = Math.Max(0, Math.Min(1, x / L)), s2 = s * s, s3 = s2 * s;
+        double[] d = r.DeslocBarras[b.Id];
+        double n1 = 1 - 3 * s2 + 2 * s3, n2 = L * (s - 2 * s2 + s3), n3 = 3 * s2 - 2 * s3, n4 = L * (-s2 + s3);
+        double u = d[0] * (1 - s) + d[6] * s;
+        double v = d[1] * n1 + d[5] * n2 + d[7] * n3 + d[11] * n4;
+        double w = d[2] * n1 - d[4] * n2 + d[8] * n3 - d[10] * n4;
+        if (caso != null)
+        {
+            double E = b.Material.E, eiy = E * b.Secao.Iy * b.FatorFlexao, eiz = E * b.Secao.Iz * b.FatorFlexao;
+            var (dist, pont) = CargasLocais(caso, b, e);
+            void Ponto(double a, Vetor3 p)
+            {
+                double g = GreenEngastada(x, a, L);
+                if (eiz > 0) v += p.Y * g / eiz;
+                if (eiy > 0) w += p.Z * g / eiy;
+            }
+            foreach (var (a, p) in pont) Ponto(a, p);
+            // distribuídas: Gauss de 3 pontos em cada lado de x (a função de Green é polinomial de cada lado: exato)
+            double[] xg = { -Math.Sqrt(0.6), 0, Math.Sqrt(0.6) }, wg = { 5.0 / 9, 8.0 / 9, 5.0 / 9 };
+            foreach (var (q, a0, b0) in dist)
+                foreach (var (i0, i1) in new[] { (a0, Math.Min(b0, Math.Max(a0, x))), (Math.Max(a0, Math.Min(b0, x)), b0) })
+                {
+                    if (i1 - i0 < 1e-12) continue;
+                    double h = (i1 - i0) / 2, m = (i1 + i0) / 2;
+                    for (int k = 0; k < 3; k++) Ponto(m + h * xg[k], q * (wg[k] * h));
+                }
+        }
+        return e.X * u + e.Y * v + e.Z * w;
+    }
+
+    /// <summary>Flecha da viga biengastada por carga unitária em a, no ponto x, vezes EI (Roark): P·b²·x²·(3aL − (3a + b)x)/(6L³).</summary>
+    private static double GreenEngastada(double x, double a, double L)
+    {
+        if (x > a) { x = L - x; a = L - a; }
+        double b = L - a;
+        return b * b * x * x * (3 * a * L - (3 * a + b) * x) / (6 * L * L * L);
     }
 
     // ------------------------------------------------------------------ esforços ao longo da barra
