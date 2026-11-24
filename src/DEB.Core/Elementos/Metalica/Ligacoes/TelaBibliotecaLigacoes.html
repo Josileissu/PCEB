@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Biblioteca de ligações</title>
+<style>
+/* Biblioteca de ligações metálicas do PCEB (D49): lista | parâmetros | desenho. Identidade mata e ipê. Sem rede. */
+:root{
+  --ok:#2f6b3f; --conf:#b07a12; --nao:#9b2c1f;
+  --mata:#123a2c; --mata-claro:#e7efe9; --ipe:#e3a92b; --anil:#1d3f6e;
+  --papel:#f2f1ec; --tinta:#13201a; --suave:#5d665f; --linha:#d9d7cf; --branco:#ffffff;
+  --bg:var(--papel); --fg:var(--tinta); --card:var(--branco); --campo:#fbfaf7;
+  --aco:#8a929b; --aco-borda:#4b535c; --chapa:#e3a92b; --chapa-borda:#8a5a00; --parafuso:#1d3f6e; --solda:#9b2c1f; --concreto:#c9c8c1; --cota:#5d665f;
+  --f-titulo:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif; --f-texto:"Segoe UI",system-ui,sans-serif; --f-dado:Consolas,"Cascadia Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --aco:#5b636b; --aco-borda:#b9c1c9; --chapa:#b8861d; --chapa-borda:#f1c867; --parafuso:#8fb3e8; --solda:#f08a7a; --concreto:#59605a; --cota:#a3ada5;
+  --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --aco:#5b636b; --aco-borda:#b9c1c9; --chapa:#b8861d; --chapa-borda:#f1c867; --parafuso:#8fb3e8; --solda:#f08a7a; --concreto:#59605a; --cota:#a3ada5;
+  --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-texto);font-size:13.5px;line-height:1.45}
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}
+.topo{background:var(--mata);color:#fff;display:flex;align-items:center;gap:14px;padding:9px 14px;flex-wrap:wrap}
+.topo .nome{font-family:var(--f-titulo);font-size:1.05rem}
+.topo .sub{color:#c9d6cd;font-size:.8rem}
+.topo .esp{flex:1}
+.btn{border:1px solid var(--linha);background:var(--card);color:var(--fg);font:inherit;font-size:.84rem;padding:5px 12px;border-radius:5px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:default}
+.topo .btn{background:#1d4a39;color:#fff;border-color:#3d6252}
+.topo .btn.prim{background:var(--ipe);color:#13201a;border-color:var(--ipe);font-family:var(--f-titulo)}
+.aviso{font-size:.8rem;color:#ffe3a3}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ipe);outline-offset:1px}
+.corpo{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:0}
+.lista{border-right:1px solid var(--linha);background:var(--campo);overflow:auto;padding:8px}
+.lista h4{margin:12px 4px 4px;font-family:var(--f-titulo);font-weight:600;font-size:.8rem;color:var(--suave);text-transform:uppercase;letter-spacing:.04em}
+.item{display:flex;gap:6px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;color:var(--fg);font:inherit;font-size:.86rem;padding:6px 8px;border-radius:5px;cursor:pointer}
+.item:hover{background:var(--mata-claro)}
+.item[aria-current="true"]{background:var(--mata);color:#fff}
+.item .id{display:block;font-family:var(--f-dado);font-size:.72rem;opacity:.75}
+.selo{display:inline-block;font-size:.68rem;padding:0 6px;border-radius:8px;white-space:nowrap;border:1px solid currentColor;margin-left:auto;flex:none}
+.selo.Pceb{color:var(--anil)}.selo.Escritorio{color:var(--conf)}.selo.Projeto{color:var(--ok)}
+.item[aria-current="true"] .selo{color:#fff}
+.novo{display:flex;gap:6px;margin:10px 4px}
+.novo select{flex:1;min-width:0;font:inherit;font-size:.82rem;border:1px solid var(--linha);border-radius:5px;background:var(--card);color:var(--fg)}
+.principal{overflow:auto;padding:14px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.cab{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.cab input,.cab textarea{font:inherit;border:1px solid var(--linha);border-radius:5px;background:var(--card);color:var(--fg);padding:4px 8px}
+.cab input{font-family:var(--f-titulo);font-size:1.05rem;flex:1;min-width:220px}
+.cab textarea{width:100%;font-size:.84rem;resize:vertical;min-height:38px}
+.meta{font-size:.78rem;color:var(--suave);width:100%}
+.duas{display:grid;grid-template-columns:minmax(280px,420px) minmax(0,1fr);gap:14px;align-items:start}
+.card{background:var(--card);border:1px solid var(--linha);border-radius:8px;padding:10px 12px}
+.card h4{margin:0 0 6px;font-family:var(--f-titulo);font-size:.9rem}
+.grupo{font-size:.76rem;color:var(--suave);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 3px}
+.campo{display:grid;grid-template-columns:1fr 108px 36px;gap:6px;align-items:center;padding:2px 0}
+.campo label{font-size:.84rem}
+.campo input,.campo select{width:100%;font:inherit;font-family:var(--f-dado);font-size:.82rem;padding:3px 5px;border:1px solid var(--linha);border-radius:4px;background:var(--campo);color:var(--fg);text-align:right}
+.campo select{text-align:left;font-family:var(--f-texto)}
+.campo input.mudou,.campo select.mudou{border-color:var(--ipe);background:color-mix(in srgb,var(--ipe) 12%,var(--campo))}
+.campo .un{color:var(--suave);font-size:.74rem}
+.erros{color:var(--nao);font-size:.82rem}
+svg{width:100%;height:auto;max-height:62vh;display:block}
+.desc{font-size:.84rem;margin-top:6px;font-family:var(--f-dado)}
+.refs{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.8rem;color:var(--suave);margin-top:8px}
+.refs input{width:120px;font:inherit;font-family:var(--f-dado);font-size:.8rem;border:1px solid var(--linha);border-radius:4px;padding:2px 5px;background:var(--campo);color:var(--fg)}
+.acoes{display:flex;gap:8px;flex-wrap:wrap}
+.toast{position:fixed;right:16px;bottom:16px;background:var(--nao);color:#fff;padding:8px 12px;border-radius:6px;font-size:.84rem;display:none;max-width:60ch}
+@media (max-width:1000px){.duas{grid-template-columns:1fr}}
+@media (max-width:700px){.corpo{grid-template-columns:1fr}.lista{max-height:30vh;border-right:0;border-bottom:1px solid var(--linha)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topo">
+    <div><div class="nome">Biblioteca de ligações</div><div class="sub" id="sub">PCEB · D49 · NBR 8800:2024</div></div>
+    <span class="aviso" id="alterado"></span>
+    <div class="esp"></div>
+    <button class="btn" id="bTema" title="Claro / escuro">◐</button>
+    <button class="btn" id="bCancelar">Fechar sem gravar</button>
+    <button class="btn prim" id="bSalvar">Gravar no escritório</button>
+  </div>
+  <div class="corpo">
+    <nav class="lista" id="lista" aria-label="Modelos de ligação"></nav>
+    <main class="principal" id="principal"></main>
+  </div>
+</div>
+<div class="toast" id="toast" role="alert"></div>
+<script>
+"use strict";
+const host = window.chrome && window.chrome.webview;
+let E = /*DADOS*/null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const ORIG = { Pceb: "PCEB", Escritorio: "Escritório", Projeto: "Projeto" };
+function enviar(m) { if (host) host.postMessage(JSON.stringify(m)); }
+if (host) host.addEventListener("message", ev => { try { E = typeof ev.data === "string" ? JSON.parse(ev.data) : ev.data; tudo(); } catch (e) { } });
+$("#bTema").onclick = () => { const r = document.documentElement; const escuro = matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = (r.dataset.theme || (escuro ? "dark" : "light")) === "dark" ? "light" : "dark"; tudo(); };
+$("#bSalvar").onclick = () => enviar({ acao: "salvar" });
+$("#bCancelar").onclick = () => enviar({ acao: "cancelar" });
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+const fmt = (x, c = 0) => Number(x).toLocaleString("pt-BR", { maximumFractionDigits: c });
+
+function tudo() {
+  if (!E) return;
+  $("#alterado").textContent = E.alterado ? "● alterações não gravadas" : "";
+  $("#sub").textContent = "PCEB · D49 · NBR 8800:2024 · escritório: " + E.arquivo;
+  if (E.erro) { const t = $("#toast"); t.textContent = E.erro; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 5000); }
+  lista(); principal();
+}
+
+function lista() {
+  const box = $("#lista"); let h = "";
+  for (const t of E.tipos) {
+    h += `<h4>${esc(t.nome)}</h4>`;
+    for (const m of E.modelos.filter(x => x.tipo === t.id))
+      h += `<button class="item" data-id="${esc(m.id)}" aria-current="${m.id === E.selecionado}"><span>${esc(m.nome)}<span class="id">${esc(m.id)}${m.erros.length ? " · ⚠" : ""}</span></span><span class="selo ${m.origem}">${ORIG[m.origem]}</span></button>`;
+  }
+  h += `<div class="novo"><select id="novoTipo" aria-label="Tipo da ligação nova">${E.tipos.map(t => `<option value="${t.id}">${esc(t.nome)}</option>`).join("")}</select><button class="btn" id="bNovo">Nova</button></div>`;
+  box.innerHTML = h;
+  box.querySelectorAll(".item").forEach(b => b.onclick = () => enviar({ acao: "selecionar", id: b.dataset.id }));
+  $("#bNovo").onclick = () => enviar({ acao: "novo", tipo: $("#novoTipo").value });
+}
+
+function principal() {
+  const m = E.modelos.find(x => x.id === E.selecionado), box = $("#principal");
+  if (!m) { box.innerHTML = `<p>Nenhum modelo.</p>`; return; }
+  const t = E.tipos.find(x => x.id === m.tipo);
+  let form = "", grupo = "";
+  for (const p of t.parametros) {
+    if (p.grupo !== grupo) { grupo = p.grupo; form += `<div class="grupo">${esc(grupo)}</div>`; }
+    const v = m.valores[p.id], mudou = v !== p.padrao ? " mudou" : "";
+    const tip = esc(p.explicacao + (p.min !== undefined ? ` Faixa: ${p.min} a ${p.max}.` : "") + (p.auto ? " Aceita \"auto\"." : "") + ` Padrão: ${p.padrao}.`);
+    const ctrl = p.opcoes.length
+      ? `<select data-p="${p.id}" class="${mudou}">${p.opcoes.map(o => `<option${o === v ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`
+      : `<input data-p="${p.id}" class="${mudou}" value="${esc(v === "auto" ? "auto" : String(v).replace(".", ","))}" ${p.auto ? 'list="dlAuto"' : ""}>`;
+    form += `<div class="campo" title="${tip}"><label>${esc(p.rotulo)}</label>${ctrl}<span class="un">${esc(p.unidade)}</span></div>`;
+  }
+  const editavelOrig = m.origem === "Escritorio";
+  box.innerHTML = `
+    <div class="cab">
+      <input id="nome" value="${esc(m.nome)}" aria-label="Nome do modelo">
+      <span class="selo ${m.origem}" style="margin:6px 0 0">${ORIG[m.origem]}</span>
+      <div class="meta">${esc(m.id)} · ${esc(t.nome)}${m.origem === "Pceb" ? " · editar cria a versão do escritório (o modelo do PCEB não muda)" : m.temPceb ? " · versão do escritório de um modelo do PCEB" : ""}</div>
+      <textarea id="descr" aria-label="Descrição">${esc(m.descricao)}</textarea>
+    </div>
+    ${m.erros.length ? `<div class="erros">${m.erros.map(esc).join("<br>")}</div>` : ""}
+    <div class="duas">
+      <section class="card"><h4>Parâmetros</h4>${form}<datalist id="dlAuto"><option value="auto"></option></datalist></section>
+      <section class="card"><h4>Desenho</h4><svg id="svg" viewBox="0 0 600 420" role="img" aria-label="Desenho da ligação"></svg>
+        <div class="desc" id="descTxt"></div>
+        <div class="refs">Perfis de referência: viga <input id="pv" value="${esc(E.perfilViga)}"> pilar <input id="pp" value="${esc(E.perfilPilar)}"></div>
+      </section>
+    </div>
+    <div class="acoes">
+      <button class="btn" id="bDup">Duplicar</button>
+      <button class="btn" id="bDel" ${editavelOrig ? "" : "disabled"}>${m.temPceb ? "Restaurar o do PCEB" : "Excluir"}</button>
+    </div>`;
+  box.querySelectorAll("[data-p]").forEach(el => el.addEventListener("change", () => enviar({ acao: "definir", id: m.id, param: el.dataset.p, valor: el.value })));
+  $("#nome").addEventListener("change", e => enviar({ acao: "renomear", id: m.id, nome: e.target.value }));
+  $("#descr").addEventListener("change", e => enviar({ acao: "renomear", id: m.id, descricao: e.target.value }));
+  $("#bDup").onclick = () => enviar({ acao: "duplicar", id: m.id });
+  $("#bDel").onclick = () => enviar({ acao: m.temPceb ? "restaurar" : "excluir", id: m.id });
+  $("#pv").addEventListener("change", e => enviar({ acao: "perfil", viga: e.target.value }));
+  $("#pp").addEventListener("change", e => enviar({ acao: "perfil", pilar: e.target.value }));
+  desenhar(m);
+}
+
+// ---------------------------------------------------------------- desenhos (mm → viewBox 600 × 420)
+function desenhar(m) {
+  const svg = $("#svg"), D = E.desenho;
+  $("#descTxt").textContent = D ? D.texto : (E.erroDesenho || "Corrija os parâmetros para ver o desenho.");
+  if (!D) { svg.innerHTML = ""; return; }
+  const C = { aco: css("--aco"), acoB: css("--aco-borda"), ch: css("--chapa"), chB: css("--chapa-borda"), pa: css("--parafuso"), so: css("--solda"), co: css("--cota"), con: css("--concreto"), fg: css("--fg") };
+  let s = "", k = 1, ox = 0, oy = 0;
+  const caixa = (x0, x1, y0, y1, m0 = 28) => { const w = 600 - 2 * m0, h = 420 - 2 * m0; k = Math.min(w / (x1 - x0), h / (y1 - y0)); ox = m0 + (w - (x1 - x0) * k) / 2 - x0 * k; oy = m0 + (h - (y1 - y0) * k) / 2 - y0 * k; };
+  const X = x => ox + x * k, Y = y => oy + y * k;
+  const ret = (x0, y0, x1, y1, f, b, extra = "") => s += `<rect x="${X(Math.min(x0, x1))}" y="${Y(Math.min(y0, y1))}" width="${Math.abs(x1 - x0) * k}" height="${Math.abs(y1 - y0) * k}" fill="${f}" stroke="${b}" stroke-width="1.2" ${extra}/>`;
+  const furo = (x, y, d) => s += `<circle cx="${X(x)}" cy="${Y(y)}" r="${Math.max(2.5, d / 2 * k)}" fill="${C.pa}" opacity=".9"/><circle cx="${X(x)}" cy="${Y(y)}" r="${Math.max(1, d / 5 * k)}" fill="${css("--card")}"/>`;
+  const txt = (x, y, t, a = "start", cor = C.co) => s += `<text x="${X(x)}" y="${Y(y)}" font-size="11" fill="${cor}" text-anchor="${a}">${esc(t)}</text>`;
+  const v = D.viga, p = D.pilar;
+  if (m.tipo === "ChapaAlma" || m.tipo === "CantoneiraDupla") {
+    const larg = m.tipo === "ChapaAlma" ? D.bp : D.aba, gap = 12, L = Math.max(larg + 120, 2.2 * v.d);
+    caixa(-p.tf - 40, L, -v.d / 2 - 40, v.d / 2 + 50);
+    ret(-p.tf, -v.d / 2 - 30, 0, v.d / 2 + 30, C.aco, C.acoB);                         // mesa do suporte
+    txt(-p.tf / 2, -v.d / 2 - 34, "suporte", "middle");
+    ret(gap, -v.d / 2, L, -v.d / 2 + v.tf, C.aco, C.acoB); ret(gap, v.d / 2 - v.tf, L, v.d / 2, C.aco, C.acoB);   // mesas da viga
+    ret(gap, -v.d / 2 + v.tf, L, v.d / 2 - v.tf, css("--card"), C.acoB, 'stroke-dasharray="4 3"');                 // alma
+    txt(L - 4, -v.d / 2 + v.tf + 14, v.nome, "end", C.fg);
+    ret(0, -D.hp / 2, larg, D.hp / 2, C.ch, C.chB, 'opacity=".92"');
+    if (m.tipo === "ChapaAlma") {
+      for (const y of D.ys) furo(D.a, y, D.db);
+      s += `<polygon points="${X(0)},${Y(-D.hp / 2)} ${X(0) + 7},${Y(-D.hp / 2)} ${X(0)},${Y(-D.hp / 2) + 7}" fill="${C.so}"/>`;
+      s += `<line x1="${X(0) + 2}" y1="${Y(-D.hp / 2)}" x2="${X(0) + 2}" y2="${Y(D.hp / 2)}" stroke="${C.so}" stroke-width="3"/>`;
+      txt(D.a, D.hp / 2 + 16, `e = ${fmt(D.a)} mm`, "middle");
+    } else {
+      for (const y of D.ys) furo(D.aba - D.eh, y, D.db);
+      if (D.soldada) s += `<line x1="${X(0) + 2}" y1="${Y(-D.hp / 2)}" x2="${X(0) + 2}" y2="${Y(D.hp / 2)}" stroke="${C.so}" stroke-width="3"/>`;
+      else for (const y of D.ys) s += `<line x1="${X(-p.tf) - 6}" y1="${Y(y)}" x2="${X(8)}" y2="${Y(y)}" stroke="${C.pa}" stroke-width="${Math.max(2, D.db * k * 0.6)}"/>`;
+      txt(D.aba / 2, D.hp / 2 + 16, `2 L ${fmt(D.aba)} × ${fmt(D.t, 1)}`, "middle");
+    }
+    txt(larg + 6, 0, `${fmt(D.hp)} mm`, "start");
+  } else if (m.tipo === "ChapaTopo") {
+    const tp = D.tp > 0 ? D.tp : 19, L = 2.2 * v.d, fx = L + 160;
+    caixa(-p.tf - 40, fx + D.bp + 30, D.topo - 40, D.base + 40);
+    ret(-p.tf, D.topo - 25, 0, D.base + 25, C.aco, C.acoB); txt(-p.tf / 2, D.topo - 30, "pilar", "middle");
+    ret(0, D.topo, tp, D.base, C.ch, C.chB);
+    ret(tp, 0, L, v.tf, C.aco, C.acoB); ret(tp, v.d - v.tf, L, v.d, C.aco, C.acoB); ret(tp, v.tf, L, v.d - v.tf, css("--card"), C.acoB, 'stroke-dasharray="4 3"');
+    txt(L - 4, v.tf + 14, v.nome, "end", C.fg);
+    for (const y of D.ys) s += `<line x1="${X(-p.tf) - 8}" y1="${Y(y)}" x2="${X(tp) + 8}" y2="${Y(y)}" stroke="${C.pa}" stroke-width="${Math.max(2, D.db * k * 0.7)}"/>`;
+    // vista de frente da chapa
+    const cx = fx + D.bp / 2;
+    ret(fx, D.topo, fx + D.bp, D.base, C.ch, C.chB);
+    ret(cx - v.bf / 2, 0, cx + v.bf / 2, v.tf, "none", C.acoB, 'stroke-dasharray="4 3"'); ret(cx - v.bf / 2, v.d - v.tf, cx + v.bf / 2, v.d, "none", C.acoB, 'stroke-dasharray="4 3"');
+    ret(cx - v.tw / 2, v.tf, cx + v.tw / 2, v.d - v.tf, "none", C.acoB, 'stroke-dasharray="4 3"');
+    for (const y of D.ys) { furo(cx - D.g / 2, y, D.db); furo(cx + D.g / 2, y, D.db); }
+    txt(cx, D.base + 22, `g = ${fmt(D.g)} · bp = ${fmt(D.bp)} mm`, "middle"); txt(L / 2, D.base + 22, "elevação", "middle");
+  } else {
+    const L = D.lx, B = D.ly;
+    caixa(-L / 2 - 40, L / 2 + 40, -B / 2 - 40, B / 2 + 50);
+    ret(-L / 2 - 30, -B / 2 - 30, L / 2 + 30, B / 2 + 30, C.con, "none", 'opacity=".6"');
+    ret(-L / 2, -B / 2, L / 2, B / 2, C.ch, C.chB);
+    // pilar em planta: alma ao longo de x
+    ret(-p.d / 2, -p.bf / 2, -p.d / 2 + p.tf, p.bf / 2, C.aco, C.acoB); ret(p.d / 2 - p.tf, -p.bf / 2, p.d / 2, p.bf / 2, C.aco, C.acoB);
+    ret(-p.d / 2 + p.tf, -p.tw / 2, p.d / 2 - p.tf, p.tw / 2, C.aco, C.acoB);
+    for (let i = 0; i + 1 < D.chumb.length; i += 2) furo(D.chumb[i], D.chumb[i + 1], D.db);
+    txt(0, B / 2 + 22, `${fmt(L)} × ${fmt(B)} mm · ${p.nome}`, "middle", C.fg);
+  }
+  svg.innerHTML = s;
+}
+
+if (E) tudo(); else enviar({ acao: "estado" });
+</script>
+</body>
+</html>

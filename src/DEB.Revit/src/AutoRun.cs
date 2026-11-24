@@ -101,6 +101,17 @@ namespace DEB.Revit
                     case "configuracao":
                         status = "OK " + ConfiguracaoAutoTest(uidoc);
                         break;
+                    case "ligacoes":
+                    {
+                        string dir = Path.Combine(DetailingReport.LogDir, "ligacoes_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                        Directory.CreateDirectory(dir);
+                        var av = new List<string>();
+                        string png = Path.Combine(dir, "janela.png");
+                        DEB.Revit.Commands.BibliotecaLigacoesCommand.Abrir(IntPtr.Zero, av, png);
+                        File.WriteAllText(Path.Combine(dir, "resultado.txt"), $"Janela: {(File.Exists(png) ? new FileInfo(png).Length + " bytes" : "não gravada")}" + Environment.NewLine + string.Join(Environment.NewLine, av), Encoding.UTF8);
+                        status = "OK " + Path.Combine(dir, "resultado.txt");
+                        break;
+                    }
                     case "vigas":
                         status = "OK " + Vigas.VigasAutoTest.Run(uidoc);
                         break;

@@ -51,6 +51,15 @@ namespace DEB.Revit
             };
             panel.AddItem(cfgProjeto);
 
+            var bibLig = new PushButtonData("DEB_BibliotecaLigacoes", "Biblioteca de\nligações", dll, typeof(BibliotecaLigacoesCommand).FullName)
+            {
+                ToolTip = "Ligações metálicas parametrizadas do PCEB e do escritório (D49): chapa de alma, cantoneira dupla, chapa de topo e placa de base.",
+                LongDescription = "As do PCEB vêm com o programa; o escritório edita, cria e grava as suas num arquivo comum ao CAD e ao Revit. A análise usa a primeira de cada tipo e verifica pela NBR 8800:2024.",
+                LargeImage = IconFactory.Create(32, "⛓"),
+                Image = IconFactory.Create(16, "⛓")
+            };
+            panel.AddItem(bibLig);
+
             var diag = new PushButtonData("SD_Diagnostico", "Diagnóstico", dll, typeof(DiagnosticsCommand).FullName)
             {
                 ToolTip = "Grava um levantamento do modelo (pilares, vigas, consolos, contatos entre peças) para análise.",

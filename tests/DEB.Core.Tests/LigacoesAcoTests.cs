@@ -169,4 +169,32 @@ public class LigacoesAcoTests
         var vs = LigacaoCantoneira.Verificar(d, new[] { ("ELU 1", 100.0, 0.0) }, "Cantoneira", out var mem);
         Assert.Contains(vs, x => x.Codigo == "CD2" && x.Descricao.Contains("Solda"));
     }
+
+    [Fact]
+    public void Janela_da_biblioteca_edita_o_escritorio_sem_mudar_o_PCEB()
+    {
+        var b = BibliotecaLigacoes.Carregar(null, "nao_existe.json");
+        var s = new SessaoBiblioteca(b);
+        Assert.Contains("\"modelos\"", s.Receber("{\"acao\":\"estado\"}"));
+        string r = s.Receber("{\"acao\":\"definir\",\"id\":\"PCEB-CA-19\",\"param\":\"tp\",\"valor\":\"8\"}");
+        Assert.Equal("9.5", b.Pceb.Single(x => x.Id == "PCEB-CA-19").Texto("tp"));       // o do PCEB fica
+        Assert.Equal(8.0, b.Buscar("PCEB-CA-19").Numero("tp"));                           // vale o do escritório
+        Assert.True(s.Alterado);
+        Assert.Contains("\"desenho\"", r);
+        s.Receber("{\"acao\":\"restaurar\",\"id\":\"PCEB-CA-19\"}");
+        Assert.Equal(9.5, b.Buscar("PCEB-CA-19").Numero("tp"));
+        s.Receber("{\"acao\":\"novo\",\"tipo\":\"PlacaBase\"}");
+        Assert.Equal("ESC-PB-1", s.Selecionado);
+        Assert.Contains("erro", s.Receber("{\"acao\":\"excluir\",\"id\":\"PCEB-PB-25\"}"));
+        foreach (var m in b.Todos) { s.Receber("{\"acao\":\"selecionar\",\"id\":\"" + m.Id + "\"}"); Assert.Contains("\"desenho\"", s.Estado(null)); }
+        // prévia para captura de tela (fora do Git): $env:PCEB_PREVIA_LIGACOES = "<pasta>"
+        string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_LIGACOES");
+        if (!string.IsNullOrEmpty(pasta))
+            foreach (var id in new[] { "PCEB-CA-19", "PCEB-CT-22", "PCEB-PB-25", "PCEB-CD-76" })
+            {
+                s.Receber("{\"acao\":\"selecionar\",\"id\":\"" + id + "\"}");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "ligacao_" + id + ".html"), s.PaginaComDados());
+            }
+        Assert.Equal("salvar", (s.Receber("{\"acao\":\"salvar\"}") != null ? s.Fim : ""));
+    }
 }

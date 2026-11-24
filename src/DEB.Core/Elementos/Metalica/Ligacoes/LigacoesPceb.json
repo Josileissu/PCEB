@@ -23,6 +23,6 @@
       "valores": { "nChumb": "4", "dChumb": "25", "tp": "auto", "b": "auto", "h": "auto" } },
     { "id": "PCEB-PB-32", "nome": "Placa de base com 4 chumbadores ø32", "tipo": "PlacaBase",
       "descricao": "Bases com tração ou momento maiores.",
-      "valores": { "nChumb": "4", "dChumb": "32", "tp": "auto", "b": "auto", "h": "auto", "bordaChumb": "60" } }
+      "valores": { "nChumb": "4", "dChumb": "32", "tp": "auto", "b": "auto", "h": "auto" } }
   ]
 }
