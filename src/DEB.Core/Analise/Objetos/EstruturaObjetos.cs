@@ -177,6 +177,30 @@ public sealed class LigacaoPilarViga
 }
 
 /// <summary>
+/// Viga apoiada em outra viga (D46): a ponta do eixo da viga apoiada presa ao nó da viga de suporte no ponto de apoio — articulada
+/// (translações e a torção da viga apoiada, para ela não girar em torno do eixo).
+/// </summary>
+public sealed class LigacaoVigaViga
+{
+    public Dono Dono { get; set; } = new Dono { Tipo = TipoDono.Ligacao };
+    public VigaObjeto Apoiada { get; set; }
+    public bool PontaI { get; set; }
+    public VigaObjeto Suporte { get; set; }
+    /// <summary>Posição do apoio ao longo da viga de suporte (cm a partir do apoio I dela).</summary>
+    public double T { get; set; }
+
+    internal void Preparar() => Suporte.PontosInternos.Add(T);
+
+    internal void Gerar(ModeloBarras m)
+    {
+        int mestre = Suporte.NoNaPosicao(T), escravo = PontaI ? Apoiada.NoEixoI : Apoiada.NoEixoJ;
+        Vetor3 d = Apoiada.Direcao;
+        var graus = new[] { true, true, true, Math.Abs(d.X) >= Math.Abs(d.Y), Math.Abs(d.Y) > Math.Abs(d.X), false };
+        m.Rigido(mestre, escravo, Dono, Dono + " (viga sobre viga)", graus);
+    }
+}
+
+/// <summary>
 /// Laje em grelha (D46; padrão para laje maciça/nervurada moldada no local): malha nas duas direções sobre o contorno, faixas com a
 /// espessura da laje (I = b·h³/12, torção de placa J = b·h³/6 — analogia de Hambly), cargas por m² nos nós pela área de influência,
 /// nós apoiados nas vigas (projeção no eixo, translações) e nos pilares que estão sob a laje.
@@ -506,6 +530,7 @@ public sealed class EstruturaObjetos
     public List<VigaObjeto> Vigas { get; } = new List<VigaObjeto>();
     public List<LigacaoConsolo> Ligacoes { get; } = new List<LigacaoConsolo>();
     public List<LigacaoPilarViga> LigacoesDiretas { get; } = new List<LigacaoPilarViga>();
+    public List<LigacaoVigaViga> LigacoesVigaViga { get; } = new List<LigacaoVigaViga>();
     public List<LajeObjeto> Lajes { get; } = new List<LajeObjeto>();
     public ModeloBarras Modelo { get; private set; }
     public Dictionary<string, ResultadoCaso> Casos { get; private set; }
@@ -525,10 +550,12 @@ public sealed class EstruturaObjetos
         foreach (var l in Ligacoes) if (!l.Pilar.Niveis.Contains(l.ZTopoConsolo)) l.Pilar.Niveis.Add(l.ZTopoConsolo);
         foreach (var l in LigacoesDiretas) l.Pilar.Niveis.Add(l.ZNivel);
         foreach (var v in Vigas) v.PontosInternos.Clear();
+        foreach (var l in LigacoesVigaViga) l.Preparar();
         foreach (var la in Lajes) la.Preparar(Vigas, Pilares);
         foreach (var p in Pilares) p.Gerar(m);
         foreach (var v in Vigas) v.Gerar(m, g, q);
         foreach (var l in LigacoesDiretas) l.Gerar(m);
+        foreach (var l in LigacoesVigaViga) l.Gerar(m);
         foreach (var la in Lajes)
         {
             la.Gerar(m, pp, g, q);
@@ -544,9 +571,10 @@ public sealed class EstruturaObjetos
         // viga sem ligação numa ponta: apoio articulado fixo no próprio nó (não fica solta)
         foreach (var v in Vigas)
             foreach (bool i in new[] { true, false })
-                if (!Ligacoes.Any(l => l.Viga == v && l.PontaI == i) && !LigacoesDiretas.Any(l => l.Viga == v && l.PontaI == i))
+                if (!Ligacoes.Any(l => l.Viga == v && l.PontaI == i) && !LigacoesDiretas.Any(l => l.Viga == v && l.PontaI == i) &&
+                    !LigacoesVigaViga.Any(l => l.Apoiada == v && l.PontaI == i))
                 {
-                    m.Apoio(i ? v.NoApoioI : v.NoApoioJ, new[] { true, true, true, true, false, false }, v.Dono);
+                    m.Apoio(i ? v.NoEixoI : v.NoEixoJ, new[] { true, true, true, Math.Abs(v.Direcao.X) >= Math.Abs(v.Direcao.Y), Math.Abs(v.Direcao.Y) > Math.Abs(v.Direcao.X), false }, v.Dono);   // no eixo (mestre): o nó do apoio é escravo
                     Avisos.Add($"{v.Dono}: ponta {(i ? "I" : "J")} sem consolo ligado — apoio articulado fixo.");
                 }
         Modelo = m;

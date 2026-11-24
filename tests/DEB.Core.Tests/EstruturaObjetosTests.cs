@@ -250,4 +250,25 @@ public class EstruturaObjetosTests
         var lig2 = DimensionamentoObjetos.Consolo(e, e.Ligacoes[0], new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto());
         Assert.Contains(lig2.Verificacoes, v => v.Codigo == "CC3");
     }
+
+    [Fact]
+    public void VigaApoiadaEmViga()
+    {
+        // viga principal 600 cm biapoiada (apoios fixos nas pontas, sem pilar); secundária de 400 cm apoiada no meio dela e num pilar
+        var mat = new MaterialBarra { E = 3000, G = 1250 };
+        var e = new EstruturaObjetos();
+        var principal = new VigaObjeto { Dono = new Dono { Tipo = TipoDono.Viga, Id = "VP", Nome = "VP" }, ApoioI = new Vetor3(0, 0, 0), ApoioJ = new Vetor3(600, 0, 0),
+            Secao = SecaoPoligonal.Retangulo(20, 60), Material = mat };
+        var sec = new VigaObjeto { Dono = new Dono { Tipo = TipoDono.Viga, Id = "VS", Nome = "VS" }, ApoioI = new Vetor3(300, 0, 10), ApoioJ = new Vetor3(300, 400, 10),
+            Secao = SecaoPoligonal.Retangulo(15, 40), Material = mat, Q = 10 };
+        e.Vigas.Add(principal); e.Vigas.Add(sec);
+        e.LigacoesVigaViga.Add(new LigacaoVigaViga { Apoiada = sec, PontaI = true, Suporte = principal, T = 300 });
+        e.Analisar();
+        // a secundária leva metade de 10 kN/m × 4 m à principal: 20 kN no meio → reações de 10 kN em cada ponta da principal
+        var q = e.Casos[EstruturaObjetos.CasoQ];
+        Perto(10, q.Reacoes[principal.NoEixoI][2], 1e-6);
+        Perto(10, q.Reacoes[principal.NoEixoJ][2], 1e-6);
+        Assert.Equal(2, principal.Barras.Count);
+        Assert.DoesNotContain(e.Avisos, a => a.Contains("VS: ponta I"));
+    }
 }

@@ -16,7 +16,10 @@ Botão **Pré-moldados › Modelo de análise** (`Commands/ModeloAnaliticoComman
 - Cargas: vigas pelos parâmetros `PCEB_Carga…` (D40); lajes por `PCEB_Carga permanente (kN/m²)` e `PCEB_Carga variável (kN/m²)`
   (por nome) ou pela configuração (`acoes.lajeG`, `acoes.lajeQ`); peso próprio pelo material.
 - Sem aparelho de apoio na família: elastômero padrão da configuração (10 cm × largura da viga − 4 × 1 cm), com aviso.
-- Ainda não: viga apoiada em viga (vira apoio articulado fixo, com aviso), aberturas de laje, vento, combinações completas
+- Viga apoiada em viga: ligação articulada no ponto de apoio (a viga de suporte ganha um nó ali).
+- Laje apoiada direto no pilar: o nó da grelha sobre o pilar é preso a ele — o momento negativo ali é de pico (singularidade da
+  grelha); para armar, use o valor na face do pilar.
+- Ainda não: aberturas de laje, vento, combinações completas
   (há um conjunto mínimo provisório — o usuário deixou as combinações para depois).
 
 ## Solver (`DEB.Core/Analise/Barras`)

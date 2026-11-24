@@ -110,7 +110,8 @@ namespace DEB.Revit.Analise
                 }
 
             // ---------------- demais vigas: linha de locação reta, ligadas ao pilar onde a ponta cai
-            int semPilar = 0, curvas = 0;
+            int semPilar = 0, curvas = 0, sobreViga = 0;
+            var gerais = new List<(VigaObjeto V, bool PreMoldada)>();
             foreach (FamilyInstance fi in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
                          .WhereElementIsNotElementType().OfType<FamilyInstance>().Where(x => x.SuperComponent == null))
             {
@@ -136,7 +137,10 @@ namespace DEB.Revit.Analise
                 };
                 foreach (var c in cargas.Concentradas) v.Concentradas.Add((c.X, c.G, c.Q));
                 e.Vigas.Add(v);
-                bool preMoldada = fi.StructuralMaterialType == StructuralMaterialType.PrecastConcrete;
+                gerais.Add((v, fi.StructuralMaterialType == StructuralMaterialType.PrecastConcrete));
+            }
+            // pontas: pilar embaixo (ligação direta) ou outra viga (viga sobre viga)
+            foreach (var (v, preMoldada) in gerais)
                 foreach (bool pontaI in new[] { true, false })
                 {
                     Vetor3 pt = pontaI ? v.ApoioI : v.ApoioJ;
@@ -145,16 +149,39 @@ namespace DEB.Revit.Analise
                         Vetor3 d = pt - pl.Base; double z = d.Ponto(pl.Eixo.Unitario);
                         return z > -2 && z < pl.Comprimento + 2 && Math.Abs(d.Ponto(pl.DirY)) <= pl.Secao.B / 2 + 2 && Math.Abs(d.Ponto(pl.DirZ)) <= pl.Secao.H / 2 + 2;
                     });
-                    if (pil == null) { semPilar++; continue; }
-                    e.LigacoesDiretas.Add(new LigacaoPilarViga
+                    if (pil != null)
                     {
-                        Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{fi.Id.Value}-{(pontaI ? "I" : "J")}", Nome = $"{pil.Dono.Nome.Split(' ')[0]}·{v.Dono.Nome.Split(' ')[0]} {(preMoldada ? "articulada" : "monolítica")}" },
-                        Pilar = pil, Viga = v, PontaI = pontaI, Articulada = preMoldada,
+                        e.LigacoesDiretas.Add(new LigacaoPilarViga
+                        {
+                            Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{v.Dono.Id}-{(pontaI ? "I" : "J")}", Nome = $"{pil.Dono.Nome.Split(' ')[0]}·{v.Dono.Nome.Split(' ')[0]} {(preMoldada ? "articulada" : "monolítica")}" },
+                            Pilar = pil, Viga = v, PontaI = pontaI, Articulada = preMoldada,
+                        });
+                        continue;
+                    }
+                    // viga de suporte: a ponta cai sobre o eixo dela em planta, dentro da altura dela
+                    Vetor3 eixoPt = pt + Vetor3.EixoZ * v.AlturaEixo;
+                    VigaObjeto sup = null; double tSup = 0;
+                    foreach (var w in e.Vigas)
+                    {
+                        if (w == v) continue;
+                        Vetor3 dir = new Vetor3(w.Direcao.X, w.Direcao.Y, 0).Unitario, d = new Vetor3(pt.X - w.ApoioI.X, pt.Y - w.ApoioI.Y, 0);
+                        double vaoPlanta = new Vetor3(w.ApoioJ.X - w.ApoioI.X, w.ApoioJ.Y - w.ApoioI.Y, 0).Modulo, t = d.Ponto(dir);
+                        double dist = Math.Abs(d.Ponto(Vetor3.EixoZ.Vetorial(dir)));
+                        double zb = w.ApoioI.Z + (w.ApoioJ.Z - w.ApoioI.Z) * Math.Max(0, Math.Min(1, t / Math.Max(1e-9, vaoPlanta)));
+                        if (t < 1 || t > vaoPlanta - 1 || dist > w.Secao.B / 2 + v.Secao.B / 2 + 2 || eixoPt.Z < zb - 2 || eixoPt.Z > zb + w.Secao.H + 2) continue;
+                        sup = w; tSup = t / Math.Max(1e-9, vaoPlanta) * w.Vao; break;
+                    }
+                    if (sup == null) { semPilar++; continue; }
+                    e.LigacoesVigaViga.Add(new LigacaoVigaViga
+                    {
+                        Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{v.Dono.Id}-{(pontaI ? "I" : "J")}", Nome = $"{v.Dono.Nome.Split(' ')[0]} sobre {sup.Dono.Nome.Split(' ')[0]}" },
+                        Apoiada = v, PontaI = pontaI, Suporte = sup, T = tSup,
                     });
+                    sobreViga++;
                 }
-            }
             if (curvas > 0) notas.Add($"{curvas} vigas curvas ou sem linha de locação ficaram fora da análise.");
-            if (semPilar > 0) notas.Add($"{semPilar} pontas de viga sem pilar embaixo: apoio articulado fixo (viga sobre viga ainda não é ligada).");
+            if (sobreViga > 0) notas.Add($"{sobreViga} pontas de viga apoiadas em outra viga (ligação articulada).");
+            if (semPilar > 0) notas.Add($"{semPilar} pontas de viga sem pilar nem viga embaixo: apoio articulado fixo.");
 
             // ---------------- lajes: pisos estruturais
             var pisos = new FilteredElementCollector(doc).OfClass(typeof(Floor)).Cast<Floor>().ToList();
