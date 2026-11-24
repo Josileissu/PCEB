@@ -109,6 +109,29 @@ public static class VisualizacaoAnalise
                 : l.Topo != null ? $"chapa de topo, {l.Topo.NTotal} parafusos ø{Fmt.Virgula(l.Topo.Db, "0.#")} ({l.Modelo?.Id})"
                 : l.Cantoneira != null ? $"cantoneira dupla L {Fmt.Virgula(l.Cantoneira.Aba, "0")} × {Fmt.Virgula(l.Cantoneira.T, "0.#")}, {l.Cantoneira.N} parafusos ø{Fmt.Virgula(l.Cantoneira.Db, "0.#")} ({l.Modelo?.Id})"
                 : $"chapa de alma {Fmt.Virgula(l.Chapa.Tp, "0.#")} × {Fmt.Virgula(l.Chapa.AlturaChapa, "0")} mm, {l.Chapa.N} parafusos ø{Fmt.Virgula(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} ({l.Modelo?.Id})");
+        // ligações de aço: os sólidos da ligação com os perfis das peças (o 2D da peça desenha as quatro vistas, como na biblioteca)
+        var lacos = ValorJson.NovoObjeto(); raiz.Definir("ligacoesAco", lacos);
+        foreach (var l in e.LigacoesMetalicas)
+        {
+            if (l.Modelo == null) continue;
+            try
+            {
+                var viga = l.Viga?.Perfil ?? DEB.Core.Elementos.Metalica.PerfilI.Buscar("W310X38.7");
+                var pil = l.Suporte?.Perfil ?? l.Pilar?.Perfil ?? DEB.Core.Elementos.Metalica.PerfilI.Buscar("W250X32.7");
+                var cx = ValorJson.NovaLista();
+                foreach (var c in DEB.Core.Elementos.Metalica.Ligacoes.GeometriaLigacao.Montar(l.Modelo, viga, pil))
+                {
+                    var q = ValorJson.NovaLista();
+                    q.Adicionar(ValorJson.De(c.Papel.ToString()));
+                    foreach (double v in new[] { c.X0, c.X1, c.Y0, c.Y1, c.Z0, c.Z1 }) q.Adicionar(ValorJson.De(Math.Round(v, 1)));
+                    q.Adicionar(ValorJson.De(c.Rotulo));
+                    cx.Adicionar(q);
+                }
+                var o = ValorJson.NovoObjeto(); o.Definir("caixas", cx); o.Definir("tipo", l.Tipo.ToString()); o.Definir("modelo", l.Modelo.Nome);
+                lacos.Definir(Chave(l.Dono), o);
+            }
+            catch (Exception) { /* sem desenho: o painel mostra só o dimensionamento */ }
+        }
         foreach (var la in e.Lajes) Obj(la.Dono, $"h = {Fmt.Virgula(la.Espessura, "0.#")} cm, g = {Fmt.Virgula(la.G, "0.##")} kN/m², q = {Fmt.Virgula(la.Q, "0.##")} kN/m², malha {Fmt.Virgula(la.Sx, "0")} × {Fmt.Virgula(la.Sy, "0")} cm");
 
         // lajes: malha (nós por i, j) e contorno no sistema da laje

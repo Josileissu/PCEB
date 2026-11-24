@@ -169,6 +169,7 @@ public static class DetalheConsolo
         var ap = l.AparelhoEmUso;
         double tAp = ap != null && ap.Espessura > 0 ? ap.Espessura : 1.2;
         g.Definir("tAp", tAp);
+        g.Definir("apLarg", ap != null && ap.Largura > 0 ? ap.Largura : Math.Max(10, l.Viga.Secao.B - 4));
         g.Definir("aparelho", ap == null ? "sem aparelho (articulação)" : $"{DEB.Core.Intercambio.ApoioPeca.Texto(ap.Tipo)} {Fmt.Virgula(ap.Comprimento, "0.#")} × {Fmt.Virgula(ap.Largura, "0.#")} × {Fmt.Virgula(ap.Espessura, "0.#")} cm");
         var perfil = l.PontaI ? l.Viga.PerfilPontaI : l.Viga.PerfilPontaJ;
         double ate = l.PontaI ? l.Viga.ApoioAtePontaI : l.Viga.ApoioAtePontaJ;

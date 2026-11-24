@@ -70,6 +70,7 @@ td{font-family:var(--f-dado)}
 .kv span{font-family:var(--f-dado)}
 .abas{position:absolute;left:12px;top:8px;z-index:2}
 .camposConsolo{position:absolute;left:250px;top:8px;z-index:2}
+.camposConsolo[hidden]{display:none}
 .camposConsolo button[aria-pressed="true"]{background:var(--mata,#1e4d3a);color:#fff}
 #cv2{display:none;cursor:default}
 .vista.v2d #cv{display:none}.vista.v2d #cv2{display:block}
@@ -420,7 +421,7 @@ function ehConsolo(c) { return c && D.molas.some(m => m.dono === c); }
 
 // ---------------------------------------------------------------- detalhe do consolo (item 3): pilar, consolo, aparelho, viga, cargas, biela e tirante, chapa
 // curvas de nível sobre a malha de quadriláteros: nos [x, y], els [n1..n4, …], valor por elemento (null = sem valor)
-function isolinhas(nos, els, vEl, X, Y) {
+function isolinhas(nos, els, vEl, X, Y, niveisDados) {
   const soma = new Float64Array(nos.length), cont = new Float64Array(nos.length);
   els.forEach((e, i) => { const v = vEl[i]; if (v == null || !isFinite(v)) return; for (let k = 0; k < 4; k++) { soma[e[k]] += v; cont[e[k]]++; } });
   const vn = Array.from(soma, (s0, k) => cont[k] ? s0 / cont[k] : null);
@@ -428,7 +429,7 @@ function isolinhas(nos, els, vEl, X, Y) {
   if (!isFinite(mn) || mx - mn < 1e-9) return;
   // níveis "redondos": passo 1, 2 ou 5 × 10^n, uns 8 a 12 níveis
   const bruto = (mx - mn) / 10, pot = Math.pow(10, Math.floor(Math.log10(bruto))), passo = [1, 2, 5, 10].map(f => f * pot).find(p => p >= bruto);
-  const niveis = []; for (let v = Math.ceil(mn / passo) * passo; v <= mx; v += passo) niveis.push(+v.toFixed(10));
+  const niveis = niveisDados ? niveisDados.filter(v => v > mn && v < mx) : []; if (!niveisDados) for (let v = Math.ceil(mn / passo) * passo; v <= mx; v += passo) niveis.push(+v.toFixed(10));
   ctx2.save(); ctx2.lineWidth = 0.8; ctx2.strokeStyle = "rgba(40,40,40,0.55)"; ctx2.font = "9px " + css("--f-dado"); ctx2.fillStyle = "rgba(30,30,30,0.85)";
   const rotulados = {};
   els.forEach(e => {
@@ -462,8 +463,11 @@ function desenharConsolo(w, h, chave) {
   const g = det.geo, c = det.cargas, b = det.biela, mf = det.mef;
   // janela: x de −Lp − 10 até A + comprimento de viga; y de −(H + Lp) até Lp + 10
   const vz = det.vizinhos || [];
-  const x0 = -g.lp - 25 - Math.max(0, ...vz.filter(v => v.lado < 0).map(v => v.a)), x1 = Math.max(g.a + Math.max(60, 1.5 * g.hViga), ...((g.ponta || []).map(q => q[1] + 6))),
-        y0 = Math.min(-g.h, ...vz.map(v => v.dy - v.h)) - g.lp - 10, y1 = Math.max(Math.max(0, ...vz.map(v => v.dy)) + g.lp + 30, ...((g.ponta || []).map(q => q[3] + 20)));
+  // a viga aparece só num trecho: até o fim do dente/ressalto mais meia altura da viga (corte com linha de quebra)
+  const pontaM = g.ponta || [], xDente = pontaM.length > 1 ? pontaM[0][1] : g.pos + g.pad / 2;
+  const corteViga = Math.max(g.a + 10, xDente + 0.6 * g.hViga);
+  const x0 = -g.lp - 25 - Math.max(0, ...vz.filter(v => v.lado < 0).map(v => v.a)), x1 = corteViga + 12,
+        y0 = Math.min(-g.h, ...vz.map(v => v.dy - v.h)) - g.lp - 10, y1 = Math.max(Math.max(0, ...vz.map(v => v.dy)) + g.lp + 30, ...(pontaM.map(q => q[3] + 20)));
   const painel = Math.min(w * 0.68, w - 300), esc = Math.min((painel - 80) / (x1 - x0), (h - 130) / (y1 - y0));
   const ox = 50 - x0 * esc, oy = 96 + y1 * esc, X = x => ox + x * esc, Y = y => oy - y * esc;
   // campo de tensões não linear (item 9): pedido sob demanda
@@ -477,20 +481,20 @@ function desenharConsolo(w, h, chave) {
   const amp = Math.max(Math.abs(vmin), Math.abs(vmax), 1e-6);
   const corV = v => { const t = Math.max(-1, Math.min(1, v / amp)); // azul = compressão, vermelho = tração
     const a = t < 0 ? [44, 127, 184] : [215, 25, 28], f = Math.abs(t); return `rgb(${Math.round(247 + (a[0] - 247) * f)},${Math.round(247 + (a[1] - 247) * f)},${Math.round(247 + (a[2] - 247) * f)})`; };
-  mf.els.forEach((e, i) => {
-    ctx2.fillStyle = CT && CT.els && CT.els[i] ? usoCor(-CT.els[i][0] / Math.max(1e-6, CT.els[i][2])) : CT !== undefined && campoConsolo === "C" ? "#eee" : corV(e[idx]); ctx2.beginPath();
-    for (let k = 0; k < 4; k++) { const [x, y] = mf.nos[e[k]]; k ? ctx2.lineTo(X(x), Y(y)) : ctx2.moveTo(X(x), Y(y)); }
-    ctx2.closePath(); ctx2.fill();
-  });
+  // valores por elemento do campo mostrado (MPa, unidade da tela): no campo de tensões, a compressão do concreto (|σc2|)
+  const valEl = mf.els.map((e, i) => campoConsolo === "C" ? (CT && CT.els && CT.els[i] ? conv("tensao", -CT.els[i][0]) : null) : conv("tensao", e[idx]));
+  const ESC = faixasArcoIris(valEl, campoConsolo === "C");
+  if (campoConsolo === "C" && !(CT && CT.els)) {
+    mf.els.forEach(e => { ctx2.fillStyle = "#eee"; ctx2.beginPath(); for (let k = 0; k < 4; k++) { const [x, y] = mf.nos[e[k]]; k ? ctx2.lineTo(X(x), Y(y)) : ctx2.moveTo(X(x), Y(y)); } ctx2.closePath(); ctx2.fill(); });
+  } else pintarFaixas(mf.nos, mf.els, valEl, ESC, X, Y);
   // isovalores: médias nos nós e curvas de nível em cada quadrilátero (valores do campo mostrado, na unidade da tela)
   {
-    const vEl = mf.els.map((e, i) => CT && CT.els ? (CT.els[i] ? conv("tensao", CT.els[i][0]) : null) : conv("tensao", e[idx]));
-    if (!(campoConsolo === "C" && !(CT && CT.els))) isolinhas(mf.nos, mf.els, vEl, X, Y);
+    if (!(campoConsolo === "C" && !(CT && CT.els))) isolinhas(mf.nos, mf.els, valEl, X, Y, ESC.niveis);
   }
   // direções principais (compressão) em alguns elementos
   if (CT && CT.els) {
     // direções de compressão (bielas), traço proporcional à tensão
-    ctx2.strokeStyle = css("--fg"); ctx2.lineWidth = 1;
+    ctx2.strokeStyle = "rgba(170,20,20,0.75)"; ctx2.lineWidth = 1;
     const smax = Math.max(1e-6, ...CT.els.map(x => -x[0]));
     mf.els.forEach((e, i) => {
       if (i % 2 || !CT.els[i] || -CT.els[i][0] < 0.05 * smax) return;
@@ -533,11 +537,22 @@ function desenharConsolo(w, h, chave) {
   ctx2.fillStyle = "#333"; ctx2.fillRect(X(g.pos - g.pad / 2), Y(tAp), g.pad * esc, tAp * esc);
   // ponta da viga como está no modelo (dente, ressalto): trechos [x0, x1, y base, y topo] a partir da face do pilar
   ctx2.strokeStyle = css("--c-viga"); ctx2.lineWidth = 2; ctx2.setLineDash([6, 4]);
-  const ponta = g.ponta && g.ponta.length ? g.ponta : [[g.pos - g.pad / 2 - 3, x1 - 10, tAp, tAp + g.hViga]];
-  ponta.forEach(([a, b, yb, yt]) => { const bb = Math.min(b, x1 - 4); if (bb > a) ctx2.strokeRect(X(a), Y(yt), (bb - a) * esc, (yt - yb) * esc); });
+  const ponta = g.ponta && g.ponta.length ? g.ponta : [[g.pos - g.pad / 2 - 3, corteViga, tAp, tAp + g.hViga]];
+  // contorno da ponta (união dos trechos), sem o lado do corte
+  ponta.forEach(([a, b, yb, yt]) => {
+    const bb = Math.min(b, corteViga); if (bb <= a) return;
+    ctx2.beginPath(); ctx2.moveTo(X(bb), Y(yt)); ctx2.lineTo(X(a), Y(yt)); ctx2.lineTo(X(a), Y(yb)); ctx2.lineTo(X(bb), Y(yb)); ctx2.stroke();
+  });
   ctx2.setLineDash([]);
-  const pm = ponta[ponta.length - 1];
-  texto2(X(Math.min(pm[0] + 4, x1 - 60)), Y((pm[2] + pm[3]) / 2), "viga (ponta" + (g.pontaModelo ? ", do modelo)" : ")"), css("--c-viga"));
+  // linha de quebra no corte da viga
+  const pq = ponta.filter(q => q[0] < corteViga), ybq = Math.min(...pq.map(q => q[2])), ytq = Math.max(...pq.map(q => q[3]));
+  { const xq = X(corteViga), ym = (Y(ybq) + Y(ytq)) / 2; ctx2.strokeStyle = css("--c-viga"); ctx2.lineWidth = 1.5; ctx2.beginPath();
+    ctx2.moveTo(xq, Y(ytq) - 6); ctx2.lineTo(xq, ym - 8); ctx2.lineTo(xq + 7, ym - 3); ctx2.lineTo(xq - 7, ym + 3); ctx2.lineTo(xq, ym + 8); ctx2.lineTo(xq, Y(ybq) + 6); ctx2.stroke(); }
+  texto2(X(Math.max(ponta[0][0], g.pos + g.pad / 2)) + 6, Y(ytq) - 6, "viga" + (g.pontaModelo ? " (forma do modelo)" : ""), css("--c-viga"));
+  // marca do corte A–A no centro do aparelho
+  { const xa = X(g.pos), ya0 = Y(ytq) - 18, ya1 = Y(-g.h) + 16; ctx2.strokeStyle = css("--fg"); ctx2.lineWidth = 1; ctx2.setLineDash([10, 3, 2, 3]);
+    ctx2.beginPath(); ctx2.moveTo(xa, ya0); ctx2.lineTo(xa, ya1); ctx2.stroke(); ctx2.setLineDash([]);
+    texto2(xa + 4, ya0 + 2, "A", css("--fg")); texto2(xa + 4, ya1 + 2, "A", css("--fg")); }
   if (g.aparelho) texto2(X(g.pos + g.pad / 2) + 6, Y(0) + 14, g.aparelho, css("--suave"));
   // biela e tirante
   const zt = -(g.cob + 0.8), zb = zt - b.z;
@@ -563,8 +578,8 @@ function desenharConsolo(w, h, chave) {
     if (!CT) { linha(host ? "calculando… (alguns segundos)" : "prévia sem o Revit: o campo é calculado pelo PCEB", css("--suave")); }
     else if (CT.erro) linha("não calculado: " + CT.erro, css("--c-def"));
     else {
-      for (let k = 0; k <= 10; k++) { ctx2.fillStyle = usoCor(k / 10); ctx2.fillRect(px + k * 22, py, 22, 12); }
-      py += 26; linha("σc2 / (kc2·ηfc·fcd): 0 … 1 (vermelho > 1)", css("--suave"));
+      linha(`|σc2| · ${S("tensao")} (compressão no concreto fissurado)`, css("--suave"));
+      py = legendaFaixas(px, py, ESC);
       linha(`concreto: uso máx. ${fmt(CT.usoConcreto * 100, 0)}%   ·   aço: σs,máx/fyd ${fmt(CT.usoAco * 100, 0)}%`, CT.usoConcreto > 1 || CT.usoAco > 1 ? css("--c-def") : css("--fg"));
       linha(`fator de carga até a falha λ = ${fmt(CT.lambda, 2)}`, CT.lambda < 1 ? css("--c-def") : css("--ok"));
       linha(`(${CT.falha})`, css("--suave"));
@@ -572,11 +587,11 @@ function desenharConsolo(w, h, chave) {
       (CT.hipoteses || []).forEach(t => { const pal = t.split(" "); let l = ""; pal.forEach(p => { if ((l + p).length > 56) { linha(l, css("--suave")); l = "  "; } l += p + " "; }); linha(l, css("--suave")); });
     }
     py += 6; linha("Escolha o campo nos botões acima do desenho (ou teclas 1, 2, x, y, t, c).", css("--suave"));
+    corteA(px, py + 10, w - px - 20, h - py - 30, g, c);
     return;
   }
   linha("Campo: " + { S1: "σ1 (tração +)", S2: "σ2 (compressão −)", Sx: "σx", Sy: "σy", Txy: "τxy" }[campoConsolo] + " · " + S("tensao"), css("--suave"));
-  for (let k = 0; k <= 10; k++) { const v = -amp + 2 * amp * k / 10; ctx2.fillStyle = corV(v); ctx2.fillRect(px + k * 22, py, 22, 12); }
-  py += 26; linha(`${fmt(conv("tensao", -amp), 2)}  …  0  …  ${fmt(conv("tensao", amp), 2)} ${S("tensao")}`, css("--suave"));
+  py = legendaFaixas(px, py, ESC);
   py += 6; linha(`σ1,máx = ${U("tensao", mf.s1max)} (fctm = ${U("tensao", mf.fctm)})`, mf.s1max > mf.fctm ? css("--c-def") : css("--fg"));
   linha(`σ2,mín = ${U("tensao", mf.s2min)} (fcd = ${U("tensao", mf.fcd)})`, -mf.s2min > mf.fcd ? css("--c-def") : css("--fg"));
   linha(`chapa elástica Q4: ${mf.els.length} elementos`, css("--suave"));
@@ -585,6 +600,110 @@ function desenharConsolo(w, h, chave) {
   py += 6; linha("Consolo: " + nomeSit(det.dim.situacao) + " (detalhes no painel)", corSit(det.dim.situacao));
   py += 6; linha("Campos nos botões acima do desenho; \"Campo de tensões\" = análise não", css("--suave"));
   linha("linear com o concreto fissurado e as armaduras (alguns segundos).", css("--suave"));
+  corteA(px, py + 10, w - px - 20, h - py - 30, g, c);
+}
+
+// escala arco-íris em faixas (a do IDEA StatiCa: azul escuro → ciano → verde → amarelo → vermelho), níveis redondos
+const ARCO = [[40, 20, 120], [20, 60, 200], [0, 130, 230], [0, 190, 220], [0, 170, 130], [60, 180, 60], [150, 200, 40], [235, 225, 30], [250, 170, 20], [240, 100, 20], [210, 30, 20], [140, 0, 20]];
+function corArco(t) {
+  t = Math.max(0, Math.min(1, t)); const x = t * (ARCO.length - 1), i = Math.min(ARCO.length - 2, Math.floor(x)), f = x - i;
+  const a = ARCO[i], b = ARCO[i + 1]; return `rgb(${Math.round(a[0] + (b[0] - a[0]) * f)},${Math.round(a[1] + (b[1] - a[1]) * f)},${Math.round(a[2] + (b[2] - a[2]) * f)})`;
+}
+function faixasArcoIris(vals, deZero) {
+  let mn = Infinity, mx = -Infinity; vals.forEach(v => { if (v != null && isFinite(v)) { mn = Math.min(mn, v); mx = Math.max(mx, v); } });
+  if (!isFinite(mn)) { mn = 0; mx = 1; }
+  if (deZero) mn = Math.min(0, mn);
+  if (mx - mn < 1e-9) mx = mn + 1;
+  const bruto = (mx - mn) / 14, pot = Math.pow(10, Math.floor(Math.log10(bruto))), passo = [1, 2, 2.5, 5, 10].map(f => f * pot).find(q => q >= bruto);
+  const a = Math.floor(mn / passo) * passo, b = Math.ceil(mx / passo) * passo, niveis = [];
+  for (let v = a; v <= b + passo * 1e-6; v += passo) niveis.push(+v.toFixed(10));
+  return { niveis, passo, min: a, max: b, cor: v => corArco(Math.floor((v - a) / passo + 1e-9) / Math.max(1, niveis.length - 2)) };
+}
+// pinta cada quadrilátero em sub-células com os valores interpolados dos nós (faixas lisas, sem o "xadrez" dos elementos)
+function pintarFaixas(nos, els, valEl, esc, X, Y) {
+  const soma = new Float64Array(nos.length), cont = new Float64Array(nos.length);
+  els.forEach((e, i) => { const v = valEl[i]; if (v == null || !isFinite(v)) return; for (let k = 0; k < 4; k++) { soma[e[k]] += v; cont[e[k]]++; } });
+  const vn = Array.from(soma, (s0, k) => cont[k] ? s0 / cont[k] : null), n = 3;
+  els.forEach((e, i) => {
+    const P = [0, 1, 2, 3].map(k => nos[e[k]]), V = [0, 1, 2, 3].map(k => vn[e[k]] ?? valEl[i]);
+    if (V.some(v => v == null)) return;
+    for (let a = 0; a < n; a++) for (let b = 0; b < n; b++) {
+      const u0 = a / n, u1 = (a + 1) / n, w0 = b / n, w1 = (b + 1) / n, um = (u0 + u1) / 2, wm = (w0 + w1) / 2;
+      const bil = (u, w, q) => q[0] * (1 - u) * (1 - w) + q[1] * u * (1 - w) + q[2] * u * w + q[3] * (1 - u) * w;
+      const pt = (u, w) => [bil(u, w, P.map(z => z[0])), bil(u, w, P.map(z => z[1]))];
+      ctx2.fillStyle = esc.cor(bil(um, wm, V)); ctx2.beginPath();
+      [[u0, w0], [u1, w0], [u1, w1], [u0, w1]].forEach(([u, w], k) => { const [x, y] = pt(u, w); k ? ctx2.lineTo(X(x), Y(y)) : ctx2.moveTo(X(x), Y(y)); });
+      ctx2.closePath(); ctx2.fill(); ctx2.strokeStyle = ctx2.fillStyle; ctx2.lineWidth = 0.6; ctx2.stroke();
+    }
+  });
+}
+function legendaFaixas(px, py, esc) {
+  const nv = esc.niveis, alt = Math.min(16, 230 / Math.max(1, nv.length - 1));
+  for (let k = nv.length - 2; k >= 0; k--) {
+    const y = py + (nv.length - 2 - k) * alt;
+    ctx2.fillStyle = esc.cor((nv[k] + nv[k + 1]) / 2); ctx2.fillRect(px, y, 22, alt);
+    ctx2.strokeStyle = "rgba(0,0,0,0.25)"; ctx2.strokeRect(px, y, 22, alt);
+    texto2(px + 28, y + 4, fmt(nv[k + 1], Math.abs(esc.passo) < 1 ? 2 : 1), css("--fg"));
+  }
+  texto2(px + 28, py + (nv.length - 1) * alt + 4, fmt(nv[0], Math.abs(esc.passo) < 1 ? 2 : 1), css("--fg"));
+  return py + (nv.length - 1) * alt + 22;
+}
+// corte A–A pelo centro do aparelho: pilar (fundo), consolo, aparelho, seção da ponta da viga, ponto A e as forças
+function corteA(px, py, larg, alt, g, c) {
+  if (larg < 120 || alt < 120) return;
+  texto2(px, py, "Corte A–A (pelo centro do aparelho)", css("--suave")); py += 14;
+  const hv = (g.ponta && g.ponta.length ? g.ponta[0][3] - g.ponta[0][2] : g.hViga), bv = g.bViga || 20, tAp = g.tAp || 1.2;
+  const W = Math.max(g.tp, g.b, bv) + 30, Hs = g.h + tAp + hv + 25, e = Math.min((larg - 30) / W, (alt - 30) / Hs);
+  const cx = px + larg / 2, yTop = py + 20 + (hv + tAp) * e, X = y => cx + y * e, Y = z => yTop - z * e;
+  ctx2.lineWidth = 1.5;
+  ctx2.strokeStyle = css("--c-pilar"); ctx2.setLineDash([4, 3]); ctx2.strokeRect(X(-g.tp / 2), Y(8), g.tp * e, (g.h + 16) * e); ctx2.setLineDash([]);   // pilar ao fundo
+  ctx2.fillStyle = "rgba(160,160,160,0.25)"; ctx2.fillRect(X(-g.b / 2), Y(0), g.b * e, g.h * e); ctx2.strokeRect(X(-g.b / 2), Y(0), g.b * e, g.h * e);   // consolo
+  const la = Math.min(g.apLarg || bv - 4, g.b); ctx2.fillStyle = "#333"; ctx2.fillRect(X(-la / 2), Y(tAp), la * e, tAp * e);                    // aparelho
+  ctx2.strokeStyle = css("--c-viga"); ctx2.strokeRect(X(-bv / 2), Y(tAp + hv), bv * e, hv * e);                                                  // viga (ponta)
+  // ponto A e forças
+  ctx2.fillStyle = css("--c-carga"); ctx2.beginPath(); ctx2.arc(X(0), Y(tAp), 3.5, 0, 7); ctx2.fill();
+  texto2(X(0) + 6, Y(tAp) + 12, "A", css("--c-carga"));
+  ctx2.strokeStyle = css("--c-carga"); ctx2.lineWidth = 2; ctx2.beginPath(); ctx2.moveTo(X(0), Y(tAp) - 44); ctx2.lineTo(X(0), Y(tAp) - 6); ctx2.stroke();
+  ctx2.beginPath(); ctx2.moveTo(X(0), Y(tAp) - 4); ctx2.lineTo(X(0) - 5, Y(tAp) - 13); ctx2.lineTo(X(0) + 5, Y(tAp) - 13); ctx2.fill();
+  texto2(X(0) + 6, Y(tAp) - 34, `Vd = ${U("forca", c.vd, 1)}`, css("--c-carga"));
+  // Hd é ao longo da viga: perpendicular ao corte (⊙ sai, ⊗ entra)
+  if (Math.abs(c.hd) > 1e-6) { const xs = X(bv / 2) + 26, ys = Y(tAp) - 4; ctx2.beginPath(); ctx2.arc(xs, ys, 7, 0, 7); ctx2.stroke();
+    if (c.hd > 0) { ctx2.beginPath(); ctx2.arc(xs, ys, 2, 0, 7); ctx2.fill(); } else { ctx2.beginPath(); ctx2.moveTo(xs - 5, ys - 5); ctx2.lineTo(xs + 5, ys + 5); ctx2.moveTo(xs + 5, ys - 5); ctx2.lineTo(xs - 5, ys + 5); ctx2.stroke(); }
+    texto2(xs + 11, ys + 4, `Hd = ${U("forca", c.hd, 2)}`, css("--c-carga")); }
+  texto2(px, Y(-g.h) + 16, `consolo ${fmt(g.b, 0)} cm · pilar ${fmt(g.tp, 0)} cm (tracejado)`, css("--suave"));
+  texto2(px, Y(-g.h) + 30, `viga na ponta ${fmt(bv, 0)} × ${fmt(hv, 0)} cm · aparelho ${fmt(la, 0)} cm`, css("--suave"));
+}
+
+// ligação de aço (como na biblioteca): vista de topo, frontal, lateral e 3D com os perfis transparentes
+function desenharLigacaoAco(w, h, chave, L) {
+  const COR = { Membro: "#9aa3ad", Chapa: "#e0a93b", Enrijecedor: "#b9661d", Parafuso: "#2b4a7a", Solda: "#b8322a", Concreto: "#c8c8c8" };
+  const ALFA = { Membro: .18, Concreto: .35 };
+  const C = L.caixas.map(c => ({ p: c[0], x0: c[1], x1: c[2], y0: c[3], y1: c[4], z0: c[5], z1: c[6], r: c[7] }));
+  const base = L.tipo === "PlacaBase";
+  const nome = (D.objetos.find(o => o.chave === chave) || {}).nome || chave;
+  texto2(16, 62, `${nome} — ${L.modelo} (desenho da biblioteca de ligações com os perfis das peças)`, css("--suave"));
+  const pw = (w - 48) / 2, ph = (h - 110) / 2;
+  const caixa = (i, polys, tit) => {
+    const ox0 = 16 + (i % 2) * (pw + 16), oy0 = 80 + Math.floor(i / 2) * (ph + 16);
+    ctx2.strokeStyle = css("--linha"); ctx2.lineWidth = 1; ctx2.strokeRect(ox0, oy0, pw, ph); texto2(ox0 + 8, oy0 + 16, tit, css("--suave"));
+    let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9; polys.forEach(p => p.pts.forEach(([u, v]) => { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }));
+    const k = Math.min((pw - 30) / Math.max(1, u1 - u0), (ph - 40) / Math.max(1, v1 - v0)), cx = ox0 + 15 + ((pw - 30) - (u1 - u0) * k) / 2, cy = oy0 + 26 + ((ph - 40) - (v1 - v0) * k) / 2;
+    polys.sort((a, b) => a.prof - b.prof).forEach(p => {
+      ctx2.beginPath(); p.pts.forEach(([u, v], j) => { const x = cx + (u - u0) * k, y = cy + (v1 - v) * k; j ? ctx2.lineTo(x, y) : ctx2.moveTo(x, y); }); ctx2.closePath();
+      ctx2.globalAlpha = (ALFA[p.papel] ?? .95) * (p.sombra || 1); ctx2.fillStyle = COR[p.papel] || "#999"; ctx2.fill();
+      ctx2.globalAlpha = p.papel === "Membro" ? .55 : .9; ctx2.strokeStyle = "#333"; ctx2.lineWidth = .7; ctx2.stroke(); ctx2.globalAlpha = 1;
+    });
+  };
+  const orto = (fu, fv, fd) => C.map(c => { const [a0, a1] = fu(c), [b0, b1] = fv(c); return { pts: [[a0, b0], [a1, b0], [a1, b1], [a0, b1]], papel: c.p, prof: fd(c) }; });
+  const q = (x, y, z) => [(x + y) * Math.cos(Math.PI / 6), z + (y - x) * Math.sin(Math.PI / 6)];
+  const iso = [];
+  C.forEach(c => [[[c.x0, c.y0, c.z1], [c.x1, c.y0, c.z1], [c.x1, c.y1, c.z1], [c.x0, c.y1, c.z1], 1], [[c.x0, c.y0, c.z0], [c.x1, c.y0, c.z0], [c.x1, c.y0, c.z1], [c.x0, c.y0, c.z1], .8],
+                  [[c.x1, c.y0, c.z0], [c.x1, c.y1, c.z0], [c.x1, c.y1, c.z1], [c.x1, c.y0, c.z1], .65]]
+    .forEach(f => iso.push({ pts: f.slice(0, 4).map(p => q(...p)), papel: c.p, sombra: f[4], prof: (c.x0 + c.x1) / 2 - (c.y0 + c.y1) / 2 + (c.p === "Membro" || c.p === "Concreto" ? -1e5 : 0) })));
+  caixa(0, orto(c => [c.x0, c.x1], c => [c.y0, c.y1], c => c.z1), base ? "Planta (vista de topo)" : "Vista de topo");
+  caixa(1, orto(c => [c.y0, c.y1], c => [c.z0, c.z1], c => base ? c.x1 : -c.x0), "Vista frontal (corte transversal)");
+  caixa(2, orto(c => [c.x0, c.x1], c => [c.z0, c.z1], c => -c.y0), "Vista lateral (corte longitudinal)");
+  caixa(3, iso, "3D — perfis transparentes");
 }
 
 function desenharPeca() {
@@ -592,6 +711,7 @@ function desenharPeca() {
   let chave = sel; const tipoDe = c => (D.objetos.find(o => o.chave === c) || {}).tipo;
   if (ehConsolo(chave)) return desenharConsolo(w, h, chave);
   botoesCampo(false);
+  if (chave && D.ligacoesAco && D.ligacoesAco[chave]) return desenharLigacaoAco(w, h, chave, D.ligacoesAco[chave]);
   if (!chave || !["Viga", "Pilar"].includes(tipoDe(chave))) chave = (D.objetos.find(o => o.tipo === "Viga") || D.objetos.find(o => o.tipo === "Pilar") || {}).chave;
   if (!chave) { texto2(20, 60, "Selecione uma viga ou um pilar."); return; }
   const o = D.objetos.find(x => x.chave === chave), viga = o.tipo === "Viga";

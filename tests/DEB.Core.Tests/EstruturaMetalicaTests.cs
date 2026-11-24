@@ -195,4 +195,29 @@ public class EstruturaMetalicaTests
         Assert.Single(lidas);
         Assert.Equal("X", lidas[0].Direcao);
     }
+
+    [Fact]
+    public void Janela_mostra_a_ligacao_de_aco_com_os_perfis_das_pecas()
+    {
+        var e = Portico(LigacaoExtremidade.Flexivel);
+        var s = new SessaoAnalise(e, new ConfiguracaoProjeto(), "teste", null);
+        string j = s.Json();
+        Assert.Contains("\"ligacoesAco\"", j);
+        var l = e.LigacoesMetalicas.First(x => x.Viga != null);
+        string chave = AjustesAnalise.Chave(l.Dono);
+        Assert.Contains("\"" + chave + "\":{\"caixas\"", j);
+        string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_ANALISE");
+        if (!string.IsNullOrEmpty(pasta))
+        {
+            foreach (var (lig, nome) in new[] { (l, "ligacao_aco"), (e.LigacoesMetalicas.First(x => x.Placa != null), "placa_base") })
+            {
+                string ch = AjustesAnalise.Chave(lig.Dono);
+                string html = VisualizacaoAnalise.Pagina().Replace("<script>", "<script>window.DADOS_DEMO = " + j + ";</script><script>");
+                int k = html.LastIndexOf("</body>", System.StringComparison.Ordinal);
+                html = html.Insert(k, "<script>setTimeout(() => { sel = " + DEB.Core.Persistencia.Json.Gravar(DEB.Core.Persistencia.ValorJson.De(ch), false) +
+                                      "; document.querySelector('[data-aba=\"peca\"]').click(); lateral(); }, 300);</script>");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, nome + ".html"), html);
+            }
+        }
+    }
 }
