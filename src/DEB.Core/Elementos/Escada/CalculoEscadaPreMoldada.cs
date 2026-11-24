@@ -235,7 +235,15 @@ public static partial class CalculoEscada
         double cob = e.Cobrimento, h = g.H, hp = g.Hp, H = e.Desnivel, c = g.Cos, tg = Math.Tan(g.Alfa), B = e.Largura;
         var sp = r.SuperiorPm;
         var rt = new RegrasTraspasse { Fck = e.Fck, GamaC = r.Coef.GamaC, GamaS = r.Coef.GamaS };
-        if (sp.Esp > 0)
+        if (sp.Esp > 0 && e.SoPatamar)
+        {
+            // patamar: superior reta de ponta a ponta, com gancho para baixo nas pontas
+            double co = cob + sp.Bitola / 20;
+            double xa = g.XPontaInf + co, xb = g.XPontaSup - co;
+            var n4 = SemGanchoCurto(new List<(double X, double Z)> { (xa, g.ZAssentoInf + co), (xa, -co), (xb, -co), (xb, g.ZAssentoSup + co) }, sp.Bitola);
+            r.Barras.Add(Barra("N4", "superior do patamar (içamento e construtiva)", sp.Bitola, sp.Esp, QtReta(B - 2 * cob - sp.Bitola / 10, sp.Esp), n4));
+        }
+        else if (sp.Esp > 0)
         {
             double co = cob + sp.Bitola / 20;
             int nL = QtReta(B - 2 * cob - sp.Bitola / 10, sp.Esp);

@@ -111,6 +111,9 @@ public sealed class ResultadoEscada
     public List<PassoMemoria> Memoria { get; } = new List<PassoMemoria>();
     public List<string> Avisos { get; } = new List<string>();
     public List<string> Erros { get; } = new List<string>();
+    /// <summary>Cargas características em trechos da projeção (kN por cm de vão e por metro de largura), as mesmas da estática.</summary>
+    public List<(double X0, double X1, double W)> SegmentosG { get; } = new List<(double, double, double)>();
+    public List<(double X0, double X1, double W)> SegmentosQ { get; } = new List<(double, double, double)>();
 
     /// <summary>Resumo da armadura proposta, uma linha por barra.</summary>
     public List<string> ResumoProposta() => Barras.Select(b => b.Texto).ToList();
@@ -138,7 +141,12 @@ public static partial class CalculoEscada
         bool lateral = e.Tipo != TipoEscada.Longitudinal;
         bool tirouPatamar = lateral && (e.PatamarInferior > 0 || e.PatamarSuperior > 0);
         if (tirouPatamar) { e = e.Copia(); e.PatamarInferior = 0; e.PatamarSuperior = 0; }
+        bool soPat = e.SoPatamar;
+        if (soPat && Math.Abs(e.Desnivel) > 1e-9) { e = e.Copia(); e.Desnivel = 0; }   // patamar: topo em z = 0 nas duas pontas
+        bool tirouCargas = lateral && e.CargasApoiadas.Count > 0;
+        if (tirouCargas) { e = e.Copia(); e.CargasApoiadas.Clear(); }
         var r = new ResultadoEscada { Entrada = e.Copia(), Coef = k };
+        if (tirouCargas) r.Avisos.Add("Cargas de outras peças só entram na escada armada longitudinalmente (lance ou patamar); aqui foram ignoradas.");
         if (tirouPatamar) r.Avisos.Add("Escada armada transversalmente ou em balanço: os patamares são lajes à parte (calcule-os como laje); aqui entra só o lance.");
         var erros = new List<string>();
         var g = GeometriaEscada.De(e, erros);
@@ -149,6 +157,17 @@ public static partial class CalculoEscada
 
         // ---------------- 1. geometria ----------------
         var m1 = new PassoMemoria { Titulo = "1. Geometria (apostila de escadas, 7.1; NBR 9077)" };
+        if (soPat)
+        {
+            m1.Titulo = "1. Geometria do patamar (peça plana)";
+            m1.Linhas.Add($"Patamar plano biapoiado: vão horizontal entre os eixos dos apoios ℓ = {N(L, "0.#")} cm; espessura hp = {N(hp, "0.#")} cm; largura {N(e.Largura, "0")} cm.");
+            r.Memoria.Add(m1);
+            r.Verificacoes.Add(K("E7", "Geometria", "Espessura mínima da laje", $"{N(hp, "0.#")} cm", "≥ 8 cm (laje de piso)", hp < 8 - 1e-9, "NBR 6118, 13.2.4.1"));
+            foreach (string er in r.Erros) r.Avisos.Add(er);
+            r.Avisos.AddRange(g.Avisos);
+        }
+        else
+        {
         m1.Linhas.Add($"Desnível {N(e.Desnivel, "0.#")} cm em n = {g.N} espelhos: e = {N(g.Espelho, "0.00")} cm; piso p = {N(g.Piso, "0.#")} cm; " +
                       $"α = atan(e/p) = {N(g.Alfa * 180 / Math.PI, "0.0")}°.");
         m1.Linhas.Add($"Lance: projeção (n − 1)·p = {N(g.LanceHorizontal, "0.#")} cm; patamares {N(e.PatamarInferior, "0.#")} (inferior) e {N(e.PatamarSuperior, "0.#")} cm (superior) " +
@@ -173,6 +192,7 @@ public static partial class CalculoEscada
         r.Verificacoes.Add(K("E7", "Geometria", "Espessura mínima da laje", $"{N(Math.Min(h, hp), "0.#")} cm", "≥ 8 cm (laje de piso)", Math.Min(h, hp) < 8 - 1e-9, "NBR 6118, 13.2.4.1"));
         foreach (string er in r.Erros) r.Avisos.Add(er);
         r.Avisos.AddRange(g.Avisos);
+        }
 
         // ---------------- 2. cargas ----------------
         r.GLance = gc * (h / c + g.Espelho / 2) / 100 + e.Revestimento;
@@ -180,12 +200,15 @@ public static partial class CalculoEscada
         r.GParapeito = e.Parapeito > 0 && e.BordasComParapeito > 0 ? e.Parapeito * Math.Min(2, e.BordasComParapeito) / Math.Max(0.01, e.Largura / 100) : 0;
         r.Q = e.Sobrecarga;
         var m2 = new PassoMemoria { Titulo = "2. Cargas por m² de projeção horizontal (apostila 7.2)" };
-        m2.Linhas.Add($"Lance: peso próprio γ·(h/cosα + e/2) = {N(gc, "0.#")}·({N(h / c / 100, "0.000")} + {N(g.Espelho / 200, "0.000")}) = {N(gc * (h / c + g.Espelho / 2) / 100, "0.00")} kN/m²; " +
+        if (!soPat) m2.Linhas.Add($"Lance: peso próprio γ·(h/cosα + e/2) = {N(gc, "0.#")}·({N(h / c / 100, "0.000")} + {N(g.Espelho / 200, "0.000")}) = {N(gc * (h / c + g.Espelho / 2) / 100, "0.00")} kN/m²; " +
                       $"com revestimento {N(e.Revestimento)} → g = {N(r.GLance, "0.00")} kN/m².");
         m2.Linhas.Add($"Patamar: γ·hp = {N(gc * hp / 100, "0.00")} kN/m² + revestimento → g = {N(r.GPatamar, "0.00")} kN/m².");
         if (r.GParapeito > 0) m2.Linhas.Add($"Parapeito: {N(e.Parapeito)} kN/m × {Math.Min(2, e.BordasComParapeito)} borda(s) / {N(e.Largura / 100, "0.00")} m = {N(r.GParapeito, "0.00")} kN/m² (distribuído na largura).");
         m2.Linhas.Add($"Sobrecarga: q = {N(r.Q)} kN/m² (NB-5: 2,5 sem acesso ao público, 3,0 com acesso; conferir na NBR 6120:2019).");
-        m2.Linhas.Add("A carga por m² de superfície inclinada (gi = g·cosα) dá a mesma resultante; o cálculo usa a projeção horizontal, que é o usual.");
+        if (!soPat) m2.Linhas.Add("A carga por m² de superfície inclinada (gi = g·cosα) dá a mesma resultante; o cálculo usa a projeção horizontal, que é o usual.");
+        foreach (var ca in e.CargasApoiadas)
+            m2.Linhas.Add($"Apoiada nesta peça — {(string.IsNullOrEmpty(ca.Nome) ? "outra peça" : ca.Nome)}: G = {N(ca.G, "0.00")} + Q = {N(ca.Q, "0.00")} kN por metro de largura, " +
+                          $"de x = {N(ca.X, "0")} a {N(ca.X + ca.Comprimento, "0")} cm.");
         r.Memoria.Add(m2);
 
         if (lateral) { CalcularLateral(r, k); return r; }
@@ -196,6 +219,15 @@ public static partial class CalculoEscada
         if (g.X1 > 1e-9) { cg.Add((0, g.X1, (r.GPatamar + r.GParapeito) / 100)); cq.Add((0, g.X1, r.Q / 100)); }
         cg.Add((g.X1, g.X2, (r.GLance + r.GParapeito) / 100)); cq.Add((g.X1, g.X2, r.Q / 100));
         if (L - g.X2 > 1e-9) { cg.Add((g.X2, L, (r.GPatamar + r.GParapeito) / 100)); cq.Add((g.X2, L, r.Q / 100)); }
+        if (soPat) { cg.Clear(); cq.Clear(); cg.Add((0, L, (r.GPatamar + r.GParapeito) / 100)); cq.Add((0, L, r.Q / 100)); }
+        foreach (var ca in e.CargasApoiadas)
+        {
+            // carga de outra peça: resultante por metro de largura espalhada no comprimento de apoio (dentro do vão)
+            double x0 = Math.Max(0, Math.Min(L, ca.X)), x1 = Math.Max(0, Math.Min(L, ca.X + Math.Max(1, ca.Comprimento)));
+            if (x1 - x0 < 1) { x0 = Math.Max(0, Math.Min(L - 1, ca.X)); x1 = x0 + 1; r.Avisos.Add($"Carga apoiada \"{ca.Nome}\" fora do vão: levada para dentro."); }
+            cg.Add((x0, x1, ca.G / (x1 - x0))); cq.Add((x0, x1, ca.Q / (x1 - x0)));
+        }
+        r.SegmentosG.AddRange(cg); r.SegmentosQ.AddRange(cq);
         r.VaoCalculo = L;
         var eg = new EstaticaEscada(L, cg);
         var eq = new EstaticaEscada(L, cq);
@@ -441,6 +473,7 @@ public static partial class CalculoEscada
     public static void GerarBarras(ResultadoEscada r)
     {
         var e = r.Entrada; var g = r.Geo;
+        if (e.SoPatamar) { GerarBarrasPatamar(r); return; }
         double cob = e.Cobrimento, h = g.H, hp = g.Hp, L = g.Vao, H = e.Desnivel;
         double c = g.Cos, s = g.Sen, tg = Math.Tan(g.Alfa);
         double phi = r.Principal.Bitola, co = cob + phi / 20;   // eixo da barra a partir da face
@@ -542,6 +575,44 @@ public static partial class CalculoEscada
                 n5.Add((xFim, zt1 - (h - 2 * con) / c)); n5.Add((xFim, zt1)); n5.Add((L - comp, (L - comp - g.X1) * tg - con / c));
             }
             r.Barras.Add(Barra("N5", "negativa no apoio superior", ng.Bitola, ng.Esp, nL, n5));
+        }
+    }
+
+    /// <summary>Patamar plano: N1 positiva reta (com gancho para cima na pré-moldada, entrando no apoio no local), N3 distribuição
+    /// e, no local, negativas N4/N5 nos apoios.</summary>
+    private static void GerarBarrasPatamar(ResultadoEscada r)
+    {
+        var e = r.Entrada; var g = r.Geo;
+        double cob = e.Cobrimento, hp = g.Hp, L = g.Vao, phi = r.Principal.Bitola, co = cob + phi / 20;
+        bool pm = e.PreMoldada;
+        double xIni = pm ? g.XRecorteInf + co : -(e.LarguraApoio / 2 - cob), xFim = pm ? g.XRecorteSup - co : L + (e.LarguraApoio / 2 - cob);
+        int nLarg = QtReta(e.Largura - 2 * cob - phi / 10, r.Principal.Esp);
+        var n1 = new List<(double X, double Z)> { (xIni, -hp + co), (xFim, -hp + co) };
+        if (pm)
+        {
+            n1.Insert(0, (xIni, -co));
+            n1.Add((xFim, -co));
+            n1 = SemGanchoCurto(n1, phi);
+        }
+        r.Barras.Add(Barra("N1", "positiva do patamar", phi, r.Principal.Esp, nLarg, n1));
+        var d = r.Distribuicao;
+        if (d.Esp > 0)
+        {
+            double off = phi / 10 + d.Bitola / 20;
+            var l3 = new List<(double X, double Z)> { (xIni, -hp + co + off), (xFim, -hp + co + off) };
+            r.Barras.Add(new BarraEscada
+            {
+                Nome = "N3", Funcao = "distribuição", Bitola = d.Bitola, Espacamento = d.Esp, Transversal = true,
+                Quantidade = QtLinha(l3, d.Esp), Pontos = l3, Comprimento = e.Largura - 2 * cob,
+            });
+        }
+        var ng = r.Negativa;
+        if (ng.Esp > 0 && !pm)
+        {
+            double con = cob + ng.Bitola / 20, comp = 0.15 * L;
+            int nL = QtReta(e.Largura - 2 * cob - ng.Bitola / 10, ng.Esp);
+            r.Barras.Add(Barra("N4", "negativa no apoio inferior", ng.Bitola, ng.Esp, nL, new List<(double X, double Z)> { (xIni, -hp + con), (xIni, -con), (comp, -con) }));
+            r.Barras.Add(Barra("N5", "negativa no apoio superior", ng.Bitola, ng.Esp, nL, new List<(double X, double Z)> { (xFim, -hp + con), (xFim, -con), (L - comp, -con) }));
         }
     }
 

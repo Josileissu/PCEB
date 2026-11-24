@@ -98,6 +98,20 @@ public static class MefEscada
             if (b <= a) continue;
             // integra W exatamente: a carga muda só no 1º e no último espelho
             double f = 0;
+            if (!Lateral(r) && r.SegmentosG.Count > 0 && r.SegmentosG.Count == r.SegmentosQ.Count)
+            {
+                // os mesmos trechos da estática (inclui as cargas de outras peças apoiadas nesta)
+                var k = r.Coef;
+                for (int s = 0; s < r.SegmentosG.Count; s++)
+                {
+                    var sg = r.SegmentosG[s]; double wq = r.SegmentosQ[s].W;
+                    double ov = Math.Min(b, sg.X1) - Math.Max(a, sg.X0);
+                    if (ov <= 0) continue;
+                    f += (caso == CasoElu ? k.GamaG * sg.W + k.GamaQ * wq : sg.W + k.Psi2 * wq) * ov;
+                }
+                l.Add((ord[i].No, 0, -f));
+                continue;
+            }
             var cortes = new[] { a, b, r.Geo.X1, r.Geo.X2 }.Where(x => x >= a && x <= b).Distinct().OrderBy(x => x).ToList();
             for (int s = 0; s + 1 < cortes.Count; s++)
                 f += W(r, (cortes[s] + cortes[s + 1]) / 2, caso) / 100 * (cortes[s + 1] - cortes[s]);   // kN/m² ÷ 100 × cm = kN/m de largura

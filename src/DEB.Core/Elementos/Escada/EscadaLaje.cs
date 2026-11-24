@@ -43,6 +43,29 @@ public enum PontaPreMoldada
     Dente = 1,
 }
 
+/// <summary>Que peça é: o lance (com os patamares das pontas) ou só um patamar plano (patamar intermediário pré-moldado).</summary>
+public enum PecaEscada
+{
+    Lance = 0,
+    /// <summary>Laje plana biapoiada (o patamar intermediário como peça à parte): vão entre os apoios das pontas, sem degraus.</summary>
+    Patamar = 1,
+}
+
+/// <summary>
+/// Carga vinda de outra peça (a ponta de um lance ou de um patamar apoiada nesta), por metro de largura desta peça, uniforme de
+/// <see cref="X"/> a X + <see cref="Comprimento"/> (x horizontal a partir do eixo do apoio inferior). Valores característicos (kN/m):
+/// a resultante na faixa de 1 m.
+/// </summary>
+public sealed class CargaApoiada
+{
+    public string Nome { get; set; } = "";
+    public double X { get; set; }
+    public double Comprimento { get; set; } = 10;
+    public double G { get; set; }
+    public double Q { get; set; }
+    public CargaApoiada Copia() => (CargaApoiada)MemberwiseClone();
+}
+
 /// <summary>Valores padrão da escada pré-moldada. Vão ser lidos do arquivo de configurações do PCEB (em criação noutra branch).</summary>
 public static class PadroesPreMoldado
 {
@@ -103,6 +126,13 @@ public sealed class LigacaoEscada
 public sealed class EscadaLaje
 {
     public TipoEscada Tipo { get; set; } = TipoEscada.Longitudinal;
+    /// <summary>Lance ou patamar plano (só armada longitudinalmente; o patamar usa <see cref="ComprimentoPatamar"/> e a espessura do patamar).</summary>
+    public PecaEscada Peca { get; set; } = PecaEscada.Lance;
+    /// <summary>Patamar: vão horizontal entre os eixos dos apoios (cm).</summary>
+    public double ComprimentoPatamar { get; set; } = 150;
+    /// <summary>Cargas de outras peças apoiadas nesta (escadas em L e U montadas por peças).</summary>
+    public List<CargaApoiada> CargasApoiadas { get; set; } = new List<CargaApoiada>();
+    public bool SoPatamar => Peca == PecaEscada.Patamar && Tipo == TipoEscada.Longitudinal;
     public ExecucaoEscada Execucao { get; set; } = ExecucaoEscada.MoldadaNoLocal;
     /// <summary>Pré-moldada: ligação da ponta de baixo e da de cima.</summary>
     public LigacaoEscada LigacaoInferior { get; set; } = new LigacaoEscada();
@@ -159,6 +189,7 @@ public sealed class EscadaLaje
     {
         var c = (EscadaLaje)MemberwiseClone();
         c.LigacaoInferior = LigacaoInferior.Copia(); c.LigacaoSuperior = LigacaoSuperior.Copia();
+        c.CargasApoiadas = CargasApoiadas.Select(a => a.Copia()).ToList();
         return c;
     }
 }
@@ -222,6 +253,7 @@ public sealed class GeometriaEscada
     public static GeometriaEscada De(EscadaLaje e, List<string> erros = null)
     {
         erros ??= new List<string>();
+        if (e.SoPatamar) return DePatamar(e, erros);
         var g = new GeometriaEscada();
         int n = e.Espelhos > 0 ? e.Espelhos : (int)Math.Max(2, Math.Round(e.Desnivel / Math.Max(1, e.EspelhoAlvo)));
         g.N = n;
@@ -305,6 +337,35 @@ public sealed class GeometriaEscada
         }
         if (pm) k.Add((g.XPontaInf, 0));
         else if (pi > 0) k.Add((0, 0));
+        LimparContorno(k);
+        return g;
+    }
+
+    /// <summary>Patamar plano: um trecho horizontal de 0 ao vão, topo em z = 0; pontas e dentes como no lance pré-moldado.</summary>
+    private static GeometriaEscada DePatamar(EscadaLaje e, List<string> erros)
+    {
+        var g = new GeometriaEscada();
+        g.N = 0; g.Espelho = 0; g.Piso = Math.Max(1, e.Piso); g.Alfa = 0; g.LanceHorizontal = 0;
+        g.Hp = e.EspessuraPatamar > 0 ? e.EspessuraPatamar : e.Espessura; g.H = g.Hp;
+        double hp = g.Hp, L = e.ComprimentoPatamar;
+        if (L < 30) { erros.Add("Patamar: vão menor que 30 cm."); L = Math.Max(L, 30); }
+        g.Vao = L; g.X1 = L; g.X2 = L;   // sem lance: tudo é patamar
+        g.Trechos.Add(new TrechoEscada { Nome = "Patamar", P0 = (0, -hp / 2), P1 = (L, -hp / 2), H = hp });
+        bool pm = e.PreMoldada;
+        var li = e.LigacaoInferior; var ls = e.LigacaoSuperior;
+        g.XPontaInf = pm ? -li.Balanco : 0; g.XPontaSup = pm ? L + ls.Balanco : L;
+        bool di = pm && li.Ponta == PontaPreMoldada.Dente, ds = pm && ls.Ponta == PontaPreMoldada.Dente;
+        g.XRecorteInf = di ? g.XPontaInf + li.ComprimentoDente : g.XPontaInf;
+        g.XRecorteSup = ds ? g.XPontaSup - ls.ComprimentoDente : g.XPontaSup;
+        g.ZAssentoInf = pm ? -li.AlturaNoApoio(hp) : -hp; g.ZAssentoSup = pm ? -ls.AlturaNoApoio(hp) : -hp;
+        if (g.XRecorteInf > g.XRecorteSup - 10) erros.Add("Patamar: os dentes das duas pontas se encontram — encurte os dentes.");
+        var k = g.Contorno;
+        if (g.XRecorteInf > g.XPontaInf + 1e-9) { k.Add((g.XPontaInf, g.ZAssentoInf)); k.Add((g.XRecorteInf, g.ZAssentoInf)); }
+        k.Add((g.XRecorteInf, -hp));
+        k.Add((g.XRecorteSup, -hp));
+        if (g.XRecorteSup < g.XPontaSup - 1e-9) { k.Add((g.XRecorteSup, g.ZAssentoSup)); k.Add((g.XPontaSup, g.ZAssentoSup)); }
+        k.Add((g.XPontaSup, 0));
+        k.Add((g.XPontaInf, 0));
         LimparContorno(k);
         return g;
     }
