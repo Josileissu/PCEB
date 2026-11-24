@@ -57,3 +57,12 @@ AutoRun `analitico` (sem gravar): grava `janela_<vista>.png` de seis vistas e o 
 - Cada ponta flexível ganha uma `LigacaoMetalica` (chapa de alma proposta pela altura da viga), verificada com o V e o N da ponta
   (códigos LC1–LC9). As barras: MT1–MT9 (NBR 8800:2024). Núcleo: `DEB.Core/Elementos/Metalica`.
 
+## Biblioteca de ligações e famílias PCEB (D49)
+- Núcleo: `DEB.Core/Elementos/Metalica/Ligacoes` (`BibliotecaLigacoes`, esquemas, `LigacoesPceb.json`, janela `TelaBibliotecaLigacoes.html`);
+  cálculos em `LigacaoChapaAlma`, `LigacaoCantoneira`, `LigacaoChapaTopo`, `LigacaoPlacaBase`.
+- Botões: "Biblioteca de ligações" (edita e grava o escritório) e "Modelar ligações" (resumo → aceite → famílias PCEB, grupo "PCEB <id>").
+- Famílias: `src/Analise/FamiliasLigacoes.cs` cria "PCEB Chapa" e "PCEB Parafuso" em `%AppData%\PCEBamilias` na primeira vez. Armadilhas:
+  com "Sempre vertical" ligado (padrão do modelo genérico) a instância ignora o plano de trabalho; o plano de referência tem de ser
+  criado numa vista 3D (numa planta ele é projetado no plano da vista) e com 3 pontos; a API dá normal = corte × (livre − bolha).
+  O eixo da análise é a linha de locação (topo da viga): `BarraMetalicaObjeto.DeslocamentoFisico` leva ao centro físico.
+- AutoRun: `ligacoes` (imagem da janela) e `analitico` com `SD_ACO=1` (modela as ligações e grava `ligacoes_3d*.png`).

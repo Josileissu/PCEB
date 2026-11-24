@@ -60,6 +60,16 @@ namespace DEB.Revit
             };
             panel.AddItem(bibLig);
 
+            var modLig = new PushButtonData("DEB_ModelarLigacoes", "Modelar\nligações", dll, typeof(ModelarLigacoesCommand).FullName)
+            {
+                ToolTip = "Verifica e modela as ligações das peças de aço (D49) com as famílias PCEB: chapas, parafusos e chumbadores.",
+                LongDescription = "Usa a biblioteca de ligações e a NBR 8800:2024; mostra o resumo antes de criar. Cada ligação vira um grupo \"PCEB <id>\"; rodar de novo atualiza.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "⚙"),
+                Image = IconFactory.Create(16, "⚙")
+            };
+            panel.AddItem(modLig);
+
             var diag = new PushButtonData("SD_Diagnostico", "Diagnóstico", dll, typeof(DiagnosticsCommand).FullName)
             {
                 ToolTip = "Grava um levantamento do modelo (pilares, vigas, consolos, contatos entre peças) para análise.",

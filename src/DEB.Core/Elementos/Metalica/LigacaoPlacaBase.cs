@@ -31,6 +31,8 @@ public sealed class DadosPlacaBase
     public double Perna { get; set; } = 8;
     public double Fw { get; set; } = 485;
     public double Mu { get; set; } = 0.45;
+    /// <summary>Espessura adotada na última verificação (a do modelo ou a comercial escolhida).</summary>
+    public double TpAdotada { get; set; }
 
     // Tabela 18 (por db, mm): a1, a2, a3, fck mínimo (MPa)
     private static readonly (double Db, double A1, double A2, double A3, double FckMin)[] Tab18 =
@@ -175,6 +177,7 @@ public static class LigacaoPlacaBase
         bool auto = d.Tp <= 0;
         double tp = auto ? DadosPlacaBase.Espessuras.FirstOrDefault(t => t >= tpMin - 1e-9) : d.Tp;
         if (tp <= 0) tp = DadosPlacaBase.Espessuras.Last();
+        d.TpAdotada = tp;
         var crit = res.OrderByDescending(r => r.TpMin).FirstOrDefault();
         mem.Linhas.Add($"Pilar {d.Pilar.Nome}; placa {F(d.LxEf, "0")} × {F(d.LyEf, "0")} mm ({d.AcoPlaca.Nome}); {d.Nb} chumbadores ø{F(d.Db, "0")} {d.AcoChumbador} " +
                        $"a {F(a1, "0")} mm da face (Tab. 18: a1 = {F(a1, "0")}, a2 = {F(a2, "0")} mm); a = {F(d.A, "0")} mm.");

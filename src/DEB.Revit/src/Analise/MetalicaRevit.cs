@@ -91,6 +91,8 @@ namespace DEB.Revit.Analise
                     {
                         double giro = fi.get_Parameter(BuiltInParameter.STRUCTURAL_BEND_DIR_ANGLE)?.AsDouble() ?? 0;
                         if (Math.Abs(giro) > 1e-3) giradas++;
+                        if (fi.get_BoundingBox(null) is BoundingBoxXYZ bbv)
+                            o.DeslocamentoFisico = new Vetor3(0, 0, ((bbv.Min.Z + bbv.Max.Z) / 2 - (a.Z + b.Z) / 2) * Cm);
                         var cargas = ParametrosCargasViga.Ler(fi);
                         o.G = cargas.G; o.Q = cargas.Q;
                         foreach (var c in cargas.Concentradas) o.Concentradas.Add((c.X, c.G, c.Q));

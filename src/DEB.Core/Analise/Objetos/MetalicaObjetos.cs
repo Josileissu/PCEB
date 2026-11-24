@@ -61,6 +61,8 @@ public sealed class BarraMetalicaObjeto
     public List<(double X, double G, double Q)> Concentradas { get; } = new List<(double, double, double)>();
     /// <summary>Comprimento destravado da mesa comprimida (cm) para a FLT; 0 = o comprimento da barra.</summary>
     public double Lb { get; set; }
+    /// <summary>Do eixo da análise ao centro físico da peça (cm): no Revit a linha de locação da viga fica, por padrão, no topo.</summary>
+    public Vetor3 DeslocamentoFisico { get; set; } = Vetor3.Zero;
     /// <summary>Pontos internos com nó (cm a partir de I): vigas que chegam, travamentos.</summary>
     public List<double> PontosInternos { get; } = new List<double>();
 

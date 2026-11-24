@@ -536,6 +536,19 @@ namespace DEB.Revit
                 string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 sb.AppendLine($"JSON da janela: {json.Length / 1024} kB");
                 var dim = DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.Verificar(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
+                if (Environment.GetEnvironmentVariable("SD_ACO") == "1")
+                {
+                    // ligações metálicas no modelo com as famílias PCEB (D49), depois do dimensionamento (espessuras adotadas)
+                    var lg = new StringBuilder();
+                    DEB.Revit.Analise.LigacoesRevit.Diag = lg;
+                    DEB.Revit.Analise.LigacoesRevit.Modelar(doc, e, lg);
+                    sb.Append(lg);
+                    var pcs = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+                        .Where(fi => fi.Symbol.FamilyName.StartsWith("PCEB Chapa") || fi.Symbol.FamilyName.StartsWith("PCEB Parafuso")).ToList();
+                    sb.AppendLine($"Peças PCEB de ligação no modelo: {pcs.Count(x => x.Symbol.FamilyName == "PCEB Chapa")} chapas, {pcs.Count(x => x.Symbol.FamilyName == "PCEB Parafuso")} parafusos.");
+                    string png3d = Path.Combine(dir, "ligacoes_3d.png");
+                    try { sb.AppendLine(DEB.Revit.Analise.LigacoesRevit.ImagemPortico(doc, png3d)); } catch (Exception ex) { sb.AppendLine("Imagem 3D: " + ex.Message); }
+                }
                 foreach (var d in dim)
                 {
                     sb.AppendLine($"  {d.Dono}: {d.Situacao} — {string.Join("; ", d.Resumo)}");

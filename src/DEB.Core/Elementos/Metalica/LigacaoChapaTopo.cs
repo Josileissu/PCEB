@@ -31,6 +31,8 @@ public sealed class DadosChapaTopo
     public double PernaAlma { get; set; } = 6;
     public double Fw { get; set; } = 485;
     public double BpEf => Bp > 0 ? Bp : Viga.Bf + 25;
+    /// <summary>Espessura adotada na última verificação (a do modelo ou a escolhida pelo cálculo), para o desenho e o Revit.</summary>
+    public double TpAdotada { get; set; }
     /// <summary>Parafusos tracionados (na região da mesa tracionada) e total.</summary>
     public int NTracionados => 2 * (LinhasInternas + (Estendida ? 1 : 0));
     public int NTotal => NTracionados + 2;
@@ -68,6 +70,7 @@ public static class LigacaoChapaTopo
         double tRigida = ft0Max > 0 ? Math.Sqrt(4 * (b - 0.5 * d.Db) * ft0Max * 1000 * gamaA1 / (p * fu)) : 0;
         double tp = d.Tp > 0 ? d.Tp : DadosPlacaBase.Espessuras.FirstOrDefault(t => t >= tRigida - 1e-9);
         if (tp <= 0) tp = DadosPlacaBase.Espessuras.Last();
+        d.TpAdotada = tp;
         double delta = 1 - df / p;
         double beta = ft0Max > 0 ? (aBorda + 0.5 * d.Db) / (b - 0.5 * d.Db) * (ftRd / ft0Max - 1) : 1;
         double alfa = beta >= 1 ? 1 : beta <= 0 ? 0 : Math.Min(1, beta / (delta * (1 - beta)));
