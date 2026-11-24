@@ -51,6 +51,7 @@ namespace DEB.Revit.Analise
                             default: log.AppendLine($"{l.Dono}: tipo {l.Tipo} ainda sem modelagem no Revit."); continue;
                         }
                         foreach (var id in ids) doc.GetElement(id).LookupParameter(FamiliasLigacoes.PLigacao)?.Set(l.Dono.Id);
+                        if (l.Viga != null && l.Suporte != null) AjustarPontaDaViga(doc, l, log);
                         if (ids.Count > 1)
                         {
                             Group g = doc.Create.NewGroup(ids);
@@ -176,6 +177,76 @@ namespace DEB.Revit.Analise
             return fi.Id;
         }
 
+        private static readonly DEB.Core.Elementos.Metalica.CatalogoFixadores Catalogo = DEB.Core.Elementos.Metalica.CatalogoFixadores.Carregar();
+
+        /// <summary>Dois eixos do plano perpendicular a <paramref name="eixo"/>, com a × b = eixo.</summary>
+        private static (XYZ A, XYZ B) Plano(XYZ eixo)
+        {
+            XYZ a = Math.Abs(eixo.Z) < 0.9 ? XYZ.BasisZ.CrossProduct(eixo).Normalize() : XYZ.BasisX.CrossProduct(eixo).Normalize();
+            return (a, eixo.CrossProduct(a).Normalize());
+        }
+
+        /// <summary>
+        /// Parafuso completo (D50): fuste com o comprimento comercial pela pega, cabeça, arruela e porca com as medidas do catálogo do PCEB
+        /// (sextavados como caixas de lado = abertura da chave). <paramref name="inicio"/> = face onde encosta a cabeça; <paramref name="eixo"/>
+        /// aponta da cabeça para a porca; <paramref name="pega"/> = espessuras apertadas (mm). <paramref name="semCabeca"/>: chumbador (só porca e arruela).
+        /// </summary>
+        private static void Fixador(Document doc, FamilySymbol ch, FamilySymbol pa, XYZ inicio, XYZ eixo, double db, double pega, List<ElementId> ids,
+                                    bool semCabeca = false, double fusteMm = 0)
+        {
+            eixo = eixo.Normalize();
+            var dim = Catalogo.Parafuso(db);
+            var (a, b) = Plano(eixo);
+            if (dim == null)
+            {
+                Caixa(doc, pa, inicio + eixo * Mm(pega / 2), a, b, db, db, fusteMm > 0 ? fusteMm : pega + 2 * db, ids);
+                return;
+            }
+            double comp = fusteMm > 0 ? fusteMm : dim.ComprimentoPara(pega);
+            if (!semCabeca)
+            {
+                Caixa(doc, pa, inicio + eixo * Mm(comp / 2), a, b, db, db, comp, ids);                                  // fuste
+                Caixa(doc, ch, inicio - eixo * Mm(dim.AlturaCabeca), a, b, dim.Chave, dim.Chave, dim.AlturaCabeca, ids); // cabeça
+            }
+            XYZ apoio = inicio + eixo * Mm(pega);
+            Caixa(doc, ch, apoio, a, b, dim.DiametroArruela, dim.DiametroArruela, dim.EspessuraArruela, ids);               // arruela
+            Caixa(doc, ch, apoio + eixo * Mm(dim.EspessuraArruela), a, b, dim.Chave, dim.Chave, dim.AlturaPorca, ids);    // porca
+        }
+
+        /// <summary>
+        /// Viga que chega na ligação: a ponta física para a <see cref="FolgaMontagem"/> da face do suporte (extensão negativa na ponta e
+        /// sem união automática, que mudaria o recorte).
+        /// </summary>
+        private static void AjustarPontaDaViga(Document doc, LigacaoMetalica l, StringBuilder log)
+        {
+            if (!long.TryParse(l.Viga.Dono.Id, out long idv) || !(doc.GetElement(new ElementId(idv)) is FamilyInstance fv)) return;
+            var (p, dir, _, af) = Ponta(l);
+            // distância horizontal da ponta da linha de locação ao eixo do suporte, ao longo da viga
+            XYZ eixoSup = P(l.Suporte.PontoI);
+            double off = new XYZ(p.X - eixoSup.X, p.Y - eixoSup.Y, 0).DotProduct(new XYZ(dir.X, dir.Y, 0)) * 304.8;   // mm
+            double face = af - 2;   // da linha de eixo do suporte à face (Ponta já soma 2 mm)
+            double ext = off - face - FolgaMontagem;   // mm (negativo = recua)
+            int ponta = l.PontaI ? 0 : 1;
+            try { if (Autodesk.Revit.DB.Structure.StructuralFramingUtils.IsJoinAllowedAtEnd(fv, ponta)) Autodesk.Revit.DB.Structure.StructuralFramingUtils.DisallowJoinAtEnd(fv, ponta); } catch { }
+            doc.Regenerate();   // a extensão só fica editável com a ponta já sem união
+            Parameter pe = fv.get_Parameter(l.PontaI ? BuiltInParameter.START_EXTENSION : BuiltInParameter.END_EXTENSION);
+            if (pe != null && !pe.IsReadOnly) { pe.Set(Mm(ext)); log.AppendLine($"  {l.Viga.Dono}: ponta {(l.PontaI ? "inicial" : "final")} a {face + FolgaMontagem:0} mm do eixo do suporte (extensão {ext:0} mm)."); }
+            else
+            {
+                log.AppendLine($"  {l.Viga.Dono}: extensão da ponta não editável — ajuste à mão.");
+                if (Diag != null)
+                    foreach (Parameter q in fv.Parameters)
+                    {
+                        string nm = q.Definition?.Name ?? "";
+                        if (nm.IndexOf("xtens", StringComparison.OrdinalIgnoreCase) >= 0 || nm.IndexOf("ecuo", StringComparison.OrdinalIgnoreCase) >= 0 || nm.IndexOf("utback", StringComparison.OrdinalIgnoreCase) >= 0)
+                            log.AppendLine($"    {nm}: {(q.Definition as InternalDefinition)?.BuiltInParameter} somente leitura {q.IsReadOnly} = {q.AsValueString()}");
+                    }
+            }
+        }
+
+        /// <summary>Folga entre a ponta da viga e a face do suporte (mm).</summary>
+        public const double FolgaMontagem = 12;
+
         /// <summary>Diagnóstico de orientação (AutoRun).</summary>
         public static StringBuilder Diag;
         private static View3D _v3;
@@ -203,6 +274,13 @@ namespace DEB.Revit.Analise
             return (p, dir, lat, afast + 2);   // 2 mm de folga de montagem
         }
 
+        /// <summary>Espessura do que recebe a ligação no suporte: a mesa do pilar (viga chegando na mesa) ou a alma (pilar pela alma, viga de apoio).</summary>
+        private static double TSuporte(LigacaoMetalica l)
+        {
+            var s = l.Suporte; var (_, dir, _, _) = Ponta(l);
+            return s.Pilar && Math.Abs(D(s.DirAlma).DotProduct(dir)) > 0.7 ? s.Perfil.Tf : s.Perfil.Tw;
+        }
+
         private static void ChapaAlma(Document doc, LigacaoMetalica l, FamilySymbol ch, FamilySymbol pa, List<ElementId> ids)
         {
             var d = l.Chapa;
@@ -215,8 +293,8 @@ namespace DEB.Revit.Analise
             for (int i = 0; i < d.N; i++)
             {
                 double y = (i - (d.N - 1) / 2.0) * d.S;
-                XYZ pb = p + dir * Mm(af + d.A) + XYZ.BasisZ * Mm(y) + lat * Mm((d.Tp) / 2);
-                Caixa(doc, pa, pb, XYZ.BasisZ, dir, d.Db, d.Db, d.Viga.Tw + d.Tp + 2 * d.Db, ids);
+                XYZ cabeca = p + dir * Mm(af + d.A) + XYZ.BasisZ * Mm(y) - lat * Mm(d.Viga.Tw / 2);
+                Fixador(doc, ch, pa, cabeca, lat, d.Db, d.Viga.Tw + d.Tp, ids);
             }
         }
 
@@ -234,10 +312,19 @@ namespace DEB.Revit.Analise
                 XYZ faceSup = p + dir * Mm(af) + ln * Mm(d.Viga.Tw / 2 + d.Aba / 2);
                 Caixa(doc, ch, faceSup, XYZ.BasisZ, lat, d.Comprimento, d.Aba, d.T, ids);   // normal Z × lat = dir: da face do suporte para a viga
             }
+            double tSup = TSuporte(l);
             for (int i = 0; i < d.N; i++)
             {
                 double y = (i - (d.N - 1) / 2.0) * d.S;
-                Caixa(doc, pa, p + dir * Mm(af + d.Aba - d.Eh) + XYZ.BasisZ * Mm(y), XYZ.BasisZ, dir, d.Db, d.Db, d.Viga.Tw + 2 * d.T + 2 * d.Db, ids);
+                XYZ cab = p + dir * Mm(af + d.Aba - d.Eh) + XYZ.BasisZ * Mm(y) - lat * Mm(d.Viga.Tw / 2 + d.T);
+                Fixador(doc, ch, pa, cab, lat, d.Db, d.Viga.Tw + 2 * d.T, ids);
+                if (!d.SoldadaNoSuporte)
+                    foreach (int lado in new[] { 1, -1 })
+                    {
+                        // aba no suporte: cabeça atrás da chapa do suporte, porca do lado da cantoneira
+                        XYZ cs = p + dir * Mm(af - tSup) + lat * Mm(lado * (d.Viga.Tw / 2 + d.Aba - d.Eh)) + XYZ.BasisZ * Mm(y);
+                        Fixador(doc, ch, pa, cs, dir, d.Db, tSup + d.T, ids);
+                    }
             }
         }
 
@@ -258,9 +345,13 @@ namespace DEB.Revit.Analise
             if (d.Estendida) ys.Add(-d.Pf);
             for (int k = 0; k < d.LinhasInternas; k++) ys.Add(w.Tf + d.Pf + k * 3 * d.Db);
             ys.Add(w.D - w.Tf - d.Pf);
+            double tSup = TSuporte(l);
             foreach (double y in ys)
                 foreach (int s in new[] { -1, 1 })
-                    Caixa(doc, pa, new XYZ(face.X, face.Y, topoViga.Z - Mm(y)) + lat * Mm(s * d.G / 2), XYZ.BasisZ, eixoY, d.Db, d.Db, tp + 25 + 2 * d.Db, ids);
+                {
+                    XYZ cab = new XYZ(face.X, face.Y, topoViga.Z - Mm(y)) + lat * Mm(s * d.G / 2) - dir * Mm(tSup);
+                    Fixador(doc, ch, pa, cab, dir, d.Db, tSup + tp, ids);
+                }
         }
 
         private static void PlacaBase(Document doc, LigacaoMetalica l, FamilySymbol ch, FamilySymbol pa, List<ElementId> ids)
@@ -281,6 +372,8 @@ namespace DEB.Revit.Analise
                     double y = porLado > 1 ? (k - (porLado - 1) / 2.0) * (d.LyEf - 2 * a1) / (porLado - 1) : 0;
                     XYZ c = b + alma * Mm(lado * d.A) + mesa * Mm(y) - XYZ.BasisZ * Mm(tp);
                     Caixa(doc, pa, c, alma, mesa, d.Db, d.Db, 2 * (tp + 300), ids);   // chumbador (trecho visível ±)
+                    // arruela e porca sobre a placa (a rosca passa da porca)
+                    Fixador(doc, ch, pa, c, XYZ.BasisZ, d.Db, tp, ids, semCabeca: true);
                 }
         }
     }
