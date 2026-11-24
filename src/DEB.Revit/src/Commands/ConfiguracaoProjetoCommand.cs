@@ -9,7 +9,7 @@ using DEB.Revit.Configuracao;
 namespace DEB.Revit.Commands
 {
     /// <summary>
-    /// "Configuração do projeto" (D43): abre a tela (níveis escritório e projeto) e, se o usuário gravar, salva o escritório no
+    /// "Configuração do projeto" (D45): abre a tela (níveis escritório e projeto) e, se o usuário gravar, salva o escritório no
     /// arquivo comum ao CAD e o projeto dentro do modelo.
     /// </summary>
     [Transaction(TransactionMode.Manual)]

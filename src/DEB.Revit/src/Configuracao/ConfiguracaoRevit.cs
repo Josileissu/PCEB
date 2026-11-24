@@ -9,7 +9,7 @@ using DEB.Core.Configuracao.Projeto;
 namespace DEB.Revit.Configuracao
 {
     /// <summary>
-    /// Configuração do projeto (D43) no Revit: o escritório vem do arquivo comum ao CAD (<see cref="ArquivoEscritorio"/>); o projeto
+    /// Configuração do projeto (D45) no Revit: o escritório vem do arquivo comum ao CAD (<see cref="ArquivoEscritorio"/>); o projeto
     /// mora dentro do .rvt (Extensible Storage nas Informações do projeto), para ir junto com o modelo, com uma cópia legível
     /// "&lt;modelo&gt;.pceb.json" ao lado do arquivo.
     /// </summary>
@@ -25,7 +25,7 @@ namespace DEB.Revit.Configuracao
             if (s != null || !criar) return s;
             var b = new SchemaBuilder(SchemaId);
             b.SetSchemaName("PCEB_ConfiguracaoProjeto");
-            b.SetDocumentation("PCEB: configuração do projeto (D43), nível do projeto em JSON.");
+            b.SetDocumentation("PCEB: configuração do projeto (D45), nível do projeto em JSON.");
             b.SetReadAccessLevel(AccessLevel.Public);
             b.SetWriteAccessLevel(AccessLevel.Public);
             b.AddSimpleField(Campo, typeof(string));

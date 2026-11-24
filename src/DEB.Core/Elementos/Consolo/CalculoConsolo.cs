@@ -8,7 +8,7 @@ using DEB.Core.Normas.Verificacao;
 namespace DEB.Core.Elementos.Consolo;
 
 /// <summary>
-/// Carga no consolo (D42, etapa 1): a reação da viga apoiada nele — característica (G e Q, kN) ou já de cálculo (Vd). Hd = 0 →
+/// Carga no consolo (D44, etapa 1): a reação da viga apoiada nele — característica (G e Q, kN) ou já de cálculo (Vd). Hd = 0 →
 /// pela ligação (NBR 9062 7.3.9) e pelo mínimo da configuração; a = 0 → a fração do comprimento da configuração (El Debs 3.4.3).
 /// </summary>
 public sealed class CargaConsolo
@@ -72,11 +72,11 @@ public sealed class ResultadoConsolo
 }
 
 /// <summary>
-/// Cálculo do consolo de concreto (D42, etapa 1) com a armadura DESENHADA (tirante, costura e estribos verticais de
+/// Cálculo do consolo de concreto (D44, etapa 1) com a armadura DESENHADA (tirante, costura e estribos verticais de
 /// <see cref="DadosConsolo"/>). Classe pelo a/d (NBR 9062 7.3.2.2). Consolo curto pelo método da configuração
 /// (<c>dim.consoloCurto</c>): El Debs (2017, Quadro 3.2 — τwd = Vd/(b·d) ≤ 0,2·fcd; As,tir = (Vd·a/(0,9d) + 1,2·Hd)/fyd;
 /// costura ≥ 0,5·Vd·a/(0,9d·fyd) em 2/3 d; estribos ≥ 0,2·As,tir) ou a NBR 9062 7.3.5.3 e 7.3.6. Muito curto: atrito-cisalhamento
-/// (7.3.5.4, τwu de 7.3.4.2). γn, γ e Hd mínimo vêm da configuração do projeto (D43).
+/// (7.3.5.4, τwu de 7.3.4.2). γn, γ e Hd mínimo vêm da configuração do projeto (D45).
 /// </summary>
 public static class CalculoConsolo
 {

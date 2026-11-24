@@ -6,7 +6,7 @@ using Xunit;
 
 namespace DEB.Core.Tests;
 
-/// <summary>Sessão da tela de configuração (D43): mensagens da página → configuração → estado devolvido.</summary>
+/// <summary>Sessão da tela de configuração (D45): mensagens da página → configuração → estado devolvido.</summary>
 public class TelaConfiguracaoTests
 {
     private static ValorJson Campo(string estado, string id) => Json.Ler(estado)["campos"].Itens.First(c => c["id"].Texto == id);

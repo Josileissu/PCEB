@@ -12,7 +12,7 @@ namespace DEB.Core.Configuracao.Projeto;
 public enum NivelConfiguracao { Padrao = 0, Escritorio = 1, Projeto = 2, Grupo = 3 }
 
 /// <summary>
-/// Um nível da configuração (D43): só os valores que DIFEREM do nível de cima, as justificativas dos valores fora da norma e,
+/// Um nível da configuração (D45): só os valores que DIFEREM do nível de cima, as justificativas dos valores fora da norma e,
 /// para o escritório, o nome do perfil. Gravado em JSON legível (escritório em %AppData%\PCEB\padroes, projeto junto do modelo).
 /// </summary>
 [DataContract]
@@ -45,7 +45,7 @@ public sealed class NivelValores
     }
 }
 
-/// <summary>Valor fora da faixa da norma (D43): aceito, mas sem justificativa vira pendência.</summary>
+/// <summary>Valor fora da faixa da norma (D45): aceito, mas sem justificativa vira pendência.</summary>
 public sealed class ForaDaNorma
 {
     public CampoConfiguracao Campo { get; set; }
@@ -58,7 +58,7 @@ public sealed class ForaDaNorma
 }
 
 /// <summary>
-/// Configuração em vigor para um elemento (D43): padrão do PCEB (catálogo) → escritório → projeto → grupo/peça. Cada leitura diz o
+/// Configuração em vigor para um elemento (D45): padrão do PCEB (catálogo) → escritório → projeto → grupo/peça. Cada leitura diz o
 /// valor e de onde ele vem. Os γ e o γn sem valor digitado acompanham o tipo de elemento (pré-fabricado ou pré-moldado,
 /// NBR 9062 8.1 e 7.3.1.1).
 /// </summary>
@@ -128,7 +128,7 @@ public sealed class ConfiguracaoProjeto
         _ => throw new ArgumentException("O padrão do PCEB não é editável: grave no escritório."),
     };
 
-    /// <summary>Atalho de sistema de unidades (D43): grava no nível as unidades do sistema escolhido.</summary>
+    /// <summary>Atalho de sistema de unidades (D45): grava no nível as unidades do sistema escolhido.</summary>
     public void AplicarSistema(NivelConfiguracao nivel, string sistema)
     {
         if (!Unidades.Sistemas.TryGetValue(sistema, out var mapa)) throw new ArgumentException($"Sistema de unidades desconhecido: {sistema}");

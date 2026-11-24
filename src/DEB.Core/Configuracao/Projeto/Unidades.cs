@@ -6,7 +6,7 @@ using System.Linq;
 namespace DEB.Core.Configuracao.Projeto;
 
 /// <summary>
-/// Grandezas que aparecem nas telas, no memorial e na prancha (D43). O cálculo do núcleo é sempre na UNIDADE BASE de cada
+/// Grandezas que aparecem nas telas, no memorial e na prancha (D45). O cálculo do núcleo é sempre na UNIDADE BASE de cada
 /// grandeza (<see cref="Unidades.Base"/>, kN e m como no SI de engenharia); a unidade escolhida na configuração só muda a
 /// entrada e a saída.
 /// </summary>
@@ -91,7 +91,7 @@ public static class Unidades
     }
 
     /// <summary>
-    /// Atalhos de sistema (D43): preenchem de uma vez as unidades de força e de comprimento; cada grandeza segue editável.
+    /// Atalhos de sistema (D45): preenchem de uma vez as unidades de força e de comprimento; cada grandeza segue editável.
     /// Chave = id do campo de unidade no catálogo (<c>unid.&lt;grandeza&gt;</c>).
     /// </summary>
     public static IReadOnlyDictionary<string, IReadOnlyDictionary<Grandeza, string>> Sistemas { get; } =

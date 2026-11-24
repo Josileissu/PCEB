@@ -7,7 +7,7 @@ namespace DEB.Core.Configuracao.Projeto;
 
 public enum TipoCampo { Numero, Opcao, Texto, Unidade, Bitolas }
 
-/// <summary>Grupo da tela de configuração (D43).</summary>
+/// <summary>Grupo da tela de configuração (D45).</summary>
 public sealed class GrupoConfiguracao
 {
     public string Id { get; set; } = "";
@@ -16,7 +16,7 @@ public sealed class GrupoConfiguracao
 }
 
 /// <summary>
-/// Definição de um campo da configuração do projeto (D43): rótulo, explicação, item da norma, valor de partida (texto
+/// Definição de um campo da configuração do projeto (D45): rótulo, explicação, item da norma, valor de partida (texto
 /// invariante: ponto decimal) e, quando houver, a faixa da norma. Valor fora da faixa é aceito com justificativa.
 /// </summary>
 public sealed class CampoConfiguracao
@@ -34,12 +34,12 @@ public sealed class CampoConfiguracao
     public string Unidade { get; set; } = "";
     /// <summary>Para os campos de unidade: a grandeza que eles escolhem.</summary>
     public Grandeza? Grandeza { get; set; }
-    /// <summary>Faixa da norma (null = sem limite). Fora dela, o valor exige justificativa (D43).</summary>
+    /// <summary>Faixa da norma (null = sem limite). Fora dela, o valor exige justificativa (D45).</summary>
     public double? Min { get; set; }
     public double? Max { get; set; }
 }
 
-/// <summary>Bitola disponível e como chega à fábrica (D43): rolo, barra (comprimento comercial) ou os dois.</summary>
+/// <summary>Bitola disponível e como chega à fábrica (D45): rolo, barra (comprimento comercial) ou os dois.</summary>
 public sealed class BitolaDisponivel
 {
     public double Phi { get; set; }
@@ -51,7 +51,7 @@ public sealed class BitolaDisponivel
 public enum Fornecimento { Rolo, Barra, RoloEBarra }
 
 /// <summary>
-/// Catálogo único dos campos da configuração do projeto (D43): a tela (WebView2) e o cálculo leem daqui. Os valores de partida
+/// Catálogo único dos campos da configuração do projeto (D45): a tela (WebView2) e o cálculo leem daqui. Os valores de partida
 /// são os do PCEB, revisados pelo escritório no nível "Escritório".
 /// </summary>
 public static class CatalogoConfiguracao
@@ -204,7 +204,7 @@ public static class CatalogoConfiguracao
         N("acoes", "posCargaConsolo", "Posição da carga no consolo (× comprimento)", 0.75, "", "El Debs (2017) 3.4.3", "Na falta de cálculo, a reação a ¾ do consolo.", 0.5, 1);
 
         // ---- análise
-        O("analise", "modelo", "Modelo", new[] { "Elemento isolado", "Pórtico 2D", "Estrutura 3D (motor externo)" }, "D42", "A estrutura completa entra na etapa 4 da D42.");
+        O("analise", "modelo", "Modelo", new[] { "Elemento isolado", "Pórtico 2D", "Estrutura 3D (motor externo)" }, "D44", "A estrutura completa entra na etapa 4 da D44.");
         O("analise", "segundaOrdem", "2ª ordem local do pilar", new[] { "Pilar-padrão com rigidez κ", "Pilar-padrão com curvatura aproximada", "Momento-curvatura" },
           "NBR 6118 15.8.3", "Método para os pilares.");
 

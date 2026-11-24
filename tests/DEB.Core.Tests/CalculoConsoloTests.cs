@@ -9,7 +9,7 @@ using Xunit;
 
 namespace DEB.Core.Tests;
 
-/// <summary>Cálculo do consolo (D42, etapa 1) conferido com o exemplo A.3 de EL DEBS, Concreto pré-moldado (2017).</summary>
+/// <summary>Cálculo do consolo (D44, etapa 1) conferido com o exemplo A.3 de EL DEBS, Concreto pré-moldado (2017).</summary>
 public class CalculoConsoloTests
 {
     private static void Perto(double esperado, double obtido, double tol = 0.01) =>

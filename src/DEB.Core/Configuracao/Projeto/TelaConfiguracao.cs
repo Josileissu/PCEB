@@ -10,7 +10,7 @@ using DEB.Core.Persistencia;
 namespace DEB.Core.Configuracao.Projeto;
 
 /// <summary>
-/// Sessão da tela de configuração (D43): a página HTML (<see cref="Pagina"/>, a mesma no Revit e no CAD, dentro do WebView2) troca
+/// Sessão da tela de configuração (D45): a página HTML (<see cref="Pagina"/>, a mesma no Revit e no CAD, dentro do WebView2) troca
 /// mensagens JSON com o hospedeiro, que só as repassa para cá. Toda regra fica no núcleo (D26): a página mostra o estado e pede
 /// ações; a sessão aplica na <see cref="ConfiguracaoProjeto"/> e devolve o estado novo. Gravar é com o hospedeiro (escritório em
 /// <see cref="ArquivoEscritorio"/>, projeto no arquivo do modelo).
@@ -198,7 +198,7 @@ public sealed class SessaoConfiguracao
     }
 }
 
-/// <summary>Nível do escritório em arquivo (D43): %AppData%\PCEB\padroes\escritorio.json, o mesmo para o Revit e o CAD.</summary>
+/// <summary>Nível do escritório em arquivo (D45): %AppData%\PCEB\padroes\escritorio.json, o mesmo para o Revit e o CAD.</summary>
 public static class ArquivoEscritorio
 {
     public static string Caminho => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PCEB", "padroes", "escritorio.json");

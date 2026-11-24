@@ -285,7 +285,7 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
                 _ultimas.Juntar(consolos);
             }
 
-            // cálculo com a reação da viga (D42, etapa 1): um por consolo carregado, com a armadura desenhada
+            // cálculo com a reação da viga (D44, etapa 1): um por consolo carregado, com a armadura desenhada
             _memoriaConsolos = new List<DEB.Core.Documentacao.PassoMemoria>();
             if (CorbelRebar)
             {
@@ -305,10 +305,10 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
 
         private List<DEB.Core.Documentacao.PassoMemoria> _memoriaConsolos = new List<DEB.Core.Documentacao.PassoMemoria>();
 
-        // configuração do projeto (D43) do cálculo dos consolos; campo (não propriedade) para não entrar no modelo salvo em JSON
+        // configuração do projeto (D45) do cálculo dos consolos; campo (não propriedade) para não entrar no modelo salvo em JSON
         private DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto _configuracao;
 
-        /// <summary>Configuração do projeto (D43) usada no cálculo dos consolos; null = valores de partida.</summary>
+        /// <summary>Configuração do projeto (D45) usada no cálculo dos consolos; null = valores de partida.</summary>
         public void UsarConfiguracao(DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto cfg) => _configuracao = cfg;
 
         /// <summary>Leva a configuração do projeto de outro modelo de armadura (troca de modelo salvo na janela).</summary>

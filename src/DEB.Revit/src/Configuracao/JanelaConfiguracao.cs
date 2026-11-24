@@ -9,7 +9,7 @@ using Microsoft.Web.WebView2.Wpf;
 namespace DEB.Revit.Configuracao
 {
     /// <summary>
-    /// Janela da configuração do projeto (D43): a página do núcleo (<see cref="SessaoConfiguracao.Pagina"/>) num WebView2 (o do
+    /// Janela da configuração do projeto (D45): a página do núcleo (<see cref="SessaoConfiguracao.Pagina"/>) num WebView2 (o do
     /// próprio Revit 2025/2026). A janela só repassa as mensagens à sessão e devolve o estado; nenhuma regra aqui (D26).
     /// <see cref="Gravar"/> = true quando a página pede "Gravar" (ou quando, ao fechar com alterações, o usuário escolhe gravar).
     /// </summary>

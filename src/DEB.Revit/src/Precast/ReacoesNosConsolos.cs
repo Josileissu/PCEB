@@ -11,7 +11,7 @@ using DEB.Revit.Vigas;
 namespace DEB.Revit.Precast
 {
     /// <summary>
-    /// Reação das vigas calculadas (D40) nos consolos dos pilares (D42, etapa 1). O consolo é família aninhada na viga que se apoia
+    /// Reação das vigas calculadas (D40) nos consolos dos pilares (D44, etapa 1). O consolo é família aninhada na viga que se apoia
     /// nele: a viga é o <c>SuperComponent</c> do consolo, e a ponta (esquerda/direita, a do relatório da viga) sai da posição do
     /// consolo ao longo do eixo dela. Usa o cálculo do grupo da viga — o mesmo que arma a viga (envoltória das cargas do grupo).
     /// Nos pilares de um grupo, o consolo da representante fica com a maior reação entre os consolos correspondentes.

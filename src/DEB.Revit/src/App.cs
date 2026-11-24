@@ -44,7 +44,7 @@ namespace DEB.Revit
 
             var cfgProjeto = new PushButtonData("DEB_ConfiguracaoProjeto", "Configuração\ndo projeto", dll, typeof(ConfiguracaoProjetoCommand).FullName)
             {
-                ToolTip = "Normas, coeficientes, materiais, durabilidade, unidades e bitolas do projeto (D43): padrão do escritório e do projeto.",
+                ToolTip = "Normas, coeficientes, materiais, durabilidade, unidades e bitolas do projeto (D45): padrão do escritório e do projeto.",
                 LongDescription = "O escritório fica num arquivo comum ao CAD; o projeto fica gravado dentro do modelo. Valor fora da norma é aceito com justificativa, que sai no memorial.",
                 LargeImage = IconFactory.Create(32, "⚖"),
                 Image = IconFactory.Create(16, "⚖")

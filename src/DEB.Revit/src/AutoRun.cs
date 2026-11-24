@@ -459,7 +459,7 @@ namespace DEB.Revit
         /// armadura (bitolas e quantidades diferentes), para testar pranchas com barras e comprimentos variados.
         /// </summary>
         /// <summary>
-        /// Configuração do projeto (D43): grava e relê o nível do projeto no modelo (sem a cópia .pceb.json e sem tocar no arquivo do
+        /// Configuração do projeto (D45): grava e relê o nível do projeto no modelo (sem a cópia .pceb.json e sem tocar no arquivo do
         /// escritório) e grava a imagem da tela (WebView2) com um γc fora da norma.
         /// </summary>
         private static string ConfiguracaoAutoTest(UIDocument uidoc)

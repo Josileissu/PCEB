@@ -43,7 +43,7 @@
       <HintPath>$(RevitInstallDir)RevitAPIUI.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- WebView2 do próprio Revit (2025/2026 trazem): tela de configuração do projeto (D43) -->
+    <!-- WebView2 do próprio Revit (2025/2026 trazem): tela de configuração do projeto (D45) -->
     <Reference Include="Microsoft.Web.WebView2.Core">
       <HintPath>$(RevitInstallDir)Microsoft.Web.WebView2.Core.dll</HintPath>
       <Private>false</Private>

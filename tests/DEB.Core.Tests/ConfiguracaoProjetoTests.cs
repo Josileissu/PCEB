@@ -5,7 +5,7 @@ using Xunit;
 
 namespace DEB.Core.Tests;
 
-/// <summary>Configuração do projeto em três níveis (D43): herança, origem, unidades, bitolas e valores fora da norma.</summary>
+/// <summary>Configuração do projeto em três níveis (D45): herança, origem, unidades, bitolas e valores fora da norma.</summary>
 public class ConfiguracaoProjetoTests
 {
     [Fact]
