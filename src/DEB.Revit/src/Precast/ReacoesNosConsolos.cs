@@ -2,25 +2,41 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.DB;
+using DEB.Core.Analise.Barras;
+using DEB.Core.Analise.Objetos;
+using DEB.Core.Configuracao.Projeto;
 using DEB.Core.Elementos.Consolo;
 using DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D;
 using DEB.Core.Elementos.Viga.PreMoldada.Calculo;
+using DEB.Core.Pecas;
 using DEB.Revit.Core;
 using DEB.Revit.Vigas;
 
 namespace DEB.Revit.Precast
 {
     /// <summary>
-    /// Reação das vigas calculadas (D40) nos consolos dos pilares (D44, etapa 1). O consolo é família aninhada na viga que se apoia
-    /// nele: a viga é o <c>SuperComponent</c> do consolo, e a ponta (esquerda/direita, a do relatório da viga) sai da posição do
-    /// consolo ao longo do eixo dela. Usa o cálculo do grupo da viga — o mesmo que arma a viga (envoltória das cargas do grupo).
-    /// Nos pilares de um grupo, o consolo da representante fica com a maior reação entre os consolos correspondentes.
+    /// Carga das vigas nos consolos dos pilares (D44 etapa 1, D46). O consolo é família aninhada na viga que se apoia nele: a viga é
+    /// o <c>SuperComponent</c> do consolo, e a ponta sai da posição do consolo ao longo do eixo dela.
+    /// <list type="number">
+    /// <item>Análise por objetos (D46): pilares, vigas e ligações (barra rígida + mola do aparelho) num modelo de barras; o consolo
+    /// recebe Vg, Vq e as forças horizontais Hg, Hq da análise.</item>
+    /// <item>Se a análise não puder ser feita: a reação da viga isolada (cálculo do grupo da viga, D40), com Hd pela regra da ligação.</item>
+    /// </list>
+    /// Nos pilares de um grupo, o consolo da representante fica com a maior carga entre os consolos correspondentes.
     /// </summary>
     internal static class ReacoesNosConsolos
     {
+        private const double Cm = 30.48;   // pés → cm
+        private static Vetor3 V(XYZ p) => new Vetor3(p.X * Cm, p.Y * Cm, p.Z * Cm);
+
         /// <summary>Preenche <see cref="Corbel.Carga"/>; devolve quantos consolos receberam carga. Só leitura do modelo.</summary>
-        public static int Aplicar(Document doc, List<ColumnGroup> grupos, List<string> notas)
+        public static int Aplicar(Document doc, List<ColumnGroup> grupos, List<string> notas, ConfiguracaoProjeto cfg = null)
+            => Aplicar(doc, grupos, notas, cfg, out _);
+
+        public static int Aplicar(Document doc, List<ColumnGroup> grupos, List<string> notas, ConfiguracaoProjeto cfg, out EstruturaObjetos estrutura)
         {
+            estrutura = null;
+            cfg ??= new ConfiguracaoProjeto();
             List<Corbel> todos = grupos.SelectMany(g => g.Members).SelectMany(m => m.Corbels)
                 .Where(k => k.Instance()?.SuperComponent is FamilyInstance).ToList();
             if (todos.Count == 0) return 0;
@@ -28,47 +44,33 @@ namespace DEB.Revit.Precast
             var porId = new Dictionary<long, (GrupoViga G, MembroViga M)>();
             try
             {
-                var nv = new List<string>();
-                foreach (GrupoViga g in VigasPreMoldadas.Levantar(doc, nv))
-                {
-                    try { VigasPreMoldadas.Calcular(g); }
-                    catch (Exception ex) { notas.Add($"Viga {g.Marca}: cálculo não feito ({ex.Message}); os consolos dela ficam sem carga."); continue; }
-                    if (g.Calculo == null) continue;
+                foreach (GrupoViga g in VigasPreMoldadas.Levantar(doc, new List<string>()))
                     foreach (MembroViga m in g.Membros) porId[m.Id] = (g, m);
-                }
             }
             catch (Exception ex)
             {
-                notas.Add("Reações das vigas nos consolos não calculadas: " + ex.Message);
+                notas.Add("Vigas não levantadas: os consolos ficam sem carga (" + ex.Message + ").");
                 return 0;
             }
 
             int n = 0;
-            var semCarga = new HashSet<string>();
-            foreach (Corbel k in todos)
+            try
             {
-                var viga = (FamilyInstance)k.Instance().SuperComponent;
-                if (!porId.TryGetValue(viga.Id.Value, out var gm)) continue;
-                BoundingBoxXYZ bb = k.Instance().get_BoundingBox(null);
-                if (bb == null) continue;
-                XYZ c = (bb.Min + bb.Max) / 2;
-                PieceInfo info = gm.M.Info;
-                bool esquerda = (c - info.Origin).DotProduct(info.AxisX) < info.LengthX / 2;
-                if (gm.M.Giro == 180) esquerda = !esquerda;   // ponta no sistema da representante (a do relatório da viga)
-                var r = gm.G.Calculo;
-                CargasViga cv = gm.G.Cargas;
-                if (cv.Vazia) semCarga.Add(gm.G.Marca);
-                k.Carga = new CargaConsolo
-                {
-                    Vg = esquerda ? r.RkE_G : r.RkD_G,
-                    Vq = esquerda ? r.RkE_Q : r.RkD_Q,
-                    FatorHd = CargaConsolo.FatorDoApoio(k.Apoio),
-                    Origem = $"reação da viga {gm.G.Marca} (id {viga.Id.Value}), ponta {(esquerda ? "esquerda" : "direita")}",
-                };
-                n++;
+                estrutura = Montar(grupos, porId, cfg, out var ligacoes);
+                estrutura.Analisar(cfg);
+                foreach (var (k, l) in ligacoes) { k.Carga = estrutura.CargaDoConsolo(l); n++; }
+                foreach (string a in estrutura.Avisos.Distinct().Take(12)) notas.Add("Análise: " + a);
+                if (estrutura.Avisos.Count > 12) notas.Add($"Análise: mais {estrutura.Avisos.Count - 12} avisos.");
+                var semCarga = porId.Values.Where(x => ligacoes.Any(l => l.L.Viga.Dono.Id == x.M.Id.ToString()) && x.M.Cargas.Vazia)
+                    .Select(x => x.G.Marca).Distinct().OrderBy(x => x).ToList();
+                if (semCarga.Count > 0) notas.Add($"Vigas sem carga digitada (só o peso próprio vai aos consolos): {string.Join(", ", semCarga)}.");
             }
-            if (semCarga.Count > 0)
-                notas.Add($"Vigas sem carga digitada (só o peso próprio vai aos consolos): {string.Join(", ", semCarga.OrderBy(x => x))}.");
+            catch (Exception ex)
+            {
+                estrutura = null;
+                notas.Add($"Análise por objetos não feita ({ex.Message}): os consolos usam a reação da viga isolada.");
+                n = ReacaoIsolada(todos, porId, notas);
+            }
 
             // grupo de pilares: a representante leva a envoltória (os consolos estão na mesma ordem canônica em todas as peças)
             foreach (ColumnGroup g in grupos)
@@ -80,6 +82,121 @@ namespace DEB.Revit.Precast
                     rep[i].Carga = CargaConsolo.Maior(g.Members.Where(m => j < m.Corbels.Count).Select(m => m.Corbels[j].Carga));
                 }
             }
+            return n;
+        }
+
+        /// <summary>Estrutura por objetos com os pilares que têm consolo de viga, as vigas apoiadas neles e as ligações.</summary>
+        internal static EstruturaObjetos Montar(List<ColumnGroup> grupos, Dictionary<long, (GrupoViga G, MembroViga M)> porId, ConfiguracaoProjeto cfg,
+                                                out List<(Corbel K, LigacaoConsolo L)> ligacoes)
+        {
+            var e = new EstruturaObjetos();
+            ligacoes = new List<(Corbel, LigacaoConsolo)>();
+            double fck = cfg.Numero("materiais.fck");
+            double alfaE = CalculoConsolo.FatorApoio(cfg.Texto("materiais.agregado"));
+            var mat = MaterialBarra.Concreto(fck, alfaE <= 0 ? 1 : alfaE, cfg.Numero("materiais.pesoEspecifico"));
+            var vigas = new Dictionary<long, (VigaObjeto V, MembroViga M, List<(Corbel K, double T)> Apoios)>();
+
+            // vigas: os pontos de apoio saem dos consolos em que elas apoiam (projeção do centro do consolo no eixo da viga)
+            foreach (ColumnGroup g in grupos)
+                foreach (PrecastColumn pc in g.Members)
+                    foreach (Corbel k in pc.Corbels)
+                    {
+                        if (!(k.Instance()?.SuperComponent is FamilyInstance fv) || !porId.TryGetValue(fv.Id.Value, out var gm)) continue;
+                        BoundingBoxXYZ bb = k.Instance().get_BoundingBox(null);
+                        if (bb == null) continue;
+                        PieceInfo info = gm.M.Info;
+                        double t = ((bb.Min + bb.Max) / 2 - info.Origin).DotProduct(info.AxisX);
+                        if (!vigas.TryGetValue(fv.Id.Value, out var vv)) vigas[fv.Id.Value] = vv = (null, gm.M, new List<(Corbel, double)>());
+                        vv.Apoios.Add((k, t));
+                    }
+            foreach (var kv in vigas.ToList())
+            {
+                MembroViga m = kv.Value.M;
+                PieceInfo info = m.Info;
+                double lx = info.LengthX;
+                var apoios = kv.Value.Apoios;
+                double tI = apoios.Where(a => a.T < lx / 2).Select(a => a.T).DefaultIfEmpty(0.02 * lx).Average();
+                double tJ = apoios.Where(a => a.T >= lx / 2).Select(a => a.T).DefaultIfEmpty(0.98 * lx).Average();
+                XYZ Ponto(double t) => info.Origin + info.AxisX * t + info.AxisY * (info.LengthY / 2);
+                SecaoPoligonal sec = m.Levantada?.Principal?.Secao ?? SecaoPoligonal.Retangulo(info.LengthY * Cm, info.LengthZ * Cm);
+                string marca = porId[kv.Key].G.Marca;
+                var v = new VigaObjeto
+                {
+                    Dono = new Dono { Tipo = TipoDono.Viga, Id = kv.Key.ToString(), Nome = $"{marca} ({kv.Key})" },
+                    ApoioI = V(Ponto(tI)), ApoioJ = V(Ponto(tJ)), Secao = sec, Material = mat, G = m.Cargas.G, Q = m.Cargas.Q,
+                };
+                foreach (var c in m.Cargas.Concentradas) v.Concentradas.Add((c.X - tI * Cm, c.G, c.Q));
+                e.Vigas.Add(v);
+                vigas[kv.Key] = (v, m, apoios);
+            }
+
+            // pilares e ligações
+            foreach (ColumnGroup g in grupos)
+                foreach (PrecastColumn pc in g.Members)
+                {
+                    var minhas = pc.Corbels.Where(k => k.Instance()?.SuperComponent is FamilyInstance fv && vigas.ContainsKey(fv.Id.Value)).ToList();
+                    if (minhas.Count == 0) continue;
+                    PieceInfo info = pc.Info;
+                    var p = new PilarObjeto
+                    {
+                        Dono = new Dono { Tipo = TipoDono.Pilar, Id = pc.Id, Nome = $"{g.Mark} ({pc.Id})" },
+                        Base = V(info.Origin + info.AxisX * (info.LengthX / 2) + info.AxisY * (info.LengthY / 2)),
+                        Eixo = new Vetor3(info.AxisZ.X, info.AxisZ.Y, info.AxisZ.Z),
+                        DirY = new Vetor3(info.AxisX.X, info.AxisX.Y, info.AxisX.Z),
+                        Secao = SecaoPoligonal.Retangulo(info.LengthX * Cm, info.LengthY * Cm),
+                        Comprimento = info.LengthZ * Cm, Embutimento = pc.EmbedmentMm / 10, Material = mat,
+                    };
+                    e.Pilares.Add(p);
+                    foreach (Corbel k in minhas)
+                    {
+                        var fv = (FamilyInstance)k.Instance().SuperComponent;
+                        var vv = vigas[fv.Id.Value];
+                        double t = vv.Apoios.First(a => a.K == k).T;
+                        var l = new LigacaoConsolo
+                        {
+                            Dono = new Dono { Tipo = TipoDono.Ligacao, Id = k.Instance().Id.Value.ToString(), Nome = $"consolo {g.Mark}·{porId[fv.Id.Value].G.Marca}" },
+                            Pilar = p, Viga = vv.V, PontaI = t < vv.M.Info.LengthX / 2, ZTopoConsolo = U_.ToMm(k.ZTop) / 10, Aparelho = k.Apoio,
+                        };
+                        e.Ligacoes.Add(l);
+                        ligacoes.Add((k, l));
+                    }
+                }
+            return e;
+        }
+
+        /// <summary>Reserva: a reação da viga isolada (cálculo do grupo da viga, D40), com Hd pela regra da ligação.</summary>
+        private static int ReacaoIsolada(List<Corbel> todos, Dictionary<long, (GrupoViga G, MembroViga M)> porId, List<string> notas)
+        {
+            int n = 0;
+            var semCarga = new HashSet<string>();
+            foreach (var g in porId.Values.Select(x => x.G).Distinct())
+            {
+                try { if (g.Calculo == null) VigasPreMoldadas.Calcular(g); }
+                catch (Exception ex) { notas.Add($"Viga {g.Marca}: cálculo não feito ({ex.Message}); os consolos dela ficam sem carga."); }
+            }
+            foreach (Corbel k in todos)
+            {
+                var viga = (FamilyInstance)k.Instance().SuperComponent;
+                if (!porId.TryGetValue(viga.Id.Value, out var gm) || gm.G.Calculo == null) continue;
+                BoundingBoxXYZ bb = k.Instance().get_BoundingBox(null);
+                if (bb == null) continue;
+                XYZ c = (bb.Min + bb.Max) / 2;
+                PieceInfo info = gm.M.Info;
+                bool esquerda = (c - info.Origin).DotProduct(info.AxisX) < info.LengthX / 2;
+                if (gm.M.Giro == 180) esquerda = !esquerda;   // ponta no sistema da representante (a do relatório da viga)
+                var r = gm.G.Calculo;
+                if (gm.G.Cargas.Vazia) semCarga.Add(gm.G.Marca);
+                k.Carga = new CargaConsolo
+                {
+                    Vg = esquerda ? r.RkE_G : r.RkD_G,
+                    Vq = esquerda ? r.RkE_Q : r.RkD_Q,
+                    FatorHd = CargaConsolo.FatorDoApoio(k.Apoio),
+                    Origem = $"reação da viga {gm.G.Marca} (id {viga.Id.Value}), ponta {(esquerda ? "esquerda" : "direita")}",
+                };
+                n++;
+            }
+            if (semCarga.Count > 0)
+                notas.Add($"Vigas sem carga digitada (só o peso próprio vai aos consolos): {string.Join(", ", semCarga.OrderBy(x => x))}.");
             return n;
         }
     }

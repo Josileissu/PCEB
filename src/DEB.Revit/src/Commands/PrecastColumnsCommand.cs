@@ -30,10 +30,10 @@ namespace DEB.Revit.Commands
                 TaskDialog.Show("Pilares pré-moldados", "Nenhum pilar estrutural encontrado no modelo.");
                 return Result.Cancelled;
             }
-            // reação das vigas calculadas nos consolos (D44, etapa 1): CC1–CC6 na janela e no relatório
-            ReacoesNosConsolos.Aplicar(doc, groups, notes);
-            // configuração do projeto (D45): γ, γn, método do consolo, Hd mínimo
+            // configuração do projeto (D45): γ, γn, método do consolo, Hd mínimo, G do elastômero
             var cfgProjeto = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notes);
+            // carga das vigas nos consolos (D44 etapa 1, D46: análise por objetos): CC1–CC6 na janela e no relatório
+            ReacoesNosConsolos.Aplicar(doc, groups, notes, cfgProjeto);
             foreach (ColumnGroup g in groups) g.Spec.UsarConfiguracao(cfgProjeto);
 
             var win = new PrecastColumnsWindow(groups, notes);

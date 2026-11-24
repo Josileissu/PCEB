@@ -503,11 +503,27 @@ namespace DEB.Revit
             Directory.CreateDirectory(dir);
 
             List<ColumnGroup> groups = PrecastSurvey.Run(doc, out List<string> notes);
-            int carregados = ReacoesNosConsolos.Aplicar(doc, groups, notes);
             var cfgProjeto = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notes);
+            int carregados = ReacoesNosConsolos.Aplicar(doc, groups, notes, cfgProjeto, out var estrutura);
             foreach (ColumnGroup g in groups) g.Spec.UsarConfiguracao(cfgProjeto);
             var sb = new StringBuilder();
             sb.AppendLine($"Consolos com reação de viga: {carregados}");
+            if (estrutura != null)
+            {
+                sb.AppendLine($"Análise por objetos: {estrutura.Modelo.Nos.Count} nós, {estrutura.Modelo.Barras.Count} barras, {estrutura.Modelo.Molas.Count} molas, " +
+                              $"{estrutura.Modelo.Vinculos.Count} vínculos rígidos");
+                var elu = estrutura.Combinacoes[estrutura.DefinicaoCombinacoes[0].Nome];
+                foreach (var p in estrutura.Pilares)
+                {
+                    var b = estrutura.Esforcos(p, elu).OrderBy(x => x.Z).First();
+                    sb.AppendLine($"  {p.Dono}: base (z = {b.Z:0}) N = {b.N:0.0} kN, My = {b.My:0} kN·cm, Mz = {b.Mz:0} kN·cm [{elu.Nome}]");
+                }
+                foreach (var l in estrutura.Ligacoes)
+                {
+                    var f = estrutura.Esforco(l, elu);
+                    sb.AppendLine($"  {l.Dono}: V = {f.V:0.0} kN, H = {f.H:0.00} kN, Ht = {f.Ht:0.00} kN — {l.Observacao}");
+                }
+            }
             foreach (ColumnGroup g in groups)
                 foreach (Corbel k in g.Representative.Corbels.Where(c => c.Carga != null))
                     sb.AppendLine($"{g.Mark}: consolo face {ColumnRebarLayout.FaceNumber(k.Face)}, Vg = {k.Carga.Vg:0.0} kN, Vq = {k.Carga.Vq:0.0} kN, Hd/Vd = {k.Carga.FatorHd:0.00} — {k.Carga.Origem}");
