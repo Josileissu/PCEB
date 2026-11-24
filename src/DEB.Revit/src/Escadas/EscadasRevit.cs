@@ -154,6 +154,26 @@ namespace DEB.Revit.Escadas
                         if (conc != null) conc.Color = new Color(190, 190, 185);
                     }
                     if (conc != null) ex.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM)?.Set(conc.Id);
+                    // pré-moldada: furos dos pinos (vazios de 16 lados, do assento ao topo, no centro de cada apoio)
+                    if (r.Entrada.PreMoldada)
+                    {
+                        var g = r.Geo;
+                        foreach (var (xa, zb, zt, lig) in new[] { (0.0, g.ZAssentoInf, 0.0, r.Entrada.LigacaoInferior), (g.Vao, g.ZAssentoSup, r.Entrada.Desnivel, r.Entrada.LigacaoSuperior) })
+                            for (int i = 0; i < lig.Pinos; i++)
+                            {
+                                double y = -r.Entrada.Largura / 2 + r.Entrada.Largura * (i + 0.5) / lig.Pinos, raio = lig.FuroPino / 20;
+                                var circ = new CurveArray();
+                                for (int j = 0; j < 16; j++)
+                                {
+                                    double a0 = 2 * Math.PI * j / 16, a1 = 2 * Math.PI * (j + 1) / 16;
+                                    circ.Append(Line.CreateBound(new XYZ((xa + raio * Math.Cos(a0)) * Cm, (y + raio * Math.Sin(a0)) * Cm, zb * Cm),
+                                                                 new XYZ((xa + raio * Math.Cos(a1)) * Cm, (y + raio * Math.Sin(a1)) * Cm, zb * Cm)));
+                                }
+                                var pf = new CurveArrArray(); pf.Append(circ);
+                                var spz = SketchPlane.Create(fd, Plane.CreateByNormalAndOrigin(XYZ.BasisZ, new XYZ(0, 0, zb * Cm)));
+                                fd.FamilyCreate.NewExtrusion(false, pf, spz, (zt - zb) * Cm);
+                            }
+                    }
                     t.Commit();
                 }
                 string dir = Path.Combine(Path.GetTempPath(), "PCEB_Escadas");

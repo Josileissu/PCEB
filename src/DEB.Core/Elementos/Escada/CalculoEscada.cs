@@ -102,6 +102,11 @@ public sealed class ResultadoEscada
     public double Wk { get; set; }
 
     public List<BarraEscada> Barras { get; } = new List<BarraEscada>();
+    /// <summary>Pré-moldada (D43): ligações das pontas, içamento e a armadura superior da peça.</summary>
+    public List<LigacaoCalculada> Ligacoes { get; } = new List<LigacaoCalculada>();
+    public IcamentoEscada Icamento { get; set; }
+    public double AsSuperiorPm { get; set; }
+    public (double Bitola, double Esp) SuperiorPm { get; set; }
     public ListaVerificacoes Verificacoes { get; } = new ListaVerificacoes();
     public List<PassoMemoria> Memoria { get; } = new List<PassoMemoria>();
     public List<string> Avisos { get; } = new List<string>();
@@ -439,7 +444,9 @@ public static partial class CalculoEscada
         double cob = e.Cobrimento, h = g.H, hp = g.Hp, L = g.Vao, H = e.Desnivel;
         double c = g.Cos, s = g.Sen, tg = Math.Tan(g.Alfa);
         double phi = r.Principal.Bitola, co = cob + phi / 20;   // eixo da barra a partir da face
-        double xIni = -(e.LarguraApoio / 2 - cob), xFim = L + (e.LarguraApoio / 2 - cob);
+        bool pm = e.PreMoldada;
+        // no local as positivas entram no apoio; na pré-moldada ficam na peça (depois do recorte do dente), com gancho para cima
+        double xIni = pm ? g.XRecorteInf + cob + phi / 20 : -(e.LarguraApoio / 2 - cob), xFim = pm ? g.XRecorteSup - cob - phi / 20 : L + (e.LarguraApoio / 2 - cob);
         bool pi = g.X1 > 1e-9, ps = L - g.X2 > 1e-9;
         double FundoLance(double x) => (x - g.X1) * tg - h / c + co / c;   // eixo da barra inferior no lance
         double XFundoLance(double z) => g.X1 + (z + h / c - co / c) / tg;
@@ -448,6 +455,7 @@ public static partial class CalculoEscada
 
         // N1: positiva do patamar inferior + lance, cruzando na quina reentrante
         var n1 = new List<(double X, double Z)>();
+        if (pm) n1.Add((xIni, -co));
         if (pi) { n1.Add((xIni, -hp + co)); n1.Add((XFundoLance(-hp + co), -hp + co)); }
         else n1.Add((xIni, FundoLance(xIni)));
         if (ps)
@@ -465,7 +473,9 @@ public static partial class CalculoEscada
         if (ps)
         {
             double zb = H - hp + co, xc = XFundoLance(zb), xe = XTopoLance(zb);
-            var n2 = new List<(double X, double Z)> { (xFim, zb) };
+            var n2 = new List<(double X, double Z)>();
+            if (pm) n2.Add((xFim, H - co));
+            n2.Add((xFim, zb));
             double reto = xc - xe;
             if (reto >= r.LbNec) n2.Add((xc - r.LbNec, zb));
             else { n2.Add((xe, zb)); double rest = r.LbNec - reto; n2.Add((xe - rest * c, zb - rest * s)); }
@@ -480,7 +490,7 @@ public static partial class CalculoEscada
             // ao longo da N1 até o cruzamento da quina; com patamar superior, outra linha sobre a N2 (do apoio até o cruzamento)
             var linha = new List<(double X, double Z)>();
             double zc = H - hp + co, xc = XFundoLance(zc);
-            foreach (var p in n1)
+            foreach (var p in pm ? n1.Skip(1) : n1)
             {
                 if (ps && p.X > xc + 1e-6) { linha.Add((xc, zc)); break; }
                 linha.Add(p);
@@ -502,9 +512,9 @@ public static partial class CalculoEscada
             }
         }
 
-        // N4 / N5: negativas construtivas nos apoios, até 0,15·ℓ, com gancho dentro do apoio
+        // N4 / N5: negativas construtivas nos apoios, até 0,15·ℓ, com gancho dentro do apoio (só no local; a pré-moldada tem as suas)
         var ng = r.Negativa;
-        if (ng.Esp > 0)
+        if (ng.Esp > 0 && !pm)
         {
             double con = cob + ng.Bitola / 20, comp = 0.15 * L;
             int nL = QtReta(e.Largura - 2 * cob - ng.Bitola / 10, ng.Esp);

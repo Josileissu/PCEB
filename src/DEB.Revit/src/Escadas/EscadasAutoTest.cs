@@ -100,6 +100,21 @@ namespace DEB.Revit.Escadas
                 var p = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - k * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
                 Criar(doc, w.Resultado, p, dir, nome, sb);
             }
+            // ---- 4. pré-moldada: apoio direto embaixo, dente em cima ----
+            {
+                var ep = e.Copia();
+                ep.Execucao = ExecucaoEscada.PreMoldada;
+                ep.LigacaoInferior = new LigacaoEscada { Ponta = PontaPreMoldada.ApoioDireto, ComprimentoApoio = 15, Apoio = ApoioPreMoldado.Elastomero, Pinos = 2, BitolaPino = 16 };
+                ep.LigacaoSuperior = new LigacaoEscada { Ponta = PontaPreMoldada.Dente, ComprimentoApoio = 15, AlturaDente = 9, ComprimentoDente = 25, Apoio = ApoioPreMoldado.Argamassa, Pinos = 2, BitolaPino = 16 };
+                var w = new EscadaWindow(ep, "Autoteste");
+                w.ConferirMefAgora();
+                Escrever(sb, "premoldada", w.Resultado);
+                foreach (var lc in w.Resultado.Ligacoes) sb.AppendLine($"  ligação {lc.Lado}: Fd {lc.Fd:0.0} kN/m, Hd {lc.Hd:0.0} kN/m, tirante {lc.AsTirante:0.00} cm²/m, pinos {lc.Ligacao.Pinos}×{lc.RvdPino:0.0} kN ≥ {lc.HTotal:0.0} kN");
+                if (w.Resultado.Icamento != null) sb.AppendLine($"  içamento: peso {w.Resultado.Icamento.Peso:0.0} kN, alça {w.Resultado.Icamento.ForcaAlca:0.0} kN");
+                RenderToPng(w, Path.Combine(dir, "janela_premoldada.png"));
+                var p = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - 3 * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
+                Criar(doc, w.Resultado, p, dir, "premoldada", sb);
+            }
             sb.AppendLine("diálogos fechados: " + string.Join(" | ", AutoRun.Dialogs));
             string arq = Path.Combine(dir, "resultado.txt");
             File.WriteAllText(arq, sb.ToString(), Encoding.UTF8);
@@ -122,7 +137,14 @@ namespace DEB.Revit.Escadas
             sb.AppendLine($"criada ({nome}): {marca}");
             foreach (var i in log.Infos) sb.AppendLine("  " + i);
             foreach (var w in log.Warnings) sb.AppendLine("  ATENÇÃO " + w);
-            var fi = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().First(x => x.Symbol.Family.Name == EscadasRevit.PrefixoFamilia + marca);
+            foreach (var w in log.Errors) sb.AppendLine("  ERRO " + w);
+            var fi = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().FirstOrDefault(x => x.Symbol.Family.Name == EscadasRevit.PrefixoFamilia + marca);
+            if (fi == null)
+            {
+                sb.AppendLine("  ERRO: instância não encontrada. Famílias PCEB no projeto: " + string.Join(", ", new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
+                    .Where(f => f.Name.StartsWith("PCEB")).Select(f => $"{f.Name} ({new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>().Count(x => x.Symbol.Family.Id == f.Id)} inst.)")));
+                return;
+            }
             var rebars = new FilteredElementCollector(doc).OfClass(typeof(Rebar)).Cast<Rebar>().Where(x => x.GetHostId() == fi.Id).ToList();
             sb.AppendLine($"  barras no hospedeiro: {rebars.Count} conjuntos, {rebars.Sum(x => x.Quantity)} barras (núcleo: {r.Barras.Sum(b => b.Quantidade)})");
             var bb = fi.get_BoundingBox(null);

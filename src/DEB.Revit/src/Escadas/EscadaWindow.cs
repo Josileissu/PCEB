@@ -29,6 +29,13 @@ namespace DEB.Revit.Escadas
         private readonly EscadaCorte _corte = new EscadaCorte(), _corteDef = new EscadaCorte { MostrarDeformada = true };
         private static readonly string[] Tipos = { "Armada longitudinalmente (apoios nas pontas)", "Armada transversalmente (apoios laterais)", "Em balanço (apoio de um lado)" };
         private readonly ComboBox _tipo = new ComboBox { ItemsSource = Tipos };
+        private static readonly string[] Execucoes = { "Moldada no local", "Pré-moldada" };
+        private static readonly string[] Pontas = { "Apoio direto", "Dente" };
+        private static readonly string[] Apoios = Enum.GetValues(typeof(ApoioPreMoldado)).Cast<ApoioPreMoldado>()
+            .Select(a => $"{PadroesPreMoldado.Nome(a)} · Hd = {PadroesPreMoldado.CoefHd(a).ToString("0.##", CultureInfo.GetCultureInfo("pt-BR"))} Fd").ToArray();
+        private readonly ComboBox _exec = new ComboBox { ItemsSource = Execucoes };
+        private readonly Dictionary<string, (ComboBox Ponta, ComboBox Apoio, Dictionary<string, TextBox> Campos)> _lig = new Dictionary<string, (ComboBox, ComboBox, Dictionary<string, TextBox>)>();
+        private readonly ContentControl _ligacoes = new ContentControl();
         private bool _carregando;
         private readonly ContentControl _esforcos = new ContentControl(), _reacoes = new ContentControl(), _mef = new ContentControl(),
                                         _verificacoes = new ContentControl(), _memoria = new ContentControl(), _otimizador = new ContentControl();
@@ -113,6 +120,30 @@ namespace DEB.Revit.Escadas
             cg.Children.Add(new TextBlock { Text = "Por m² de projeção horizontal; o peso próprio é calculado.", Foreground = Estilo.B(Estilo.Concreto), FontSize = 10.5, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 4) });
             cg.Children.Add(Estilo.Primario("Calcular", () => Calcular()));
             esq.Children.Add(Estilo.Cartao("Cargas (características)", cg));
+            var pm = new StackPanel();
+            pm.Children.Add(new TextBlock { Text = "Execução", Foreground = Estilo.B(Estilo.Suave), Margin = new Thickness(0, 0, 0, 2) });
+            pm.Children.Add(_exec); _exec.Margin = new Thickness(0, 0, 0, 6);
+            _exec.SelectionChanged += (s, ev) => { if (!_carregando) Calcular(); };
+            foreach (var (chave, titulo) in new[] { ("inf", "Ponta de baixo"), ("sup", "Ponta de cima") })
+            {
+                pm.Children.Add(new TextBlock { Text = titulo, FontWeight = FontWeights.SemiBold, Foreground = Estilo.B(Estilo.Mata), Margin = new Thickness(0, 6, 0, 2) });
+                var cp = new ComboBox { ItemsSource = Pontas }; var ca = new ComboBox { ItemsSource = Apoios };
+                pm.Children.Add(Estilo.Campo("Ponta", cp, "", 150));
+                pm.Children.Add(Estilo.Campo("Apoio", ca, "", 150));
+                var campos = new Dictionary<string, TextBox>();
+                foreach (var (nome, rot, un) in new[] { ("ComprimentoApoio", "Comprimento de apoio", "cm"), ("AlturaDente", "Altura do dente", "cm"), ("ComprimentoDente", "Comprimento do dente", "cm"),
+                                                        ("Pinos", "Pinos", ""), ("BitolaPino", "ø do pino", "mm"), ("FuroPino", "Furo do pino", "mm"), ("EmbutimentoPino", "Embutimento do pino", "cm") })
+                {
+                    var tb = new TextBox(); campos[nome] = tb;
+                    pm.Children.Add(Estilo.Campo(rot, tb, un, 150));
+                }
+                _lig[chave] = (cp, ca, campos);
+            }
+            pm.Children.Add(new TextBlock { Text = "Içamento", FontWeight = FontWeights.SemiBold, Foreground = Estilo.B(Estilo.Mata), Margin = new Thickness(0, 6, 0, 2) });
+            Campo(pm, "CoefDinamico", "Coeficiente dinâmico", "");
+            Campo(pm, "FcjIcamento", "fcj no içamento (0 = 0,7fck)", "MPa");
+            pm.Children.Add(Estilo.Primario("Calcular", () => Calcular()));
+            esq.Children.Add(Estilo.Cartao("Pré-moldada (NBR 9062)", pm));
             var sve = new ScrollViewer { Content = esq, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             Grid.SetColumn(sve, 0); corpo.Children.Add(sve);
 
@@ -139,6 +170,7 @@ namespace DEB.Revit.Escadas
             _abas.Items.Add(new TabItem { Header = "Esforços (ELU)", Content = _esforcos });
             _abas.Items.Add(new TabItem { Header = "Reações e deformada", Content = _reacoes });
             _abas.Items.Add(new TabItem { Header = "MEF × cálculo", Content = _mef });
+            _abas.Items.Add(new TabItem { Header = "Ligações e içamento", Content = _ligacoes });
             _abas.Items.Add(new TabItem { Header = "Otimizador", Content = _otimizador });
             _abas.Items.Add(new TabItem { Header = "Verificações", Content = _verificacoes });
             _abas.Items.Add(new TabItem { Header = "Memória", Content = _memoria });
@@ -181,7 +213,18 @@ namespace DEB.Revit.Escadas
                     tb.Text = v is double d ? d.ToString("0.##", Pt) : v?.ToString() ?? "";
                 }
             _classe.SelectedItem = Classes.Contains(e.ClasseAgressividade) ? e.ClasseAgressividade : "II";
-            _carregando = true; _tipo.SelectedIndex = (int)e.Tipo; _carregando = false;
+            _carregando = true; _tipo.SelectedIndex = (int)e.Tipo; _exec.SelectedIndex = (int)e.Execucao;
+            foreach (var (chave, lig) in new[] { ("inf", e.LigacaoInferior), ("sup", e.LigacaoSuperior) })
+            {
+                var (cp, ca, campos) = _lig[chave];
+                cp.SelectedIndex = (int)lig.Ponta; ca.SelectedIndex = (int)lig.Apoio;
+                foreach (var kv in campos)
+                {
+                    object v = typeof(LigacaoEscada).GetProperty(kv.Key).GetValue(lig);
+                    kv.Value.Text = v is double d ? d.ToString("0.##", Pt) : v?.ToString() ?? "";
+                }
+            }
+            _carregando = false;
         }
 
         private bool Ler(out string erro)
@@ -197,6 +240,19 @@ namespace DEB.Revit.Escadas
             }
             e.ClasseAgressividade = _classe.SelectedItem as string ?? "II";
             e.Tipo = (TipoEscada)Math.Max(0, _tipo.SelectedIndex);
+            e.Execucao = (ExecucaoEscada)Math.Max(0, _exec.SelectedIndex);
+            foreach (var (chave, lig) in new[] { ("inf", e.LigacaoInferior), ("sup", e.LigacaoSuperior) })
+            {
+                var (cp, ca, campos) = _lig[chave];
+                lig.Ponta = (PontaPreMoldada)Math.Max(0, cp.SelectedIndex); lig.Apoio = (ApoioPreMoldado)Math.Max(0, ca.SelectedIndex);
+                foreach (var kv in campos)
+                {
+                    string s = (kv.Value.Text ?? "").Trim().Replace(',', '.');
+                    if (!double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double v)) { erro = $"Valor inválido em \"{kv.Key}\"."; return false; }
+                    var pr = typeof(LigacaoEscada).GetProperty(kv.Key);
+                    if (pr.PropertyType == typeof(int)) pr.SetValue(lig, (int)Math.Round(v)); else pr.SetValue(lig, v);
+                }
+            }
             Entrada = e;
             return true;
         }
@@ -293,6 +349,7 @@ namespace DEB.Revit.Escadas
                 _proposta.Children.Add(new Border { Background = Estilo.B(Estilo.Hex("#fff4dc")), CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 3, 6, 3), Margin = new Thickness(0, 4, 0, 0),
                     Child = new TextBlock { Text = a, TextWrapping = TextWrapping.Wrap, Foreground = Estilo.B(Estilo.Ocre), FontSize = 11 } });
 
+            MostrarLigacoes(r);
             _verificacoes.Content = new ScrollViewer { Content = Estilo.TabelaVerificacoes(todas), VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var mem = new StackPanel { Margin = new Thickness(4) };
             foreach (var m in r.Memoria)
@@ -380,6 +437,52 @@ namespace DEB.Revit.Escadas
             Grid.SetRow(gm, 0); Grid.SetRow(gv, 1); Grid.SetRow(gf, 2);
             grid.Children.Add(gm); grid.Children.Add(gv); grid.Children.Add(gf);
             _mef.Content = Moldura(grid, 6);
+        }
+
+        // ------------------------------------------------------------------ pré-moldada
+
+        private void MostrarLigacoes(ResultadoEscada r)
+        {
+            if (!r.Entrada.PreMoldada)
+            {
+                _ligacoes.Content = new TextBlock
+                {
+                    Text = r.Entrada.Execucao == ExecucaoEscada.PreMoldada ? "A pré-moldada está feita para a escada armada longitudinalmente; escolha esse tipo." : "Escada moldada no local: escolha \"Pré-moldada\" em Execução (à esquerda).",
+                    Margin = new Thickness(12), Foreground = Estilo.B(Estilo.Suave), TextWrapping = TextWrapping.Wrap,
+                };
+                return;
+            }
+            var sp = new StackPanel { Margin = new Thickness(4) };
+            double B = r.Entrada.Largura / 100;
+            foreach (var lc in r.Ligacoes)
+            {
+                var l = lc.Ligacao; bool dente = l.Ponta == PontaPreMoldada.Dente;
+                var pares = new List<(string, string)>
+                {
+                    ("Forma", dente ? $"dente {F(l.AlturaNoApoio(r.Geo.Hp), "0.#")} × {F(l.ComprimentoDente, "0")} cm" : "apoio direto (sem recorte)"),
+                    ("Apoio", $"{PadroesPreMoldado.Nome(l.Apoio)} — comprimento {F(l.ComprimentoApoio, "0")} cm; Hd = {F(lc.CoefHd)}·Fd"),
+                    ("Fd / Hd", $"{F(lc.Fd, "0.0")} / {F(lc.Hd, "0.0")} kN/m  →  {F(lc.Fd * B, "0.0")} / {F(lc.Hd * B, "0.0")} kN na ponta"),
+                    (dente ? "Tirante do dente" : "Tirante (grampos em U)", $"{F(lc.AsTirante)} cm²/m → ø{F(lc.Tirante.Bitola, "0.#")} c/{F(lc.Tirante.Esp, "0.#")}" + (dente ? "" : $" (costura {F(lc.AsCostura)} cm²/m)")),
+                };
+                if (dente)
+                {
+                    pares.Add(("Suspensão", $"{F(lc.AsSuspensao)} cm²/m → grampos ø{F(lc.Suspensao.Bitola, "0.#")} c/{F(lc.Suspensao.Esp, "0.#")}"));
+                    pares.Add(("Biela do dente", $"d = {F(lc.DDente, "0.0")} cm, a = {F(lc.ADente, "0.0")} cm; VRd2 = {F(lc.VRd2Dente, "0.0")} kN/m"));
+                }
+                pares.Add(("Pinos", $"{l.Pinos} ø{F(l.BitolaPino, "0.#")} (furo ø{F(l.FuroPino, "0")}, embutimento {F(l.EmbutimentoPino, "0")} cm): {F(l.Pinos * lc.RvdPino, "0.0")} kN ≥ Hd {F(lc.HTotal, "0.0")} kN"));
+                sp.Children.Add(Estilo.Cartao($"Ponta {lc.Lado}", Estilo.Pares(pares, 170), new Thickness(0, 0, 0, 8)));
+            }
+            var ic = r.Icamento;
+            if (ic != null)
+                sp.Children.Add(Estilo.Cartao("Içamento e transporte", Estilo.Pares(new[]
+                {
+                    ("Peso da peça", $"{F(ic.Peso, "0.0")} kN ({F(ic.Peso * 101.97, "0")} kg)"),
+                    ("Alças", $"4, a {F(ic.DistAlca, "0")} cm das pontas no eixo (0,207 de {F(ic.Comprimento, "0")} cm)"),
+                    ("Força por alça", $"{F(ic.ForcaAlca, "0.0")} kN (peso × {F(r.Entrada.CoefDinamico)} / 3)"),
+                    ("Md− / Md+", $"{F(ic.MdNeg)} / {F(ic.MdPos)} kN·m/m (fcj = {F(ic.Fcj, "0.#")} MPa)"),
+                    ("Armadura superior", $"ø{F(r.SuperiorPm.Bitola, "0.#")} c/{F(r.SuperiorPm.Esp, "0.#")} (≥ {F(r.AsSuperiorPm)} cm²/m)"),
+                }, 170)));
+            _ligacoes.Content = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         }
 
         // ------------------------------------------------------------------ otimizador

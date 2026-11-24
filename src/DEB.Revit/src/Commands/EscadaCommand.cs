@@ -90,9 +90,10 @@ namespace DEB.Revit.Commands
             using (var t = new Transaction(doc, "Escada PCEB " + marca))
             {
                 t.Start();
+                WarningSwallower.Attach(t);   // avisos do Revit (barra fora do hospedeiro etc.) não desfazem a escada; erros ficam no relatório
                 EscadasRevit.Colocar(doc, fam, pos, r, marca, log, out List<ElementId> barras);
                 log.Info($"Barras: {barras.Count} conjunto(s) — " + string.Join(", ", r.Barras.Select(b => b.Nome)));
-                t.Commit();
+                if (t.Commit() != TransactionStatus.Committed) log.Error("A escada não foi criada: o Revit recusou" + WarningSwallower.TakeReason() + ".");
             }
             return marca;
         }

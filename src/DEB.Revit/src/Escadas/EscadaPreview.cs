@@ -56,11 +56,32 @@ namespace DEB.Revit.Escadas
             // apoios (vigas) nas pontas: retângulo de largura do apoio sob o eixo
             var penApoio = new Pen(Estilo.B(Estilo.Concreto), 1); penApoio.Freeze();
             var fundoApoio = Estilo.B(Estilo.Hex("#d9d8d2"));
-            foreach (var (xa, zt) in e.Tipo == TipoEscada.Longitudinal ? new[] { (0.0, 0.0), (g.Vao, e.Desnivel) } : new (double, double)[0])   // nos laterais os apoios ficam fora da elevação (ver o corte)
+            bool preM = e.PreMoldada;
+            foreach (var (xa, zt) in e.Tipo == TipoEscada.Longitudinal ? (preM ? new[] { (0.0, g.ZAssentoInf), (g.Vao, g.ZAssentoSup) } : new[] { (0.0, 0.0), (g.Vao, e.Desnivel) }) : new (double, double)[0])   // nos laterais os apoios ficam fora da elevação (ver o corte)
             {
                 double hv = 40;
                 var a = P(xa - la / 2, zt); var b = P(xa + la / 2, zt - hv);
                 dc.DrawRectangle(fundoApoio, penApoio, new Rect(a, b));
+            }
+            // pré-moldada: pinos (no centro de cada apoio) e alças
+            if (preM)
+            {
+                var penP = new Pen(Estilo.B(Estilo.Ocre), 2); penP.Freeze();
+                foreach (var (xa, zb, zt, lig) in new[] { (0.0, g.ZAssentoInf, 0.0, e.LigacaoInferior), (g.Vao, g.ZAssentoSup, e.Desnivel, e.LigacaoSuperior) })
+                    if (lig.Pinos > 0)
+                    {
+                        dc.DrawLine(penP, P(xa, zb - lig.EmbutimentoPino), P(xa, zt));
+                        var fp = Ft($"{lig.Pinos} pinos ø{Fmt(lig.BitolaPino, "0.#")}", 9.5, Estilo.B(Estilo.Ocre));
+                        dc.DrawText(fp, new WPoint(P(xa, 0).X + 4, P(0, zb - lig.EmbutimentoPino).Y - fp.Height));
+                    }
+                if (r.Icamento != null)
+                    foreach (var (xa, za) in r.Icamento.Alcas)
+                    {
+                        var q = P(xa, za);
+                        var tri = new StreamGeometry();
+                        using (var sg = tri.Open()) { sg.BeginFigure(new WPoint(q.X, q.Y - 2), true, true); sg.LineTo(new WPoint(q.X - 6, q.Y - 14), true, true); sg.LineTo(new WPoint(q.X + 6, q.Y - 14), true, true); }
+                        tri.Freeze(); dc.DrawGeometry(Estilo.B(Estilo.Ipe), null, tri);
+                    }
             }
             // contorno da escada
             var geo = new StreamGeometry();

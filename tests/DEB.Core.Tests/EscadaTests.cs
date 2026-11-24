@@ -186,6 +186,61 @@ public class EscadaTests
         Assert.Contains(r.Avisos, a => a.Contains("patamares"));
     }
 
+    public static EscadaLaje PreMoldada()
+    {
+        var e = ComPatamares();
+        e.Execucao = ExecucaoEscada.PreMoldada;
+        e.LigacaoInferior = new LigacaoEscada { Ponta = PontaPreMoldada.ApoioDireto, ComprimentoApoio = 15, Apoio = ApoioPreMoldado.Elastomero, Pinos = 2, BitolaPino = 16 };
+        e.LigacaoSuperior = new LigacaoEscada { Ponta = PontaPreMoldada.Dente, ComprimentoApoio = 15, AlturaDente = 9, ComprimentoDente = 25, Apoio = ApoioPreMoldado.Argamassa, Pinos = 2, BitolaPino = 16 };
+        return e;
+    }
+
+    [Fact]
+    public void PreMoldadaCalculaLigacoesPinosEIcamento()
+    {
+        var r = CalculoEscada.Calcular(PreMoldada());
+        var g = r.Geo;
+        Assert.Empty(r.Erros);
+        Assert.Equal(-7.5, g.XPontaInf, 6);
+        Assert.Equal(g.Vao + 7.5, g.XPontaSup, 6);
+        Assert.Equal(g.XPontaSup - 25, g.XRecorteSup, 6);
+        Assert.Equal(144 - 9, g.ZAssentoSup, 6);
+        Assert.True(Area(g.Contorno) > 0);
+        Assert.Equal(2, r.Ligacoes.Count);
+        var li = r.Ligacoes[0]; var ls = r.Ligacoes[1];
+        Assert.Equal(0.16 * li.Fd, li.Hd, 9);
+        Assert.Equal(0.5 * ls.Fd, ls.Hd, 9);
+        Assert.True(li.Fd > 1.4 * (r.RaG + r.RaQ) - 1e-9, "Fd inclui o trecho além do apoio");
+        double fyd = 50 / 1.15;
+        Assert.Equal((li.Fd / 1.2 + li.Hd) / fyd, li.AsTirante, 9);
+        Assert.Equal(ls.Fd / fyd > 0 ? ls.Fd / (500 / 1.15 / 10) : 0, ls.AsSuspensao, 9);
+        // içamento: peso = γ·área·largura
+        Assert.Equal(25 * Area(g.Contorno) / 1e4 * 1.2, r.Icamento.Peso, 6);
+        Assert.Equal(r.Icamento.Peso * 1.3 / 3, r.Icamento.ForcaAlca, 6);
+        Assert.Equal(2, r.Icamento.Alcas.Count);
+        Assert.Contains(r.Verificacoes, v => v.Codigo == "P4");
+        Assert.Contains(r.Barras, b => b.Funcao.StartsWith("grampo do apoio inferior"));
+        Assert.Contains(r.Barras, b => b.Funcao.StartsWith("tirante do dente superior"));
+        Assert.Contains(r.Barras, b => b.Funcao.StartsWith("suspensão do dente superior"));
+        Assert.DoesNotContain(r.Barras, b => b.Funcao.StartsWith("negativa no apoio"));
+        Assert.DoesNotContain(r.Verificacoes, v => v.Codigo == "K5");
+    }
+
+    [Fact]
+    public void PreMoldadaTemTodasAsBarrasDentroDaPeca()
+    {
+        var r = CalculoEscada.Calcular(PreMoldada());
+        var k = r.Geo.Contorno;
+        foreach (var b in r.Barras.Where(b => !b.Transversal))
+            for (int i = 1; i < b.Pontos.Count; i++)
+                for (int t = 0; t <= 10; t++)
+                {
+                    var a = b.Pontos[i - 1]; var c = b.Pontos[i];
+                    double x = a.X + (c.X - a.X) * t / 10, z = a.Z + (c.Z - a.Z) * t / 10;
+                    Assert.True(Dentro(k, x, z), $"{b.Nome} ({b.Funcao}) fora da peça em ({x:0.0}; {z:0.0})");
+                }
+    }
+
     internal static double Area(IReadOnlyList<(double X, double Z)> p)
     {
         double a = 0;
