@@ -51,6 +51,8 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         public double TipHeight { get; set; }   // altura na ponta (h)
         /// <summary>Aparelho de apoio da viga sobre o consolo (PCEB_Apoio*, D36); null = a família não informa.</summary>
         public DEB.Core.Intercambio.ApoioPeca Apoio { get; set; }
+        /// <summary>Reação da viga apoiada no consolo (D44, etapa 1); null = nenhuma viga calculada apoia nele.</summary>
+        public DEB.Core.Elementos.Consolo.CargaConsolo Carga { get; set; }
 
         public double Width => S1 - S0;
         public double HeightAtFace => ZTop - ZBottom;

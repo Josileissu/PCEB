@@ -59,6 +59,11 @@ $p.WaitForExit(540000)
   paginação de laje alveolar) — `src/UI/JanelasDemo.cs`. As janelas com abas (vigas, pilares) gravam uma imagem por aba (`janela_2.png`…).
 - **Padrão visual das janelas (D41)**: use o kit `src/UI/Estilo.cs` (`Estilo.Aplicar`, `Cabecalho`, `Cartao`, `Selo`, `Campo`,
   `TabelaVerificacoes`, `Grafico`); janela nova de ferramenta pelo `ToolDialogs.NewWindow` (já aplica o kit). Cores só da identidade.
+- `analitico`: análise por objetos e janela do modelo de análise (D46) — imagens das vistas e o dimensionamento; `SD_LAJE=1` cria um
+  piso de teste sobre as vigas (sem gravar). `configuracao`: grava/relê a configuração do projeto no modelo e a imagem da tela (D45).
+  `SD_ACO=1` cria ao lado um pórtico de aço de teste (famílias W métricas da biblioteca do Revit: pilares W250X32.7, vigas W310X38.7 e
+  uma secundária W200X15 sobre as vigas) — peças de aço, ligações por chapa de alma e dimensionamento pela NBR 8800 (D48).
+  Ver `docs/ANALISE.md`.
 - `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
   `SD_VIGA_FAMILIA` (.rfa; copie com nome sem acento), `SD_VIGA_TIPO` e `SD_VIGA_PARAMS` (`b=200;h=500;dz_aba=300;...`, mm, num tipo
   duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEBariantes_PCEB`
@@ -106,6 +111,8 @@ src/
   Formas/        pranchas de formas (docs/FORMAS.md)
   Tools/         painel "Ferramentas" (docs/FERRAMENTAS.md)
   Vigas/         vigas pré-moldadas: cargas PCEB_, cálculo e armação pelo núcleo, janela com prévia (docs/VIGAS_PRE_MOLDADAS.md, D40)
+  Analise/       análise por objetos lida do Revit e janela do modelo de análise (docs/ANALISE.md, D46)
+  Configuracao/  configuração do projeto: tela WebView2 e gravação no modelo (D45)
 ```
 Fluxo dos pré-moldados: levantamento → grupos de peças iguais → janela (armadura por grupo) →
 para cada pilar: limpar → marca → barras → dados das barras → assembly (pilar + consolos + barras) →

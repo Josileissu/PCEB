@@ -95,6 +95,23 @@ namespace DEB.Revit
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
                         break;
+                    case "analitico":
+                        status = "OK " + AnaliticoAutoTest(uidoc);
+                        break;
+                    case "configuracao":
+                        status = "OK " + ConfiguracaoAutoTest(uidoc);
+                        break;
+                    case "ligacoes":
+                    {
+                        string dir = Path.Combine(DetailingReport.LogDir, "ligacoes_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                        Directory.CreateDirectory(dir);
+                        var av = new List<string>();
+                        string png = Path.Combine(dir, "janela.png");
+                        DEB.Revit.Commands.BibliotecaLigacoesCommand.Abrir(IntPtr.Zero, av, png);
+                        File.WriteAllText(Path.Combine(dir, "resultado.txt"), $"Janela: {(File.Exists(png) ? new FileInfo(png).Length + " bytes" : "não gravada")}" + Environment.NewLine + string.Join(Environment.NewLine, av), Encoding.UTF8);
+                        status = "OK " + Path.Combine(dir, "resultado.txt");
+                        break;
+                    }
                     case "vigas":
                         status = "OK " + Vigas.VigasAutoTest.Run(uidoc);
                         break;
@@ -455,6 +472,310 @@ namespace DEB.Revit
         /// SD_VARIAR = 1: pilares "50x50" ficam 1,50 m mais altos (comprimentos diferentes) e cada grupo recebe outra
         /// armadura (bitolas e quantidades diferentes), para testar pranchas com barras e comprimentos variados.
         /// </summary>
+        /// <summary>
+        /// Modelo de análise (D46): monta e analisa a estrutura por objetos e grava a imagem da janela própria do PCEB em três modos
+        /// (modelo, diagrama de momentos, deformada). Não escreve no modelo do Revit.
+        /// </summary>
+        private static string AnaliticoAutoTest(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            string dir = Path.Combine(DetailingReport.LogDir, "analitico_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var sb = new StringBuilder();
+            var notas = new List<string>();
+            // SD_LAJE = 1: piso estrutural de 12 cm sobre as vigas (no documento aberto, sem gravar), para testar as lajes;
+            // "abertura" acrescenta um furo de 2 × 2 m no meio; "alveolar" usa um tipo de piso com "alveolar" no nome
+            string sdLaje = Environment.GetEnvironmentVariable("SD_LAJE") ?? "";
+            if (sdLaje != "")
+            {
+                var vigas = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().ToList();
+                var bbs = vigas.Select(x => x.get_BoundingBox(null)).Where(x => x != null).ToList();
+                if (bbs.Count > 0)
+                {
+                    double x0 = bbs.Min(b => b.Min.X), x1 = bbs.Max(b => b.Max.X), y0 = bbs.Min(b => b.Min.Y), y1 = bbs.Max(b => b.Max.Y), zt = bbs.Max(b => b.Max.Z);
+                    Level nivel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().Where(l => l.Elevation <= zt).OrderByDescending(l => l.Elevation).FirstOrDefault()
+                                  ?? new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().First();
+                    using (var t = new Transaction(doc, "Laje de teste"))
+                    {
+                        t.Start();
+                        var tipo = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>().First(ft => !ft.IsFoundationSlab);
+                        if (sdLaje.Contains("alveolar")) tipo = (FloorType)tipo.Duplicate("PCEB teste laje alveolar " + DateTime.Now.ToString("HHmmss"));
+                        var loop = CurveLoop.Create(new List<Curve>
+                        {
+                            Line.CreateBound(new XYZ(x0, y0, 0), new XYZ(x1, y0, 0)), Line.CreateBound(new XYZ(x1, y0, 0), new XYZ(x1, y1, 0)),
+                            Line.CreateBound(new XYZ(x1, y1, 0), new XYZ(x0, y1, 0)), Line.CreateBound(new XYZ(x0, y1, 0), new XYZ(x0, y0, 0)),
+                        });
+                        var lacos = new List<CurveLoop> { loop };
+                        if (sdLaje.Contains("abertura"))
+                        {
+                            double cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, a = 100 / 30.48;
+                            lacos.Add(CurveLoop.Create(new List<Curve>
+                            {
+                                Line.CreateBound(new XYZ(cx - a, cy - a, 0), new XYZ(cx - a, cy + a, 0)), Line.CreateBound(new XYZ(cx - a, cy + a, 0), new XYZ(cx + a, cy + a, 0)),
+                                Line.CreateBound(new XYZ(cx + a, cy + a, 0), new XYZ(cx + a, cy - a, 0)), Line.CreateBound(new XYZ(cx + a, cy - a, 0), new XYZ(cx - a, cy - a, 0)),
+                            }));
+                        }
+                        Floor f = Floor.Create(doc, lacos, tipo.Id, nivel.Id);
+                        f.get_Parameter(BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)?.Set(zt - nivel.Elevation);
+                        f.get_Parameter(BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL)?.Set(1);
+                        t.Commit();
+                        sb.AppendLine($"Laje de teste criada: {f.Id.Value}, {(x1 - x0) * 30.48:0} × {(y1 - y0) * 30.48:0} cm, topo a {zt * 30.48:0} cm");
+                    }
+                }
+            }
+            // SD_ACO = 1: pórtico de aço de teste ao lado (4 pilares W250X32.7 de 4 m, vigas W310X38.7 e uma secundária W200X15 sobre as
+            // vigas), com as famílias W métricas da biblioteca do Revit — no documento aberto, sem gravar
+            if (Environment.GetEnvironmentVariable("SD_ACO") == "1") sb.AppendLine(CriarPorticoAco(doc));
+            if (Environment.GetEnvironmentVariable("SD_ACO") == "1") sb.AppendLine(CargasNativasTeste(doc));
+            var e = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, notas);
+            foreach (string n in notas) sb.AppendLine("NOTA: " + n);
+            if (e != null)
+            {
+                var m = e.Modelo;
+                sb.AppendLine($"Modelo: {e.Pilares.Count} pilares, {e.Vigas.Count} vigas, {e.Metalicas.Count} peças de aço, {e.Ligacoes.Count} ligações; {m.Nos.Count} nós, {m.Barras.Count} barras, " +
+                              $"{m.Molas.Count} aparelhos, {m.Vinculos.Count} vínculos");
+                // ajustes da janela (D50): consolo articulado, gravado no modelo e relido numa montagem nova
+                if (e.Ligacoes.Count > 0)
+                {
+                    var ses = new DEB.Core.Analise.Objetos.SessaoAnalise(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc), doc.Title, DEB.Revit.Analise.AjustesRevit.Ler(doc));
+                    var lc = e.Ligacoes[0];
+                    string ch = DEB.Core.Analise.Objetos.AjustesAnalise.Chave(lc.Dono);
+                    string kAntes = lc.Mola?.K[0].ToString("0.#") ?? "?";
+                    string resp = ses.Receber("{\"acao\":\"ajustar\",\"chave\":\"" + ch + "\",\"prop\":\"representacao\",\"valor\":\"Barra rígida + articulação\"}");
+                    sb.AppendLine($"Ajuste {ch}: Kh {kAntes} → {lc.Mola?.K[0]:0.#} kN/cm; resposta {resp.Length / 1024} kB{(resp.Contains("\"erro\"") ? " COM ERRO" : "")}");
+                    DEB.Revit.Analise.AjustesRevit.Gravar(doc, ses.Ajustes);
+                    var notas2 = new List<string>();
+                    var e2 = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, notas2);
+                    var lc2 = e2?.Ligacoes.FirstOrDefault(x => x.Dono.Id == lc.Dono.Id);
+                    sb.AppendLine($"Relido do modelo: representação {lc2?.Representacao}; {notas2.FirstOrDefault(n => n.Contains("Ajustes do modelo"))}");
+                    DEB.Revit.Analise.AjustesRevit.Gravar(doc, new Dictionary<string, Dictionary<string, string>>());
+                    e = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, new List<string>()) ?? e;
+                }
+                string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
+                sb.AppendLine($"JSON da janela: {json.Length / 1024} kB");
+                foreach (var c in e.Cargas) sb.AppendLine($"  carga em {c.Alvo}: {c.Texto()} [{c.Origem}] {c.Descricao}");
+                if (Environment.GetEnvironmentVariable("SD_ACO") == "1" && e.Vigas.Count > 0)
+                {
+                    // item 2c: cargas lançadas no PCEB (viga de concreto e pilar de aço) enviadas ao Revit e relidas como nativas
+                    e.Cargas.Add(new DEB.Core.Analise.Objetos.CargaObjeto { Alvo = DEB.Core.Analise.Objetos.AjustesAnalise.Chave(e.Vigas[0].Dono), Tipo = DEB.Core.Analise.Objetos.TipoCargaObjeto.Linear, Valor = 7, Caso = "G" });
+                    var pm = e.Metalicas.FirstOrDefault(x => x.Pilar);
+                    if (pm != null) e.Cargas.Add(new DEB.Core.Analise.Objetos.CargaObjeto { Alvo = DEB.Core.Analise.Objetos.AjustesAnalise.Chave(pm.Dono), Tipo = DEB.Core.Analise.Objetos.TipoCargaObjeto.Pontual, Valor = 3, Posicao = 200, Direcao = "X", Caso = "Q" });
+                    var nc = new List<string>();
+                    DEB.Revit.Analise.CargasRevit.EnviarAoRevit(doc, e, nc);
+                    foreach (string n in nc) sb.AppendLine("ENVIO: " + n);
+                    var n3 = new List<string>();
+                    var e3 = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, n3);
+                    foreach (string n in n3.Where(x => x.Contains("arga"))) sb.AppendLine("NOTA3: " + n);
+                    foreach (var ld in new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Structure.LoadBase)).Cast<Autodesk.Revit.DB.Structure.LoadBase>())
+                    {
+                        string geo = ld is Autodesk.Revit.DB.Structure.LineLoad l1 ? $"{l1.StartPoint * 30.48} → {l1.EndPoint * 30.48}" : ld is Autodesk.Revit.DB.Structure.PointLoad p1 ? $"{p1.Point * 30.48}" : "";
+                        sb.AppendLine($"  carga Revit {ld.Id.Value} {ld.GetType().Name} caso {ld.LoadCaseName} host {ld.HostElementId.Value}: {geo}");
+                    }
+                    foreach (var c in e3.Cargas) sb.AppendLine($"  relida em {c.Alvo}: {c.Texto()} [{c.Origem}] {c.Descricao}");
+                }
+                var dim = DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.Verificar(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
+                if (Environment.GetEnvironmentVariable("SD_ACO") == "1")
+                {
+                    // ligações metálicas no modelo com as famílias PCEB (D49), depois do dimensionamento (espessuras adotadas)
+                    var lg = new StringBuilder();
+                    DEB.Revit.Analise.LigacoesRevit.Diag = lg;
+                    DEB.Revit.Analise.LigacoesRevit.Modelar(doc, e, lg);
+                    sb.Append(lg);
+                    var pcs = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+                        .Where(fi => fi.Symbol.FamilyName.StartsWith("PCEB Chapa") || fi.Symbol.FamilyName.StartsWith("PCEB Parafuso")).ToList();
+                    sb.AppendLine($"Peças PCEB de ligação no modelo: {pcs.Count(x => x.Symbol.FamilyName == "PCEB Chapa")} chapas, {pcs.Count(x => x.Symbol.FamilyName == "PCEB Parafuso")} parafusos.");
+                    string png3d = Path.Combine(dir, "ligacoes_3d.png");
+                    try { sb.AppendLine(DEB.Revit.Analise.LigacoesRevit.ImagemPortico(doc, png3d)); } catch (Exception ex) { sb.AppendLine("Imagem 3D: " + ex.Message); }
+                }
+                foreach (var d in dim)
+                {
+                    sb.AppendLine($"  {d.Dono}: {d.Situacao} — {string.Join("; ", d.Resumo)}");
+                    foreach (string l in d.Memoria.Linhas) sb.AppendLine("      " + l);
+                    foreach (var v in d.Verificacoes.Where(x => x.Situacao != DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok)) sb.AppendLine($"      [{v.Codigo}] {v.Descricao}: {v.Valor} {v.Limite}");
+                }
+                // exportação (D50, item 8): os três formatos; OpenSees e CalculiX rodam se estiverem configurados (%AppData%\PCEB\mef.txt)
+                try
+                {
+                    var mm = e.Modelo;
+                    foreach (DEB.Core.Analise.Barras.FormatoExportacao fx in Enum.GetValues(typeof(DEB.Core.Analise.Barras.FormatoExportacao)))
+                        File.WriteAllText(Path.Combine(dir, "modelo" + DEB.Core.Analise.Barras.ExportacaoAnalise.Extensao(fx)), DEB.Core.Analise.Barras.ExportacaoAnalise.Exportar(mm, fx, doc.Title));
+                    string mef = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PCEB", "mef.txt");
+                    string Cam(string k) => File.Exists(mef) ? File.ReadAllLines(mef).Where(l => l.StartsWith(k + "=")).Select(l => l.Substring(k.Length + 1).Trim()).FirstOrDefault() : null;
+                    var pceb = new DEB.Core.Analise.Barras.SolverBarras(mm).Resolver();
+                    string py = Cam("python");
+                    if (py != null && File.Exists(py))
+                    {
+                        var psi = new System.Diagnostics.ProcessStartInfo(py, "-I modelo.py") { WorkingDirectory = dir, UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
+                        using (var pr = System.Diagnostics.Process.Start(psi)) { string err = pr.StandardError.ReadToEnd(); pr.WaitForExit(300000); if (pr.ExitCode != 0) sb.AppendLine("OpenSees: " + err); }
+                        foreach (var cs in mm.Casos)
+                        {
+                            string rj = Path.Combine(dir, "resultados_" + cs.Nome + ".json");
+                            if (!File.Exists(rj)) { sb.AppendLine($"OpenSees: sem resultado do caso {cs.Nome}"); continue; }
+                            var jr = DEB.Core.Persistencia.Json.Ler(File.ReadAllText(rj))["deslocamentos"];
+                            double dmax = 0, umax = 0;
+                            for (int n = 0; n < mm.Nos.Count; n++)
+                                for (int g = 0; g < 3; g++)
+                                {
+                                    double a1 = pceb[cs.Nome].Deslocamentos[n][g], b1 = jr[(n + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)][g].Numero;
+                                    dmax = Math.Max(dmax, Math.Abs(a1 - b1)); umax = Math.Max(umax, Math.Abs(a1));
+                                }
+                            sb.AppendLine($"OpenSees caso {cs.Nome}: deslocamento máx. {umax:0.0000} cm; maior diferença para o PCEB {dmax:0.000000} cm");
+                        }
+                    }
+                    string ccx = Cam("ccx");
+                    if (ccx != null && File.Exists(ccx))
+                    {
+                        var psi = new System.Diagnostics.ProcessStartInfo(ccx, "modelo") { WorkingDirectory = dir, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+                        using (var pr = System.Diagnostics.Process.Start(psi)) { string o = pr.StandardOutput.ReadToEnd(); pr.WaitForExit(300000); if (o.Contains("*ERROR")) sb.AppendLine("CalculiX: " + string.Join(" | ", o.Split(new[] { Environment.NewLine, "\n" }, StringSplitOptions.None).Where(l => l.Contains("ERROR")).Take(3))); }
+                        sb.AppendLine($"CalculiX: {(File.Exists(Path.Combine(dir, "modelo.dat")) ? new FileInfo(Path.Combine(dir, "modelo.dat")).Length + " bytes em modelo.dat" : "sem modelo.dat")}");
+                    }
+                }
+                catch (Exception exE) { sb.AppendLine("Exportação: " + exE.Message); }
+                var sessaoCap = new DEB.Core.Analise.Objetos.SessaoAnalise(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc), doc.Title, DEB.Revit.Analise.AjustesRevit.Ler(doc));
+                foreach (string modo in new[] { "modelo", "diagrama", "deformada", "situacao", "laje", "peca", "consolo", "campo" })
+                {
+                    string png = Path.Combine(dir, "janela_" + modo + ".png");
+                    var win = new DEB.Revit.Analise.JanelaAnalise(json, doc.Title) { Captura = png, ModoCaptura = modo, Sessao = sessaoCap };
+                    win.ShowDialog();
+                    sb.AppendLine($"{modo}: {(win.Erro ?? (File.Exists(png) ? new FileInfo(png).Length + " bytes" : "imagem não gravada"))}");
+                }
+            }
+            File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
+            return Path.Combine(dir, "resultado.txt");
+        }
+
+        private sealed class FalhasAco : IFailuresPreprocessor
+        {
+            private readonly List<string> _l;
+            public FalhasAco(List<string> l) { _l = l; }
+            public FailureProcessingResult PreprocessFailures(FailuresAccessor fa)
+            {
+                foreach (FailureMessageAccessor f in fa.GetFailureMessages())
+                {
+                    _l.Add($"[{f.GetSeverity()}] {f.GetDescriptionText()}");
+                    if (f.GetSeverity() == FailureSeverity.Warning) fa.DeleteWarning(f);
+                }
+                return FailureProcessingResult.Continue;
+            }
+        }
+
+        /// <summary>Cargas nativas do Revit no pórtico de aço (item 2): linear de 5 kN/m na 1ª viga W310 e pontual de 20 kN no topo de um pilar.</summary>
+        private static string CargasNativasTeste(Document doc)
+        {
+            var viga = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().OfType<FamilyInstance>()
+                .FirstOrDefault(f => f.Symbol.Name == "W310X38.7");
+            var pilar = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType().OfType<FamilyInstance>()
+                .FirstOrDefault(f => f.Symbol.Name == "W250X32.7");
+            if (viga == null || pilar == null) return "Cargas nativas: pórtico de aço não encontrado.";
+            var tl = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Structure.LineLoadType)).Cast<Autodesk.Revit.DB.Structure.LineLoadType>().FirstOrDefault();
+            var tp = new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Structure.PointLoadType)).Cast<Autodesk.Revit.DB.Structure.PointLoadType>().FirstOrDefault();
+            var txt = new StringBuilder();
+            using (var t = new Transaction(doc, "Cargas nativas de teste"))
+            {
+                t.Start();
+                // no Revit 2025 a carga é hospedada num elemento analítico: o associado à peça, ou um novo pela linha da peça
+                var am = Autodesk.Revit.DB.Structure.AnalyticalToPhysicalAssociationManager.GetAnalyticalToPhysicalAssociationManager(doc);
+                ElementId Analitico(FamilyInstance fi)
+                {
+                    ElementId id = am.GetAssociatedElementId(fi.Id);
+                    if (id != null && id != ElementId.InvalidElementId) return id;
+                    var membro = Autodesk.Revit.DB.Structure.AnalyticalMember.Create(doc, ((LocationCurve)fi.Location).Curve);
+                    am.AddAssociation(membro.Id, fi.Id);
+                    return membro.Id;
+                }
+                try
+                {
+                    var lc = (LocationCurve)viga.Location;
+                    XYZ a = lc.Curve.GetEndPoint(0), b = lc.Curve.GetEndPoint(1);
+                    double f = UnitUtils.ConvertToInternalUnits(-5, UnitTypeId.KilonewtonsPerMeter);
+                    var ll = Autodesk.Revit.DB.Structure.LineLoad.Create(doc, Analitico(viga), Line.CreateBound(a, b), new XYZ(0, 0, f), XYZ.Zero, tl);
+                    txt.Append($"linear {ll?.Id.Value} ({ll?.LoadCaseName}); ");
+                }
+                catch (Exception ex) { txt.Append("linear não criada: " + ex.Message + "; "); }
+                try
+                {
+                    var c = (LocationCurve)pilar.Location;
+                    XYZ topo = c.Curve.GetEndPoint(0).Z > c.Curve.GetEndPoint(1).Z ? c.Curve.GetEndPoint(0) : c.Curve.GetEndPoint(1);
+                    double f = UnitUtils.ConvertToInternalUnits(-20, UnitTypeId.Kilonewtons);
+                    var pl = Autodesk.Revit.DB.Structure.PointLoad.Create(doc, Analitico(pilar), Autodesk.Revit.DB.Structure.AnalyticalElementSelector.EndOrTop, new XYZ(0, 0, f), XYZ.Zero, tp);
+                    txt.Append($"pontual {pl?.Id.Value} ({pl?.LoadCaseName})");
+                }
+                catch (Exception ex) { txt.Append("pontual não criada: " + ex.Message); }
+                t.Commit();
+            }
+            return "Cargas nativas de teste: " + txt;
+        }
+
+        private static string CriarPorticoAco(Document doc)
+        {
+            const string lib = @"C:\ProgramData\Autodesk\RVT 2025\Libraries\English\US\";
+            string famPilar = lib + @"Structural Columns\Steel\AISC 15.0\M_W Shapes-Column.rfa", famViga = lib + @"Structural Framing\Steel\AISC 15.0\M_W Shapes.rfa";
+            if (!File.Exists(famPilar) || !File.Exists(famViga)) return "Pórtico de aço: famílias W da biblioteca não encontradas.";
+            const double m = 1 / 0.3048;
+            var falhas = new List<string>();
+            using (var t = new Transaction(doc, "Pórtico de aço de teste"))
+            {
+                var fho = t.GetFailureHandlingOptions();
+                fho.SetFailuresPreprocessor(new FalhasAco(falhas));
+                t.SetFailureHandlingOptions(fho);
+                t.Start();
+                FamilySymbol Tipo(string arq, string nome)
+                {
+                    // carrega só o tipo pedido (o arquivo .txt ao lado é o catálogo de tipos)
+                    doc.LoadFamilySymbol(arq, nome, out FamilySymbol s);
+                    s ??= new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().FirstOrDefault(x => x.Name == nome);
+                    if (s != null && !s.IsActive) s.Activate();
+                    return s;
+                }
+                FamilySymbol pil = Tipo(famPilar, "W250X32.7"), vig = Tipo(famViga, "W310X38.7"), sec = Tipo(famViga, "W200X15");
+                if (pil == null || vig == null || sec == null) { t.RollBack(); return "Pórtico de aço: tipos W não carregados."; }
+                Level nivel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).First();
+                double x0 = -30 * m, y0 = -30 * m, h = 4 * m, z0 = nivel.Elevation;
+                var cantos = new[] { new XYZ(x0, y0, z0), new XYZ(x0 + 6 * m, y0, z0), new XYZ(x0, y0 + 5 * m, z0), new XYZ(x0 + 6 * m, y0 + 5 * m, z0) };
+                foreach (XYZ c in cantos)
+                    doc.Create.NewFamilyInstance(Line.CreateBound(c, c + XYZ.BasisZ * h), pil, nivel, Autodesk.Revit.DB.Structure.StructuralType.Column);
+                XYZ T(XYZ c) => c + XYZ.BasisZ * h;
+                doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[0]), T(cantos[1])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[2]), T(cantos[3])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[0]), T(cantos[2])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[1]), T(cantos[3])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                XYZ meioA = (T(cantos[0]) + T(cantos[1])) / 2, meioB = (T(cantos[2]) + T(cantos[3])) / 2;
+                var ult = doc.Create.NewFamilyInstance(Line.CreateBound(meioA, meioB), sec, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                var tipoMat = ult.StructuralMaterialType;
+                var mat = doc.GetElement(ult.StructuralMaterialId) as Material;
+                t.Commit();
+                return string.Join(Environment.NewLine, falhas.Select(f => "FALHA: " + f)) + (falhas.Count > 0 ? Environment.NewLine : "") + $"Pórtico de aço de teste criado (4 pilares W250X32.7, 4 vigas W310X38.7, secundária W200X15); material {tipoMat} \"{mat?.Name}\"; " +
+                       $"perfil lido: {DEB.Revit.Analise.MetalicaRevit.Perfil(sec)?.Nome ?? "nenhum"} (tipo \"{sec.Name}\", família \"{sec.FamilyName}\").";
+            }
+        }
+
+        /// <summary>
+        /// Configuração do projeto (D45): grava e relê o nível do projeto no modelo (sem a cópia .pceb.json e sem tocar no arquivo do
+        /// escritório) e grava a imagem da tela (WebView2) com um γc fora da norma.
+        /// </summary>
+        private static string ConfiguracaoAutoTest(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            string dir = Path.Combine(DetailingReport.LogDir, "configuracao_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var sb = new StringBuilder();
+            var avisos = new List<string>();
+            var cfg = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, avisos);
+            cfg.Definir(DEB.Core.Configuracao.Projeto.NivelConfiguracao.Projeto, "durab.caa", "III");
+            cfg.Definir(DEB.Core.Configuracao.Projeto.NivelConfiguracao.Projeto, "normas.gamaC", "1.3", "teste automático");
+            DEB.Revit.Configuracao.ConfiguracaoRevit.GravarProjeto(doc, cfg.Projeto, avisos, copia: false);
+            var lida = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, avisos);
+            sb.AppendLine($"Relido do modelo: caa = {lida.Texto("durab.caa")} ({lida.Ler("durab.caa").Origem}); γc = {lida.Numero("normas.gamaC")}; " +
+                          $"justificativa = {(lida.Projeto.Justificativas.TryGetValue("normas.gamaC", out string j) ? j : "—")}");
+            string png = Path.Combine(dir, "tela.png");
+            bool abriu = DEB.Revit.Commands.ConfiguracaoProjetoCommand.Abrir(doc, IntPtr.Zero, avisos, png, out _,
+                s => s.Receber("{\"acao\":\"definir\",\"nivel\":\"Projeto\",\"id\":\"normas.gamaNPerm\",\"valor\":\"1,0\"}"));
+            sb.AppendLine($"Tela abriu: {abriu}; imagem: {(File.Exists(png) ? new FileInfo(png).Length + " bytes" : "não gravada")}");
+            foreach (string a in avisos) sb.AppendLine("AVISO: " + a);
+            File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
+            return Path.Combine(dir, "resultado.txt");
+        }
+
         private static string PrecastAutoTest(UIDocument uidoc)
         {
             Document doc = uidoc.Document;
@@ -473,7 +794,31 @@ namespace DEB.Revit
             Directory.CreateDirectory(dir);
 
             List<ColumnGroup> groups = PrecastSurvey.Run(doc, out List<string> notes);
+            var cfgProjeto = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notes);
+            int carregados = ReacoesNosConsolos.Aplicar(doc, groups, notes, cfgProjeto, out var estrutura);
+            int comEsforcos = ReacoesNosConsolos.EsforcosNosPilares(estrutura, groups, cfgProjeto, notes);
+            foreach (ColumnGroup g in groups) g.Spec.UsarConfiguracao(cfgProjeto);
             var sb = new StringBuilder();
+            sb.AppendLine($"Consolos com reação de viga: {carregados}; grupos de pilares com os esforços da análise: {comEsforcos}");
+            if (estrutura != null)
+            {
+                sb.AppendLine($"Análise por objetos: {estrutura.Modelo.Nos.Count} nós, {estrutura.Modelo.Barras.Count} barras, {estrutura.Modelo.Molas.Count} molas, " +
+                              $"{estrutura.Modelo.Vinculos.Count} vínculos rígidos");
+                var elu = estrutura.Combinacoes[estrutura.DefinicaoCombinacoes[0].Nome];
+                foreach (var p in estrutura.Pilares)
+                {
+                    var b = estrutura.Esforcos(p, elu).OrderBy(x => x.Z).First();
+                    sb.AppendLine($"  {p.Dono}: base (z = {b.Z:0}) N = {b.N:0.0} kN, My = {b.My:0} kN·cm, Mz = {b.Mz:0} kN·cm [{elu.Nome}]");
+                }
+                foreach (var l in estrutura.Ligacoes)
+                {
+                    var f = estrutura.Esforco(l, elu);
+                    sb.AppendLine($"  {l.Dono}: V = {f.V:0.0} kN, H = {f.H:0.00} kN, Ht = {f.Ht:0.00} kN — {l.Observacao}");
+                }
+            }
+            foreach (ColumnGroup g in groups)
+                foreach (Corbel k in g.Representative.Corbels.Where(c => c.Carga != null))
+                    sb.AppendLine($"{g.Mark}: consolo face {ColumnRebarLayout.FaceNumber(k.Face)}, Vg = {k.Carga.Vg:0.0} kN, Vq = {k.Carga.Vq:0.0} kN, Hd/Vd = {k.Carga.FatorHd:0.00} — {k.Carga.Origem}");
             foreach (string n in notes) sb.AppendLine("NOTA: " + n);
             if (vary)
                 for (int i = 0; i < groups.Count; i++)

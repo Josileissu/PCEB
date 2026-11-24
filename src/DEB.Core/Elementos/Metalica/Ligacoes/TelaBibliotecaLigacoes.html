@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Biblioteca de ligações</title>
+<style>
+/* Biblioteca de ligações metálicas do PCEB (D49): lista | parâmetros | desenho. Identidade mata e ipê. Sem rede. */
+:root{
+  --ok:#2f6b3f; --conf:#b07a12; --nao:#9b2c1f;
+  --mata:#123a2c; --mata-claro:#e7efe9; --ipe:#e3a92b; --anil:#1d3f6e;
+  --papel:#f2f1ec; --tinta:#13201a; --suave:#5d665f; --linha:#d9d7cf; --branco:#ffffff;
+  --bg:var(--papel); --fg:var(--tinta); --card:var(--branco); --campo:#fbfaf7;
+  --aco:#8a929b; --aco-borda:#4b535c; --chapa:#e3a92b; --chapa-borda:#8a5a00; --parafuso:#1d3f6e; --solda:#9b2c1f; --concreto:#c9c8c1; --cota:#5d665f;
+  --f-titulo:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif; --f-texto:"Segoe UI",system-ui,sans-serif; --f-dado:Consolas,"Cascadia Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --aco:#5b636b; --aco-borda:#b9c1c9; --chapa:#b8861d; --chapa-borda:#f1c867; --parafuso:#8fb3e8; --solda:#f08a7a; --concreto:#59605a; --cota:#a3ada5;
+  --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --aco:#5b636b; --aco-borda:#b9c1c9; --chapa:#b8861d; --chapa-borda:#f1c867; --parafuso:#8fb3e8; --solda:#f08a7a; --concreto:#59605a; --cota:#a3ada5;
+  --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-texto);font-size:13.5px;line-height:1.45}
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr)}
+.topo{background:var(--mata);color:#fff;display:flex;align-items:center;gap:14px;padding:9px 14px;flex-wrap:wrap}
+.topo .nome{font-family:var(--f-titulo);font-size:1.05rem}
+.topo .sub{color:#c9d6cd;font-size:.8rem}
+.topo .esp{flex:1}
+.btn{border:1px solid var(--linha);background:var(--card);color:var(--fg);font:inherit;font-size:.84rem;padding:5px 12px;border-radius:5px;cursor:pointer}
+.btn:disabled{opacity:.45;cursor:default}
+.topo .btn{background:#1d4a39;color:#fff;border-color:#3d6252}
+.topo .btn.prim{background:var(--ipe);color:#13201a;border-color:var(--ipe);font-family:var(--f-titulo)}
+.aviso{font-size:.8rem;color:#ffe3a3}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--ipe);outline-offset:1px}
+.corpo{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:0}
+.lista{border-right:1px solid var(--linha);background:var(--campo);overflow:auto;padding:8px}
+.lista h4{margin:12px 4px 4px;font-family:var(--f-titulo);font-weight:600;font-size:.8rem;color:var(--suave);text-transform:uppercase;letter-spacing:.04em}
+.item{display:flex;gap:6px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;color:var(--fg);font:inherit;font-size:.86rem;padding:6px 8px;border-radius:5px;cursor:pointer}
+.item:hover{background:var(--mata-claro)}
+.item[aria-current="true"]{background:var(--mata);color:#fff}
+.item .id{display:block;font-family:var(--f-dado);font-size:.72rem;opacity:.75}
+.selo{display:inline-block;font-size:.68rem;padding:0 6px;border-radius:8px;white-space:nowrap;border:1px solid currentColor;margin-left:auto;flex:none}
+.selo.Pceb{color:var(--anil)}.selo.Escritorio{color:var(--conf)}.selo.Projeto{color:var(--ok)}
+.item[aria-current="true"] .selo{color:#fff}
+.novo{display:flex;gap:6px;margin:10px 4px}
+.novo select{flex:1;min-width:0;font:inherit;font-size:.82rem;border:1px solid var(--linha);border-radius:5px;background:var(--card);color:var(--fg)}
+.principal{overflow:auto;padding:14px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.cab{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.cab input,.cab textarea{font:inherit;border:1px solid var(--linha);border-radius:5px;background:var(--card);color:var(--fg);padding:4px 8px}
+.cab input{font-family:var(--f-titulo);font-size:1.05rem;flex:1;min-width:220px}
+.cab textarea{width:100%;font-size:.84rem;resize:vertical;min-height:38px}
+.meta{font-size:.78rem;color:var(--suave);width:100%}
+.duas{display:grid;grid-template-columns:minmax(280px,420px) minmax(0,1fr);gap:14px;align-items:start}
+.card{background:var(--card);border:1px solid var(--linha);border-radius:8px;padding:10px 12px}
+.card h4{margin:0 0 6px;font-family:var(--f-titulo);font-size:.9rem}
+.grupo{font-size:.76rem;color:var(--suave);text-transform:uppercase;letter-spacing:.04em;margin:10px 0 3px}
+.campo{display:grid;grid-template-columns:1fr 108px 36px;gap:6px;align-items:center;padding:2px 0}
+.campo label{font-size:.84rem}
+.campo input,.campo select{width:100%;font:inherit;font-family:var(--f-dado);font-size:.82rem;padding:3px 5px;border:1px solid var(--linha);border-radius:4px;background:var(--campo);color:var(--fg);text-align:right}
+.campo select{text-align:left;font-family:var(--f-texto)}
+.campo input.mudou,.campo select.mudou{border-color:var(--ipe);background:color-mix(in srgb,var(--ipe) 12%,var(--campo))}
+.campo .un{color:var(--suave);font-size:.74rem}
+.erros{color:var(--nao);font-size:.82rem}
+svg{width:100%;height:auto;display:block}
+.vistas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vistas figure{margin:0;border:1px solid var(--linha);border-radius:6px;background:var(--campo);padding:4px}
+.vistas figcaption{font-size:.74rem;color:var(--suave);padding:0 4px}
+.leg{display:flex;gap:10px;flex-wrap:wrap;font-size:.74rem;color:var(--suave);margin-top:6px}
+.leg i{display:inline-block;width:12px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.desc{font-size:.84rem;margin-top:6px;font-family:var(--f-dado)}
+.refs{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.8rem;color:var(--suave);margin-top:8px}
+.refs input{width:120px;font:inherit;font-family:var(--f-dado);font-size:.8rem;border:1px solid var(--linha);border-radius:4px;padding:2px 5px;background:var(--campo);color:var(--fg)}
+.acoes{display:flex;gap:8px;flex-wrap:wrap}
+.toast{position:fixed;right:16px;bottom:16px;background:var(--nao);color:#fff;padding:8px 12px;border-radius:6px;font-size:.84rem;display:none;max-width:60ch}
+@media (max-width:1000px){.duas{grid-template-columns:1fr}}
+@media (max-width:700px){.corpo{grid-template-columns:1fr}.lista{max-height:30vh;border-right:0;border-bottom:1px solid var(--linha)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topo">
+    <div><div class="nome">Biblioteca de ligações</div><div class="sub" id="sub">PCEB · D49 · NBR 8800:2024</div></div>
+    <span class="aviso" id="alterado"></span>
+    <div class="esp"></div>
+    <button class="btn" id="bTema" title="Claro / escuro">◐</button>
+    <button class="btn" id="bCancelar">Fechar sem gravar</button>
+    <button class="btn prim" id="bSalvar">Gravar no escritório</button>
+  </div>
+  <div class="corpo">
+    <nav class="lista" id="lista" aria-label="Modelos de ligação"></nav>
+    <main class="principal" id="principal"></main>
+  </div>
+</div>
+<div class="toast" id="toast" role="alert"></div>
+<script>
+"use strict";
+const host = window.chrome && window.chrome.webview;
+let E = /*DADOS*/null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const ORIG = { Pceb: "PCEB", Escritorio: "Escritório", Projeto: "Projeto" };
+function enviar(m) { if (host) host.postMessage(JSON.stringify(m)); }
+if (host) host.addEventListener("message", ev => { try { E = typeof ev.data === "string" ? JSON.parse(ev.data) : ev.data; tudo(); } catch (e) { } });
+$("#bTema").onclick = () => { const r = document.documentElement; const escuro = matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = (r.dataset.theme || (escuro ? "dark" : "light")) === "dark" ? "light" : "dark"; tudo(); };
+$("#bSalvar").onclick = () => enviar({ acao: "salvar" });
+$("#bCancelar").onclick = () => enviar({ acao: "cancelar" });
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+const fmt = (x, c = 0) => Number(x).toLocaleString("pt-BR", { maximumFractionDigits: c });
+
+function tudo() {
+  if (!E) return;
+  $("#alterado").textContent = E.alterado ? "● alterações não gravadas" : "";
+  $("#sub").textContent = "PCEB · D49 · NBR 8800:2024 · escritório: " + E.arquivo;
+  if (E.erro) { const t = $("#toast"); t.textContent = E.erro; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 5000); }
+  lista(); principal();
+}
+
+function lista() {
+  const box = $("#lista"); let h = "";
+  for (const t of E.tipos) {
+    h += `<h4>${esc(t.nome)}</h4>`;
+    for (const m of E.modelos.filter(x => x.tipo === t.id))
+      h += `<button class="item" data-id="${esc(m.id)}" aria-current="${m.id === E.selecionado}"><span>${esc(m.nome)}<span class="id">${esc(m.id)}${m.erros.length ? " · ⚠" : ""}</span></span><span class="selo ${m.origem}">${ORIG[m.origem]}</span></button>`;
+  }
+  h += `<div class="novo"><select id="novoTipo" aria-label="Tipo da ligação nova">${E.tipos.map(t => `<option value="${t.id}">${esc(t.nome)}</option>`).join("")}</select><button class="btn" id="bNovo">Nova</button></div>`;
+  box.innerHTML = h;
+  box.querySelectorAll(".item").forEach(b => b.onclick = () => enviar({ acao: "selecionar", id: b.dataset.id }));
+  $("#bNovo").onclick = () => enviar({ acao: "novo", tipo: $("#novoTipo").value });
+}
+
+function principal() {
+  const m = E.modelos.find(x => x.id === E.selecionado), box = $("#principal");
+  if (!m) { box.innerHTML = `<p>Nenhum modelo.</p>`; return; }
+  const t = E.tipos.find(x => x.id === m.tipo);
+  let form = "", grupo = "";
+  for (const p of t.parametros) {
+    if (p.grupo !== grupo) { grupo = p.grupo; form += `<div class="grupo">${esc(grupo)}</div>`; }
+    const v = m.valores[p.id], mudou = v !== p.padrao ? " mudou" : "";
+    const tip = esc(p.explicacao + (p.min !== undefined ? ` Faixa: ${p.min} a ${p.max}.` : "") + (p.auto ? " Aceita \"auto\"." : "") + ` Padrão: ${p.padrao}.`);
+    const ctrl = p.opcoes.length
+      ? `<select data-p="${p.id}" class="${mudou}">${p.opcoes.map(o => `<option${o === v ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`
+      : `<input data-p="${p.id}" class="${mudou}" value="${esc(v === "auto" ? "auto" : String(v).replace(".", ","))}" ${p.auto ? 'list="dlAuto"' : ""}>`;
+    form += `<div class="campo" title="${tip}"><label>${esc(p.rotulo)}</label>${ctrl}<span class="un">${esc(p.unidade)}</span></div>`;
+  }
+  const editavelOrig = m.origem === "Escritorio";
+  box.innerHTML = `
+    <div class="cab">
+      <input id="nome" value="${esc(m.nome)}" aria-label="Nome do modelo">
+      <span class="selo ${m.origem}" style="margin:6px 0 0">${ORIG[m.origem]}</span>
+      <div class="meta">${esc(m.id)} · ${esc(t.nome)}${m.origem === "Pceb" ? " · editar cria a versão do escritório (o modelo do PCEB não muda)" : m.temPceb ? " · versão do escritório de um modelo do PCEB" : ""}</div>
+      <textarea id="descr" aria-label="Descrição">${esc(m.descricao)}</textarea>
+    </div>
+    ${m.erros.length ? `<div class="erros">${m.erros.map(esc).join("<br>")}</div>` : ""}
+    <div class="duas">
+      <section class="card"><h4>Parâmetros</h4>${form}<datalist id="dlAuto"><option value="auto"></option></datalist></section>
+      <section class="card"><h4>Desenho</h4><div class="vistas" id="vistas"></div>
+        <div class="leg"><span><i style="background:var(--chapa)"></i>chapas</span><span><i style="background:#b9661d"></i>enrijecedores</span><span><i style="background:var(--parafuso)"></i>parafusos</span><span><i style="background:var(--solda)"></i>soldas</span><span><i style="background:var(--aco);opacity:.4"></i>perfis ligados (transparentes)</span><span><i style="background:var(--concreto)"></i>concreto</span></div>
+        <div class="desc" id="descTxt"></div>
+        <div class="refs">Perfis de referência: viga <input id="pv" value="${esc(E.perfilViga)}"> pilar <input id="pp" value="${esc(E.perfilPilar)}"></div>
+      </section>
+    </div>
+    <div class="acoes">
+      <button class="btn" id="bDup">Duplicar</button>
+      <button class="btn" id="bDel" ${editavelOrig ? "" : "disabled"}>${m.temPceb ? "Restaurar o do PCEB" : "Excluir"}</button>
+    </div>`;
+  box.querySelectorAll("[data-p]").forEach(el => el.addEventListener("change", () => enviar({ acao: "definir", id: m.id, param: el.dataset.p, valor: el.value })));
+  $("#nome").addEventListener("change", e => enviar({ acao: "renomear", id: m.id, nome: e.target.value }));
+  $("#descr").addEventListener("change", e => enviar({ acao: "renomear", id: m.id, descricao: e.target.value }));
+  $("#bDup").onclick = () => enviar({ acao: "duplicar", id: m.id });
+  $("#bDel").onclick = () => enviar({ acao: m.temPceb ? "restaurar" : "excluir", id: m.id });
+  $("#pv").addEventListener("change", e => enviar({ acao: "perfil", viga: e.target.value }));
+  $("#pp").addEventListener("change", e => enviar({ acao: "perfil", pilar: e.target.value }));
+  desenhar(m);
+}
+
+// ---------------------------------------------------------------- desenhos (D50, item 4): 3 vistas ortogonais + 3D, dos mesmos sólidos do núcleo
+function desenhar(m) {
+  const box = $("#vistas"), D = E.desenho;
+  $("#descTxt").textContent = D ? D.texto : (E.erroDesenho || "Corrija os parâmetros para ver o desenho.");
+  if (!D || !D.caixas) { box.innerHTML = ""; return; }
+  const COR = { Membro: css("--aco"), Chapa: css("--chapa"), Enrijecedor: "#b9661d", Parafuso: css("--parafuso"), Solda: css("--solda"), Concreto: css("--concreto") };
+  const BORDA = { Membro: css("--aco-borda"), Chapa: css("--chapa-borda"), Enrijecedor: "#6b3a0c", Parafuso: css("--parafuso"), Solda: css("--solda"), Concreto: css("--cota") };
+  const ALFA = { Membro: .16, Concreto: .35 };
+  const C = D.caixas.map(c => ({ p: c[0], x0: c[1], x1: c[2], y0: c[3], y1: c[4], z0: c[5], z1: c[6], r: c[7] }));
+  const base = m.tipo === "PlacaBase";
+  const W = 300, H = 220, M = 14;
+  function svgDe(pol) {   // pol: [{pts:[[u,v]...], papel, prof}]
+    let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+    pol.forEach(p => p.pts.forEach(([u, v]) => { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }));
+    const k = Math.min((W - 2 * M) / Math.max(1, u1 - u0), (H - 2 * M) / Math.max(1, v1 - v0));
+    const ox = M + ((W - 2 * M) - (u1 - u0) * k) / 2, oy = M + ((H - 2 * M) - (v1 - v0) * k) / 2;
+    let s2 = "";
+    pol.sort((a, b) => a.prof - b.prof).forEach(p => {
+      const pts = p.pts.map(([u, v]) => `${(ox + (u - u0) * k).toFixed(1)},${(oy + (v1 - v) * k).toFixed(1)}`).join(" ");
+      const a = ALFA[p.papel] ?? .95;
+      s2 += `<polygon points="${pts}" fill="${COR[p.papel]}" fill-opacity="${p.sombra ? a * p.sombra : a}" stroke="${BORDA[p.papel]}" stroke-opacity="${p.papel === "Membro" ? .55 : .9}" stroke-width="${p.papel === "Membro" ? .7 : .9}"><title>${esc(p.r)}</title></polygon>`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}">${s2}</svg>`;
+  }
+  // vistas ortogonais: (eixo u, eixo v, eixo de profundidade e sentido)
+  const orto = (fu, fv, fd) => svgDe(C.map(c => { const [a0, a1] = fu(c), [b0, b1] = fv(c); return { pts: [[a0, b0], [a1, b0], [a1, b1], [a0, b1]], papel: c.p, prof: fd(c), r: c.r }; }));
+  const topo = orto(c => [c.x0, c.x1], c => [c.y0, c.y1], c => c.z1);
+  const frente = orto(c => [c.y0, c.y1], c => [c.z0, c.z1], c => base ? c.x1 : -c.x0);
+  const lado = orto(c => [c.x0, c.x1], c => [c.z0, c.z1], c => -c.y0);
+  // isométrica: 3 faces visíveis por caixa (+z, −y, +x), pintor pela soma das coordenadas
+  const ca = Math.cos(Math.PI / 6), sa = Math.sin(Math.PI / 6);
+  const iso = [];
+  C.forEach(c => {
+    const q = (x, y, z) => { const u = (x + y) * ca, v = z + (y - x) * sa; return [u, v]; };
+    const faces = [
+      [[c.x0, c.y0, c.z1], [c.x1, c.y0, c.z1], [c.x1, c.y1, c.z1], [c.x0, c.y1, c.z1], 1.0],
+      [[c.x0, c.y0, c.z0], [c.x1, c.y0, c.z0], [c.x1, c.y0, c.z1], [c.x0, c.y0, c.z1], .8],
+      [[c.x1, c.y0, c.z0], [c.x1, c.y1, c.z0], [c.x1, c.y1, c.z1], [c.x1, c.y0, c.z1], .65],
+    ];
+    faces.forEach(f => iso.push({ pts: f.slice(0, 4).map(p => q(...p)), papel: c.p, sombra: f[4], prof: (c.x1 + c.x0) / 2 - (c.y0 + c.y1) / 2 + (c.z0 + c.z1) / 2 * 0.2 + (c.p === "Membro" || c.p === "Concreto" ? -1e5 : 0), r: c.r }));
+  });
+  const v3 = svgDe(iso);
+  const nomes = base ? ["Planta (vista de topo)", "Vista frontal (corte transversal)", "Vista lateral (corte longitudinal)", "3D — perfis transparentes"]
+                     : ["Vista de topo", "Corte transversal (vista frontal, olhando para o suporte)", "Vista lateral (corte longitudinal)", "3D — perfis transparentes"];
+  box.innerHTML = [topo, frente, lado, v3].map((s2, i) => `<figure><figcaption>${nomes[i]}</figcaption>${s2}</figure>`).join("");
+}
+
+if (E) tudo(); else enviar({ acao: "estado" });
+</script>
+</body>
+</html>

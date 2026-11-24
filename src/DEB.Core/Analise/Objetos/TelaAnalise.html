@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Modelo de análise</title>
+<style>
+/* Janela do modelo de análise do PCEB (D46): objetos | vista 3D | dados da seleção, na identidade mata e ipê. Sem rede. */
+:root{
+  --ok:#2f6b3f; --conf:#b07a12; --nao:#9b2c1f;
+  --mata:#123a2c; --mata-claro:#e7efe9; --ipe:#e3a92b; --ocre:#8a5a00; --anil:#1d3f6e; --erro:#9b2c1f;
+  --papel:#f2f1ec; --tinta:#13201a; --suave:#5d665f; --linha:#d9d7cf; --branco:#ffffff;
+  --bg:var(--papel); --fg:var(--tinta); --card:var(--branco); --campo:#fbfaf7;
+  --c-pilar:#123a2c; --c-viga:#1d3f6e; --c-lig:#b07a12; --c-vinc:#8a8f88; --c-sel:#e3a92b; --c-def:#9b2c1f; --c-diag:#1d3f6e; --c-carga:#9b2c1f;
+  --f-titulo:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif; --f-texto:"Segoe UI",system-ui,sans-serif; --f-dado:Consolas,"Cascadia Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --c-pilar:#7fc48f; --c-viga:#8fb3e8; --c-lig:#e3a92b; --c-vinc:#a3ada5; --c-def:#f08a7a; --c-diag:#8fb3e8; --c-carga:#f08a7a; --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --c-pilar:#7fc48f; --c-viga:#8fb3e8; --c-lig:#e3a92b; --c-vinc:#a3ada5; --c-def:#f08a7a; --c-diag:#8fb3e8; --c-carga:#f08a7a; --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-texto);font-size:13.5px;line-height:1.45}
+.app{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr)}
+.topo{background:var(--mata);color:#fff;display:flex;align-items:center;gap:14px;padding:9px 14px;flex-wrap:wrap}
+.topo .nome{font-family:var(--f-titulo);font-size:1.05rem}
+.topo .sub{color:#c9d6cd;font-size:.8rem}
+.topo .esp{flex:1}
+.topo select{background:#1d4a39;color:#fff;border:1px solid #3d6252;border-radius:5px;padding:4px 8px;font:inherit}
+.barra{display:flex;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--linha);flex-wrap:wrap;background:var(--card)}
+.seg{display:flex;border:1px solid var(--linha);border-radius:6px;overflow:hidden}
+.seg button{background:var(--card);color:var(--fg);border:0;border-right:1px solid var(--linha);padding:4px 9px;font:inherit;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--mata);color:#fff}
+.barra select,.barra input[type=range]{font:inherit}
+.barra select{padding:4px 6px;border:1px solid var(--linha);border-radius:5px;background:var(--campo);color:var(--fg)}
+.filtro{display:flex;gap:5px;align-items:center;color:var(--suave);font-size:.84rem}
+.btn{border:1px solid var(--linha);background:var(--card);color:var(--fg);font:inherit;font-size:.84rem;padding:5px 10px;border-radius:5px;cursor:pointer}
+.btn.prim{background:var(--mata);color:#fff;border-color:var(--mata)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ipe);outline-offset:1px}
+.corpo{display:grid;grid-template-columns:var(--larg-lista,230px) minmax(0,1fr) var(--larg-lateral,300px);min-height:0;position:relative}
+.divisor{position:absolute;top:0;bottom:0;width:7px;margin-left:-3px;cursor:col-resize;z-index:5}
+.divisor:hover,.divisor.ativo{background:var(--linha)}
+.lista{border-right:1px solid var(--linha);background:var(--campo);overflow:auto;padding:8px}
+.lista h4{margin:10px 4px 4px;font-family:var(--f-titulo);font-weight:600;font-size:.86rem;color:var(--suave);display:flex;align-items:center;gap:6px}
+.lista h4 i{width:12px;height:4px;border-radius:2px;display:inline-block}
+.obj{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--fg);font:inherit;font-size:.86rem;padding:5px 8px;border-radius:5px;cursor:pointer}
+.obj:hover{background:var(--mata-claro)}
+.obj[aria-current="true"]{background:var(--mata);color:#fff}
+.vista{position:relative;min-width:0;min-height:0;background:var(--card)}
+canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none}
+canvas.arrastando{cursor:grabbing}
+.legenda{position:absolute;left:12px;bottom:10px;background:color-mix(in srgb,var(--card) 88%,transparent);border:1px solid var(--linha);border-radius:6px;padding:6px 10px;font-size:.78rem;display:flex;gap:12px;align-items:center;flex-wrap:wrap;max-width:calc(100% - 24px)}
+.legenda span{display:flex;align-items:center;gap:5px}
+.legenda i{width:16px;height:4px;border-radius:2px;display:inline-block}
+.legenda i.rampa{width:150px;height:10px;border-radius:3px;background:linear-gradient(90deg,#2c7fb8,#41b6c4,#fdae61,#d7191c,#7f0000)}
+.dica{position:absolute;right:12px;top:8px;font-size:.74rem;color:var(--suave);pointer-events:none}
+.lateral{border-left:1px solid var(--linha);background:var(--campo);overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+.lateral h4{margin:0 0 4px;font-family:var(--f-titulo);font-weight:600;font-size:.9rem}
+.vazio{color:var(--suave);font-size:.86rem}
+table{border-collapse:collapse;width:100%;font-size:.8rem}
+th,td{padding:3px 5px;border-bottom:1px solid var(--linha);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--suave);font-weight:600}
+td{font-family:var(--f-dado)}
+.avisos{font-size:.8rem;color:var(--ocre);display:grid;gap:3px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.82rem}
+.kv b{font-weight:500;color:var(--suave)}
+.kv span{font-family:var(--f-dado)}
+.abas{position:absolute;left:12px;top:8px;z-index:2}
+#cv2{display:none;cursor:default}
+.vista.v2d #cv{display:none}.vista.v2d #cv2{display:block}
+.ponto{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:1px}
+.selo{display:inline-block;font-size:.72rem;padding:0 7px;border-radius:9px;color:#fff;white-space:nowrap}
+.verif td{font-family:var(--f-texto);white-space:normal;text-align:left;vertical-align:top}
+.verif td.v{font-family:var(--f-dado)}
+details{font-size:.8rem}details summary{cursor:pointer;color:var(--suave)}
+.aj{display:grid;grid-template-columns:minmax(0,1fr) minmax(118px,38%) 34px 18px;gap:4px 6px;align-items:center;font-size:.8rem}
+.aj .g{grid-column:1/-1;font-size:.7rem;color:var(--suave);text-transform:uppercase;letter-spacing:.04em;margin-top:6px}
+.aj input,.aj select{width:100%;font:inherit;font-family:var(--f-dado);font-size:.78rem;padding:2px 4px;border:1px solid var(--linha);border-radius:4px;background:var(--card);color:var(--fg);text-align:right}
+.aj select{text-align:left;font-family:var(--f-texto)}
+.aj .mudou{border-color:var(--ipe);background:color-mix(in srgb,var(--ipe) 14%,var(--card))}
+.aj .un{color:var(--suave);font-size:.72rem}
+.aj button{border:0;background:transparent;color:var(--suave);cursor:pointer;padding:0;font-size:.85rem}
+.aj-nota{font-size:.72rem;color:var(--suave);margin-top:4px}
+.erro-aj{background:var(--erro);color:#fff;font-size:.8rem;padding:6px 8px;border-radius:5px}
+details p{margin:4px 0}
+@media (max-width:1000px){.corpo{grid-template-columns:190px minmax(0,1fr)}.lateral{display:none}}
+@media (max-width:640px){.corpo{grid-template-columns:1fr;grid-template-rows:auto minmax(320px,1fr)}.lista{border-right:0;border-bottom:1px solid var(--linha);max-height:150px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topo">
+    <div><div class="nome">Modelo de análise</div><div class="sub" id="titulo">análise por objetos (D46)</div></div>
+    <div class="esp"></div>
+    <label style="display:flex;gap:6px;align-items:center;font-size:.84rem">Resultado <select id="resultado" aria-label="Caso ou combinação"></select></label>
+  </div>
+  <div class="barra">
+    <div class="seg" role="group" aria-label="O que mostrar">
+      <button type="button" data-modo="modelo" aria-pressed="true">Modelo</button>
+      <button type="button" data-modo="deformada" aria-pressed="false">Deformada</button>
+      <button type="button" data-modo="diagrama" aria-pressed="false">Diagrama</button>
+      <button type="button" data-modo="mapa" aria-pressed="false">Mapa de cores</button>
+      <button type="button" data-modo="situacao" aria-pressed="false">Situação</button>
+    </div>
+    <select id="esforco" aria-label="Esforço">
+      <option value="M" title="Momentos fletores My e Mz">Momentos (My, Mz)</option><option value="V">Cortantes (Vy, Vz)</option>
+      <option value="N">Normal</option><option value="T">Torção</option>
+    </select>
+    <select id="grandezaLaje" aria-label="Grandeza da laje" hidden>
+      <option value="mx">mx · momento (kN·m/m)</option><option value="my">my · momento (kN·m/m)</option>
+      <option value="uz">uz · flecha (mm)</option><option value="mxy">mxy · torção (kN·m/m)</option>
+    </select>
+    <label class="filtro" id="rotEscala">escala <input type="range" id="escala" min="0.2" max="5" step="0.1" value="1"></label>
+    <label class="filtro"><input type="checkbox" id="verCargas" checked> cargas</label>
+    <label class="filtro"><input type="checkbox" id="verNomes"> nomes</label>
+    <div class="seg" role="group" aria-label="Vista">
+      <button type="button" data-vista="iso">3D</button><button type="button" data-vista="xy">Planta</button>
+      <button type="button" data-vista="xz">Elev. XZ</button><button type="button" data-vista="yz">Elev. YZ</button>
+    </div>
+    <button class="btn" type="button" id="ajustar">Ajustar</button>
+    <select class="btn" id="exportar" title="Exporta o modelo de barras (nós, barras, aparelhos, vínculos, apoios e casos de carga)">
+      <option value="">Exportar…</option><option value="OpenSees">OpenSees (script Python)</option><option value="CalculiX">CalculiX (.inp)</option><option value="Sap2000">SAP2000 (.s2k)</option>
+    </select>
+    <span style="flex:1"></span>
+    <button class="btn prim" type="button" id="fechar">Fechar</button>
+  </div>
+  <div class="corpo">
+    <nav class="lista" id="lista" aria-label="Objetos"></nav>
+    <div class="vista" id="vista"><div class="seg abas" role="group" aria-label="Vista">
+        <button type="button" data-aba="3d" aria-pressed="true">3D</button><button type="button" data-aba="peca" aria-pressed="false">2D da peça</button><button type="button" data-aba="laje" aria-pressed="false">Laje · isovalores</button>
+      </div><canvas id="cv" aria-label="Vista 3D do modelo de análise"></canvas><canvas id="cv2" aria-label="Vista 2D"></canvas><div class="legenda" id="legenda"></div><div class="dica">arrastar: girar · Shift/botão direito: mover · roda: zoom · clique: selecionar</div></div>
+    <div class="divisor" id="divLista" title="Arraste para ajustar a largura da lista"></div><div class="divisor" id="divLateral" title="Arraste para ajustar a largura do painel (seleção, ajustes, cargas). Duplo clique volta ao padrão."></div>
+    <aside class="lateral" id="lateral"><div><h4>Seleção</h4><div class="vazio">Clique numa barra ou num objeto da lista.</div></div></aside>
+  </div>
+</div>
+<script>
+"use strict";
+const host = window.chrome && window.chrome.webview;
+const $ = id => document.getElementById(id);
+let D = null, R = null, modo = "modelo", sel = null, selBarra = -1, aba = "3d";
+const DETALHES = {}, CAMPOS = {}; let campoConsolo = "S2";
+const cv2 = $("cv2"), ctx2 = cv2.getContext("2d");
+const corSit = t => t === "Ok" ? css("--ok") : t === "NaoAtende" ? css("--nao") : css("--conf");
+const nomeSit = t => t === "Ok" ? "OK" : t === "NaoAtende" ? "Não atende" : "Conferir";
+const dimDe = chave => (D.dimensionamento || []).find(x => x.chave === chave);
+const cam = { az: -0.95, el: 0.5, zoom: 1, alvo: [0, 0, 0], esc: 1 };
+const cv = $("cv"), ctx = cv.getContext("2d");
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const NOMES = ["", "N", "Vy", "Vz", "T", "My", "Mz"];
+// componentes desenhadas por esforço: [índice na estação, eixo local ("z" ou "y"), sinal]. Momento do lado tracionado:
+// +My traciona +z; +Mz traciona −y (convenção vetorial dos resultados)
+const COMP = { M: [[5, "z", 1], [6, "y", -1]], V: [[3, "z", 1], [2, "y", 1]], N: [[1, "z", 1]], T: [[4, "y", 1]] };
+const ROTULO = { M: "momentos (lado tracionado)", V: "cortantes", N: "força normal (tração +)", T: "torção" };
+const intensidade = (s, e) => Math.hypot(...COMP[e].map(c => s[c[0]]));
+const ehMomento = k => k >= 4;
+const fmt = (v, c = 1) => (Math.abs(v) < 1e-9 ? 0 : v).toLocaleString("pt-BR", { minimumFractionDigits: c, maximumFractionDigits: c });
+const valor = (k, v) => ehMomento(k) ? fmt(v / 100, 2) + " kN·m" : fmt(v, 2) + " kN";
+
+function enviar(m) { if (host) host.postMessage(JSON.stringify(m)); }
+function receber(txt) {
+  const m = typeof txt === "string" ? JSON.parse(txt) : txt;
+  if (m.tipo === "modelo") { for (const k in DETALHES) delete DETALHES[k]; for (const k in CAMPOS) delete CAMPOS[k]; const primeira = !D, res = $("resultado").value; D = m; iniciar(primeira, res); if (m.erro) aviso(m.erro); if (m.aviso) aviso(m.aviso); }
+  else if (m.tipo === "aviso") alert(m.texto);
+  else if (m.tipo === "consolo") { DETALHES[m.chave] = m; if (aba === "peca") desenhar(); }
+  else if (m.tipo === "campo") { CAMPOS[m.chave] = m; if (aba === "peca") desenhar(); }
+}
+if (host) host.addEventListener("message", ev => receber(ev.data));
+
+// ---------------------------------------------------------------- dados
+function aviso(t) { const b = $("lateral"); const d = document.createElement("div"); d.className = "erro-aj"; d.textContent = t; b.prepend(d); setTimeout(() => d.remove(), 7000); }
+function iniciar(primeira = true, resAnt = "") {
+  $("titulo").textContent = D.titulo || "análise por objetos (D46)";
+  const s = $("resultado"); s.textContent = "";
+  D.resultados.forEach((r, i) => { const o = document.createElement("option"); o.value = i; o.textContent = (r.tipo === "caso" ? "Caso " : "") + r.nome; s.append(o); });
+  const elu = D.resultados.findIndex(r => r.tipo === "ELU"); s.value = !primeira && resAnt !== "" && D.resultados[+resAnt] ? resAnt : elu >= 0 ? elu : 0;
+  R = D.resultados[+s.value];
+  if (sel && !D.objetos.some(o => o.chave === sel)) sel = null;
+  if (selBarra >= D.barras.length) selBarra = -1;
+  lista(); if (primeira) ajustar(); lateral(); desenhar();
+  if (!primeira) return;
+  // #diagrama, #mapa, #deformada: abre no modo (prévia e autoteste)
+  const h = location.hash.slice(1); if (h) { const b = document.querySelector(`[data-modo="${h}"]`) || document.querySelector(`[data-aba="${h}"]`); if (b) b.click(); }
+}
+const cor = t => t === "Pilar" ? css("--c-pilar") : t === "Viga" ? css("--c-viga") : t === "Ligacao" ? css("--c-lig") : t === "Laje" ? "#7a8f86" : css("--c-vinc");
+
+function lista() {
+  const l = $("lista"); l.textContent = "";
+  const grupos = [["Pilar", "Pilares"], ["Viga", "Vigas"], ["Laje", "Lajes"], ["Ligacao", "Ligações"]];
+  for (const [t, nome] of grupos) {
+    const objs = D.objetos.filter(o => o.tipo === t);
+    if (!objs.length) continue;
+    const h = document.createElement("h4"); const i = document.createElement("i"); i.style.background = cor(t); h.append(i, `${nome} (${objs.length})`); l.append(h);
+    for (const o of objs) {
+      const b = document.createElement("button"); b.className = "obj"; b.type = "button"; b.title = o.resumo;
+      const dm = dimDe(o.chave); if (dm) { const pt = document.createElement("span"); pt.className = "ponto"; pt.style.background = corSit(dm.situacao); pt.title = nomeSit(dm.situacao); b.append(pt); }
+      b.append(o.nome);
+      b.setAttribute("aria-current", sel === o.chave ? "true" : "false");
+      b.addEventListener("click", () => { sel = sel === o.chave ? null : o.chave; selBarra = -1; lista(); lateral(); desenhar(); });
+      b.addEventListener("dblclick", () => { sel = o.chave; focar(o.chave); });
+      l.append(b);
+    }
+  }
+  if (D.avisos && D.avisos.length) {
+    const h = document.createElement("h4"); h.textContent = "Avisos"; l.append(h);
+    const d = document.createElement("div"); d.className = "avisos"; D.avisos.forEach(a => { const x = document.createElement("div"); x.textContent = a; d.append(x); }); l.append(d);
+  }
+}
+
+// ---------------------------------------------------------------- projeção
+function eixosCam() {
+  const ca = Math.cos(cam.az), sa = Math.sin(cam.az), ce = Math.cos(cam.el), se = Math.sin(cam.el);
+  return { d: [ce * ca, ce * sa, se], r: [-sa, ca, 0], u: [-se * ca, -se * sa, ce] };
+}
+let E = eixosCam(), W = 1, H = 1, tam = 1;
+function P(p) {
+  const v = [p[0] - cam.alvo[0], p[1] - cam.alvo[1], p[2] - cam.alvo[2]];
+  const s = cam.esc * cam.zoom;
+  return [W / 2 + s * (v[0] * E.r[0] + v[1] * E.r[1] + v[2] * E.r[2]), H / 2 - s * (v[0] * E.u[0] + v[1] * E.u[1] + v[2] * E.u[2])];
+}
+const no = i => [D.nos[i].x, D.nos[i].y, D.nos[i].z];
+function caixa(ids) {
+  const pts = (ids || D.nos.map((_, i) => i)).map(no);
+  const mn = [0, 1, 2].map(k => Math.min(...pts.map(p => p[k]))), mx = [0, 1, 2].map(k => Math.max(...pts.map(p => p[k])));
+  return { c: mn.map((v, k) => (v + mx[k]) / 2), t: Math.max(1, Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2])) };
+}
+function ajustar() {
+  const b = caixa(); cam.alvo = b.c; tam = b.t; cam.zoom = 1;
+  medir(); cam.esc = 0.8 * Math.min(W, H) / tam; desenhar();
+}
+function focar(chave) {
+  const ids = new Set();
+  D.barras.forEach(b => { if (b.dono === chave) { ids.add(b.i); ids.add(b.j); } });
+  D.molas.concat(D.vinculos).forEach(b => { if (b.dono === chave) { ids.add(b.i); ids.add(b.j); } });
+  if (!ids.size) return;
+  const b = caixa([...ids]); cam.alvo = b.c; cam.zoom = Math.min(20, Math.max(1, 0.5 * tam / Math.max(b.t, 30)));
+  lista(); lateral(); desenhar();
+}
+function medir() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  W = r.width; H = r.height; cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// ---------------------------------------------------------------- desenho
+function linha(a, b, c, w, traco) { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.setLineDash(traco || []); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); ctx.setLineDash([]); }
+function seta(p, q, c) {   // de p para q (tela)
+  linha(p, q, c, 1.4); const a = Math.atan2(q[1] - p[1], q[0] - p[0]), t = 7;
+  ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(q[0] - t * Math.cos(a - 0.4), q[1] - t * Math.sin(a - 0.4)); ctx.lineTo(q[0] - t * Math.cos(a + 0.4), q[1] - t * Math.sin(a + 0.4)); ctx.fill();
+}
+// rampa visível nos dois temas (azul = pouco, vermelho escuro = muito)
+const RAMPA = ["#2c7fb8", "#41b6c4", "#fdae61", "#d7191c", "#7f0000"];
+function rampa(t) {
+  t = Math.max(0, Math.min(1, t)) * (RAMPA.length - 1); const i = Math.min(RAMPA.length - 2, Math.floor(t)), f = t - i;
+  const h = s => [1, 3, 5].map(k => parseInt(s.substr(k, 2), 16)); const a = h(RAMPA[i]), b = h(RAMPA[i + 1]);
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",")})`;
+}
+const maxBarra = (ib, e) => Math.max(...R.estacoes[ib].map(s => intensidade(s, e)));
+function noDesl(i, f) { const u = R.desl[i]; const p = no(i); return [p[0] + f * u[0], p[1] + f * u[1], p[2] + f * u[2]]; }
+
+function desenhar() {
+  if (!D) return;
+  if (aba === "peca") return desenharPeca();
+  if (aba === "laje") return desenharLaje();
+  E = eixosCam(); ctx.clearRect(0, 0, W, H);
+  const k = $("esforco").value, escala = +$("escala").value;
+  const selecionada = b => (sel && b.dono === sel) || (selBarra >= 0 && D.barras[selBarra] === b);
+  // fator da deformada: maior deslocamento = 6 % do modelo
+  let fd = 0;
+  if (modo === "deformada") {
+    let um = Math.max(1e-12, ...R.desl.map(u => Math.hypot(u[0], u[1], u[2])));
+    R.estacoes.forEach(be => be.forEach(s => um = Math.max(um, Math.hypot(s[7], s[8], s[9]))));
+    fd = escala * 0.06 * tam / um;
+  }
+  let maxMapa = 1e-12;
+  const soPecas = b => b.tipo !== "Ligacao" && b.tipo !== "Laje";
+  if (modo === "mapa") D.barras.forEach((b, ib) => { if (soPecas(b)) maxMapa = Math.max(maxMapa, maxBarra(ib, k)); });
+
+  // vínculos e molas
+  D.vinculos.forEach(v => linha(P(no(v.i)), P(no(v.j)), sel && v.dono === sel ? css("--c-sel") : css("--c-vinc"), 2, [5, 4]));
+  D.molas.forEach(m => {
+    const a = P(no(m.i)), b = P(no(m.j)), c = sel && m.dono === sel ? css("--c-sel") : css("--c-lig");
+    if (Math.hypot(b[0] - a[0], b[1] - a[1]) < 4) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(a[0], a[1], 4, 0, 7); ctx.fill(); return; }
+    // zigue-zague
+    ctx.strokeStyle = c; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(a[0], a[1]);
+    const n = 6, dx = (b[0] - a[0]) / n, dy = (b[1] - a[1]) / n, L = Math.hypot(dx, dy) || 1, px = -dy / L * 4, py = dx / L * 4;
+    for (let i = 1; i < n; i++) ctx.lineTo(a[0] + dx * i + (i % 2 ? px : -px), a[1] + dy * i + (i % 2 ? py : -py));
+    ctx.lineTo(b[0], b[1]); ctx.stroke();
+  });
+  // barras
+  D.barras.forEach((b, ib) => {
+    let c = cor(b.tipo), w = b.tipo === "Pilar" ? 3 : b.tipo === "Laje" ? 1 : 2.5;
+    if (modo === "situacao") { const dm = dimDe(b.dono); c = dm ? corSit(dm.situacao) : css("--c-vinc"); }
+    if (modo === "mapa" && soPecas(b)) {
+      // trecho a trecho pelas estações
+      const est = R.estacoes[ib], pi = no(b.i), pt = s => P([0, 1, 2].map(q => pi[q] + b.ex[q] * s[0]));
+      for (let n = 0; n + 1 < est.length; n++)
+        linha(pt(est[n]), pt(est[n + 1]), rampa((intensidade(est[n], k) + intensidade(est[n + 1], k)) / 2 / maxMapa), selecionada(b) ? w + 3 : w + 1.5);
+      return;
+    }
+    if (modo === "deformada") c = css("--c-vinc"), w = 1.2;
+    if (selecionada(b)) { c = css("--c-sel"); w += 2; }
+    linha(P(no(b.i)), P(no(b.j)), c, w);
+    if (b.rotI || b.rotJ) {
+      ctx.fillStyle = css("--card"); ctx.strokeStyle = cor(b.tipo); ctx.lineWidth = 1.5;
+      const pi = P(no(b.i)), pj = P(no(b.j));
+      for (const [f, p] of [[b.rotI, pi], [b.rotJ, pj]]) if (f) { const q = [p[0] + (pj[0] - pi[0]) * 0.03 * (p === pi ? 1 : -1), p[1] + (pj[1] - pi[1]) * 0.03 * (p === pi ? 1 : -1)]; ctx.beginPath(); ctx.arc(q[0], q[1], 3.5, 0, 7); ctx.fill(); ctx.stroke(); }
+    }
+  });
+  // deformada
+  if (modo === "deformada") {
+    const c = css("--c-def");
+    // curva da barra pelas estações (Hermite + carga do vão, calculado no núcleo)
+    D.barras.forEach((b, ib) => {
+      const pi = no(b.i);
+      ctx.strokeStyle = c; ctx.lineWidth = 2.2; ctx.beginPath();
+      R.estacoes[ib].forEach((s, n) => { const q = P([0, 1, 2].map(k => pi[k] + b.ex[k] * s[0] + fd * s[7 + k])); n ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+      ctx.stroke();
+    });
+    D.vinculos.concat(D.molas).forEach(v => linha(P(noDesl(v.i, fd)), P(noDesl(v.j, fd)), c, 1, [3, 3]));
+  }
+  // diagramas: cada componente no seu plano local, do lado tracionado (momentos)
+  const rotulos = [];
+  const rotular = (x, y, texto) => {   // pula o rótulo que cairia em cima de outro
+    ctx.font = "11px " + css("--f-dado"); const w = ctx.measureText(texto).width + 6, h = 14;
+    if (rotulos.some(r => x < r[0] + r[2] && x + w > r[0] && y - h < r[1] && y > r[1] - r[3])) return;
+    rotulos.push([x, y, w, h]); ctx.fillStyle = css("--card"); ctx.globalAlpha = 0.8; ctx.fillRect(x - 2, y - 11, w - 2, 14); ctx.globalAlpha = 1;
+    ctx.fillStyle = css("--fg"); ctx.fillText(texto, x, y);
+  };
+  if (modo === "diagrama") {
+    let mx = 1e-12; D.barras.forEach((b, ib) => { if (soPecas(b)) R.estacoes[ib].forEach(s => COMP[k].forEach(c => mx = Math.max(mx, Math.abs(s[c[0]])))); });
+    const fs = escala * 0.07 * tam / mx, cd = css("--c-diag");
+    D.barras.forEach((b, ib) => {
+      if (!soPecas(b)) return;
+      const est = R.estacoes[ib], pi = no(b.i);
+      const base = est.map(s => [pi[0] + b.ex[0] * s[0], pi[1] + b.ex[1] * s[0], pi[2] + b.ex[2] * s[0]]);
+      for (const [q, eixo, sinal] of COMP[k]) {
+        const vmax = Math.max(...est.map(s => Math.abs(s[q])));
+        if (vmax < 1e-3 * mx) continue;
+        const dir = (eixo === "z" ? b.ez : b.ey).map(v => v * sinal);
+        const ponta = est.map((s, n) => base[n].map((v, c) => v + dir[c] * s[q] * fs));
+        ctx.fillStyle = cd + "33"; ctx.strokeStyle = cd; ctx.lineWidth = 1.3;
+        ctx.beginPath(); const b0 = P(base[0]); ctx.moveTo(b0[0], b0[1]);
+        ponta.forEach(p => { const t = P(p); ctx.lineTo(t[0], t[1]); });
+        const bn = P(base[base.length - 1]); ctx.lineTo(bn[0], bn[1]); ctx.closePath(); ctx.fill(); ctx.stroke();
+        let n = 0; est.forEach((s, i) => { if (Math.abs(s[q]) > Math.abs(est[n][q])) n = i; });
+        if (Math.abs(est[n][q]) > 0.1 * mx) {
+          const t = P(ponta[n]), v = k === "M" ? Math.abs(est[n][q]) : est[n][q];
+          rotular(t[0] + 4, t[1] - 3, `${NOMES[q]} ${valor(q, v)}`);
+        }
+      }
+    });
+  }
+  // apoios
+  D.apoios.forEach(a => {
+    const p = P(no(a.no)), eng = a.travado.every(x => x);
+    ctx.strokeStyle = css("--fg"); ctx.fillStyle = css("--mata-claro"); ctx.lineWidth = 1.4;
+    if (eng) { ctx.beginPath(); ctx.rect(p[0] - 7, p[1], 14, 7); ctx.fill(); ctx.stroke(); for (let i = -6; i <= 6; i += 4) linha([p[0] + i, p[1] + 7], [p[0] + i - 3, p[1] + 11], css("--fg"), 1); }
+    else { ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(p[0] - 7, p[1] + 10); ctx.lineTo(p[0] + 7, p[1] + 10); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  });
+  // cargas do caso
+  if ($("verCargas").checked && R.tipo === "caso" && D.cargas[R.nome]) {
+    const cc = css("--c-carga"), lista = D.cargas[R.nome];
+    const qmax = Math.max(1e-12, ...lista.filter(c => c.tipo === "distribuida").map(c => Math.hypot(...c.q)));
+    const fmax = Math.max(1e-12, ...lista.filter(c => c.tipo !== "distribuida").map(c => Math.hypot(c.F[0], c.F[1], c.F[2])));
+    for (const c of lista) {
+      if (c.tipo === "distribuida") {
+        const b = D.barras[c.barra], pi = no(b.i), L = b.L, a0 = c.a || 0, b0 = c.b > 0 ? c.b : L, mod = Math.hypot(...c.q);
+        const comp = 0.05 * tam * mod / qmax;
+        for (let t = 0; t <= 4; t++) {
+          const x = a0 + (b0 - a0) * t / 4, p = [pi[0] + b.ex[0] * x, pi[1] + b.ex[1] * x, pi[2] + b.ex[2] * x];
+          seta(P(p.map((v, i) => v - c.q[i] / mod * comp)), P(p), cc);
+        }
+      } else {
+        const p = c.tipo === "nodal" ? no(c.no) : (() => { const b = D.barras[c.barra], pi = no(b.i); return [0, 1, 2].map(i => pi[i] + b.ex[i] * c.a); })();
+        const F = c.F.slice(0, 3), mod = Math.hypot(...F); if (mod < 1e-9) continue;
+        seta(P(p.map((v, i) => v - F[i] / mod * 0.08 * tam * Math.max(0.3, mod / fmax))), P(p), cc);
+      }
+    }
+  }
+  // nomes
+  if ($("verNomes").checked) {
+    ctx.fillStyle = css("--suave"); ctx.font = "11px " + css("--f-texto");
+    const feitos = new Set();
+    D.barras.forEach(b => { if (feitos.has(b.dono)) return; feitos.add(b.dono); const o = D.objetos.find(x => x.chave === b.dono); if (!o) return; const m = P(no(b.i).map((v, i) => (v + no(b.j)[i]) / 2)); ctx.fillText(o.nome, m[0] + 5, m[1] - 5); });
+  }
+  legenda(k, maxMapa);
+}
+
+function legenda(k, maxMapa) {
+  const l = $("legenda"); l.textContent = "";
+  const item = (c, t, tr) => { const s = document.createElement("span"); const i = document.createElement("i"); i.style.background = c; if (tr) i.style.background = `repeating-linear-gradient(90deg,${c} 0 4px,transparent 4px 7px)`; s.append(i, t); l.append(s); };
+  if (modo === "mapa") {
+    const s = document.createElement("span"); s.append(`${ROTULO[k]}: 0`); const r = document.createElement("i"); r.className = "rampa"; s.append(r, valor(k === "M" || k === "T" ? 5 : 1, maxMapa)); l.append(s);
+    return;
+  }
+  if (modo === "situacao") { item(css("--ok"), "OK"); item(css("--conf"), "Conferir"); item(css("--nao"), "Não atende"); item(css("--c-vinc"), "sem verificação"); return; }
+  item(css("--c-pilar"), "pilar"); item(css("--c-viga"), "viga"); if (D.lajes && D.lajes.length) item("#7a8f86", "laje (grelha)"); item(css("--c-lig"), "aparelho (mola)"); item(css("--c-vinc"), "vínculo rígido", true);
+  if (modo === "deformada") item(css("--c-def"), "deformada (escala ampliada)");
+  if (modo === "diagrama") item(css("--c-diag"), ROTULO[k]);
+}
+
+// ---------------------------------------------------------------- 2D da peça: elevação com diagramas e envoltória ELU
+const resultadosELU = () => D.resultados.filter(r => r.tipo === "ELU");
+function medir2() { const r = cv2.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv2.width = Math.round(r.width * dpr); cv2.height = Math.round(r.height * dpr); ctx2.setTransform(dpr, 0, 0, dpr, 0, 0); return [r.width, r.height]; }
+function texto2(x, y, t, cor, alin) { ctx2.fillStyle = cor || css("--fg"); ctx2.font = "11px " + css("--f-dado"); ctx2.textAlign = alin || "left"; ctx2.fillText(t, x, y); ctx2.textAlign = "left"; }
+function ehConsolo(c) { return c && D.molas.some(m => m.dono === c); }
+
+// ---------------------------------------------------------------- detalhe do consolo (item 3): pilar, consolo, aparelho, viga, cargas, biela e tirante, chapa
+function desenharConsolo(w, h, chave) {
+  const det = DETALHES[chave];
+  if (!det) { texto2(20, 60, host ? "Calculando o detalhe do consolo (chapa e biela-tirante)…" : "Prévia sem o Revit: o detalhe do consolo é calculado pelo PCEB."); if (host && !det) { DETALHES[chave] = null; enviar({ acao: "detalhe", chave }); } return; }
+  if (det.erro) { texto2(20, 60, "Detalhe não calculado: " + det.erro, css("--erro")); return; }
+  const g = det.geo, c = det.cargas, b = det.biela, mf = det.mef;
+  // janela: x de −Lp − 10 até A + comprimento de viga; y de −(H + Lp) até Lp + 10
+  const vz = det.vizinhos || [];
+  const x0 = -g.lp - 25 - Math.max(0, ...vz.filter(v => v.lado < 0).map(v => v.a)), x1 = g.a + Math.max(60, 1.5 * g.hViga),
+        y0 = Math.min(-g.h, ...vz.map(v => v.dy - v.h)) - g.lp - 10, y1 = Math.max(0, ...vz.map(v => v.dy)) + g.lp + 30;
+  const painel = Math.min(w * 0.68, w - 300), esc = Math.min((painel - 80) / (x1 - x0), (h - 130) / (y1 - y0));
+  const ox = 50 - x0 * esc, oy = 96 + y1 * esc, X = x => ox + x * esc, Y = y => oy - y * esc;
+  // campo de tensões não linear (item 9): pedido sob demanda
+  const CT = campoConsolo === "C" ? CAMPOS[chave] : null;
+  if (campoConsolo === "C" && CT === undefined && host) { CAMPOS[chave] = null; enviar({ acao: "campo", chave }); }
+  const usoCor = u => { const t = Math.max(0, Math.min(1, u)); if (u > 1) return "rgb(178,24,43)";
+    return `rgb(${Math.round(247 - 214 * t)},${Math.round(247 - 145 * t)},${Math.round(247 - 75 * t)})`; };
+  // isovalores na chapa
+  const idx = { S1: 4, S2: 5, Sx: 7, Sy: 8, Txy: 9, C: 5 }[campoConsolo];
+  let vmin = 1e9, vmax = -1e9; mf.els.forEach(e => { vmin = Math.min(vmin, e[idx]); vmax = Math.max(vmax, e[idx]); });
+  const amp = Math.max(Math.abs(vmin), Math.abs(vmax), 1e-6);
+  const corV = v => { const t = Math.max(-1, Math.min(1, v / amp)); // azul = compressão, vermelho = tração
+    const a = t < 0 ? [44, 127, 184] : [215, 25, 28], f = Math.abs(t); return `rgb(${Math.round(247 + (a[0] - 247) * f)},${Math.round(247 + (a[1] - 247) * f)},${Math.round(247 + (a[2] - 247) * f)})`; };
+  mf.els.forEach((e, i) => {
+    ctx2.fillStyle = CT && CT.els && CT.els[i] ? usoCor(-CT.els[i][0] / Math.max(1e-6, CT.els[i][2])) : CT !== undefined && campoConsolo === "C" ? "#eee" : corV(e[idx]); ctx2.beginPath();
+    for (let k = 0; k < 4; k++) { const [x, y] = mf.nos[e[k]]; k ? ctx2.lineTo(X(x), Y(y)) : ctx2.moveTo(X(x), Y(y)); }
+    ctx2.closePath(); ctx2.fill();
+  });
+  // direções principais (compressão) em alguns elementos
+  if (CT && CT.els) {
+    // direções de compressão (bielas), traço proporcional à tensão
+    ctx2.strokeStyle = css("--fg"); ctx2.lineWidth = 1;
+    const smax = Math.max(1e-6, ...CT.els.map(x => -x[0]));
+    mf.els.forEach((e, i) => {
+      if (i % 2 || !CT.els[i] || -CT.els[i][0] < 0.05 * smax) return;
+      const cx = (mf.nos[e[0]][0] + mf.nos[e[2]][0]) / 2, cy = (mf.nos[e[0]][1] + mf.nos[e[2]][1]) / 2;
+      const ang = CT.els[i][1] + Math.PI / 2, l = 1 + 5 * -CT.els[i][0] / smax;
+      ctx2.beginPath(); ctx2.moveTo(X(cx - l / 2 * Math.cos(ang)), Y(cy - l / 2 * Math.sin(ang))); ctx2.lineTo(X(cx + l / 2 * Math.cos(ang)), Y(cy + l / 2 * Math.sin(ang))); ctx2.stroke();
+    });
+  }
+  else if (campoConsolo === "S2" || campoConsolo === "S1") {
+    ctx2.strokeStyle = css("--fg"); ctx2.lineWidth = 1;
+    mf.els.forEach((e, i) => {
+      if (i % 3) return;
+      const cx = (mf.nos[e[0]][0] + mf.nos[e[2]][0]) / 2, cy = (mf.nos[e[0]][1] + mf.nos[e[2]][1]) / 2;
+      const v = campoConsolo === "S2" ? e[5] : e[4], ang = e[6] + (campoConsolo === "S2" ? Math.PI / 2 : 0), l = Math.min(6, 2 + 4 * Math.abs(v) / amp);
+      ctx2.beginPath(); ctx2.moveTo(X(cx - l / 2 * Math.cos(ang)), Y(cy - l / 2 * Math.sin(ang))); ctx2.lineTo(X(cx + l / 2 * Math.cos(ang)), Y(cy + l / 2 * Math.sin(ang))); ctx2.stroke();
+    });
+  }
+  // armaduras do campo de tensões: cor por σs/fyd (verde → laranja → vermelho no escoamento; azul comprimida)
+  if (CT && CT.barras) CT.barras.forEach(b => {
+    const u = b[4] / CT.fyd;
+    ctx2.strokeStyle = u < 0 ? "rgb(33,102,172)" : u >= 0.999 ? "rgb(178,24,43)" : u > 0.6 ? "rgb(230,120,20)" : "rgb(26,152,80)";
+    ctx2.lineWidth = Math.max(1.5, Math.min(5, Math.sqrt(b[6]) * 1.6));
+    ctx2.beginPath(); ctx2.moveTo(X(b[0]), Y(b[1])); ctx2.lineTo(X(b[2]), Y(b[3])); ctx2.stroke();
+  });
+  // contornos: pilar, consolo, aparelho e ponta da viga
+  ctx2.strokeStyle = css("--c-pilar"); ctx2.lineWidth = 2;
+  ctx2.strokeRect(X(-g.lp), Y(y1 - 30), g.lp * esc, (y1 - 30 - (y0 + 10)) * esc);
+  // consolos vizinhos (mesmo pilar, mesmo plano): contorno, aparelho e cargas
+  vz.forEach(v => {
+    const xf = v.lado > 0 ? 0 : -g.lp, sx = v.lado > 0 ? 1 : -1;
+    ctx2.strokeStyle = css("--c-pilar"); ctx2.lineWidth = 2; ctx2.beginPath();
+    ctx2.moveTo(X(xf), Y(v.dy)); ctx2.lineTo(X(xf + sx * v.a), Y(v.dy)); ctx2.lineTo(X(xf + sx * v.a), Y(v.dy - v.h1)); ctx2.lineTo(X(xf), Y(v.dy - v.h)); ctx2.stroke();
+    ctx2.fillStyle = "#333"; ctx2.fillRect(X(xf + sx * v.pos - v.pad / 2), Y(v.dy + 1.2), v.pad * esc, 1.2 * esc);
+    texto2(X(xf + sx * v.pos) + (sx > 0 ? 4 : -4), Y(v.dy) - 40, `Vd = ${fmt(v.vd, 1)} kN`, css("--c-carga"), sx > 0 ? "left" : "right");
+    ctx2.strokeStyle = css("--c-carga"); ctx2.beginPath(); ctx2.moveTo(X(xf + sx * v.pos), Y(v.dy) - 36); ctx2.lineTo(X(xf + sx * v.pos), Y(v.dy) - 2); ctx2.stroke();
+    texto2(X(xf + sx * v.a / 2), Y(v.dy - v.h) + 14, v.nome, css("--suave"), "center");
+  });
+  ctx2.beginPath(); ctx2.moveTo(X(0), Y(0)); ctx2.lineTo(X(g.a), Y(0)); ctx2.lineTo(X(g.a), Y(-g.h1)); ctx2.lineTo(X(0), Y(-g.h)); ctx2.stroke();
+  const tAp = 1.2;
+  ctx2.fillStyle = "#333"; ctx2.fillRect(X(g.pos - g.pad / 2), Y(tAp), g.pad * esc, tAp * esc);
+  ctx2.strokeStyle = css("--c-viga"); ctx2.lineWidth = 2; ctx2.setLineDash([6, 4]);
+  ctx2.strokeRect(X(g.pos - g.pad / 2 - 3), Y(tAp + g.hViga), (x1 - g.pos + g.pad / 2 - 10) * esc, g.hViga * esc); ctx2.setLineDash([]);
+  texto2(X(g.pos + 10), Y(tAp + g.hViga / 2), "viga (ponta)", css("--c-viga"));
+  // biela e tirante
+  const zt = -(g.cob + 0.8), zb = zt - b.z;
+  ctx2.strokeStyle = css("--c-def"); ctx2.lineWidth = 3;
+  ctx2.beginPath(); ctx2.moveTo(X(-g.lp + 4), Y(zt)); ctx2.lineTo(X(g.pos), Y(zt)); ctx2.stroke();
+  ctx2.strokeStyle = css("--c-diag"); ctx2.setLineDash([8, 4]);
+  ctx2.beginPath(); ctx2.moveTo(X(g.pos), Y(zt)); ctx2.lineTo(X(0), Y(zb)); ctx2.stroke(); ctx2.setLineDash([]);
+  texto2(X(-g.lp) + 4, Y(zt) + 16, `tirante Rs = ${fmt(b.rs, 1)} kN`, css("--c-def"));
+  texto2(X(g.pos * 0.55) + 6, Y((zt + zb) / 2) + 14, `biela Rc = ${fmt(b.rc, 1)} kN (θ = ${fmt(b.theta, 0)}°)`, css("--c-diag"));
+  // cargas
+  const seta = (x, y, dx, dy, cor, t) => { ctx2.strokeStyle = cor; ctx2.fillStyle = cor; ctx2.lineWidth = 2; ctx2.beginPath(); ctx2.moveTo(x - dx, y - dy); ctx2.lineTo(x, y); ctx2.stroke();
+    const a = Math.atan2(dy, dx); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x - 9 * Math.cos(a - 0.4), y - 9 * Math.sin(a - 0.4)); ctx2.lineTo(x - 9 * Math.cos(a + 0.4), y - 9 * Math.sin(a + 0.4)); ctx2.fill(); if (t) texto2(x - dx + 4, y - dy - 4, t, cor); };
+  seta(X(g.pos), Y(tAp), 0, 46, css("--c-carga"), `Vd = ${fmt(c.vd, 1)} kN`);
+  if (Math.abs(c.hd) > 1e-6) { seta(X(g.pos) + (c.hd > 0 ? 50 : -50), Y(tAp / 2) - 6, c.hd > 0 ? 46 : -46, 0, css("--c-carga"), ""); texto2(X(g.pos) + 6, Y(tAp / 2) - 22, `Hd = ${fmt(c.hd, 2)} kN`, css("--c-carga")); }
+  if (c.n > 0) seta(X(-g.lp / 2), Y(g.lp), 0, 40, css("--c-carga"), `N = ${fmt(c.n, 1)} kN`);
+  // cotas e títulos
+  texto2(50, 62, `${(D.objetos.find(o => o.chave === chave) || {}).nome || chave} — ${c.comb} (análise, sem γn)  ·  consolo ${fmt(g.b, 0)} × ${fmt(g.h, 0)}/${fmt(g.h1, 0)} cm, balanço ${fmt(g.a, 0)} cm, a = ${fmt(g.pos, 1)} cm${g.estimado ? " · geometria ESTIMADA (sem detalhamento do pilar)" : ""}`, css("--suave"));
+  // painel à direita: escala e resultados
+  const px = painel + 20; let py = 100;
+  const linha = (t, cor) => { texto2(px, py, t, cor || css("--fg")); py += 18; };
+  if (campoConsolo === "C") {
+    linha("Campo de tensões (não linear, λ = 1 = cálculo)", css("--suave"));
+    if (!CT) { linha(host ? "calculando… (alguns segundos)" : "prévia sem o Revit: o campo é calculado pelo PCEB", css("--suave")); }
+    else if (CT.erro) linha("não calculado: " + CT.erro, css("--c-def"));
+    else {
+      for (let k = 0; k <= 10; k++) { ctx2.fillStyle = usoCor(k / 10); ctx2.fillRect(px + k * 22, py, 22, 12); }
+      py += 26; linha("σc2 / (kc2·ηfc·fcd): 0 … 1 (vermelho > 1)", css("--suave"));
+      linha(`concreto: uso máx. ${fmt(CT.usoConcreto * 100, 0)}%   ·   aço: σs,máx/fyd ${fmt(CT.usoAco * 100, 0)}%`, CT.usoConcreto > 1 || CT.usoAco > 1 ? css("--c-def") : css("--fg"));
+      linha(`fator de carga até a falha λ = ${fmt(CT.lambda, 2)}`, CT.lambda < 1 ? css("--c-def") : css("--ok"));
+      linha(`(${CT.falha})`, css("--suave"));
+      linha("barras: verde < 60%, laranja, vermelho = escoando, azul = comprimida", css("--suave"));
+      (CT.hipoteses || []).forEach(t => { const pal = t.split(" "); let l = ""; pal.forEach(p => { if ((l + p).length > 56) { linha(l, css("--suave")); l = "  "; } l += p + " "; }); linha(l, css("--suave")); });
+    }
+    py += 6; linha("Teclas: c = campo de tensões, 1/2/x/y/t = elástico", css("--suave"));
+    return;
+  }
+  linha("Campo: " + { S1: "σ1 (tração +)", S2: "σ2 (compressão −)", Sx: "σx", Sy: "σy", Txy: "τxy" }[campoConsolo] + " · MPa", css("--suave"));
+  for (let k = 0; k <= 10; k++) { const v = -amp + 2 * amp * k / 10; ctx2.fillStyle = corV(v); ctx2.fillRect(px + k * 22, py, 22, 12); }
+  py += 26; linha(`${fmt(-amp, 2)}  …  0  …  ${fmt(amp, 2)}`, css("--suave"));
+  py += 6; linha(`σ1,máx = ${fmt(mf.s1max, 2)} MPa (fctm = ${fmt(mf.fctm, 2)})`, mf.s1max > mf.fctm ? css("--c-def") : css("--fg"));
+  linha(`σ2,mín = ${fmt(mf.s2min, 2)} MPa (fcd = ${fmt(mf.fcd, 2)})`, -mf.s2min > mf.fcd ? css("--c-def") : css("--fg"));
+  linha(`chapa elástica Q4: ${mf.els.length} elementos`, css("--suave"));
+  if (vz.length) linha(`${vz.length} consolo(s) vizinho(s) no mesmo trecho`, css("--suave"));
+  linha(`espessura: pilar ${fmt(g.tp, 0)} cm, consolo ${fmt(g.b, 0)} cm`, css("--suave"));
+  py += 6; linha("Consolo: " + nomeSit(det.dim.situacao) + " (detalhes no painel)", corSit(det.dim.situacao));
+  py += 6; linha("Teclas: 1 = σ1, 2 = σ2, x = σx, y = σy, t = τxy", css("--suave"));
+  linha("c = campo de tensões não linear (concreto fissurado + armadura)", css("--suave"));
+}
+
+function desenharPeca() {
+  const [w, h] = medir2(); ctx2.clearRect(0, 0, w, h);
+  let chave = sel; const tipoDe = c => (D.objetos.find(o => o.chave === c) || {}).tipo;
+  if (ehConsolo(chave)) return desenharConsolo(w, h, chave);
+  if (!chave || !["Viga", "Pilar"].includes(tipoDe(chave))) chave = (D.objetos.find(o => o.tipo === "Viga") || D.objetos.find(o => o.tipo === "Pilar") || {}).chave;
+  if (!chave) { texto2(20, 60, "Selecione uma viga ou um pilar."); return; }
+  const o = D.objetos.find(x => x.chave === chave), viga = o.tipo === "Viga";
+  const bs = D.barras.map((b, ib) => ({ b, ib })).filter(x => x.b.dono === chave);
+  // percurso: barras na ordem, com o comprimento acumulado
+  let acc = 0; const pts = [];
+  bs.forEach(({ b, ib }) => { R.estacoes[ib].forEach((s, k) => pts.push({ ib, k, s: acc + s[0] })); acc += b.L; });
+  const L = acc, mx0 = 70, mx1 = w - 30;
+  const X = s => mx0 + (mx1 - mx0) * s / L;
+  // séries: [rótulo, índice, sinal de desenho, unidade]
+  const series = viga ? [["M (kN·m) · positivo embaixo", [[5, -1, "M"]]], ["V (kN)", [[3, 1, "V"]]], ["N (kN) · tração +", [[1, 1, "N"]]]]
+                      : [["M (kN·m)", [[5, 1, "My"], [6, 1, "Mz"]]], ["V (kN)", [[3, 1, "Vz"], [2, 1, "Vy"]]], ["N (kN) · tração +", [[1, 1, "N"]]]];
+  const elu = resultadosELU();
+  const topo = 86, alt = (h - topo - 20) / series.length;
+  texto2(mx0, 62, `${o.nome} — ${R.nome}  ·  tracejado: envoltória ELU (${elu.length} combinações)  ·  ${viga ? "apoio I → apoio J" : "base → topo"}, L = ${fmt(L / 100, 2)} m`, css("--suave"));
+  series.forEach(([rot, comps], n) => {
+    const y0 = topo + alt * n + alt / 2;
+    const val = (res, ib, k, q, sg) => sg * res.estacoes[ib][k][q] / (q >= 4 ? 100 : 1);
+    let vmax = 1e-9;
+    comps.forEach(([q, sg]) => [R, ...elu].forEach(res => pts.forEach(p => vmax = Math.max(vmax, Math.abs(val(res, p.ib, p.k, q, sg))))));
+    const esc = (alt * 0.42) / vmax;
+    ctx2.strokeStyle = css("--linha"); ctx2.lineWidth = 1; ctx2.beginPath(); ctx2.moveTo(mx0, y0); ctx2.lineTo(mx1, y0); ctx2.stroke();
+    texto2(8, y0 - alt * 0.38, rot, css("--suave"));
+    // divisões entre barras
+    let a2 = 0; bs.forEach(({ b }) => { a2 += b.L; if (a2 < L - 1e-6) { ctx2.strokeStyle = css("--linha"); ctx2.setLineDash([2, 3]); ctx2.beginPath(); ctx2.moveTo(X(a2), y0 - alt * 0.45); ctx2.lineTo(X(a2), y0 + alt * 0.45); ctx2.stroke(); ctx2.setLineDash([]); } });
+    const cores = [css("--c-diag"), css("--c-lig")];
+    comps.forEach(([q, sg, nome], c) => {
+      // envoltória
+      ctx2.strokeStyle = cores[c]; ctx2.lineWidth = 1; ctx2.setLineDash([4, 3]);
+      for (const f of [Math.max, Math.min]) { ctx2.beginPath(); pts.forEach((p, i) => { const v = f(...elu.map(res => val(res, p.ib, p.k, q, sg))); const y = y0 + v * esc; i ? ctx2.lineTo(X(p.s), y) : ctx2.moveTo(X(p.s), y); }); ctx2.stroke(); }
+      ctx2.setLineDash([]);
+      // resultado escolhido (preenchido)
+      ctx2.fillStyle = cores[c] + "33"; ctx2.strokeStyle = cores[c]; ctx2.lineWidth = 1.6; ctx2.beginPath(); ctx2.moveTo(X(0), y0);
+      pts.forEach(p => ctx2.lineTo(X(p.s), y0 + val(R, p.ib, p.k, q, sg) * esc)); ctx2.lineTo(X(L), y0); ctx2.closePath(); ctx2.fill(); ctx2.stroke();
+      // máximo e mínimo
+      let iMax = 0, iMin = 0; pts.forEach((p, i) => { const v = val(R, p.ib, p.k, q, sg); if (v > val(R, pts[iMax].ib, pts[iMax].k, q, sg)) iMax = i; if (v < val(R, pts[iMin].ib, pts[iMin].k, q, sg)) iMin = i; });
+      for (const i of new Set([iMax, iMin])) { const p = pts[i], v = val(R, p.ib, p.k, q, sg); if (Math.abs(v) < 0.02 * vmax) continue; texto2(X(p.s) + 4, y0 + v * esc + (v > 0 ? 13 : -4), `${nome} ${fmt(v, 2)} (x = ${fmt(p.s / 100, 2)} m)`, cores[c]); }
+    });
+  });
+  $("legenda").textContent = "";
+}
+
+// ---------------------------------------------------------------- laje: isovalores em planta
+const RAMPA_DIV = ["#2c7bb6", "#abd9e9", "#f7f7f7", "#fdae61", "#d7191c"];
+function rampaDiv(t) {   // t em [−1, 1]
+  t = (Math.max(-1, Math.min(1, t)) + 1) / 2 * (RAMPA_DIV.length - 1); const i = Math.min(RAMPA_DIV.length - 2, Math.floor(t)), f = t - i;
+  const hx = s => [1, 3, 5].map(k => parseInt(s.substr(k, 2), 16)); const a = hx(RAMPA_DIV[i]), b = hx(RAMPA_DIV[i + 1]);
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",")})`;
+}
+function desenharLaje() {
+  const [w, h] = medir2(); ctx2.clearRect(0, 0, w, h);
+  if (!D.lajes || !D.lajes.length) { texto2(20, 70, "Não há lajes no modelo."); return; }
+  let il = D.lajes.findIndex(l => l.chave === sel); if (il < 0) il = 0;
+  const L = D.lajes[il], g = $("grandezaLaje").value, dados = R.lajes[il][g], ny1 = L.ny + 1;
+  const V = (i, j) => { const v = dados[i * ny1 + j]; return v === null ? null : g === "uz" ? v * 10 : v; };   // uz em mm
+  let vmin = Infinity, vmax = -Infinity; dados.forEach((v, k) => { if (v !== null) { const x = g === "uz" ? v * 10 : v; vmin = Math.min(vmin, x); vmax = Math.max(vmax, x); } });
+  const lx = L.xs[L.nx], ly = L.ys[L.ny], mg = 70, esc = Math.min((w - 2 * mg) / lx, (h - 2 * mg - 30) / ly);
+  const ox = (w - lx * esc) / 2, oy = (h + ly * esc) / 2;
+  const P2 = (x, y) => [ox + x * esc, oy - y * esc];
+  const amp = Math.max(Math.abs(vmin), Math.abs(vmax), 1e-9), divergente = vmin < -1e-9 && vmax > 1e-9;
+  const nb = 12, faixa = v => { const t = divergente ? v / amp : (v - vmin) / Math.max(1e-9, vmax - vmin) * 2 - 1; return Math.round((t + 1) / 2 * nb) / nb * 2 - 1; };
+  const sub = 6;
+  for (let i = 0; i < L.nx; i++) for (let j = 0; j < L.ny; j++) {
+    const a = V(i, j), b = V(i + 1, j), c = V(i, j + 1), d = V(i + 1, j + 1);
+    if (a === null || b === null || c === null || d === null) continue;
+    for (let p = 0; p < sub; p++) for (let q = 0; q < sub; q++) {
+      const u = (p + 0.5) / sub, v = (q + 0.5) / sub, val = a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
+      ctx2.fillStyle = rampaDiv(faixa(val));
+      const dx = L.xs[i + 1] - L.xs[i], dy = L.ys[j + 1] - L.ys[j];
+      const [x0, y0] = P2(L.xs[i] + dx * p / sub, L.ys[j] + dy * (q + 1) / sub);
+      ctx2.fillRect(x0, y0, dx * esc / sub + 0.6, dy * esc / sub + 0.6);
+    }
+  }
+  // malha e contorno
+  ctx2.strokeStyle = css("--linha"); ctx2.lineWidth = 0.5;
+  for (let i = 0; i <= L.nx; i++) for (let j = 0; j <= L.ny; j++) {
+    if (L.nos[i * ny1 + j] < 0) continue;
+    const [x, y] = P2(L.xs[i], L.ys[j]);
+    if (i < L.nx && L.nos[(i + 1) * ny1 + j] >= 0) { const [x2, y2] = P2(L.xs[i + 1], L.ys[j]); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x2, y2); ctx2.stroke(); }
+    if (j < L.ny && L.nos[i * ny1 + j + 1] >= 0) { const [x2, y2] = P2(L.xs[i], L.ys[j + 1]); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x2, y2); ctx2.stroke(); }
+  }
+  // máximo e mínimo
+  let pMax = null, pMin = null;
+  for (let i = 0; i <= L.nx; i++) for (let j = 0; j <= L.ny; j++) { const v = V(i, j); if (v === null) continue; if (!pMax || v > pMax[2]) pMax = [i, j, v]; if (!pMin || v < pMin[2]) pMin = [i, j, v]; }
+  const un = g === "uz" ? "mm" : "kN·m/m";
+  for (const [i, j, v] of [pMax, pMin]) { const [x, y] = P2(L.xs[i], L.ys[j]); ctx2.fillStyle = css("--fg"); ctx2.beginPath(); ctx2.arc(x, y, 3.5, 0, 7); ctx2.fill(); texto2(x + 6, y - 6, `${fmt(v, 2)} ${un}`); }
+  const o = D.objetos.find(x => x.chave === L.chave) || {};
+  texto2(16, 62, `${o.nome || "laje"} — ${R.nome} · ${$("grandezaLaje").selectedOptions[0].textContent} · ${fmt(lx / 100, 2)} × ${fmt(ly / 100, 2)} m (eixo x da malha →)`, css("--suave"));
+  // legenda em faixas
+  const lg = $("legenda"); lg.textContent = "";
+  const s0 = document.createElement("span"); s0.append(`${fmt(divergente ? -amp : vmin, 2)} `);
+  const r = document.createElement("i"); r.className = "rampa"; r.style.background = `linear-gradient(90deg,${RAMPA_DIV.join(",")})`; s0.append(r, ` ${fmt(divergente ? amp : vmax, 2)} ${un}`); lg.append(s0);
+}
+
+// ---------------------------------------------------------------- seleção e painel
+function lateral() {
+  const box = $("lateral"); box.textContent = "";
+  const sec = (t, ...filhos) => { const d = document.createElement("div"); const h = document.createElement("h4"); h.textContent = t; d.append(h, ...filhos); box.append(d); };
+  const kv = pares => { const d = document.createElement("div"); d.className = "kv"; pares.forEach(([a, b]) => { const x = document.createElement("b"); x.textContent = a; const y = document.createElement("span"); y.textContent = b; d.append(x, y); }); return d; };
+  if (!D) return;
+  const chave = sel || (selBarra >= 0 ? D.barras[selBarra].dono : null);
+  if (!chave) { const v = document.createElement("div"); v.className = "vazio"; v.textContent = "Clique numa barra ou num objeto da lista."; sec("Seleção", v); resumoResultado(sec, kv); return; }
+  const o = D.objetos.find(x => x.chave === chave) || { nome: chave, resumo: "" };
+  sec(o.nome, kv([["tipo", o.tipo === "Ligacao" ? "ligação" : (o.tipo || "").toLowerCase()], ["", o.resumo]]));
+  // ajustes do modelo analítico (D50): o valor vem do Revit; o ajustado vale por cima, gravado no modelo
+  if (o.ajustes && o.ajustes.length) {
+    const g = document.createElement("div"); g.className = "aj"; let grupo = "";
+    for (const p of o.ajustes) {
+      if (p.grupo !== grupo) { grupo = p.grupo; const h = document.createElement("div"); h.className = "g"; h.textContent = grupo; g.append(h); }
+      const l = document.createElement("label"); l.textContent = p.rotulo; if (p.dica) l.title = p.dica;
+      let c;
+      if (p.opcoes.length) { c = document.createElement("select"); p.opcoes.forEach(x => { const op = document.createElement("option"); op.textContent = x; if (x === p.valor) op.selected = true; c.append(op); }); }
+      else { c = document.createElement("input"); const num = /^-?[0-9.]+$/.test(String(p.valor)); c.value = num ? String(p.valor).replace(".", ",") : p.valor; c.dataset.num = num ? "1" : ""; }
+      if (p.alterado) c.className = "mudou";
+      c.addEventListener("change", () => enviar({ acao: "ajustar", chave, prop: p.id, valor: c.dataset.num ? c.value.replace(",", ".") : c.value }));
+      const un = document.createElement("span"); un.className = "un"; un.textContent = p.unidade;
+      const r = document.createElement("button"); r.textContent = p.alterado ? "↺" : ""; r.title = "Voltar ao valor do Revit";
+      if (p.alterado) r.addEventListener("click", () => enviar({ acao: "restaurar", chave, prop: p.id }));
+      g.append(l, c, un, r);
+    }
+    const n = document.createElement("div"); n.className = "aj-nota";
+    n.textContent = host ? "A análise refaz na hora; os ajustes ficam gravados no modelo ao fechar a janela." : "Prévia sem o Revit: os ajustes não recalculam.";
+    sec("Ajustes do modelo", g, n);
+  }
+  // cargas do objeto (item 2): as do Revit aparecem para conferir; as do PCEB se lançam e removem aqui
+  if (o.tiposCarga && o.tiposCarga.length) {
+    const box2 = document.createElement("div");
+    (o.cargas || []).forEach(c => {
+      const r = document.createElement("div"); r.className = "kv"; r.style.gridTemplateColumns = "1fr auto auto";
+      const t = document.createElement("span"); t.textContent = c.texto; t.title = c.descricao || "";
+      const og = document.createElement("b"); og.textContent = c.origem === "Revit" ? "Revit" : "PCEB";
+      const x = document.createElement("button"); x.className = "btn"; x.style.padding = "0 6px"; x.textContent = c.origem === "Revit" ? "" : "✕"; x.title = "Remover";
+      if (c.origem !== "Revit") x.addEventListener("click", () => enviar({ acao: "carga", op: "remover", id: c.id }));
+      r.append(t, og, x); box2.append(r);
+    });
+    if (!(o.cargas || []).length) { const v = document.createElement("div"); v.className = "vazio"; v.textContent = "Sem cargas além do peso próprio e das cargas da peça."; box2.append(v); }
+    const f = document.createElement("div"); f.className = "aj"; f.style.marginTop = "8px";
+    const NOMES = { Linear: "Linear (kN/m)", Pontual: "Pontual (kN)", Superficie: "Superfície (kN/m²)" };
+    const campo = (rot, el, un = "") => { const l = document.createElement("label"); l.textContent = rot; const u = document.createElement("span"); u.className = "un"; u.textContent = un; f.append(l, el, u, document.createElement("span")); return el; };
+    const sel = (ops, nomes) => { const s2 = document.createElement("select"); ops.forEach(v => { const op = document.createElement("option"); op.value = v; op.textContent = nomes ? nomes[v] : v; s2.append(op); }); return s2; };
+    const inp = v => { const i = document.createElement("input"); i.value = v; return i; };
+    const tipo = campo("Tipo", sel(o.tiposCarga, NOMES)), caso = campo("Caso", sel(["G", "Q"], { G: "G · permanente", Q: "Q · variável" }));
+    const val = campo("Valor (Z: + para baixo)", inp(""), ""), dir = campo("Direção", sel(["Z", "X", "Y"]));
+    const pos = campo(o.tipo === "Pilar" ? "Altura z (da base)" : "Posição / início x", inp("0"), "cm"), fim = campo("Fim do trecho (0 = até J)", inp("0"), "cm");
+    const add = document.createElement("button"); add.className = "btn"; add.textContent = "Adicionar carga"; add.style.marginTop = "6px";
+    add.addEventListener("click", () => enviar({ acao: "carga", op: "adicionar", alvo: chave, tipo: tipo.value, caso: caso.value, valor: val.value.replace(",", "."),
+      posicao: pos.value.replace(",", "."), fim: fim.value.replace(",", "."), direcao: dir.value }));
+    const env = document.createElement("button"); env.className = "btn"; env.textContent = "Enviar cargas do PCEB ao Revit"; env.style.margin = "6px 0 0 6px";
+    env.title = "Cria as cargas lançadas aqui como cargas nativas do Revit (casos PCEB G e PCEB Q), ao fechar a janela.";
+    env.addEventListener("click", () => enviar({ acao: "enviarCargas" }));
+    sec("Cargas", box2, f, add, env);
+  }
+  const dm = dimDe(chave);
+  if (dm) {
+    const d = document.createElement("div");
+    const selo = document.createElement("span"); selo.className = "selo"; selo.style.background = corSit(dm.situacao); selo.textContent = nomeSit(dm.situacao); d.append(selo);
+    dm.resumo.forEach(t => { const p = document.createElement("div"); p.style.cssText = "font-size:.82rem;margin-top:4px"; p.textContent = t; d.append(p); });
+    const t = document.createElement("table"); t.className = "verif"; t.style.marginTop = "6px";
+    dm.verificacoes.forEach(v => {
+      const tr = document.createElement("tr");
+      const a = document.createElement("td"); const sl = document.createElement("span"); sl.className = "selo"; sl.style.background = corSit(v.situacao); sl.textContent = v.codigo; a.append(sl);
+      const b = document.createElement("td"); b.textContent = v.descricao; b.title = v.referencia + (v.dica ? " — " + v.dica : "");
+      const c = document.createElement("td"); c.className = "v"; c.textContent = v.valor + " " + v.limite;
+      tr.append(a, b, c); t.append(tr);
+    });
+    d.append(t);
+    if (dm.memoria && dm.memoria.linhas.length) {
+      const det = document.createElement("details"); const sm = document.createElement("summary"); sm.textContent = "Memória de cálculo"; det.append(sm);
+      dm.memoria.linhas.forEach(l => { const p = document.createElement("p"); p.textContent = l; det.append(p); });
+      d.append(det);
+    }
+    sec("Dimensionamento", d);
+  }
+  // ligação: forças da mola (eixos: x' ao longo da viga, z' vertical)
+  D.molas.forEach((m, im) => {
+    if (m.dono !== chave) return;
+    const f = R.molas[im];
+    sec("Forças no aparelho · " + R.nome, kv([["V (sobre o consolo)", valor(1, -f[2])], ["H ao longo da viga", valor(1, f[0])], ["H transversal", valor(1, f[1])],
+      ["Kh / Kv", `${fmt(m.k[0], 1)} / ${fmt(m.k[2], 0)} kN/cm`]]));
+  });
+  // barras do objeto: esforços nas pontas
+  const t = document.createElement("table");
+  t.innerHTML = "<tr><th>barra · ponta</th><th>N</th><th>Vy</th><th>Vz</th><th>T</th><th>My</th><th>Mz</th></tr>";
+  D.barras.forEach((b, ib) => {
+    if (b.dono !== chave && ib !== selBarra) return;
+    const est = R.estacoes[ib];
+    for (const [rot, s] of [["I", est[0]], ["J", est[est.length - 1]]]) {
+      const tr = document.createElement("tr");
+      const c0 = document.createElement("td"); c0.textContent = (b.nome || "#" + ib).replace(o.nome, "").trim() + " · " + rot; tr.append(c0);
+      for (let q = 1; q <= 6; q++) { const c = document.createElement("td"); c.textContent = ehMomento(q) ? fmt(s[q] / 100, 2) : fmt(s[q], 2); tr.append(c); }
+      t.append(tr);
+    }
+  });
+  if (t.rows.length > 1) { const n = document.createElement("div"); n.className = "vazio"; n.textContent = "kN e kN·m; N > 0 tração; eixos locais da barra"; sec("Esforços nas pontas · " + R.nome, t, n); }
+  // reações dos apoios do objeto
+  const re = R.reacoes.filter(r => D.barras.some(b => b.dono === chave && (b.i === r.no || b.j === r.no)));
+  re.forEach(r => sec("Reação no apoio", kv([["Fx, Fy, Fz", r.R.slice(0, 3).map(v => fmt(v, 2)).join("; ") + " kN"], ["Mx, My, Mz", r.R.slice(3).map(v => fmt(v / 100, 2)).join("; ") + " kN·m"]])));
+}
+function resumoResultado(sec, kv) {
+  const somaZ = R.reacoes.reduce((s, r) => s + r.R[2], 0);
+  const um = Math.max(...R.desl.map(u => Math.hypot(u[0], u[1], u[2])));
+  sec("Resultado · " + R.nome, kv([["nós / barras", `${D.nos.length} / ${D.barras.length}`], ["aparelhos / vínculos", `${D.molas.length} / ${D.vinculos.length}`],
+    ["Σ reações verticais", fmt(somaZ, 2) + " kN"], ["maior deslocamento", fmt(um * 10, 2) + " mm"]]));
+}
+
+function escolher(px, py) {
+  let melhor = -1, dist = 9;
+  D.barras.forEach((b, ib) => {
+    const a = P(no(b.i)), c = P(no(b.j)), dx = c[0] - a[0], dy = c[1] - a[1], L2 = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((px - a[0]) * dx + (py - a[1]) * dy) / L2)), d = Math.hypot(px - a[0] - t * dx, py - a[1] - t * dy);
+    if (d < dist) { dist = d; melhor = ib; }
+  });
+  let chaveMola = null;
+  D.molas.forEach(m => { const a = P(no(m.i)); if (Math.hypot(px - a[0], py - a[1]) < 7) chaveMola = m.dono; });
+  if (chaveMola) { sel = chaveMola; selBarra = -1; }
+  else { selBarra = melhor; sel = melhor >= 0 ? D.barras[melhor].dono : null; }
+  lista(); lateral(); desenhar();
+}
+
+// ---------------------------------------------------------------- interação
+let arr = null;
+cv.addEventListener("contextmenu", e => e.preventDefault());
+cv.addEventListener("pointerdown", e => { arr = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, mover: e.shiftKey || e.button === 2 }; cv.setPointerCapture(e.pointerId); cv.classList.add("arrastando"); });
+cv.addEventListener("pointermove", e => {
+  if (!arr) return;
+  const dx = e.clientX - arr.x, dy = e.clientY - arr.y; arr.x = e.clientX; arr.y = e.clientY;
+  if (arr.mover) { const s = cam.esc * cam.zoom; for (let c = 0; c < 3; c++) cam.alvo[c] -= (dx * E.r[c] - dy * E.u[c]) / s; }
+  else { cam.az -= dx * 0.008; cam.el = Math.max(-1.55, Math.min(1.55, cam.el + dy * 0.008)); }
+  desenhar();
+});
+cv.addEventListener("pointerup", e => {
+  cv.classList.remove("arrastando");
+  if (arr && Math.hypot(e.clientX - arr.x0, e.clientY - arr.y0) < 4) { const r = cv.getBoundingClientRect(); escolher(e.clientX - r.left, e.clientY - r.top); }
+  arr = null;
+});
+cv.addEventListener("wheel", e => { e.preventDefault(); cam.zoom = Math.max(0.1, Math.min(80, cam.zoom * Math.exp(-e.deltaY * 0.0015))); desenhar(); }, { passive: false });
+document.querySelectorAll("[data-modo]").forEach(b => b.addEventListener("click", () => {
+  modo = b.dataset.modo; document.querySelectorAll("[data-modo]").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  $("esforco").disabled = !(modo === "diagrama" || modo === "mapa"); $("rotEscala").style.visibility = modo === "deformada" || modo === "diagrama" ? "visible" : "hidden"; desenhar();
+}));
+document.querySelectorAll("[data-vista]").forEach(b => b.addEventListener("click", () => {
+  const v = b.dataset.vista;
+  [cam.az, cam.el] = v === "xy" ? [-Math.PI / 2, Math.PI / 2 - 1e-3] : v === "xz" ? [-Math.PI / 2, 0] : v === "yz" ? [0, 0] : [-0.95, 0.5];
+  desenhar();
+}));
+$("resultado").addEventListener("change", () => { R = D.resultados[+$("resultado").value]; lateral(); desenhar(); });
+["esforco", "escala", "verCargas", "verNomes"].forEach(id => $(id).addEventListener("input", desenhar));
+$("ajustar").addEventListener("click", ajustar);
+$("exportar").addEventListener("change", ev => { const f = ev.target.value; ev.target.value = ""; if (f) enviar({ acao: "exportar", formato: f }); });
+window.addEventListener("keydown", ev => { if (aba !== "peca" || !ehConsolo(sel)) return; const k = { "1": "S1", "2": "S2", "x": "Sx", "y": "Sy", "t": "Txy", "c": "C" }[ev.key]; if (k) { campoConsolo = k; desenhar(); } });
+document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
+  aba = b.dataset.aba; document.querySelectorAll("[data-aba]").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  $("vista").classList.toggle("v2d", aba !== "3d"); $("grandezaLaje").hidden = aba !== "laje"; desenhar();
+}));
+$("grandezaLaje").addEventListener("input", desenhar);
+$("fechar").addEventListener("click", () => enviar({ acao: "fechar" }));
+window.addEventListener("resize", () => { medir(); desenhar(); posDivisores(); });
+// ---------------------------------------------------------------- larguras ajustáveis da lista e do painel lateral (lembradas neste computador)
+const corpoEl = document.querySelector(".corpo"), LARG = { lista: 230, lateral: 300 };
+function lerLarg(k) { try { const v = +localStorage.getItem("pceb.analise.larg." + k); return v > 0 ? v : LARG[k]; } catch { return LARG[k]; } }
+function porLarg(k, v, gravar) {
+  const w = corpoEl.getBoundingClientRect().width, min = k === "lista" ? 140 : 220, max = Math.max(min, w * (k === "lista" ? 0.35 : 0.6));
+  v = Math.round(Math.max(min, Math.min(max, v)));
+  corpoEl.style.setProperty(k === "lista" ? "--larg-lista" : "--larg-lateral", v + "px");
+  if (gravar) try { localStorage.setItem("pceb.analise.larg." + k, v); } catch { }
+}
+function posDivisores() {
+  const r = corpoEl.getBoundingClientRect(), lista = corpoEl.firstElementChild, lat = document.getElementById("lateral");
+  const visivel = getComputedStyle(lat).display !== "none";
+  document.getElementById("divLateral").style.display = visivel ? "" : "none";
+  document.getElementById("divLateral").style.left = (lat.getBoundingClientRect().left - r.left) + "px";
+  document.getElementById("divLista").style.left = (lista.getBoundingClientRect().right - r.left) + "px";
+}
+[["divLista", "lista", 1], ["divLateral", "lateral", -1]].forEach(([id, k, sinal]) => {
+  const d = document.getElementById(id);
+  d.addEventListener("pointerdown", ev => {
+    ev.preventDefault(); d.setPointerCapture(ev.pointerId); d.classList.add("ativo");
+    const x0 = ev.clientX, w0 = k === "lista" ? corpoEl.firstElementChild.getBoundingClientRect().width : document.getElementById("lateral").getBoundingClientRect().width;
+    const mover = e => { porLarg(k, w0 + sinal * (e.clientX - x0), false); posDivisores(); medir(); desenhar(); };
+    const soltar = e => { d.releasePointerCapture(ev.pointerId); d.classList.remove("ativo"); d.removeEventListener("pointermove", mover); d.removeEventListener("pointerup", soltar);
+      porLarg(k, w0 + sinal * (e.clientX - x0), true); posDivisores(); medir(); desenhar(); };
+    d.addEventListener("pointermove", mover); d.addEventListener("pointerup", soltar);
+  });
+  d.addEventListener("dblclick", () => { try { localStorage.removeItem("pceb.analise.larg." + k); } catch { } porLarg(k, LARG[k], false); posDivisores(); medir(); desenhar(); });
+});
+porLarg("lista", lerLarg("lista"), false); porLarg("lateral", lerLarg("lateral"), false); requestAnimationFrame(posDivisores);
+$("esforco").disabled = true; $("rotEscala").style.visibility = "hidden";
+medir();
+if (window.DADOS_DEMO) receber(window.DADOS_DEMO); else enviar({ acao: "pronto" });
+</script>
+</body>
+</html>

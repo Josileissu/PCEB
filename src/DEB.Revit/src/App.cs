@@ -42,6 +42,34 @@ namespace DEB.Revit
             };
             panel.AddItem(config);
 
+            var cfgProjeto = new PushButtonData("DEB_ConfiguracaoProjeto", "Configuração\ndo projeto", dll, typeof(ConfiguracaoProjetoCommand).FullName)
+            {
+                ToolTip = "Normas, coeficientes, materiais, durabilidade, unidades e bitolas do projeto (D45): padrão do escritório e do projeto.",
+                LongDescription = "O escritório fica num arquivo comum ao CAD; o projeto fica gravado dentro do modelo. Valor fora da norma é aceito com justificativa, que sai no memorial.",
+                LargeImage = IconFactory.Create(32, "⚖"),
+                Image = IconFactory.Create(16, "⚖")
+            };
+            panel.AddItem(cfgProjeto);
+
+            var bibLig = new PushButtonData("DEB_BibliotecaLigacoes", "Biblioteca de\nligações", dll, typeof(BibliotecaLigacoesCommand).FullName)
+            {
+                ToolTip = "Ligações metálicas parametrizadas do PCEB e do escritório (D49): chapa de alma, cantoneira dupla, chapa de topo e placa de base.",
+                LongDescription = "As do PCEB vêm com o programa; o escritório edita, cria e grava as suas num arquivo comum ao CAD e ao Revit. A análise usa a primeira de cada tipo e verifica pela NBR 8800:2024.",
+                LargeImage = IconFactory.Create(32, "⛓"),
+                Image = IconFactory.Create(16, "⛓")
+            };
+            panel.AddItem(bibLig);
+
+            var modLig = new PushButtonData("DEB_ModelarLigacoes", "Modelar\nligações", dll, typeof(ModelarLigacoesCommand).FullName)
+            {
+                ToolTip = "Verifica e modela as ligações das peças de aço (D49) com as famílias PCEB: chapas, parafusos e chumbadores.",
+                LongDescription = "Usa a biblioteca de ligações e a NBR 8800:2024; mostra o resumo antes de criar. Cada ligação vira um grupo \"PCEB <id>\"; rodar de novo atualiza.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "⚙"),
+                Image = IconFactory.Create(16, "⚙")
+            };
+            panel.AddItem(modLig);
+
             var diag = new PushButtonData("SD_Diagnostico", "Diagnóstico", dll, typeof(DiagnosticsCommand).FullName)
             {
                 ToolTip = "Grava um levantamento do modelo (pilares, vigas, consolos, contatos entre peças) para análise.",
@@ -79,6 +107,15 @@ namespace DEB.Revit
                 Image = IconFactory.Create(16, "V")
             };
             precast.AddItem(vigas);
+
+            var analitico = new PushButtonData("DEB_ModeloAnalitico", "Modelo de\nanálise", dll, typeof(ModeloAnaliticoCommand).FullName)
+            {
+                ToolTip = "Monta pilares, vigas e ligações por consolo como objetos (D46), analisa e mostra na janela do PCEB: 3D, deformada, diagramas e mapa de cores.",
+                LongDescription = "O modelo é do PCEB (não escreve no Revit). Cada barra guarda o dono (pilar, viga ou ligação). Consolo = barra rígida até o ponto de apoio; aparelho de apoio = mola pela rigidez do elastômero.",
+                LargeImage = IconFactory.Create(32, "⌗"),
+                Image = IconFactory.Create(16, "⌗")
+            };
+            precast.AddItem(analitico);
 
             var conferir = new PushButtonData("DEB_ConferirPecas", "Conferir\npeças", dll, typeof(ReviewPiecesCommand).FullName)
             {
