@@ -30,7 +30,7 @@ namespace DEB.Revit.Contencao
         {
             string C(double m) => Math.Round(m * 100).ToString("0", CultureInfo.InvariantCulture);
             string s = $"{Prefixo} H{C(d.AlturaTotal)} B{C(d.Base)} P{C(d.Ponta)} F{C(d.EspessuraTopo)}-{C(d.EspessuraBase)} S{C(d.EspessuraSapata)} R{C(d.TerrenoFrente)}";
-            if (d.DenteAltura > 1e-9) s += $" D{C(d.DenteAltura)}x{C(d.DenteLargura)}@{C(d.DenteInicio)}";
+            if (d.DenteAltura > 1e-9) s += $" D{C(d.DenteAltura)}x{C(d.DenteLargura)}-{C(d.DenteInicio)}";
             return s;
         }
 
@@ -74,7 +74,7 @@ namespace DEB.Revit.Contencao
             string modelo = Modelo(app);
             if (modelo == null) { log.AppendLine("Modelo de família genérico métrico não encontrado."); return null; }
             Directory.CreateDirectory(Pasta);
-            string arq = Path.Combine(Pasta, nome.Replace("@", "a") + ".rfa");
+            string arq = Path.Combine(Pasta, nome + ".rfa");   // o Revit dá à família o nome do arquivo
             Document fd = app.NewFamilyDocument(modelo);
             try
             {
