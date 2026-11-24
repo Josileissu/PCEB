@@ -330,4 +330,27 @@ public class EstruturaObjetosTests
             System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "consolo_detalhe.html"), html);
         }
     }
+
+    [Fact]
+    public void Detalhe_junta_os_consolos_vizinhos_do_mesmo_pilar()
+    {
+        var e = Portico(Elastomero);
+        var mat = MaterialBarra.Concreto(40);
+        var p0 = new PilarObjeto { Dono = new Dono { Tipo = TipoDono.Pilar, Id = "P0", Nome = "P0" }, Base = new Vetor3(-800, 0, -100), Secao = SecaoPoligonal.Retangulo(40, 40), Comprimento = 700, Embutimento = 100, Material = mat };
+        e.Pilares.Add(p0);
+        var v0 = new VigaObjeto { Dono = new Dono { Tipo = TipoDono.Viga, Id = "V0", Nome = "V0" }, ApoioI = new Vetor3(-765, 0, 453), ApoioJ = new Vetor3(-35, 0, 453), Secao = SecaoPoligonal.Retangulo(20, 50), Material = mat, G = 20, Q = 5 };
+        e.Vigas.Add(v0);
+        e.Ligacoes.Add(new LigacaoConsolo { Dono = new Dono { Tipo = TipoDono.Ligacao, Nome = "P0·V0" }, Pilar = p0, Viga = v0, PontaI = true, ZTopoConsolo = 552, Aparelho = Elastomero });
+        e.Ligacoes.Add(new LigacaoConsolo { Dono = new Dono { Tipo = TipoDono.Ligacao, Nome = "P1·V0" }, Pilar = e.Pilares[0], Viga = v0, PontaI = false, ZTopoConsolo = 552, Aparelho = Elastomero });
+        e.Analisar();
+        var l = e.Ligacoes.Single(x => x.Dono.Nome == "P1·V1");
+        var r = DEB.Core.Analise.Chapas.DetalheConsolo.Calcular(e, l, new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto());
+        var viz = Assert.Single(r.Vizinhos);
+        Assert.Equal(-1, viz.Lado);
+        Assert.True(viz.Vd > r.Vd);                 // V0 tem mais carga
+        // equilíbrio vertical com os dois consolos e a força normal acima
+        double ry = Enumerable.Range(0, r.Chapa.Nos.Count).Sum(i => r.Chapa.Reacoes[i * 2 + 1]);
+        Perto(r.Vd + viz.Vd + r.Nacima, ry, 1e-6, 1e-6);
+        Assert.Contains(r.Chapa.Elementos, x => x.Regiao == "consolo" && r.Chapa.Nos[x.Nos[0]].X < -40);
+    }
 }

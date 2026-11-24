@@ -407,7 +407,9 @@ function desenharConsolo(w, h, chave) {
   if (det.erro) { texto2(20, 60, "Detalhe não calculado: " + det.erro, css("--erro")); return; }
   const g = det.geo, c = det.cargas, b = det.biela, mf = det.mef;
   // janela: x de −Lp − 10 até A + comprimento de viga; y de −(H + Lp) até Lp + 10
-  const x0 = -g.lp - 25, x1 = g.a + Math.max(60, 1.5 * g.hViga), y0 = -(g.h + g.lp) - 10, y1 = g.lp + 30;
+  const vz = det.vizinhos || [];
+  const x0 = -g.lp - 25 - Math.max(0, ...vz.filter(v => v.lado < 0).map(v => v.a)), x1 = g.a + Math.max(60, 1.5 * g.hViga),
+        y0 = Math.min(-g.h, ...vz.map(v => v.dy - v.h)) - g.lp - 10, y1 = Math.max(0, ...vz.map(v => v.dy)) + g.lp + 30;
   const painel = Math.min(w * 0.68, w - 300), esc = Math.min((painel - 80) / (x1 - x0), (h - 130) / (y1 - y0));
   const ox = 50 - x0 * esc, oy = 96 + y1 * esc, X = x => ox + x * esc, Y = y => oy - y * esc;
   // isovalores na chapa
@@ -433,7 +435,17 @@ function desenharConsolo(w, h, chave) {
   }
   // contornos: pilar, consolo, aparelho e ponta da viga
   ctx2.strokeStyle = css("--c-pilar"); ctx2.lineWidth = 2;
-  ctx2.strokeRect(X(-g.lp), Y(g.lp), g.lp * esc, (g.h + 2 * g.lp) * esc);
+  ctx2.strokeRect(X(-g.lp), Y(y1 - 30), g.lp * esc, (y1 - 30 - (y0 + 10)) * esc);
+  // consolos vizinhos (mesmo pilar, mesmo plano): contorno, aparelho e cargas
+  vz.forEach(v => {
+    const xf = v.lado > 0 ? 0 : -g.lp, sx = v.lado > 0 ? 1 : -1;
+    ctx2.strokeStyle = css("--c-pilar"); ctx2.lineWidth = 2; ctx2.beginPath();
+    ctx2.moveTo(X(xf), Y(v.dy)); ctx2.lineTo(X(xf + sx * v.a), Y(v.dy)); ctx2.lineTo(X(xf + sx * v.a), Y(v.dy - v.h1)); ctx2.lineTo(X(xf), Y(v.dy - v.h)); ctx2.stroke();
+    ctx2.fillStyle = "#333"; ctx2.fillRect(X(xf + sx * v.pos - v.pad / 2), Y(v.dy + 1.2), v.pad * esc, 1.2 * esc);
+    texto2(X(xf + sx * v.pos) + (sx > 0 ? 4 : -4), Y(v.dy) - 40, `Vd = ${fmt(v.vd, 1)} kN`, css("--c-carga"), sx > 0 ? "left" : "right");
+    ctx2.strokeStyle = css("--c-carga"); ctx2.beginPath(); ctx2.moveTo(X(xf + sx * v.pos), Y(v.dy) - 36); ctx2.lineTo(X(xf + sx * v.pos), Y(v.dy) - 2); ctx2.stroke();
+    texto2(X(xf + sx * v.a / 2), Y(v.dy - v.h) + 14, v.nome, css("--suave"), "center");
+  });
   ctx2.beginPath(); ctx2.moveTo(X(0), Y(0)); ctx2.lineTo(X(g.a), Y(0)); ctx2.lineTo(X(g.a), Y(-g.h1)); ctx2.lineTo(X(0), Y(-g.h)); ctx2.stroke();
   const tAp = 1.2;
   ctx2.fillStyle = "#333"; ctx2.fillRect(X(g.pos - g.pad / 2), Y(tAp), g.pad * esc, tAp * esc);
@@ -465,6 +477,7 @@ function desenharConsolo(w, h, chave) {
   py += 6; linha(`σ1,máx = ${fmt(mf.s1max, 2)} MPa (fctm = ${fmt(mf.fctm, 2)})`, mf.s1max > mf.fctm ? css("--c-def") : css("--fg"));
   linha(`σ2,mín = ${fmt(mf.s2min, 2)} MPa (fcd = ${fmt(mf.fcd, 2)})`, -mf.s2min > mf.fcd ? css("--c-def") : css("--fg"));
   linha(`chapa elástica Q4: ${mf.els.length} elementos`, css("--suave"));
+  if (vz.length) linha(`${vz.length} consolo(s) vizinho(s) no mesmo trecho`, css("--suave"));
   linha(`espessura: pilar ${fmt(g.tp, 0)} cm, consolo ${fmt(g.b, 0)} cm`, css("--suave"));
   py += 6; linha("Consolo: " + nomeSit(det.dim.situacao) + " (detalhes no painel)", corSit(det.dim.situacao));
   py += 6; linha("Teclas: 1 = σ1, 2 = σ2, x = σx, y = σy, t = τxy", css("--suave"));

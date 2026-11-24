@@ -24,6 +24,24 @@ public static class DetalheConsolo
         public string Combinacao = "";
         public double Rs, Rc, Theta, Z;
         public ChapaPlana Chapa;
+        /// <summary>Outros consolos do mesmo pilar no mesmo plano e perto (D50: "trechos onde há muitos consolos próximos").</summary>
+        public List<Vizinho> Vizinhos = new List<Vizinho>();
+    }
+
+    /// <summary>Consolo vizinho na chapa: lado (+1 o mesmo deste, −1 a face oposta), topo relativo (cm), geometria e cargas.</summary>
+    public sealed class Vizinho
+    {
+        public string Nome = "";
+        public int Lado;
+        public double Dy, A, H, H1, Pos, Pad, Vd, Hd;
+    }
+
+    private static (double A, double H, double H1, double B) Geometria(LigacaoConsolo l, double tp)
+    {
+        var c = l.Consolo;
+        if (c != null) return (c.A, c.H, c.H1 > 0 ? c.H1 : c.H / 2, c.B);
+        double pad = l.Aparelho?.Comprimento > 0 ? l.Aparelho.Comprimento : 10, a = Math.Max(20, pad + 12), h = Math.Max(30, 1.2 * a);
+        return (a, h, h / 2, Math.Min(tp, l.Viga.Secao.B + 10));
     }
 
     public static Resultado Calcular(EstruturaObjetos e, LigacaoConsolo l, ConfiguracaoProjeto cfg = null)
@@ -52,8 +70,7 @@ public static class DetalheConsolo
         var elu = e.DefinicaoCombinacoes.Where(x => x.Tipo == "ELU").Select(x => (x.Nome, F: e.Esforco(l, e.Combinacoes[x.Nome]))).OrderByDescending(x => x.F.V).First();
         r.Vd = elu.F.V; r.Hd = elu.F.H; r.Combinacao = elu.Nome;
         // força normal do pilar logo acima do consolo
-        var esf = e.Esforcos(p, e.Combinacoes[elu.Nome]).Where(x => x.Z > l.ZTopoConsolo + 0.5).OrderBy(x => x.Z).FirstOrDefault();
-        r.Nacima = esf != null ? Math.Max(0, -esf.N) : 0;
+        r.Combinacao = elu.Nome;
 
         // biela e tirante (consolo curto): braço z = 0,9·d; tirante Rs = Vd·a/z + Hd; biela Rc = Vd/sen θ, tg θ = z/a
         r.Z = 0.9 * r.D;
@@ -61,25 +78,75 @@ public static class DetalheConsolo
         r.Rs = r.Vd * r.Pos / r.Z + Math.Max(0, r.Hd);
         r.Rc = r.Vd / Math.Sin(r.Theta);
 
-        // chapa: pilar de x ∈ [−Lp, 0], y ∈ [−(H + Lp), Lp]; consolo x ∈ [0, A], entre o topo e a face inferior inclinada
-        double y0 = -(r.H + r.Lp), y1 = r.Lp, h = Math.Max(1.25, Math.Min(2.5, r.Lp / 14));
-        double Inferior(double x) => -r.H + (r.H - r.H1) * x / Math.Max(1e-6, r.A);
-        bool Dentro(double x, double y) => x <= 0 ? x >= -r.Lp && y >= y0 && y <= y1 : x <= r.A && y <= 0 && y >= Inferior(x);
-        var ch = ChapaPlana.Malha(-r.Lp, r.A, y0, y1, h, Dentro, (x, y) => x <= 0 ? r.Tp : r.B, (x, y) => x <= 0 ? "pilar" : "consolo");
+        // vizinhos: consolos do mesmo pilar no mesmo plano (viga paralela) com topo a menos de H + Lp deste
+        foreach (var o in e.Ligacoes.Where(x => x != l && x.Pilar == p))
+        {
+            double cos = o.DirecaoViga.Ponto(dir);
+            if (Math.Abs(cos) < 0.9) continue;
+            double dy = o.ZTopoConsolo - l.ZTopoConsolo;
+            var (ga, gh, gh1, _) = Geometria(o, r.Tp);
+            if (dy > r.Lp + 1e-6 || dy - gh < -(r.H + r.Lp) - 1e-6) continue;
+            var eo = e.DefinicaoCombinacoes.Where(x => x.Tipo == "ELU").Select(x => e.Esforco(o, e.Combinacoes[x.Nome])).OrderByDescending(x => x.V).First();
+            var co = e.CargaDoConsolo(o);
+            int lado = cos > 0 ? 1 : -1;
+            r.Vizinhos.Add(new Vizinho { Nome = o.Dono.ToString(), Lado = lado, Dy = dy, A = ga, H = gh, H1 = gh1, Pos = co.A > 0 ? co.A : cfg.Numero("acoes.posCargaConsolo") * ga,
+                Pad = o.Aparelho?.Comprimento > 0 ? o.Aparelho.Comprimento : 10, Vd = eo.V, Hd = lado * eo.H });
+        }
+
+        // chapa: pilar de x ∈ [−Lp, 0]; consolos à direita (x ∈ [0, A]) e, os da face oposta, à esquerda (x ∈ [−Lp − A, −Lp])
+        double yMin = Math.Min(-r.H, r.Vizinhos.Select(v => v.Dy - v.H).DefaultIfEmpty(0).Min()), yMax = Math.Max(0, r.Vizinhos.Select(v => v.Dy).DefaultIfEmpty(0).Max());
+        double y0 = yMin - r.Lp, y1 = yMax + r.Lp, h = Math.Max(1.25, Math.Min(2.5, r.Lp / 14));
+        var consolos = new List<(int Lado, double Dy, double A, double H, double H1)> { (1, 0, r.A, r.H, r.H1) };
+        consolos.AddRange(r.Vizinhos.Select(v => (v.Lado, v.Dy, v.A, v.H, v.H1)));
+        bool NoConsolo(double x, double y)
+        {
+            foreach (var (lado, dy, a, hh, h1) in consolos)
+            {
+                double u = lado > 0 ? x : -r.Lp - x;      // distância à face do pilar
+                if (u < 0 || u > a) continue;
+                double inf = dy - hh + (hh - h1) * u / Math.Max(1e-6, a);
+                if (y <= dy && y >= inf) return true;
+            }
+            return false;
+        }
+        bool Dentro(double x, double y) => (x <= 0 && x >= -r.Lp && y >= y0 && y <= y1) || NoConsolo(x, y);
+        // força normal do pilar logo acima do trecho (acima do consolo mais alto)
+        var esf = e.Esforcos(p, e.Combinacoes[elu.Nome]).Where(x => x.Z > l.ZTopoConsolo + yMax + 0.5).OrderBy(x => x.Z).FirstOrDefault();
+        r.Nacima = esf != null ? Math.Max(0, -esf.N) : 0;
+        double xMin = -r.Lp - r.Vizinhos.Where(v => v.Lado < 0).Select(v => v.A).DefaultIfEmpty(0).Max();
+        double xMax = Math.Max(r.A, r.Vizinhos.Where(v => v.Lado > 0).Select(v => v.A).DefaultIfEmpty(0).Max());
+        var ch = ChapaPlana.Malha(xMin, xMax, y0, y1, h, Dentro, (x, y) => x <= 0 && x >= -r.Lp ? r.Tp : r.B, (x, y) => x <= 0 && x >= -r.Lp ? "pilar" : "consolo");
         double fck = cfg.Numero("materiais.fck");
         ch.E = MaterialBarra.Concreto(fck).E; ch.Nu = 0.2;
         var nos = Enumerable.Range(0, ch.Nos.Count).ToList();
-        foreach (int i in nos.Where(i => ch.Nos[i].Y < y0 + 1e-6)) { ch.Presos.Add((i, 0)); ch.Presos.Add((i, 1)); }
+        double yBase = ch.Nos.Min(n => n.Y), yTopoChapa = ch.Nos.Max(n => n.Y);
+        foreach (int i in nos.Where(i => ch.Nos[i].Y < yBase + 1e-6)) { ch.Presos.Add((i, 0)); ch.Presos.Add((i, 1)); }
         // aparelho: Vd e Hd distribuídos nos nós do topo dentro do aparelho
-        var topo = nos.Where(i => Math.Abs(ch.Nos[i].Y) < 1e-6 && ch.Nos[i].X > 1e-6 && Math.Abs(ch.Nos[i].X - r.Pos) <= r.Pad / 2 + h / 2).ToList();
-        if (topo.Count == 0) topo = nos.Where(i => Math.Abs(ch.Nos[i].Y) < 1e-6 && ch.Nos[i].X > 0).OrderBy(i => Math.Abs(ch.Nos[i].X - r.Pos)).Take(1).ToList();
+        // nós do topo de um consolo: a fileira mais alta dos elementos do consolo no vão do aparelho (a malha não passa exatamente em y)
+        var noConsolo = new HashSet<int>(ch.Elementos.Where(x => x.Regiao == "consolo").SelectMany(x => x.Nos));
+        List<int> TopoAparelho(double xc, double pad, double yTopo, Func<double, bool> lado)
+        {
+            var cand = noConsolo.Where(i => lado(ch.Nos[i].X) && Math.Abs(ch.Nos[i].Y - yTopo) <= h).ToList();
+            if (cand.Count == 0) return new List<int>();
+            double yMaxL = cand.Max(i => ch.Nos[i].Y);
+            var fila = cand.Where(i => Math.Abs(ch.Nos[i].Y - yMaxL) < 1e-6).ToList();
+            var sob = fila.Where(i => Math.Abs(ch.Nos[i].X - xc) <= pad / 2 + h / 2).ToList();
+            return sob.Count > 0 ? sob : fila.OrderBy(i => Math.Abs(ch.Nos[i].X - xc)).Take(1).ToList();
+        }
+        var topo = TopoAparelho(r.Pos, r.Pad, 0, x => x > 1e-6);
         foreach (int i in topo) ch.Forca(i, r.Hd / topo.Count, -r.Vd / topo.Count);
+        foreach (var v in r.Vizinhos)
+        {
+            double xc = v.Lado > 0 ? v.Pos : -r.Lp - v.Pos;
+            var tv = TopoAparelho(xc, v.Pad, v.Dy, x => v.Lado > 0 ? x > 1e-6 : x < -r.Lp - 1e-6);
+            foreach (int i in tv) ch.Forca(i, v.Hd / tv.Count, -v.Vd / tv.Count);
+        }
         // força normal do pilar acima, uniforme no topo do trecho
-        var cima = nos.Where(i => ch.Nos[i].Y > y1 - 1e-6).ToList();
+        var cima = nos.Where(i => ch.Nos[i].Y > yTopoChapa - 1e-6).ToList();
         if (r.Nacima > 0 && cima.Count > 1)
             foreach (int i in cima)
             {
-                bool borda = ch.Nos[i].X < -r.Lp + 1e-6 || ch.Nos[i].X > -1e-6;
+                bool borda = ch.Nos[i].X <= cima.Min(k => ch.Nos[k].X) + 1e-6 || ch.Nos[i].X >= cima.Max(k => ch.Nos[k].X) - 1e-6;
                 ch.Forca(i, 0, -r.Nacima / (cima.Count - 1) * (borda ? 0.5 : 1));
             }
         ch.Resolver();
@@ -100,6 +167,13 @@ public static class DetalheConsolo
         g.Definir("estimado", r.Estimado);
         var cg = ValorJson.NovoObjeto(); o.Definir("cargas", cg);
         cg.Definir("vd", r.Vd); cg.Definir("hd", r.Hd); cg.Definir("n", r.Nacima); cg.Definir("comb", r.Combinacao);
+        var vz = ValorJson.NovaLista(); o.Definir("vizinhos", vz);
+        foreach (var v in r.Vizinhos)
+        {
+            var q = ValorJson.NovoObjeto(); vz.Adicionar(q);
+            q.Definir("nome", v.Nome); q.Definir("lado", v.Lado); q.Definir("dy", v.Dy); q.Definir("a", v.A); q.Definir("h", v.H); q.Definir("h1", v.H1);
+            q.Definir("pos", v.Pos); q.Definir("pad", v.Pad); q.Definir("vd", v.Vd); q.Definir("hd", v.Hd);
+        }
         var bt = ValorJson.NovoObjeto(); o.Definir("biela", bt);
         bt.Definir("rs", r.Rs); bt.Definir("rc", r.Rc); bt.Definir("theta", r.Theta * 180 / Math.PI); bt.Definir("z", r.Z);
         var dm = DimensionamentoObjetos.Consolo(e, l, cfg);
