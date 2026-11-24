@@ -112,6 +112,24 @@ namespace DEB.Revit
                         status = "OK " + Path.Combine(dir, "resultado.txt");
                         break;
                     }
+                    case "parametros":
+                    {
+                        // botão "Parâmetros do PCEB" (D50): o que falta, criar, conferir e rodar de novo (nada a criar)
+                        string dir = Path.Combine(DetailingReport.LogDir, "parametros_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                        Directory.CreateDirectory(dir);
+                        var grupos = DEB.Revit.Commands.ParametrosPcebCommand.Grupos();
+                        var sb = new StringBuilder();
+                        sb.AppendLine("Antes:"); sb.AppendLine(DEB.Revit.Commands.ParametrosPcebCommand.Faltando(uidoc.Document, grupos));
+                        sb.AppendLine("Criação:"); sb.AppendLine(DEB.Revit.Commands.ParametrosPcebCommand.Criar(uidoc.Document, grupos));
+                        string resta = DEB.Revit.Commands.ParametrosPcebCommand.Faltando(uidoc.Document, grupos);
+                        sb.AppendLine("Depois: " + (resta.Length == 0 ? "nada falta" : resta));
+                        sb.AppendLine("De novo:"); sb.AppendLine(DEB.Revit.Commands.ParametrosPcebCommand.Criar(uidoc.Document, grupos));
+                        var piso = new FilteredElementCollector(uidoc.Document).OfClass(typeof(Floor)).FirstElement();
+                        if (piso != null) sb.AppendLine($"Piso {piso.Id}: {DEB.Revit.Analise.ParametrosAnalise.Ler(piso, DEB.Revit.Analise.ParametrosAnalise.LajeG)?.Definition.Name ?? "sem o parâmetro"}");
+                        File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
+                        status = "OK " + Path.Combine(dir, "resultado.txt");
+                        break;
+                    }
                     case "muro":
                         status = "OK " + MuroAutoTest(uidoc);
                         break;

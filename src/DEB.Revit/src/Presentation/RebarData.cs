@@ -27,6 +27,12 @@ namespace DEB.Revit.Presentation
         private static readonly Guid CoreLengthGuid = new Guid("5f0c3a8e-6b1d-4c2a-9e47-1d2b3c4d5e03");
         private static readonly Guid CoreTotalGuid = new Guid("5f0c3a8e-6b1d-4c2a-9e47-1d2b3c4d5e04");
 
+        /// <summary>Os quatro parâmetros das barras (nome e GUID fixo), para o botão "Parâmetros do PCEB".</summary>
+        internal static IEnumerable<(string Nome, Guid Guid)> Definicoes => new[]
+        {
+            (SteelParam, SteelGuid), (WeightParam, WeightGuid), (CoreLengthParam, CoreLengthGuid), (CoreTotalParam, CoreTotalGuid),
+        };
+
         public static ElementId SteelParamId(Document doc) => SharedParameterElement.Lookup(doc, SteelGuid)?.Id ?? ElementId.InvalidElementId;
         public static ElementId WeightParamId(Document doc) => SharedParameterElement.Lookup(doc, WeightGuid)?.Id ?? ElementId.InvalidElementId;
         public static ElementId CoreLengthParamId(Document doc) => SharedParameterElement.Lookup(doc, CoreLengthGuid)?.Id ?? ElementId.InvalidElementId;

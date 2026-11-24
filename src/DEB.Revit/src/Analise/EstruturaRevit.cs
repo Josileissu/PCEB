@@ -31,7 +31,8 @@ namespace DEB.Revit.Analise
         private static Vetor3 V(XYZ p) => new Vetor3(p.X * Cm, p.Y * Cm, p.Z * Cm);
 
         /// <summary>Parâmetros de carga das lajes (por nome; criados pelo usuário ou num passo futuro do plugin).</summary>
-        public const string ParamLajeG = "PCEB_Carga permanente (kN/m²)", ParamLajeQ = "PCEB_Carga variável (kN/m²)", ParamLajePeso = "PCEB_Peso próprio (kN/m²)";
+        public const string ParamLajeG = "PCEB_Carga permanente (kN/m²)", ParamLajeQ = "PCEB_Carga variável (kN/m²)", ParamLajePeso = "PCEB_Peso próprio (kN/m²)",
+                            ParamLajeTipo = "PCEB_Tipo de laje";
 
         public static EstruturaObjetos Montar(Document doc, List<ColumnGroup> grupos, Dictionary<long, (GrupoViga G, MembroViga M)> porId,
                                               ConfiguracaoProjeto cfg, List<string> notas, out List<(Corbel K, LigacaoConsolo L)> ligacoes)
@@ -244,21 +245,21 @@ namespace DEB.Revit.Analise
             if (lacos.Count == 0) return null;
             var melhor = lacos.OrderByDescending(x => x.Area).First().Pts;
             var aberturas = lacos.OrderByDescending(x => x.Area).Skip(1).Select(x => x.Pts).ToList();
-            double Par(string nome, string chave)
+            double Par(ParametrosAnalise.Def d, string chave)
             {
-                Parameter p = f.LookupParameter(nome);
+                Parameter p = ParametrosAnalise.Ler(f, d);
                 return p != null && p.StorageType == StorageType.Double && p.HasValue ? p.AsDouble() : cfg.Numero(chave);
             }
             string marca = f.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
             // tipo: parâmetro "PCEB_Tipo de laje" (texto) ou o nome do tipo de piso
-            string nomeTipo = ((f.LookupParameter("PCEB_Tipo de laje")?.AsString() ?? "") + " " + (f.FloorType?.Name ?? "")).ToLowerInvariant();
+            string nomeTipo = ((ParametrosAnalise.Ler(f, ParametrosAnalise.LajeTipo)?.AsString() ?? "") + " " + (f.FloorType?.Name ?? "")).ToLowerInvariant();
             TipoLaje tipo = nomeTipo.Contains("alveol") ? TipoLaje.Alveolar : nomeTipo.Contains("treli") ? TipoLaje.Trelicada
                           : nomeTipo.Contains("vigota") || nomeTipo.Contains("protendid") ? TipoLaje.VigotaProtendida : TipoLaje.Macica;
             var la = new LajeObjeto
             {
                 Dono = new Dono { Tipo = TipoDono.Laje, Id = f.Id.Value.ToString(), Nome = $"{(string.IsNullOrEmpty(marca) ? "laje" : marca)} ({f.Id.Value})" },
                 Espessura = h, Material = mat, PesoEspecifico = cfg.Numero("materiais.pesoEspecifico"),
-                G = Par(ParamLajeG, "acoes.lajeG"), Q = Par(ParamLajeQ, "acoes.lajeQ"), Malha = cfg.Numero("analise.malhaLaje"),
+                G = Par(ParametrosAnalise.LajeG, "acoes.lajeG"), Q = Par(ParametrosAnalise.LajeQ, "acoes.lajeQ"), Malha = cfg.Numero("analise.malhaLaje"),
             };
             la.Contorno.AddRange(melhor.Select(p => V(p) + new Vetor3(0, 0, -h / 2)));
             foreach (var ab in aberturas) la.Aberturas.Add(ab.Select(p => V(p) + new Vetor3(0, 0, -h / 2)).ToList());
@@ -269,7 +270,7 @@ namespace DEB.Revit.Analise
                 double ang = f.SpanDirectionAngle;
                 la.DirX = new Vetor3(Math.Cos(ang), Math.Sin(ang), 0);
                 la.FracaoMacica = cfg.Numero(tipo == TipoLaje.Alveolar ? "acoes.fracaoAlveolar" : tipo == TipoLaje.Trelicada ? "acoes.fracaoTrelicada" : "acoes.fracaoVigota");
-                Parameter pp = f.LookupParameter(ParamLajePeso);
+                Parameter pp = ParametrosAnalise.Ler(f, ParametrosAnalise.LajePeso);
                 if (pp != null && pp.StorageType == StorageType.Double && pp.HasValue && pp.AsDouble() > 0)
                     la.FracaoMacica = pp.AsDouble() / (la.PesoEspecifico * h / 100);
             }

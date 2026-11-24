@@ -51,6 +51,16 @@ namespace DEB.Revit
             };
             panel.AddItem(cfgProjeto);
 
+            var parametros = new PushButtonData("DEB_ParametrosPceb", "Parâmetros\ndo PCEB", dll, typeof(ParametrosPcebCommand).FullName)
+            {
+                ToolTip = "Cria no projeto os parâmetros compartilhados que o PCEB usa: armaduras, formas, cargas das vigas e cargas e tipo das lajes (análise).",
+                LongDescription = "Mostra o que falta antes de criar. GUIDs fixos: os mesmos em todos os projetos e nas famílias de anotação; os que já existem não mudam.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "⊞"),
+                Image = IconFactory.Create(16, "⊞")
+            };
+            panel.AddItem(parametros);
+
             var bibLig = new PushButtonData("DEB_BibliotecaLigacoes", "Biblioteca de\nligações", dll, typeof(BibliotecaLigacoesCommand).FullName)
             {
                 ToolTip = "Ligações metálicas parametrizadas do PCEB e do escritório (D49): chapa de alma, cantoneira dupla, chapa de topo e placa de base.",
