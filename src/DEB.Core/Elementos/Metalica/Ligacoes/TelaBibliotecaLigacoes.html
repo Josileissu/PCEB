@@ -64,7 +64,12 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .campo input.mudou,.campo select.mudou{border-color:var(--ipe);background:color-mix(in srgb,var(--ipe) 12%,var(--campo))}
 .campo .un{color:var(--suave);font-size:.74rem}
 .erros{color:var(--nao);font-size:.82rem}
-svg{width:100%;height:auto;max-height:62vh;display:block}
+svg{width:100%;height:auto;display:block}
+.vistas{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vistas figure{margin:0;border:1px solid var(--linha);border-radius:6px;background:var(--campo);padding:4px}
+.vistas figcaption{font-size:.74rem;color:var(--suave);padding:0 4px}
+.leg{display:flex;gap:10px;flex-wrap:wrap;font-size:.74rem;color:var(--suave);margin-top:6px}
+.leg i{display:inline-block;width:12px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .desc{font-size:.84rem;margin-top:6px;font-family:var(--f-dado)}
 .refs{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.8rem;color:var(--suave);margin-top:8px}
 .refs input{width:120px;font:inherit;font-family:var(--f-dado);font-size:.8rem;border:1px solid var(--linha);border-radius:4px;padding:2px 5px;background:var(--campo);color:var(--fg)}
@@ -152,7 +157,8 @@ function principal() {
     ${m.erros.length ? `<div class="erros">${m.erros.map(esc).join("<br>")}</div>` : ""}
     <div class="duas">
       <section class="card"><h4>Parâmetros</h4>${form}<datalist id="dlAuto"><option value="auto"></option></datalist></section>
-      <section class="card"><h4>Desenho</h4><svg id="svg" viewBox="0 0 600 420" role="img" aria-label="Desenho da ligação"></svg>
+      <section class="card"><h4>Desenho</h4><div class="vistas" id="vistas"></div>
+        <div class="leg"><span><i style="background:var(--chapa)"></i>chapas</span><span><i style="background:#b9661d"></i>enrijecedores</span><span><i style="background:var(--parafuso)"></i>parafusos</span><span><i style="background:var(--solda)"></i>soldas</span><span><i style="background:var(--aco);opacity:.4"></i>perfis ligados (transparentes)</span><span><i style="background:var(--concreto)"></i>concreto</span></div>
         <div class="desc" id="descTxt"></div>
         <div class="refs">Perfis de referência: viga <input id="pv" value="${esc(E.perfilViga)}"> pilar <input id="pp" value="${esc(E.perfilPilar)}"></div>
       </section>
@@ -171,67 +177,51 @@ function principal() {
   desenhar(m);
 }
 
-// ---------------------------------------------------------------- desenhos (mm → viewBox 600 × 420)
+// ---------------------------------------------------------------- desenhos (D50, item 4): 3 vistas ortogonais + 3D, dos mesmos sólidos do núcleo
 function desenhar(m) {
-  const svg = $("#svg"), D = E.desenho;
+  const box = $("#vistas"), D = E.desenho;
   $("#descTxt").textContent = D ? D.texto : (E.erroDesenho || "Corrija os parâmetros para ver o desenho.");
-  if (!D) { svg.innerHTML = ""; return; }
-  const C = { aco: css("--aco"), acoB: css("--aco-borda"), ch: css("--chapa"), chB: css("--chapa-borda"), pa: css("--parafuso"), so: css("--solda"), co: css("--cota"), con: css("--concreto"), fg: css("--fg") };
-  let s = "", k = 1, ox = 0, oy = 0;
-  const caixa = (x0, x1, y0, y1, m0 = 28) => { const w = 600 - 2 * m0, h = 420 - 2 * m0; k = Math.min(w / (x1 - x0), h / (y1 - y0)); ox = m0 + (w - (x1 - x0) * k) / 2 - x0 * k; oy = m0 + (h - (y1 - y0) * k) / 2 - y0 * k; };
-  const X = x => ox + x * k, Y = y => oy + y * k;
-  const ret = (x0, y0, x1, y1, f, b, extra = "") => s += `<rect x="${X(Math.min(x0, x1))}" y="${Y(Math.min(y0, y1))}" width="${Math.abs(x1 - x0) * k}" height="${Math.abs(y1 - y0) * k}" fill="${f}" stroke="${b}" stroke-width="1.2" ${extra}/>`;
-  const furo = (x, y, d) => s += `<circle cx="${X(x)}" cy="${Y(y)}" r="${Math.max(2.5, d / 2 * k)}" fill="${C.pa}" opacity=".9"/><circle cx="${X(x)}" cy="${Y(y)}" r="${Math.max(1, d / 5 * k)}" fill="${css("--card")}"/>`;
-  const txt = (x, y, t, a = "start", cor = C.co) => s += `<text x="${X(x)}" y="${Y(y)}" font-size="11" fill="${cor}" text-anchor="${a}">${esc(t)}</text>`;
-  const v = D.viga, p = D.pilar;
-  if (m.tipo === "ChapaAlma" || m.tipo === "CantoneiraDupla") {
-    const larg = m.tipo === "ChapaAlma" ? D.bp : D.aba, gap = 12, L = Math.max(larg + 120, 2.2 * v.d);
-    caixa(-p.tf - 40, L, -v.d / 2 - 40, v.d / 2 + 50);
-    ret(-p.tf, -v.d / 2 - 30, 0, v.d / 2 + 30, C.aco, C.acoB);                         // mesa do suporte
-    txt(-p.tf / 2, -v.d / 2 - 34, "suporte", "middle");
-    ret(gap, -v.d / 2, L, -v.d / 2 + v.tf, C.aco, C.acoB); ret(gap, v.d / 2 - v.tf, L, v.d / 2, C.aco, C.acoB);   // mesas da viga
-    ret(gap, -v.d / 2 + v.tf, L, v.d / 2 - v.tf, css("--card"), C.acoB, 'stroke-dasharray="4 3"');                 // alma
-    txt(L - 4, -v.d / 2 + v.tf + 14, v.nome, "end", C.fg);
-    ret(0, -D.hp / 2, larg, D.hp / 2, C.ch, C.chB, 'opacity=".92"');
-    if (m.tipo === "ChapaAlma") {
-      for (const y of D.ys) furo(D.a, y, D.db);
-      s += `<polygon points="${X(0)},${Y(-D.hp / 2)} ${X(0) + 7},${Y(-D.hp / 2)} ${X(0)},${Y(-D.hp / 2) + 7}" fill="${C.so}"/>`;
-      s += `<line x1="${X(0) + 2}" y1="${Y(-D.hp / 2)}" x2="${X(0) + 2}" y2="${Y(D.hp / 2)}" stroke="${C.so}" stroke-width="3"/>`;
-      txt(D.a, D.hp / 2 + 16, `e = ${fmt(D.a)} mm`, "middle");
-    } else {
-      for (const y of D.ys) furo(D.aba - D.eh, y, D.db);
-      if (D.soldada) s += `<line x1="${X(0) + 2}" y1="${Y(-D.hp / 2)}" x2="${X(0) + 2}" y2="${Y(D.hp / 2)}" stroke="${C.so}" stroke-width="3"/>`;
-      else for (const y of D.ys) s += `<line x1="${X(-p.tf) - 6}" y1="${Y(y)}" x2="${X(8)}" y2="${Y(y)}" stroke="${C.pa}" stroke-width="${Math.max(2, D.db * k * 0.6)}"/>`;
-      txt(D.aba / 2, D.hp / 2 + 16, `2 L ${fmt(D.aba)} × ${fmt(D.t, 1)}`, "middle");
-    }
-    txt(larg + 6, 0, `${fmt(D.hp)} mm`, "start");
-  } else if (m.tipo === "ChapaTopo") {
-    const tp = D.tp > 0 ? D.tp : 19, L = 2.2 * v.d, fx = L + 160;
-    caixa(-p.tf - 40, fx + D.bp + 30, D.topo - 40, D.base + 40);
-    ret(-p.tf, D.topo - 25, 0, D.base + 25, C.aco, C.acoB); txt(-p.tf / 2, D.topo - 30, "pilar", "middle");
-    ret(0, D.topo, tp, D.base, C.ch, C.chB);
-    ret(tp, 0, L, v.tf, C.aco, C.acoB); ret(tp, v.d - v.tf, L, v.d, C.aco, C.acoB); ret(tp, v.tf, L, v.d - v.tf, css("--card"), C.acoB, 'stroke-dasharray="4 3"');
-    txt(L - 4, v.tf + 14, v.nome, "end", C.fg);
-    for (const y of D.ys) s += `<line x1="${X(-p.tf) - 8}" y1="${Y(y)}" x2="${X(tp) + 8}" y2="${Y(y)}" stroke="${C.pa}" stroke-width="${Math.max(2, D.db * k * 0.7)}"/>`;
-    // vista de frente da chapa
-    const cx = fx + D.bp / 2;
-    ret(fx, D.topo, fx + D.bp, D.base, C.ch, C.chB);
-    ret(cx - v.bf / 2, 0, cx + v.bf / 2, v.tf, "none", C.acoB, 'stroke-dasharray="4 3"'); ret(cx - v.bf / 2, v.d - v.tf, cx + v.bf / 2, v.d, "none", C.acoB, 'stroke-dasharray="4 3"');
-    ret(cx - v.tw / 2, v.tf, cx + v.tw / 2, v.d - v.tf, "none", C.acoB, 'stroke-dasharray="4 3"');
-    for (const y of D.ys) { furo(cx - D.g / 2, y, D.db); furo(cx + D.g / 2, y, D.db); }
-    txt(cx, D.base + 22, `g = ${fmt(D.g)} · bp = ${fmt(D.bp)} mm`, "middle"); txt(L / 2, D.base + 22, "elevação", "middle");
-  } else {
-    const L = D.lx, B = D.ly;
-    caixa(-L / 2 - 40, L / 2 + 40, -B / 2 - 40, B / 2 + 50);
-    ret(-L / 2 - 30, -B / 2 - 30, L / 2 + 30, B / 2 + 30, C.con, "none", 'opacity=".6"');
-    ret(-L / 2, -B / 2, L / 2, B / 2, C.ch, C.chB);
-    // pilar em planta: alma ao longo de x
-    ret(-p.d / 2, -p.bf / 2, -p.d / 2 + p.tf, p.bf / 2, C.aco, C.acoB); ret(p.d / 2 - p.tf, -p.bf / 2, p.d / 2, p.bf / 2, C.aco, C.acoB);
-    ret(-p.d / 2 + p.tf, -p.tw / 2, p.d / 2 - p.tf, p.tw / 2, C.aco, C.acoB);
-    for (let i = 0; i + 1 < D.chumb.length; i += 2) furo(D.chumb[i], D.chumb[i + 1], D.db);
-    txt(0, B / 2 + 22, `${fmt(L)} × ${fmt(B)} mm · ${p.nome}`, "middle", C.fg);
+  if (!D || !D.caixas) { box.innerHTML = ""; return; }
+  const COR = { Membro: css("--aco"), Chapa: css("--chapa"), Enrijecedor: "#b9661d", Parafuso: css("--parafuso"), Solda: css("--solda"), Concreto: css("--concreto") };
+  const BORDA = { Membro: css("--aco-borda"), Chapa: css("--chapa-borda"), Enrijecedor: "#6b3a0c", Parafuso: css("--parafuso"), Solda: css("--solda"), Concreto: css("--cota") };
+  const ALFA = { Membro: .16, Concreto: .35 };
+  const C = D.caixas.map(c => ({ p: c[0], x0: c[1], x1: c[2], y0: c[3], y1: c[4], z0: c[5], z1: c[6], r: c[7] }));
+  const base = m.tipo === "PlacaBase";
+  const W = 300, H = 220, M = 14;
+  function svgDe(pol) {   // pol: [{pts:[[u,v]...], papel, prof}]
+    let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
+    pol.forEach(p => p.pts.forEach(([u, v]) => { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }));
+    const k = Math.min((W - 2 * M) / Math.max(1, u1 - u0), (H - 2 * M) / Math.max(1, v1 - v0));
+    const ox = M + ((W - 2 * M) - (u1 - u0) * k) / 2, oy = M + ((H - 2 * M) - (v1 - v0) * k) / 2;
+    let s2 = "";
+    pol.sort((a, b) => a.prof - b.prof).forEach(p => {
+      const pts = p.pts.map(([u, v]) => `${(ox + (u - u0) * k).toFixed(1)},${(oy + (v1 - v) * k).toFixed(1)}`).join(" ");
+      const a = ALFA[p.papel] ?? .95;
+      s2 += `<polygon points="${pts}" fill="${COR[p.papel]}" fill-opacity="${p.sombra ? a * p.sombra : a}" stroke="${BORDA[p.papel]}" stroke-opacity="${p.papel === "Membro" ? .55 : .9}" stroke-width="${p.papel === "Membro" ? .7 : .9}"><title>${esc(p.r)}</title></polygon>`;
+    });
+    return `<svg viewBox="0 0 ${W} ${H}">${s2}</svg>`;
   }
-  svg.innerHTML = s;
+  // vistas ortogonais: (eixo u, eixo v, eixo de profundidade e sentido)
+  const orto = (fu, fv, fd) => svgDe(C.map(c => { const [a0, a1] = fu(c), [b0, b1] = fv(c); return { pts: [[a0, b0], [a1, b0], [a1, b1], [a0, b1]], papel: c.p, prof: fd(c), r: c.r }; }));
+  const topo = orto(c => [c.x0, c.x1], c => [c.y0, c.y1], c => c.z1);
+  const frente = orto(c => [c.y0, c.y1], c => [c.z0, c.z1], c => base ? c.x1 : -c.x0);
+  const lado = orto(c => [c.x0, c.x1], c => [c.z0, c.z1], c => -c.y0);
+  // isométrica: 3 faces visíveis por caixa (+z, −y, +x), pintor pela soma das coordenadas
+  const ca = Math.cos(Math.PI / 6), sa = Math.sin(Math.PI / 6);
+  const iso = [];
+  C.forEach(c => {
+    const q = (x, y, z) => { const u = (x + y) * ca, v = z + (y - x) * sa; return [u, v]; };
+    const faces = [
+      [[c.x0, c.y0, c.z1], [c.x1, c.y0, c.z1], [c.x1, c.y1, c.z1], [c.x0, c.y1, c.z1], 1.0],
+      [[c.x0, c.y0, c.z0], [c.x1, c.y0, c.z0], [c.x1, c.y0, c.z1], [c.x0, c.y0, c.z1], .8],
+      [[c.x1, c.y0, c.z0], [c.x1, c.y1, c.z0], [c.x1, c.y1, c.z1], [c.x1, c.y0, c.z1], .65],
+    ];
+    faces.forEach(f => iso.push({ pts: f.slice(0, 4).map(p => q(...p)), papel: c.p, sombra: f[4], prof: (c.x1 + c.x0) / 2 - (c.y0 + c.y1) / 2 + (c.z0 + c.z1) / 2 * 0.2 + (c.p === "Membro" || c.p === "Concreto" ? -1e5 : 0), r: c.r }));
+  });
+  const v3 = svgDe(iso);
+  const nomes = base ? ["Planta (vista de topo)", "Vista frontal (corte transversal)", "Vista lateral (corte longitudinal)", "3D — perfis transparentes"]
+                     : ["Vista de topo", "Corte transversal (vista frontal, olhando para o suporte)", "Vista lateral (corte longitudinal)", "3D — perfis transparentes"];
+  box.innerHTML = [topo, frente, lado, v3].map((s2, i) => `<figure><figcaption>${nomes[i]}</figcaption>${s2}</figure>`).join("");
 }
 
 if (E) tudo(); else enviar({ acao: "estado" });

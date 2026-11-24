@@ -190,6 +190,16 @@ public sealed class SessaoBiblioteca
         }
         ValorJson L(params double[] v) { var l = ValorJson.NovaLista(); foreach (double x in v) l.Adicionar(ValorJson.De(x)); return l; }
         o.Definir("viga", Perfil(viga)); o.Definir("pilar", Perfil(pilar));
+        // sólidos da ligação (D50, item 4): [papel, x0, x1, y0, y1, z0, z1, rótulo] em mm
+        var cx = ValorJson.NovaLista(); o.Definir("caixas", cx);
+        foreach (var c in GeometriaLigacao.Montar(m, viga, pilar))
+        {
+            var q = ValorJson.NovaLista();
+            q.Adicionar(ValorJson.De(c.Papel.ToString()));
+            foreach (double v in new[] { c.X0, c.X1, c.Y0, c.Y1, c.Z0, c.Z1 }) q.Adicionar(ValorJson.De(Math.Round(v, 2)));
+            q.Adicionar(ValorJson.De(c.Rotulo));
+            cx.Adicionar(q);
+        }
         switch (m.Tipo)
         {
             case TipoLigacao.ChapaAlma:

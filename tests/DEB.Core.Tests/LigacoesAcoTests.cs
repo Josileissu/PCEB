@@ -197,4 +197,18 @@ public class LigacoesAcoTests
             }
         Assert.Equal("salvar", (s.Receber("{\"acao\":\"salvar\"}") != null ? s.Fim : ""));
     }
+
+    [Fact]
+    public void Geometria_das_ligacoes_tem_os_parafusos_e_os_perfis_transparentes()
+    {
+        var viga = PerfilI.Buscar("W310X38.7"); var pilar = PerfilI.Buscar("W250X32.7");
+        foreach (var m in BibliotecaLigacoes.Carregar(null, System.IO.Path.Combine(System.IO.Path.GetTempPath(), "nao_existe_pceb.json")).Todos)
+        {
+            var cx = GeometriaLigacao.Montar(m, viga, pilar);
+            Assert.Contains(cx, c => c.Papel == PapelSolido.Membro);
+            Assert.Contains(cx, c => c.Papel == PapelSolido.Chapa);
+            Assert.True(cx.Count(c => c.Papel == PapelSolido.Parafuso) >= 2, m.Id);
+            Assert.All(cx, c => Assert.True(c.X1 > c.X0 && c.Y1 > c.Y0 && c.Z1 > c.Z0, m.Id + " " + c.Rotulo));
+        }
+    }
 }
