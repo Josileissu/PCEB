@@ -67,9 +67,12 @@ $p.WaitForExit(540000)
 - `muro`: muro de arrimo (D47) — cria uma parede de 3,5 m com sapata corrida de arrimo (sem salvar), lê, grava e relê os dados na parede
   e grava as três abas da janela (`janela_secao.png`…). A sapata de arrimo do Revit: "Uso estrutural" = Retenção (inteiro 0), ponta e
   talão em `CONTINUOUS_FOOTING_TOP_TOE`/`_HEEL`; o solo fica do lado do talão.
+- `escadas`: escada em laje armada longitudinalmente (D42) — cálculo, MEF, otimizador, janela em PNG, duas vigas de apoio de teste,
+  família PCEB e barras, corte e 3D exportados; ver `docs/ESCADAS.md`. MEF: caminhos em `%AppData%\PCEB\mef.txt` (`python=` Python 3.12
+  com openseespy; `ccx=` CalculiX).
 - `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
   `SD_VIGA_FAMILIA` (.rfa; copie com nome sem acento), `SD_VIGA_TIPO` e `SD_VIGA_PARAMS` (`b=200;h=500;dz_aba=300;...`, mm, num tipo
-  duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEBariantes_PCEB`
+  duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEB\variantes_PCEB`
   (as de "aba laje e aba superior" são do 2026). A família entra pelo documento dela (`fd.LoadFamily(doc)`): o `doc.LoadFamily` devolvia falso.
 - `exportarpecas` (`SD_EXPORT` = caminho), `conferir`, `conferireditar`, `furos`: ver `docs/EXPORTAR_PARA_O_CAD.md` e `docs/CONFERIR_PECAS.md`.
   Tarefas `formas*`: `docs/FORMAS.md`. `contarlegendas`: `docs/DETALHES_PADRAO.md`.
@@ -116,6 +119,7 @@ src/
   Vigas/         vigas pré-moldadas: cargas PCEB_, cálculo e armação pelo núcleo, janela com prévia (docs/VIGAS_PRE_MOLDADAS.md, D40)
   Analise/       análise por objetos lida do Revit e janela do modelo de análise (docs/ANALISE.md, D46)
   Configuracao/  configuração do projeto: tela WebView2 e gravação no modelo (D45)
+  Escadas/       escada armada longitudinalmente: janela, família gerada, barras, autoteste (docs/ESCADAS.md, D42)
 ```
 Fluxo dos pré-moldados: levantamento → grupos de peças iguais → janela (armadura por grupo) →
 para cada pilar: limpar → marca → barras → dados das barras → assembly (pilar + consolos + barras) →

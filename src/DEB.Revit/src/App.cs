@@ -168,6 +168,33 @@ namespace DEB.Revit
             };
             precast.AddItem(lajeAlveolar);
 
+            RibbonPanel concreto = application.CreateRibbonPanel(TabName, "Concreto armado");
+            var escada = new PushButtonData("DEB_Escada", "Escada", dll, typeof(EscadaCommand).FullName)
+            {
+                ToolTip = "Escada em laje armada longitudinalmente: calcula, confere por elementos finitos, cria a escada no modelo e arma.",
+                LongDescription =
+                    "Selecione as duas vigas (ou lajes) de apoio — a de baixo e a de cima — e clique; sem seleção, clique o eixo do apoio inferior " +
+                    "e o sentido de subida numa planta. A janela calcula a escada (geometria, cargas, momento, cortante, normal, reações, flecha e " +
+                    "fissuras pela NBR 6118), propõe a armadura com as barras cruzadas na quina do patamar e confere os esforços pelo OpenSees e pelo " +
+                    "CalculiX, se instalados. No aceite, a escada entra como família PCEB (modelo genérico que aceita armadura) com as barras.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "ES"),
+                Image = IconFactory.Create(16, "E")
+            };
+            concreto.AddItem(escada);
+            var escadaLU = new PushButtonData("DEB_EscadaLU", "Escada L/U", dll, typeof(ConjuntoEscadaCommand).FullName)
+            {
+                ToolTip = "Escada em L ou U montada por peças (lances, patamar e viga do patamar), no local ou pré-moldada.",
+                LongDescription =
+                    "Clique o eixo do apoio de baixo do 1º lance e o sentido de subida numa planta. A janela monta o arranjo (em U com o patamar como " +
+                    "peça e a viga do patamar, em L ou em linha com o patamar de um lance sobre o do outro), deixa editar cada peça, passa as reações de " +
+                    "uma peça para a outra e calcula a viga do patamar. No aceite, cria todas as peças com as barras.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "LU"),
+                Image = IconFactory.Create(16, "U")
+            };
+            concreto.AddItem(escadaLU);
+
             AddToolsPanel(application, dll);
             AddFormasPanel(application, dll);
 
