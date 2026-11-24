@@ -143,4 +143,65 @@ public class EstruturaObjetosTests
             System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "previa_analise.html"),
                 VisualizacaoAnalise.Pagina().Replace("<script>", "<script>window.DADOS_DEMO = " + json + ";</script><script>"));
     }
+
+    /// <summary>Placa quadrada 6 × 6 m, h = 12 cm, apoiada nas bordas, q = 10 kN/m² (Timoshenko: w = 0,00406·q·a⁴/D;
+    /// mx = 0,0368·(1 + ν)·q·a²). A grelha (Hambly) não tem o acoplamento de Poisson: tolerância maior.</summary>
+    [Fact]
+    public void LajeEmGrelhaComoPlacaApoiada()
+    {
+        var mat = new MaterialBarra { E = 3000, G = 3000 / 2.4 };
+        var e = new EstruturaObjetos();
+        var l = new LajeObjeto { Material = mat, Espessura = 12, Q = 10, Malha = 30, ApoiarBordas = true, PesoEspecifico = 0 };
+        l.Contorno.AddRange(new[] { new Vetor3(0, 0, 0), new Vetor3(600, 0, 0), new Vetor3(600, 600, 0), new Vetor3(0, 600, 0) });
+        e.Lajes.Add(l);
+        e.Analisar();
+        var r = e.Casos[EstruturaObjetos.CasoQ];
+        double soma = r.Reacoes.Where(x => x != null).Sum(x => x[2]);
+        Perto(360, soma, 1e-9);
+        var (uz, mx, my, _) = l.Resultados(r);
+        int c = l.Nx / 2;
+        double d = 3000 * Math.Pow(12, 3) / (12 * (1 - 0.04));
+        double wPlaca = 0.00406 * 0.001 * Math.Pow(600, 4) / d;
+        Assert.InRange(-uz[c, c] / wPlaca, 0.9, 1.15);
+        Assert.InRange(mx[c, c], 0.0368 * 10 * 36 * 0.9, 0.0368 * 1.2 * 10 * 36 * 1.05);
+        Perto(mx[c, c], my[c, c], 1e-6);                       // simetria
+    }
+
+    [Fact]
+    public void LajeSobreVigasEPilaresMonoliticos()
+    {
+        // pórtico moldado no local: 4 pilares 30×30 de 300 cm, 4 vigas 20×50 nas bordas, laje 12 cm em cima
+        var mat = MaterialBarra.Concreto(30);
+        var e = new EstruturaObjetos();
+        var pts = new[] { (0.0, 0.0), (500.0, 0.0), (500.0, 400.0), (0.0, 400.0) };
+        var pil = pts.Select((p, k) => new PilarObjeto
+        {
+            Dono = new Dono { Tipo = TipoDono.Pilar, Id = "P" + (k + 1), Nome = "P" + (k + 1) }, Base = new Vetor3(p.Item1, p.Item2, 0),
+            Secao = SecaoPoligonal.Retangulo(30, 30), Comprimento = 300, Embutimento = 0, Material = mat,
+        }).ToList();
+        e.Pilares.AddRange(pil);
+        for (int k = 0; k < 4; k++)
+        {
+            var a = pts[k]; var b = pts[(k + 1) % 4];
+            // eixo da viga 25 cm abaixo do topo do pilar: face de baixo a 250
+            var v = new VigaObjeto { Dono = new Dono { Tipo = TipoDono.Viga, Id = "V" + (k + 1), Nome = "V" + (k + 1) },
+                ApoioI = new Vetor3(a.Item1, a.Item2, 250), ApoioJ = new Vetor3(b.Item1, b.Item2, 250), Secao = SecaoPoligonal.Retangulo(20, 50), Material = mat };
+            e.Vigas.Add(v);
+            e.LigacoesDiretas.Add(new LigacaoPilarViga { Pilar = pil[k], Viga = v, PontaI = true });
+            e.LigacoesDiretas.Add(new LigacaoPilarViga { Pilar = pil[(k + 1) % 4], Viga = v, PontaI = false });
+        }
+        var laje = new LajeObjeto { Dono = new Dono { Tipo = TipoDono.Laje, Id = "L1", Nome = "L1" }, Material = mat, Espessura = 12, G = 1, Q = 3, Malha = 50 };
+        laje.Contorno.AddRange(pts.Select(p => new Vetor3(p.Item1, p.Item2, 294)));
+        e.Lajes.Add(laje);
+        e.Analisar();
+        // toda a carga da laje chega às bases dos pilares
+        var q = e.Casos[EstruturaObjetos.CasoQ];
+        double soma = pil.Sum(p => q.Reacoes[p.Nos[0].No][2]);
+        Perto(3 * 5 * 4, soma, 1e-6);
+        Assert.DoesNotContain(e.Avisos, a => a.Contains("borda livre"));
+        // as vigas foram divididas onde a laje apoia
+        Assert.True(e.Vigas[0].Barras.Count > 5);
+        var (uz, mx, _, _) = laje.Resultados(q);
+        Assert.True(mx[laje.Nx / 2, laje.Ny / 2] > 0);
+    }
 }

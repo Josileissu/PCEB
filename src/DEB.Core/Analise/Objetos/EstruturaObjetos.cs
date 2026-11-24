@@ -85,12 +85,23 @@ public sealed class VigaObjeto
     /// <summary>Fator da rigidez à torção (0,15 = concreto fissurado, prática usual; 1 = elástica).</summary>
     public double FatorTorcao { get; set; } = 0.15;
 
+    /// <summary>Pontos onde a viga precisa de nó (cm a partir do apoio I, no eixo): apoio de laje, de outra viga.</summary>
+    public List<double> PontosInternos { get; } = new List<double>();
+
     // gerado
     public int NoEixoI { get; private set; }
     public int NoEixoJ { get; private set; }
     public int NoApoioI { get; private set; }
     public int NoApoioJ { get; private set; }
-    public BarraPortico Barra { get; private set; }
+    /// <summary>Primeira barra (a única, sem pontos internos).</summary>
+    public BarraPortico Barra => Barras[0];
+    public List<BarraPortico> Barras { get; } = new List<BarraPortico>();
+    /// <summary>Nós do eixo com a posição (cm a partir do apoio I).</summary>
+    public List<(double T, int No)> NosEixo { get; } = new List<(double, int)>();
+    public double Vao => (ApoioJ - ApoioI).Modulo;
+    public Vetor3 Direcao => (ApoioJ - ApoioI).Unitario;
+    /// <summary>Nó do eixo mais perto da posição t.</summary>
+    public int NoNaPosicao(double t) => NosEixo.OrderBy(n => Math.Abs(n.T - t)).First().No;
     /// <summary>Altura do CG acima da face de baixo (cm).</summary>
     public double AlturaEixo => Secao.CG.Z - Secao.ZMin;
 
@@ -102,19 +113,272 @@ public sealed class VigaObjeto
         NoEixoJ = m.NovoNo(ej.X, ej.Y, ej.Z, Dono, Dono + " eixo J");
         NoApoioI = m.NovoNo(ApoioI.X, ApoioI.Y, ApoioI.Z, Dono, Dono + " apoio I");
         NoApoioJ = m.NovoNo(ApoioJ.X, ApoioJ.Y, ApoioJ.Z, Dono, Dono + " apoio J");
-        Barra = m.Barra(NoEixoI, NoEixoJ, PropriedadesSecao.Barra(Secao), Material, Dono, Dono.ToString());
-        Barra.VetorXZ = Vetor3.EixoZ;
-        Barra.FatorFlexao = FatorFlexao;
-        Barra.FatorTorcao = FatorTorcao;
+        Barras.Clear(); NosEixo.Clear();
+        double L = Vao;
+        NosEixo.Add((0, NoEixoI));
+        foreach (double t in PontosInternos.Where(t => t > 1 && t < L - 1).Select(t => Math.Round(t, 1)).Distinct().OrderBy(t => t))
+        {
+            Vetor3 p = ei + Direcao * t;
+            NosEixo.Add((t, m.NovoNo(p.X, p.Y, p.Z, Dono, $"{Dono} t={t:0}")));
+        }
+        NosEixo.Add((L, NoEixoJ));
+        var sec = PropriedadesSecao.Barra(Secao);
+        for (int k = 0; k + 1 < NosEixo.Count; k++)
+        {
+            var b = m.Barra(NosEixo[k].No, NosEixo[k + 1].No, sec, Material, Dono, NosEixo.Count > 2 ? $"{Dono} trecho {k + 1}" : Dono.ToString());
+            b.VetorXZ = Vetor3.EixoZ;
+            b.FatorFlexao = FatorFlexao;
+            b.FatorTorcao = FatorTorcao;
+            Barras.Add(b);
+            if (G != 0) g.Distribuidas.Add(new CargaDistribuida { Barra = b.Id, Q = new Vetor3(0, 0, -G / 100) });
+            if (Q != 0) q.Distribuidas.Add(new CargaDistribuida { Barra = b.Id, Q = new Vetor3(0, 0, -Q / 100) });
+        }
         m.Rigido(NoEixoI, NoApoioI, Dono, Dono + " altura do eixo I");
         m.Rigido(NoEixoJ, NoApoioJ, Dono, Dono + " altura do eixo J");
-        if (G != 0) g.Distribuidas.Add(new CargaDistribuida { Barra = Barra.Id, Q = new Vetor3(0, 0, -G / 100) });
-        if (Q != 0) q.Distribuidas.Add(new CargaDistribuida { Barra = Barra.Id, Q = new Vetor3(0, 0, -Q / 100) });
         foreach (var (x, cg, cq) in Concentradas)
         {
-            if (cg != 0) g.Pontuais.Add(new CargaPontualBarra { Barra = Barra.Id, A = x, F = new Vetor3(0, 0, -cg) });
-            if (cq != 0) q.Pontuais.Add(new CargaPontualBarra { Barra = Barra.Id, A = x, F = new Vetor3(0, 0, -cq) });
+            int k = Math.Max(0, NosEixo.FindLastIndex(n => n.T <= x) );
+            k = Math.Min(k, Barras.Count - 1);
+            double a = x - NosEixo[k].T;
+            if (cg != 0) g.Pontuais.Add(new CargaPontualBarra { Barra = Barras[k].Id, A = a, F = new Vetor3(0, 0, -cg) });
+            if (cq != 0) q.Pontuais.Add(new CargaPontualBarra { Barra = Barras[k].Id, A = a, F = new Vetor3(0, 0, -cq) });
         }
+    }
+}
+
+/// <summary>
+/// Ligação viga–pilar sem consolo (D46): a ponta do eixo da viga presa ao nó do pilar no mesmo nível por vínculo rígido —
+/// monolítica (todos os graus: viga moldada no local) ou articulada (translações e a torção da viga: pré-moldada chumbada).
+/// </summary>
+public sealed class LigacaoPilarViga
+{
+    public Dono Dono { get; set; } = new Dono { Tipo = TipoDono.Ligacao };
+    public PilarObjeto Pilar { get; set; }
+    public VigaObjeto Viga { get; set; }
+    public bool PontaI { get; set; }
+    public bool Articulada { get; set; }
+    /// <summary>Altura do eixo da viga a partir da base do pilar (cm).</summary>
+    public double ZNivel => (((PontaI ? Viga.ApoioI : Viga.ApoioJ) + Vetor3.EixoZ * Viga.AlturaEixo) - Pilar.Base).Ponto(Pilar.Eixo.Unitario);
+    public int NoPilar { get; private set; }
+
+    internal void Gerar(ModeloBarras m)
+    {
+        NoPilar = Pilar.NoNoNivel(ZNivel);
+        int noViga = PontaI ? Viga.NoEixoI : Viga.NoEixoJ;
+        bool[] graus = { true, true, true, true, true, true };
+        if (Articulada)
+        {
+            // rotações livres, menos a torção da viga (senão a viga gira em torno do eixo dela)
+            Vetor3 d = Viga.Direcao;
+            graus = new[] { true, true, true, Math.Abs(d.X) >= Math.Abs(d.Y), Math.Abs(d.Y) > Math.Abs(d.X), false };
+        }
+        m.Rigido(NoPilar, noViga, Dono, Dono + (Articulada ? " (articulada)" : " (monolítica)"), graus);
+    }
+}
+
+/// <summary>
+/// Laje em grelha (D46; padrão para laje maciça/nervurada moldada no local): malha nas duas direções sobre o contorno, faixas com a
+/// espessura da laje (I = b·h³/12, torção de placa J = b·h³/6 — analogia de Hambly), cargas por m² nos nós pela área de influência,
+/// nós apoiados nas vigas (projeção no eixo, translações) e nos pilares que estão sob a laje.
+/// </summary>
+public sealed class LajeObjeto
+{
+    public Dono Dono { get; set; } = new Dono { Tipo = TipoDono.Laje };
+    /// <summary>Contorno no plano médio da laje (cm, mundo).</summary>
+    public List<Vetor3> Contorno { get; } = new List<Vetor3>();
+    public double Espessura { get; set; } = 12;
+    public MaterialBarra Material { get; set; }
+    /// <summary>Peso específico (kN/m³) para o peso próprio nos nós.</summary>
+    public double PesoEspecifico { get; set; } = 25;
+    /// <summary>Cargas além do peso próprio (kN/m²).</summary>
+    public double G { get; set; }
+    public double Q { get; set; }
+    /// <summary>Espaçamento da malha (cm).</summary>
+    public double Malha { get; set; } = 50;
+    /// <summary>Direção x da malha (horizontal); nula = o maior lado do contorno.</summary>
+    public Vetor3? DirX { get; set; }
+    /// <summary>Teste e laje isolada: bordas com apoio simples (translações), sem vigas.</summary>
+    public bool ApoiarBordas { get; set; }
+
+    // gerado
+    public Vetor3 Origem { get; private set; }
+    public Vetor3 Ex { get; private set; }
+    public Vetor3 Ey { get; private set; }
+    public int Nx { get; private set; }
+    public int Ny { get; private set; }
+    public double Sx { get; private set; }
+    public double Sy { get; private set; }
+    /// <summary>Nó da grelha em (i, j); −1 = fora do contorno.</summary>
+    public int[,] Nos { get; private set; }
+    public List<BarraPortico> BarrasX { get; } = new List<BarraPortico>();
+    public List<BarraPortico> BarrasY { get; } = new List<BarraPortico>();
+    /// <summary>Apoios encontrados: nó da grelha → (viga, posição) ou pilar.</summary>
+    private readonly List<(int I, int J, VigaObjeto Viga, double T, PilarObjeto Pilar)> _apoios = new List<(int, int, VigaObjeto, double, PilarObjeto)>();
+    private bool[,] _dentro;
+    public int NosLivresNaBorda { get; private set; }
+
+    private (double X, double Y) Local(Vetor3 p) { var d = p - Origem; return (d.Ponto(Ex), d.Ponto(Ey)); }
+    public Vetor3 Mundo(double x, double y) => Origem + Ex * x + Ey * y;
+    public Vetor3 Ponto(int i, int j) => Mundo(i * Sx, j * Sy);
+
+    private static bool DentroPoligono(IList<(double X, double Y)> p, double x, double y, double tol)
+    {
+        bool dentro = false;
+        for (int i = 0, j = p.Count - 1; i < p.Count; j = i++)
+        {
+            var (xi, yi) = p[i]; var (xj, yj) = p[j];
+            // na borda (com tolerância) conta como dentro
+            double dx = xj - xi, dy = yj - yi, l2 = dx * dx + dy * dy;
+            double t = l2 < 1e-12 ? 0 : Math.Max(0, Math.Min(1, ((x - xi) * dx + (y - yi) * dy) / l2));
+            { double ex = x - xi - t * dx, ey = y - yi - t * dy; if (Math.Sqrt(ex * ex + ey * ey) <= tol) return true; }
+            if ((yi > y) != (yj > y) && x < dx * (y - yi) / dy + xi) dentro = !dentro;
+        }
+        return dentro;
+    }
+
+    /// <summary>1º passo (antes de pilares e vigas gerarem): malha, e onde vigas e pilares precisam de nó.</summary>
+    internal void Preparar(IList<VigaObjeto> vigas, IList<PilarObjeto> pilares)
+    {
+        Origem = Contorno[0];
+        Vetor3 dx = DirX ?? Enumerable.Range(0, Contorno.Count).Select(i => Contorno[(i + 1) % Contorno.Count] - Contorno[i]).OrderByDescending(v => v.Modulo).First();
+        Ex = new Vetor3(dx.X, dx.Y, 0).Unitario; Ey = Vetor3.EixoZ.Vetorial(Ex).Unitario;
+        var loc = Contorno.Select(Local).ToList();
+        double x0 = loc.Min(p => p.X), y0 = loc.Min(p => p.Y), x1 = loc.Max(p => p.X), y1 = loc.Max(p => p.Y);
+        Origem = Mundo(x0, y0); loc = Contorno.Select(Local).ToList();
+        Nx = Math.Max(2, (int)Math.Ceiling((x1 - x0) / Malha)); Ny = Math.Max(2, (int)Math.Ceiling((y1 - y0) / Malha));
+        Sx = (x1 - x0) / Nx; Sy = (y1 - y0) / Ny;
+        _dentro = new bool[Nx + 1, Ny + 1];
+        for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++) _dentro[i, j] = DentroPoligono(loc, i * Sx, j * Sy, 0.01 * Math.Min(Sx, Sy));
+        _apoios.Clear();
+        if (ApoiarBordas) return;
+        for (int i = 0; i <= Nx; i++)
+            for (int j = 0; j <= Ny; j++)
+            {
+                if (!_dentro[i, j]) continue;
+                Vetor3 p = Ponto(i, j);
+                // pilar sob o nó (dentro da seção, em planta, e a laje dentro da altura do pilar)
+                var pil = pilares.FirstOrDefault(pl =>
+                {
+                    Vetor3 d = p - pl.Base; double z = d.Ponto(pl.Eixo.Unitario);
+                    return z > pl.Embutimento && z <= pl.Comprimento + Espessura &&
+                           Math.Abs(d.Ponto(pl.DirY)) <= pl.Secao.B / 2 + 1 && Math.Abs(d.Ponto(pl.DirZ)) <= pl.Secao.H / 2 + 1;
+                });
+                if (pil != null) { pil.Niveis.Add(Math.Min(pil.Comprimento, (p - pil.Base).Ponto(pil.Eixo.Unitario))); _apoios.Add((i, j, null, 0, pil)); continue; }
+                // viga sob o nó: projeção no eixo em planta, dentro da largura (+ meia malha nas bordas) e entre os apoios
+                foreach (var v in vigas)
+                {
+                    Vetor3 d = new Vetor3(p.X - v.ApoioI.X, p.Y - v.ApoioI.Y, 0), dir = new Vetor3(v.Direcao.X, v.Direcao.Y, 0).Unitario;
+                    double t = d.Ponto(dir), dist = Math.Abs(d.Ponto(Vetor3.EixoZ.Vetorial(dir)));
+                    double vaoPlanta = new Vetor3(v.ApoioJ.X - v.ApoioI.X, v.ApoioJ.Y - v.ApoioI.Y, 0).Modulo;
+                    if (t < -1 || t > vaoPlanta + 1 || dist > v.Secao.B / 2 + 1) continue;
+                    double tv = t / Math.Max(1e-9, vaoPlanta) * v.Vao;
+                    v.PontosInternos.Add(tv);
+                    _apoios.Add((i, j, v, tv, null));
+                    break;
+                }
+            }
+    }
+
+    /// <summary>2º passo: nós, barras, apoios nas vigas/pilares e cargas.</summary>
+    internal void Gerar(ModeloBarras m, CasoCarga pp, CasoCarga g, CasoCarga q)
+    {
+        BarrasX.Clear(); BarrasY.Clear();
+        Nos = new int[Nx + 1, Ny + 1];
+        for (int i = 0; i <= Nx; i++)
+            for (int j = 0; j <= Ny; j++)
+            {
+                Nos[i, j] = -1;
+                if (!_dentro[i, j]) continue;
+                Vetor3 p = Ponto(i, j);
+                Nos[i, j] = m.NovoNo(p.X, p.Y, p.Z, Dono, $"{Dono} ({i},{j})");
+            }
+        var mat = new MaterialBarra { E = Material.E, G = Material.G, Peso = 0, Descricao = Material.Descricao };
+        SecaoBarra Faixa(double b) => new SecaoBarra { A = b * Espessura, Iy = b * Math.Pow(Espessura, 3) / 12, Iz = Espessura * Math.Pow(b, 3) / 12, J = b * Math.Pow(Espessura, 3) / 6, Descricao = $"faixa {b:0.#}×{Espessura:0.#}" };
+        bool Celula(int i, int j) => i >= 0 && j >= 0 && i < Nx && j < Ny && Nos[i, j] >= 0 && Nos[i + 1, j] >= 0 && Nos[i, j + 1] >= 0 && Nos[i + 1, j + 1] >= 0;
+        for (int i = 0; i <= Nx; i++)
+            for (int j = 0; j <= Ny; j++)
+            {
+                if (Nos[i, j] < 0) continue;
+                // largura de influência de cada faixa: meia malha de cada lado que tem célula
+                if (i < Nx && Nos[i + 1, j] >= 0)
+                {
+                    double b = (Celula(i, j - 1) ? Sy / 2 : 0) + (Celula(i, j) ? Sy / 2 : 0);
+                    if (b > 0) { var bx = m.Barra(Nos[i, j], Nos[i + 1, j], Faixa(b), mat, Dono, $"{Dono} x({i},{j})"); bx.VetorXZ = Vetor3.EixoZ; BarrasX.Add(bx); }
+                }
+                if (j < Ny && Nos[i, j + 1] >= 0)
+                {
+                    double b = (Celula(i - 1, j) ? Sx / 2 : 0) + (Celula(i, j) ? Sx / 2 : 0);
+                    if (b > 0) { var by = m.Barra(Nos[i, j], Nos[i, j + 1], Faixa(b), mat, Dono, $"{Dono} y({i},{j})"); by.VetorXZ = Vetor3.EixoZ; BarrasY.Add(by); }
+                }
+            }
+        // cargas nos nós pela área de influência (cada célula dá ¼ da área a cada canto)
+        var area = new double[Nx + 1, Ny + 1];
+        for (int i = 0; i < Nx; i++) for (int j = 0; j < Ny; j++)
+            if (Celula(i, j)) { double a = Sx * Sy / 4; area[i, j] += a; area[i + 1, j] += a; area[i, j + 1] += a; area[i + 1, j + 1] += a; }
+        double qpp = PesoEspecifico * Espessura / 100;   // kN/m²
+        for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++)
+        {
+            if (Nos[i, j] < 0 || area[i, j] <= 0) continue;
+            double a = area[i, j] / 1e4;   // m²
+            if (qpp != 0) pp.Nodais.Add((Nos[i, j], new double[] { 0, 0, -qpp * a, 0, 0, 0 }));
+            if (G != 0) g.Nodais.Add((Nos[i, j], new double[] { 0, 0, -G * a, 0, 0, 0 }));
+            if (Q != 0) q.Nodais.Add((Nos[i, j], new double[] { 0, 0, -Q * a, 0, 0, 0 }));
+        }
+        // apoios
+        var tr = new[] { true, true, true, false, false, false };
+        if (ApoiarBordas)
+        {
+            for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++)
+                if (Nos[i, j] >= 0 && Borda(i, j)) m.Apoio(Nos[i, j], tr, Dono);
+            return;
+        }
+        var apoiados = new HashSet<(int, int)>();
+        foreach (var (i, j, v, t, pil) in _apoios)
+        {
+            int mestre = v != null ? v.NoNaPosicao(t) : pil.NoNoNivel((Ponto(i, j) - pil.Base).Ponto(pil.Eixo.Unitario));
+            m.Rigido(mestre, Nos[i, j], Dono, $"{Dono} apoio ({i},{j})", tr);
+            apoiados.Add((i, j));
+        }
+        NosLivresNaBorda = 0;
+        for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++) if (Nos[i, j] >= 0 && Borda(i, j) && !apoiados.Contains((i, j))) NosLivresNaBorda++;
+    }
+
+    /// <summary>
+    /// Resultados por nó da grelha: flecha uz (cm), momentos por unidade de largura mx, my (kN·m/m, positivo traciona embaixo) e
+    /// torção mxy (kN·m/m), média das faixas que chegam ao nó. NaN = fora da laje.
+    /// </summary>
+    public (double[,] Uz, double[,] Mx, double[,] My, double[,] Mxy) Resultados(ResultadoCaso r)
+    {
+        int nx = Nx + 1, ny = Ny + 1;
+        var uz = new double[nx, ny]; var mx = new double[nx, ny]; var my = new double[nx, ny]; var mt = new double[nx, ny];
+        var cx = new int[nx, ny]; var cy = new int[nx, ny];
+        var idx = new Dictionary<int, (int, int)>();
+        for (int i = 0; i < nx; i++) for (int j = 0; j < ny; j++) { if (Nos[i, j] >= 0) idx[Nos[i, j]] = (i, j); uz[i, j] = Nos[i, j] >= 0 ? r.Deslocamentos[Nos[i, j]][2] : double.NaN; }
+        void Soma(BarraPortico b, double[,] m, int[,] c)
+        {
+            double[] f = r.ForcasBarras[b.Id];
+            double larg = b.Secao.A / Espessura;
+            var (i0, j0) = idx[b.NoI]; var (i1, j1) = idx[b.NoJ];
+            m[i0, j0] += f[4] / larg; c[i0, j0]++;          // ponta I: M interno = −f[4]; laje: m = −M/b
+            m[i1, j1] += -f[10] / larg; c[i1, j1]++;
+            mt[i0, j0] += Math.Abs(f[3]) / larg / 2; mt[i1, j1] += Math.Abs(f[9]) / larg / 2;
+        }
+        foreach (var b in BarrasX) Soma(b, mx, cx);
+        foreach (var b in BarrasY) Soma(b, my, cy);
+        for (int i = 0; i < nx; i++) for (int j = 0; j < ny; j++)
+        {
+            if (Nos[i, j] < 0) { mx[i, j] = my[i, j] = mt[i, j] = double.NaN; continue; }
+            mx[i, j] = cx[i, j] > 0 ? mx[i, j] / cx[i, j] : 0;
+            my[i, j] = cy[i, j] > 0 ? my[i, j] / cy[i, j] : 0;
+            int n = cx[i, j] + cy[i, j]; mt[i, j] = n > 0 ? mt[i, j] / n * 2 : 0;
+        }
+        return (uz, mx, my, mt);
+    }
+
+    private bool Borda(int i, int j)
+    {
+        if (i == 0 || j == 0 || i == Nx || j == Ny) return true;
+        return Nos[i - 1, j] < 0 || Nos[i + 1, j] < 0 || Nos[i, j - 1] < 0 || Nos[i, j + 1] < 0;
     }
 }
 
@@ -230,6 +494,8 @@ public sealed class EstruturaObjetos
     public List<PilarObjeto> Pilares { get; } = new List<PilarObjeto>();
     public List<VigaObjeto> Vigas { get; } = new List<VigaObjeto>();
     public List<LigacaoConsolo> Ligacoes { get; } = new List<LigacaoConsolo>();
+    public List<LigacaoPilarViga> LigacoesDiretas { get; } = new List<LigacaoPilarViga>();
+    public List<LajeObjeto> Lajes { get; } = new List<LajeObjeto>();
     public ModeloBarras Modelo { get; private set; }
     public Dictionary<string, ResultadoCaso> Casos { get; private set; }
     public Dictionary<string, ResultadoCaso> Combinacoes { get; } = new Dictionary<string, ResultadoCaso>();
@@ -246,8 +512,17 @@ public sealed class EstruturaObjetos
         var g = m.Caso(CasoG, NaturezaCaso.Permanente);
         var q = m.Caso(CasoQ, NaturezaCaso.Variavel);
         foreach (var l in Ligacoes) if (!l.Pilar.Niveis.Contains(l.ZTopoConsolo)) l.Pilar.Niveis.Add(l.ZTopoConsolo);
+        foreach (var l in LigacoesDiretas) l.Pilar.Niveis.Add(l.ZNivel);
+        foreach (var v in Vigas) v.PontosInternos.Clear();
+        foreach (var la in Lajes) la.Preparar(Vigas, Pilares);
         foreach (var p in Pilares) p.Gerar(m);
         foreach (var v in Vigas) v.Gerar(m, g, q);
+        foreach (var l in LigacoesDiretas) l.Gerar(m);
+        foreach (var la in Lajes)
+        {
+            la.Gerar(m, pp, g, q);
+            if (la.NosLivresNaBorda > 0) Avisos.Add($"{la.Dono}: {la.NosLivresNaBorda} nós da borda sem viga nem pilar embaixo (borda livre).");
+        }
         double gEl = cfg.Numero("acoes.gElastomero") / 10;   // MPa → kN/cm²
         foreach (var l in Ligacoes)
         {
@@ -257,7 +532,7 @@ public sealed class EstruturaObjetos
         // viga sem ligação numa ponta: apoio articulado fixo no próprio nó (não fica solta)
         foreach (var v in Vigas)
             foreach (bool i in new[] { true, false })
-                if (!Ligacoes.Any(l => l.Viga == v && l.PontaI == i))
+                if (!Ligacoes.Any(l => l.Viga == v && l.PontaI == i) && !LigacoesDiretas.Any(l => l.Viga == v && l.PontaI == i))
                 {
                     m.Apoio(i ? v.NoApoioI : v.NoApoioJ, new[] { true, true, true, true, false, false }, v.Dono);
                     Avisos.Add($"{v.Dono}: ponta {(i ? "I" : "J")} sem consolo ligado — apoio articulado fixo.");
