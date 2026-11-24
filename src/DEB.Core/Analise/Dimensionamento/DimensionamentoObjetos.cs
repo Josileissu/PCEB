@@ -195,7 +195,8 @@ public static class DimensionamentoObjetos
         r.Memoria.Linhas.Insert(0, $"Viga {l.Viga.Dono} apoiada em {l.Suporte.Dono}; Vd,máx = {N(casos.Max(c => c.Item2), "0.0")} kN; " +
                                    $"Nd entre {N(casos.Min(c => c.Item3), "0.0")} e {N(casos.Max(c => c.Item3), "0.0")} kN (proposta do PCEB: confira e ajuste a ligação).");
         foreach (var x in v) r.Verificacoes.Add(x);
-        r.Resumo.Add($"{l.Chapa.N} ø{N(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} · chapa {N(l.Chapa.Tp, "0.#")} × {N(l.Chapa.AlturaChapa, "0")} mm · Vd {N(casos.Max(c => c.Item2), "0")} kN");
+        r.Memoria.Linhas.Insert(1, $"Modelo da biblioteca: {l.Modelo?.Nome} ({l.Modelo?.Id}, {l.Modelo?.Origem}).");
+        r.Resumo.Add($"{l.Modelo?.Id} · {l.Chapa.N} ø{N(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} · chapa {N(l.Chapa.Tp, "0.#")} × {N(l.Chapa.AlturaChapa, "0")} mm · Vd {N(casos.Max(c => c.Item2), "0")} kN");
         return r;
     }
 

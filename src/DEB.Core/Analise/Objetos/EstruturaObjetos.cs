@@ -634,9 +634,8 @@ public sealed class EstruturaObjetos
     public List<BarraMetalicaObjeto> Metalicas { get; } = new List<BarraMetalicaObjeto>();
     /// <summary>Ligações flexíveis das vigas de aço (chapa de alma), criadas por <see cref="PrepararMetalicas"/>.</summary>
     public List<LigacaoMetalica> LigacoesMetalicas { get; } = new List<LigacaoMetalica>();
-    /// <summary>Aço da chapa e parafuso das ligações propostas (da configuração).</summary>
-    public DEB.Core.Elementos.Metalica.AcoEstrutural AcoChapas { get; set; }
-    public DEB.Core.Elementos.Metalica.TipoParafuso ParafusoLigacoes { get; set; }
+    /// <summary>Biblioteca de ligações (D49): a ligação flexível das vigas de aço é o primeiro modelo de chapa de alma em vigor.</summary>
+    public DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes Biblioteca { get; set; }
     public ModeloBarras Modelo { get; private set; }
     public Dictionary<string, ResultadoCaso> Casos { get; private set; }
     public Dictionary<string, ResultadoCaso> Combinacoes { get; } = new Dictionary<string, ResultadoCaso>();
@@ -719,13 +718,13 @@ public sealed class EstruturaObjetos
                 t = Math.Max(0, Math.Min(L, t));
                 if (t > 1 && t < L - 1) alvo.PontosInternos.Add(t);
                 ligadas.Add((v, pontaI));
+                var modelo = (Biblioteca ??= DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes.Carregar()).Padrao(DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaAlma);
                 if ((pontaI ? v.LigacaoI : v.LigacaoJ) == LigacaoExtremidade.Flexivel)
                     LigacoesMetalicas.Add(new LigacaoMetalica
                     {
                         Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{v.Dono.Id}-{(pontaI ? "I" : "J")}", Nome = $"chapa de alma {Curto(v.Dono)} ({(pontaI ? "I" : "J")}) → {Curto(alvo.Dono)}" },
-                        Viga = v, PontaI = pontaI, Suporte = alvo,
-                        Chapa = DEB.Core.Elementos.Metalica.DadosChapaAlma.Proposta(v.Perfil, v.Aco,
-                            AcoChapas ?? DEB.Core.Elementos.Metalica.AcoEstrutural.Buscar("A36"), ParafusoLigacoes ?? DEB.Core.Elementos.Metalica.TipoParafuso.Lista[2]),
+                        Viga = v, PontaI = pontaI, Suporte = alvo, Modelo = modelo,
+                        Chapa = DEB.Core.Elementos.Metalica.DadosChapaAlma.DoModelo(modelo, v.Perfil, v.Aco),
                     });
                 return alvo.PontoI + alvo.Direcao * t;
             }

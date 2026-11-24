@@ -1,0 +1,28 @@
+{
+  "ligacoes": [
+    { "id": "PCEB-CA-19", "nome": "Chapa de alma ø19 — chapa 9,5", "tipo": "ChapaAlma",
+      "descricao": "Ligação flexível usual: chapa de 9,5 mm soldada ao suporte, parafusos ø19 (¾\") A325 numa fila, quantos couberem na alma.",
+      "valores": { "db": "19.05", "tp": "9.5", "n": "auto", "s": "75" } },
+    { "id": "PCEB-CA-22", "nome": "Chapa de alma ø22 — chapa 12,5", "tipo": "ChapaAlma",
+      "descricao": "Vigas mais carregadas: parafusos ø22 (⅞\"), chapa de 12,5 mm (ainda ≤ db/2 + 1,6: gira como rótula).",
+      "valores": { "db": "22.2", "tp": "12.5", "n": "auto", "s": "75", "ev": "40", "ehChapa": "40", "ehViga": "40", "perna": "8" } },
+    { "id": "PCEB-CD-76", "nome": "Cantoneira dupla L 76 × 7,9 — ø19", "tipo": "CantoneiraDupla",
+      "descricao": "Duas cantoneiras parafusadas na alma da viga e no suporte.",
+      "valores": { "aba": "76.2", "t": "7.94", "db": "19.05", "n": "auto" } },
+    { "id": "PCEB-CD-102", "nome": "Cantoneira dupla L 102 × 9,5 — ø22", "tipo": "CantoneiraDupla",
+      "descricao": "Duas cantoneiras maiores para vigas altas.",
+      "valores": { "aba": "101.6", "t": "9.53", "db": "22.2", "n": "auto", "ev": "38", "eh": "38" } },
+    { "id": "PCEB-CT-22", "nome": "Chapa de topo estendida ø22", "tipo": "ChapaTopo",
+      "descricao": "Ligação rígida viga–pilar: chapa estendida acima da mesa tracionada, 4 parafusos ø22 em volta dela; espessura pelo PCEB.",
+      "valores": { "db": "22.2", "estendida": "Sim", "tp": "auto", "linhasInternas": "1" } },
+    { "id": "PCEB-CT-25", "nome": "Chapa de topo estendida ø25", "tipo": "ChapaTopo",
+      "descricao": "Momentos maiores: parafusos ø25, duas linhas abaixo da mesa tracionada.",
+      "valores": { "db": "25.4", "estendida": "Sim", "tp": "auto", "linhasInternas": "2", "g": "120", "pf": "50" } },
+    { "id": "PCEB-PB-25", "nome": "Placa de base com 4 chumbadores ø25", "tipo": "PlacaBase",
+      "descricao": "Base de pilar com a placa e a espessura pelo PCEB; quatro chumbadores ø25 F1554 Gr. 36.",
+      "valores": { "nChumb": "4", "dChumb": "25", "tp": "auto", "b": "auto", "h": "auto" } },
+    { "id": "PCEB-PB-32", "nome": "Placa de base com 4 chumbadores ø32", "tipo": "PlacaBase",
+      "descricao": "Bases com tração ou momento maiores.",
+      "valores": { "nChumb": "4", "dChumb": "32", "tp": "auto", "b": "auto", "h": "auto", "bordaChumb": "60" } }
+  ]
+}

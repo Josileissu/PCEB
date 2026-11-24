@@ -98,10 +98,30 @@ public sealed class DadosChapaAlma
     public static DadosChapaAlma Proposta(PerfilI viga, AcoEstrutural acoViga, AcoEstrutural acoChapa, TipoParafuso parafuso)
     {
         var d = new DadosChapaAlma { Viga = viga, AcoViga = acoViga, AcoChapa = acoChapa, Parafuso = parafuso };
-        double livre = viga.D - 2 * viga.Tf - 2 * Math.Max(viga.R, 10);
+        d.N = NumeroQueCabe(d);
+        return d;
+    }
+
+    /// <summary>O maior número de parafusos (≥ 2) que cabe na altura livre da alma com o passo e as bordas dados.</summary>
+    public static int NumeroQueCabe(DadosChapaAlma d)
+    {
+        double livre = d.Viga.D - 2 * d.Viga.Tf - 2 * Math.Max(d.Viga.R, 10);
         int n = Math.Max(2, (int)Math.Floor((livre - 2 * d.Ev) / d.S) + 1);
         while (n > 2 && d.Ev * 2 + (n - 1) * d.S > livre) n--;
-        d.N = n;
+        return n;
+    }
+
+    /// <summary>Dados a partir de um modelo da biblioteca (D49) para a viga: os valores "auto" o PCEB escolhe.</summary>
+    public static DadosChapaAlma DoModelo(Ligacoes.ModeloLigacao m, PerfilI viga, AcoEstrutural acoViga)
+    {
+        var d = new DadosChapaAlma
+        {
+            Viga = viga, AcoViga = acoViga, AcoChapa = AcoEstrutural.Buscar(m.Texto("acoChapa")) ?? AcoEstrutural.Buscar("A36"),
+            Parafuso = TipoParafuso.Buscar(m.Texto("parafuso")), RoscaNoPlano = m.Texto("rosca") != "Não",
+            Db = m.Numero("db"), S = m.Numero("s"), Tp = m.Numero("tp"), Ev = m.Numero("ev"), EhChapa = m.Numero("ehChapa"),
+            EhViga = m.Numero("ehViga"), A = m.Numero("a"), Perna = m.Numero("perna"), Fw = m.Numero("fw"),
+        };
+        d.N = m.EhAuto("n") ? NumeroQueCabe(d) : (int)m.Numero("n");
         return d;
     }
 }

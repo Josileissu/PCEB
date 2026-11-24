@@ -1,5 +1,6 @@
 using System.Linq;
 using DEB.Core.Elementos.Metalica;
+using DEB.Core.Elementos.Metalica.Ligacoes;
 using DEB.Core.Normas.Verificacao;
 using Xunit;
 
@@ -53,5 +54,46 @@ public class LigacoesAcoTests
         // carga excessiva: os parafusos não atendem
         var v2 = LigacaoChapaAlma.Verificar(d, new[] { ("ELU forte", 400.0, 0.0) }, "Ligação teste", out _);
         Assert.Equal(SituacaoVerificacao.NaoAtende, v2.Single(x => x.Codigo == "LC1").Situacao);
+    }
+
+    [Fact]
+    public void Biblioteca_traz_as_ligacoes_do_PCEB_e_o_escritorio_substitui()
+    {
+        string arq = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pceb_ligacoes_" + System.Guid.NewGuid().ToString("N") + ".json");
+        try
+        {
+            var b = BibliotecaLigacoes.Carregar(null, arq);
+            Assert.Equal(8, b.Pceb.Count);
+            foreach (TipoLigacao t in System.Enum.GetValues(typeof(TipoLigacao))) Assert.NotNull(b.Padrao(t));
+            Assert.All(b.Pceb, m => Assert.Empty(m.Erros()));
+            // escritório: muda a chapa padrão para 8 mm e cria uma ligação nova
+            var minha = b.Buscar("PCEB-CA-19").Copia(OrigemLigacao.Escritorio);
+            minha.Valores["tp"] = "8";
+            b.Escritorio.Add(minha);
+            b.Escritorio.Add(new ModeloLigacao { Id = "ESC-CA-16", Nome = "Chapa de alma ø16", Tipo = TipoLigacao.ChapaAlma, Origem = OrigemLigacao.Escritorio, Valores = { ["db"] = "16" } });
+            b.GravarEscritorio(arq);
+            var b2 = BibliotecaLigacoes.Carregar(null, arq);
+            Assert.Equal(8.0, b2.Buscar("PCEB-CA-19").Numero("tp"));
+            Assert.Equal(OrigemLigacao.Escritorio, b2.Buscar("PCEB-CA-19").Origem);
+            Assert.Equal(9, b2.Todos.Count);
+            Assert.Equal("ASTM F3125 A325", b2.Buscar("ESC-CA-16").Texto("parafuso"));   // padrão do esquema
+            // valor inválido aparece nos erros
+            var ruim = new ModeloLigacao { Tipo = TipoLigacao.ChapaAlma, Valores = { ["tp"] = "100", ["parafuso"] = "X" } };
+            Assert.Equal(2, ruim.Erros().Count);
+        }
+        finally { if (System.IO.File.Exists(arq)) System.IO.File.Delete(arq); }
+    }
+
+    [Fact]
+    public void Chapa_de_alma_do_modelo_escolhe_os_parafusos_pela_viga()
+    {
+        var b = BibliotecaLigacoes.Carregar(null, "nao_existe.json");
+        var m = b.Buscar("PCEB-CA-19");
+        var baixa = DadosChapaAlma.DoModelo(m, PerfilI.Buscar("W200X15"), AcoEstrutural.Buscar("A572"));
+        var alta = DadosChapaAlma.DoModelo(m, PerfilI.Buscar("W530X66"), AcoEstrutural.Buscar("A572"));
+        Assert.Equal(2, baixa.N);
+        Assert.True(alta.N >= 6);
+        Assert.Equal(9.5, alta.Tp);
+        Assert.Equal("ASTM A36", alta.AcoChapa.Nome);
     }
 }

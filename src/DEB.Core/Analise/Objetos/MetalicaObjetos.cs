@@ -22,6 +22,8 @@ public sealed class LigacaoMetalica
     public BarraMetalicaObjeto Viga { get; set; }
     public bool PontaI { get; set; }
     public BarraMetalicaObjeto Suporte { get; set; }
+    /// <summary>Modelo da biblioteca de ligações (D49) usado nesta ligação.</summary>
+    public DEB.Core.Elementos.Metalica.Ligacoes.ModeloLigacao Modelo { get; set; }
     public DadosChapaAlma Chapa { get; set; }
 }
 

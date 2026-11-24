@@ -192,10 +192,6 @@ public static class CatalogoConfiguracao
           "NBR 6118 8.2.8", "Corrige o módulo de elasticidade.");
         O("materiais", "acoPerfil", "Aço dos perfis", DEB.Core.Elementos.Metalica.AcoEstrutural.Lista.Select(a => a.Nome).ToArray(), "NBR 8800 Anexo A",
           "Aço dos perfis metálicos quando o tipo do Revit não traz o material.");
-        O("materiais", "acoChapa", "Aço das chapas de ligação", DEB.Core.Elementos.Metalica.AcoEstrutural.Lista.Select(a => a.Nome).ToArray(), "NBR 8800 Anexo A",
-          "Chapas de alma, de topo e de base propostas pelo PCEB.", 2);
-        O("materiais", "parafuso", "Parafusos das ligações", DEB.Core.Elementos.Metalica.TipoParafuso.Lista.Select(a => a.Nome).ToArray(), "NBR 8800 Tab. A.3",
-          "Parafusos das ligações propostas (rosca no plano de corte, a favor da segurança).", 2);
         N("materiais", "pesoEspecifico", "Peso específico do concreto armado", 25, "kN/m³", "NBR 6120", "Peso próprio das peças.", 20, 30);
 
         // ---- durabilidade
