@@ -124,7 +124,7 @@ public sealed class SessaoBiblioteca
     private string NovoId(TipoLigacao t)
     {
         string pre = t switch { TipoLigacao.ChapaAlma => "ESC-CA-", TipoLigacao.CantoneiraDupla => "ESC-CD-", TipoLigacao.ChapaTopo => "ESC-CT-", TipoLigacao.PlacaBase => "ESC-PB-",
-                                TipoLigacao.ApoioTerca => "ESC-AT-", TipoLigacao.ChapaNo => "ESC-CN-", TipoLigacao.TuboFendido => "ESC-TF-", _ => "ESC-ET-" };
+                                TipoLigacao.ApoioTerca => "ESC-AT-", TipoLigacao.ChapaNo => "ESC-CN-", TipoLigacao.TuboFendido => "ESC-TF-", TipoLigacao.ChapaEmbutida => "ESC-IN-", _ => "ESC-ET-" };
         int k = 1;
         while (Biblioteca.Buscar(pre + k) != null) k++;
         return pre + k;
@@ -264,6 +264,15 @@ public sealed class SessaoBiblioteca
                 var rc = FuncoesLigacao.Capacidade(s => LigacaoTuboFendido.Verificar(d, new[] { new EsforcoLigacao("", -s) }, "", out _));
                 o.Definir("texto", $"tubo ø{Fmt.Virgula(d.D, "0.#")} × {Fmt.Virgula(d.T, "0.#")} · chapa {Fmt.Virgula(d.Tg, "0.#")} mm · 4 filetes {Fmt.Virgula(d.Perna, "0")} × {Fmt.Virgula(d.Lw, "0")} mm · " +
                                    $"resistências: tração {Res(rt)}, compressão {Res(rc)}");
+                break;
+            }
+            case TipoLigacao.ChapaEmbutida:
+            {
+                var d = DadosChapaEmbutida.DoModelo(m);
+                var rn = FuncoesLigacao.Capacidade(s => LigacaoChapaEmbutida.Verificar(d, new[] { new EsforcoLigacao("", s) }, "", out _));
+                var rv = FuncoesLigacao.Capacidade(s => LigacaoChapaEmbutida.Verificar(d, new[] { new EsforcoLigacao("", 0, s) }, "", out _));
+                o.Definir("texto", $"chapa {Fmt.Virgula(d.Bp, "0")} × {Fmt.Virgula(d.Hp, "0")} × {Fmt.Virgula(d.Tp, "0.#")} mm · {d.N} pinos ø{Fmt.Virgula(d.Db, "0")} × {Fmt.Virgula(d.Hef, "0")} mm · " +
+                                   $"C{Fmt.Virgula(d.Fck, "0")} · resistências: tração {Res(rn)}, cortante {Res(rv)}");
                 break;
             }
             case TipoLigacao.EmendaTalas:

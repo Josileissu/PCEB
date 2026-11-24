@@ -194,6 +194,27 @@ public static class GeometriaLigacao
                     l.Add(new Caixa(PapelSolido.Solda, 0, d.Perna, sy > 0 ? d.Tg / 2 : -d.Tg / 2 - d.Perna, sy > 0 ? d.Tg / 2 + d.Perna : -d.Tg / 2, -hg / 2, hg / 2, "filete no suporte"));
                 break;
             }
+            case TipoLigacao.ChapaEmbutida:
+            {
+                // topo do pilar de concreto em z = 0 com a chapa embutida rente; pinos para baixo; viga de aço apoiada ao longo de x
+                var d = DadosChapaEmbutida.DoModelo(m);
+                double lc = Math.Max(d.Bp, d.Hp) + 300, dh = d.DCabeca > 0 ? d.DCabeca : 1.6 * d.Db, kc = Math.Max(8, 0.5 * d.Db);
+                l.Add(new Caixa(PapelSolido.Concreto, -lc / 2, lc / 2, -lc / 2, lc / 2, -d.Hef - 300, -d.Tp, "pilar de concreto"));
+                l.Add(new Caixa(PapelSolido.Chapa, -d.Bp / 2, d.Bp / 2, -d.Hp / 2, d.Hp / 2, -d.Tp, 0, $"chapa embutida {d.Bp:0} × {d.Hp:0} × {d.Tp:0.#}"));
+                for (int i = 0; i < d.Nx; i++)
+                    for (int j = 0; j < d.Ny; j++)
+                    {
+                        double x = (i - (d.Nx - 1) / 2.0) * d.Sx, y = (j - (d.Ny - 1) / 2.0) * d.Sy;
+                        l.Add(new Caixa(PapelSolido.Parafuso, x - d.Db / 2, x + d.Db / 2, y - d.Db / 2, y + d.Db / 2, -d.Tp - d.Hef, -d.Tp, $"pino ø{d.Db:0}"));
+                        l.Add(new Caixa(PapelSolido.Parafuso, x - dh / 2, x + dh / 2, y - dh / 2, y + dh / 2, -d.Tp - d.Hef - kc, -d.Tp - d.Hef, "cabeça"));
+                    }
+                // viga apoiada (perfil de referência), soldada na chapa
+                double L = lc * 1.3;
+                l.AddRange(PerfilI(viga, -L / 2, L / 2, false, "viga " + viga.Nome).Select(c => new Caixa(c.Papel, c.X0, c.X1, c.Y0, c.Y1, c.Z0 + viga.D / 2, c.Z1 + viga.D / 2, c.Rotulo)));
+                foreach (int sy in new[] { 1, -1 })
+                    l.Add(new Caixa(PapelSolido.Solda, -d.Bp / 2 + 10, d.Bp / 2 - 10, sy * viga.Bf / 2, sy * (viga.Bf / 2 + 6), 0, 6, "filete na chapa"));
+                break;
+            }
             case TipoLigacao.EmendaTalas:
             {
                 // duas vigas ao longo de x com a junta em x = 0; talas externas nas mesas e duas talas na alma

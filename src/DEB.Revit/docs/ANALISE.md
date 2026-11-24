@@ -102,3 +102,14 @@ AutoRun `analitico` (sem gravar): grava `janela_<vista>.png` de seis vistas e o 
   núcleo (dimensionamento, memória, verificações) têm os valores com kN convertidos antes de chegar à página.
 - Lajes: `PCEB_Carga permanente (kN/m²)`, `PCEB_Carga variável (kN/m²)`, `PCEB_Peso próprio (kN/m²)` e `PCEB_Tipo de laje` são
   compartilhados (GUIDs `6a1e3f40-…-9b0c1d2e00NN`, `Analise/ParametrosAnalise.cs`), lidos pelo GUID ou, nos modelos antigos, pelo nome.
+
+## Consolo, ligações no Revit e insert (D50, continuação)
+- Aparelho do consolo: a janela mostra o que a análise usa (família, ajuste ou padrão da configuração); elastômero sem alguma medida
+  recebe as do padrão (10 cm × largura da viga − 4 × 1 cm) em vez de virar articulação fixa.
+- Detalhe do consolo: ponta da viga com a forma do modelo (trechos do levantamento: dente, ressalto) sobre a espessura do aparelho;
+  botões σ1, σ2, σx, σy, τxy e "Campo de tensões" (não linear, opção); isovalores (curvas de nível) em todos os campos.
+- Modelar ligações: parafusos com cabeça, arruela e porca do catálogo e fuste no comprimento comercial pela pega; parafusos da
+  cantoneira no suporte; arruela e porca nos chumbadores; a viga para a 12 mm da face do suporte (`START/END_EXTENSION` com a união
+  da ponta desligada — a extensão só fica editável depois de `Regenerate`).
+- Insert (chapa embutida com pinos com cabeça, `LigacaoChapaEmbutida`): EN 1992-4 (aço, cone, arrancamento, pry-out, borda e
+  interações) na biblioteca, com desenho. Ainda não é criado pela análise nem modelado no Revit.

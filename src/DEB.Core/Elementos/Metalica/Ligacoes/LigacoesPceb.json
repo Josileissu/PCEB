@@ -44,6 +44,12 @@
       "valores": { "d": "141.3", "t": "6.55", "tg": "16", "lw": "190", "perna": "8" } },
     { "id": "PCEB-ET-19", "nome": "Emenda de viga com talas — ø19", "tipo": "EmendaTalas",
       "descricao": "Emenda parafusada: talas externas nas mesas e duas talas na alma.",
-      "valores": { "db": "19.05", "nm": "3", "tm": "12.5", "na": "auto", "ta": "8" } }
+      "valores": { "db": "19.05", "nm": "3", "tm": "12.5", "na": "auto", "ta": "8" } },
+    { "id": "PCEB-IN-16", "nome": "Insert com 4 pinos ø16 × 100", "tipo": "ChapaEmbutida",
+      "descricao": "Chapa embutida rente à face do concreto com quatro pinos com cabeça; apoio ou solda de peça de aço sobre concreto.",
+      "valores": { "db": "16", "hef": "100", "nx": "2", "ny": "2", "sx": "120", "sy": "120", "tp": "12.5" } },
+    { "id": "PCEB-IN-19", "nome": "Insert com 6 pinos ø19 × 150", "tipo": "ChapaEmbutida",
+      "descricao": "Esforços maiores: seis pinos ø19 (3 × 2), embutimento de 150 mm.",
+      "valores": { "db": "19", "hef": "150", "nx": "3", "ny": "2", "sx": "150", "sy": "150", "tp": "16" } }
   ]
 }

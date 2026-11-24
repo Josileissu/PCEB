@@ -10,7 +10,7 @@ using DEB.Core.Persistencia;
 namespace DEB.Core.Elementos.Metalica.Ligacoes;
 
 /// <summary>Tipos de ligação metálica da biblioteca do PCEB (D49; apoio de terça, chapa de nó, tubo em fenda e emenda: D50, item 5).</summary>
-public enum TipoLigacao { ChapaAlma, CantoneiraDupla, ChapaTopo, PlacaBase, ApoioTerca, ChapaNo, TuboFendido, EmendaTalas }
+public enum TipoLigacao { ChapaAlma, CantoneiraDupla, ChapaTopo, PlacaBase, ApoioTerca, ChapaNo, TuboFendido, EmendaTalas, ChapaEmbutida }
 
 /// <summary>De onde vem o modelo de ligação: o PCEB (vem com o programa), o escritório ou o projeto (D45: o nível de baixo vale).</summary>
 public enum OrigemLigacao { Pceb, Escritorio, Projeto }
@@ -241,6 +241,23 @@ public static class EsquemasLigacao
             N("folga", "Folga entre as vigas", "Talas", "mm", "10", 0, 30),
             O("acoTala", "Aço das talas", "Talas", Acos, "ASTM A36"),
         },
+        [TipoLigacao.ChapaEmbutida] = new[]
+        {
+            N("db", "Diâmetro do pino", "Pinos com cabeça", "mm", "19", 10, 25),
+            N("dCabeca", "Diâmetro da cabeça", "Pinos com cabeça", "mm", "auto", 15, 45, true, "auto: 1,6·d (ISO 13918)."),
+            N("hef", "Embutimento efetivo", "Pinos com cabeça", "mm", "100", 40, 400, false, "Da face do concreto ao apoio da cabeça."),
+            N("nx", "Pinos na direção x", "Pinos com cabeça", "", "2", 1, 6),
+            N("ny", "Pinos na direção y", "Pinos com cabeça", "", "2", 1, 6),
+            N("sx", "Espaçamento em x", "Pinos com cabeça", "mm", "150", 40, 600),
+            N("sy", "Espaçamento em y", "Pinos com cabeça", "mm", "150", 40, 600),
+            O("acoChapa", "Aço da chapa", "Chapa embutida", Acos, "ASTM A36"),
+            N("tp", "Espessura da chapa", "Chapa embutida", "mm", "16", 6.3, 50),
+            N("bp", "Largura da chapa (x)", "Chapa embutida", "mm", "auto", 80, 1500, true, "auto: grade + 2,5·d (≥ 50 mm) de cada lado."),
+            N("hp", "Altura da chapa (y)", "Chapa embutida", "mm", "auto", 80, 1500, true),
+            N("fck", "fck do concreto", "Concreto", "MPa", "30", 20, 90),
+            O("fissurado", "Concreto fissurado", "Concreto", SimNao, "Sim", "Sim = a favor da segurança (região tracionada ou sem garantia de compressão)."),
+            N("borda", "Distância à borda (direção da cortante)", "Concreto", "mm", "0", 0, 2000, false, "0 = longe da borda (não governa)."),
+        },
     };
 
     public static IReadOnlyList<ParametroLigacao> Do(TipoLigacao t) => _esq[t];
@@ -257,6 +274,7 @@ public static class EsquemasLigacao
         TipoLigacao.ApoioTerca => "Apoio de terça",
         TipoLigacao.ChapaNo => "Contraventamento em chapa de nó",
         TipoLigacao.TuboFendido => "Tubo com chapa de nó em fenda",
+        TipoLigacao.ChapaEmbutida => "Insert: chapa embutida no concreto",
         _ => "Emenda de viga com talas",
     };
 }

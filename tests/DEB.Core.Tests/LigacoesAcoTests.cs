@@ -65,7 +65,7 @@ public class LigacoesAcoTests
         try
         {
             var b = BibliotecaLigacoes.Carregar(null, arq);
-            Assert.Equal(15, b.Pceb.Count);
+            Assert.Equal(17, b.Pceb.Count);
             foreach (TipoLigacao t in System.Enum.GetValues(typeof(TipoLigacao))) Assert.NotNull(b.Padrao(t));
             Assert.All(b.Pceb, m => Assert.Empty(m.Erros()));
             // escritório: muda a chapa padrão para 8 mm e cria uma ligação nova
@@ -190,7 +190,7 @@ public class LigacoesAcoTests
         // prévia para captura de tela (fora do Git): $env:PCEB_PREVIA_LIGACOES = "<pasta>"
         string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_LIGACOES");
         if (!string.IsNullOrEmpty(pasta))
-            foreach (var id in new[] { "PCEB-CA-19", "PCEB-CT-22", "PCEB-PB-25", "PCEB-CD-76", "PCEB-AT-12", "PCEB-CN-L63", "PCEB-TF-101", "PCEB-ET-19" })
+            foreach (var id in new[] { "PCEB-CA-19", "PCEB-CT-22", "PCEB-PB-25", "PCEB-CD-76", "PCEB-AT-12", "PCEB-CN-L63", "PCEB-TF-101", "PCEB-ET-19", "PCEB-IN-19" })
             {
                 s.Receber("{\"acao\":\"selecionar\",\"id\":\"" + id + "\"}");
                 System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "ligacao_" + id + ".html"), s.PaginaComDados());
@@ -268,5 +268,21 @@ public class LigacoesAcoTests
         double eta = System.Math.Pow(6.0 / 2 / fv, 2) + System.Math.Pow(4.0 / 2 / ft, 2);
         Assert.StartsWith("η = " + DEB.Core.Fmt.Virgula(eta, "0.00"), v.Single(x => x.Codigo == "AT1").Valor);
         Assert.True(d.Hp >= 0.75 * 150 - 1e-9);
+    }
+
+    [Fact]
+    public void Insert_cone_de_concreto_do_grupo_pela_EN_1992_4()
+    {
+        var d = DadosChapaEmbutida.DoModelo(Modelo(TipoLigacao.ChapaEmbutida, ("db", "19"), ("hef", "100"), ("nx", "2"), ("ny", "2"), ("sx", "150"), ("sy", "150"), ("fck", "30")));
+        // N0 = 7,7·√30·100^1,5 = 42,17 kN; Ac,N/A0 = 450²/300² = 2,25; γMc = 1,5 → NRd,c = 63,26 kN
+        double nrdc = 7.7 * System.Math.Sqrt(30) * 1000 / 1000 * 2.25 / 1.5;
+        var v = LigacaoChapaEmbutida.Verificar(d, new[] { new EsforcoLigacao("N", nrdc) }, "g", out var mem);
+        Assert.StartsWith("η = 1,00", v.Single(x => x.Codigo == "IN2").Valor);
+        // aço do pino: As·fu/γMs com γMs = 1,2·450/350 = 1,543 → 82,7 kN por pino; 4 pinos com 63 kN no grupo: 15,8 kN cada
+        Assert.StartsWith("η = 0,19", v.Single(x => x.Codigo == "IN1").Valor);
+        // perto da borda aparece a ruptura da borda na cortante
+        var db = DadosChapaEmbutida.DoModelo(Modelo(TipoLigacao.ChapaEmbutida, ("borda", "80")));
+        Assert.Contains(LigacaoChapaEmbutida.Verificar(db, new[] { new EsforcoLigacao("V", 0, 20) }, "g", out _), x => x.Codigo == "IN6");
+        Assert.Contains(GeometriaLigacao.Montar(Modelo(TipoLigacao.ChapaEmbutida), PerfilI.Buscar("W310X38.7"), PerfilI.Buscar("W250X32.7")), c => c.Papel == PapelSolido.Concreto);
     }
 }

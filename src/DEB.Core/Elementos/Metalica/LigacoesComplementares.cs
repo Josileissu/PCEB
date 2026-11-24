@@ -396,3 +396,111 @@ public static class LigacaoEmendaTalas
         return v;
     }
 }
+
+// ============================================================================ insert: chapa embutida no concreto com pinos com cabeça
+
+/// <summary>
+/// Insert entre o aço e o concreto (D50): chapa embutida na face do concreto com pinos com cabeça (stud) soldados atrás, numa grade
+/// nx × ny; a peça de aço apoia ou é soldada na chapa. Esforços na face (kN, kN·m): Nd = tração perpendicular à chapa (+ arranca),
+/// Vd = cortante no plano da chapa, Md = momento em torno do eixo y da grade (tração nos pinos de um lado).
+/// Resistências pela EN 1992-4 (fixações no concreto; a NBR não traz método próprio): aço do pino, cone de concreto, arrancamento pela
+/// cabeça, pry-out e ruptura da borda; interações do aço e do concreto.
+/// </summary>
+public sealed class DadosChapaEmbutida
+{
+    public double Db { get; set; } = 19;          // diâmetro do pino (mm)
+    public double DCabeca { get; set; }           // 0 = 1,6·d (ISO 13918)
+    public double Hef { get; set; } = 100;        // embutimento efetivo (mm)
+    public int Nx { get; set; } = 2;
+    public int Ny { get; set; } = 2;
+    public double Sx { get; set; } = 150;
+    public double Sy { get; set; } = 150;
+    public double Fuk { get; set; } = 450;        // pino ISO 13918 SD1: fu 450, fy 350
+    public double Fyk { get; set; } = 350;
+    public double Fck { get; set; } = 30;
+    public bool Fissurado { get; set; } = true;
+    public double Borda { get; set; }             // distância do pino mais perto à borda do concreto na direção da cortante (mm); 0 = longe
+    public double Bp { get; set; } = 250;
+    public double Hp { get; set; } = 250;
+    public double Tp { get; set; } = 16;
+    public AcoEstrutural AcoChapa { get; set; }
+    public int N => Nx * Ny;
+    public double As => Math.PI * Db * Db / 4;
+
+    public static DadosChapaEmbutida DoModelo(Ligacoes.ModeloLigacao m)
+    {
+        double db = m.Numero("db");
+        double borda = Math.Max(50, 2.5 * db);
+        return new DadosChapaEmbutida
+        {
+            Db = db, DCabeca = m.Numero("dCabeca", 0), Hef = m.Numero("hef"), Nx = (int)m.Numero("nx"), Ny = (int)m.Numero("ny"),
+            Sx = m.Numero("sx"), Sy = m.Numero("sy"), Fck = m.Numero("fck"), Fissurado = m.Texto("fissurado") != "Não", Borda = m.Numero("borda", 0),
+            Bp = m.EhAuto("bp") ? m.Numero("sx") * (m.Numero("nx") - 1) + 2 * borda : m.Numero("bp"),
+            Hp = m.EhAuto("hp") ? m.Numero("sy") * (m.Numero("ny") - 1) + 2 * borda : m.Numero("hp"),
+            Tp = m.Numero("tp"), AcoChapa = AcoEstrutural.Buscar(m.Texto("acoChapa")) ?? AcoEstrutural.Buscar("A36"),
+        };
+    }
+}
+
+public static class LigacaoChapaEmbutida
+{
+    public static ListaVerificacoes Verificar(DadosChapaEmbutida d, IEnumerable<EsforcoLigacao> casos, string grupo, out PassoMemoria mem)
+    {
+        string F(double x, string f = "0.#") => FuncoesLigacao.F(x, f);
+        mem = new PassoMemoria { Titulo = "Insert: chapa embutida com pinos com cabeça (EN 1992-4; pino pela ISO 13918)" };
+        var v = new ListaVerificacoes(); var cs = casos.ToList();
+        // coeficientes da EN 1992-4 (4.4.3.1): aço γMs = 1,2·fuk/fyk ≥ 1,4 (tração) e 1,0·fuk/fyk ≥ 1,25 (cortante); concreto γMc = 1,5
+        double gMsN = Math.Max(1.4, 1.2 * d.Fuk / d.Fyk), gMsV = Math.Max(1.25, d.Fuk / d.Fyk), gMc = 1.5;
+        // tração de cada pino (elástico; momento em torno de y)
+        var xs = Enumerable.Range(0, d.Nx).Select(i => (i - (d.Nx - 1) / 2.0) * d.Sx).ToArray();
+        double sx2 = xs.Sum(x => x * x) * d.Ny;
+        double Tmax(EsforcoLigacao c) => Math.Max(0, c.Nd / d.N + (sx2 > 0 ? Math.Abs(c.Md) * 1000 * xs.Max() / sx2 : 0));
+        double Tgrupo(EsforcoLigacao c) => xs.Sum(x => Math.Max(0, c.Nd / d.N + (sx2 > 0 ? Math.Abs(c.Md) * 1000 * x / sx2 : 0))) * d.Ny;
+        double nRds = d.As * d.Fuk / gMsN / 1000, vRds = 0.6 * d.As * d.Fuk / gMsV / 1000;
+        // cone de concreto (7.2.1.4): N0 = k1·√fck·hef^1,5; áreas projetadas com scr = 3·hef; borda reduz (ψs,N)
+        double k1 = d.Fissurado ? 7.7 : 11.0, hef = d.Hef, scr = 3 * hef, ccr = 1.5 * hef;
+        double n0 = k1 * Math.Sqrt(d.Fck) * Math.Pow(hef, 1.5) / 1000;
+        double c = d.Borda > 0 ? Math.Min(d.Borda, ccr) : ccr;
+        double ax = c + Math.Min(scr, d.Sx) * (d.Nx - 1) + ccr, ay = 2 * ccr + Math.Min(scr, d.Sy) * (d.Ny - 1);
+        double psiS = d.Borda > 0 ? Math.Min(1, 0.7 + 0.3 * c / ccr) : 1;
+        double nRdc = n0 * ax * ay / (scr * scr) * psiS / gMc;
+        // arrancamento pela cabeça (7.2.1.5): NRk,p = k2·Ah·fck, k2 = 7,5 (fissurado) ou 10,5
+        double dh = d.DCabeca > 0 ? d.DCabeca : 1.6 * d.Db, ah = Math.PI / 4 * (dh * dh - d.Db * d.Db);
+        double nRdp = (d.Fissurado ? 7.5 : 10.5) * ah * d.Fck / gMc / 1000;
+        // pry-out (7.2.2.4): k8 = 2 (hef ≥ 60) sobre o cone do grupo
+        double vRdcp = (hef >= 60 ? 2.0 : 1.0) * nRdc;
+        // ruptura da borda na cortante (7.2.2.5), com a borda informada: V0 = k9·d^α·lf^β·√fck·c^1,5
+        double vRdc = double.PositiveInfinity;
+        if (d.Borda > 0)
+        {
+            double lf = Math.Min(hef, 12 * d.Db), alfa = 0.1 * Math.Sqrt(lf / c), beta = 0.1 * Math.Pow(d.Db / c, 0.2);
+            double v0 = (d.Fissurado ? 1.7 : 2.4) * Math.Pow(d.Db, alfa) * Math.Pow(lf, beta) * Math.Sqrt(d.Fck) * Math.Pow(c, 1.5) / 1000;
+            double larg = Math.Min(3 * c + Math.Min(3 * c, d.Sy) * (d.Ny - 1), 3 * c * d.Ny);
+            vRdc = v0 * larg / (3 * c) / gMc;
+        }
+        FuncoesLigacao.K(v, grupo, "IN1", "Pinos à tração (aço)", FuncoesLigacao.Pior(cs, x => Tmax(x) / nRds), "EN 1992-4 7.2.1.3", "Mais pinos ou diâmetro maior.");
+        FuncoesLigacao.K(v, grupo, "IN2", "Cone de concreto (grupo)", FuncoesLigacao.Pior(cs, x => Tgrupo(x) / nRdc), "EN 1992-4 7.2.1.4", "Aumente o embutimento ou o espaçamento.");
+        FuncoesLigacao.K(v, grupo, "IN3", "Arrancamento pela cabeça", FuncoesLigacao.Pior(cs, x => Tmax(x) / nRdp), "EN 1992-4 7.2.1.5");
+        FuncoesLigacao.K(v, grupo, "IN4", "Pinos à cortante (aço)", FuncoesLigacao.Pior(cs, x => Math.Abs(x.Vd) / d.N / vRds), "EN 1992-4 7.2.2.3");
+        FuncoesLigacao.K(v, grupo, "IN5", "Pry-out (concreto atrás dos pinos)", FuncoesLigacao.Pior(cs, x => Math.Abs(x.Vd) / vRdcp), "EN 1992-4 7.2.2.4");
+        if (d.Borda > 0)
+            FuncoesLigacao.K(v, grupo, "IN6", "Ruptura da borda (cortante para a borda)", FuncoesLigacao.Pior(cs, x => Math.Abs(x.Vd) / vRdc), "EN 1992-4 7.2.2.5",
+                             "Afaste os pinos da borda ou arme a borda.");
+        // interações (7.2.3): aço (N/NRd)² + (V/VRd)² ≤ 1; concreto (N/NRd)^1,5 + (V/VRd)^1,5 ≤ 1
+        FuncoesLigacao.K(v, grupo, "IN7", "Interação tração × cortante no aço",
+            FuncoesLigacao.Pior(cs, x => Math.Pow(Tmax(x) / nRds, 2) + Math.Pow(Math.Abs(x.Vd) / d.N / vRds, 2)), "EN 1992-4 7.2.3 (Tab. 7.3)");
+        FuncoesLigacao.K(v, grupo, "IN8", "Interação tração × cortante no concreto", FuncoesLigacao.Pior(cs, x =>
+            Math.Pow(Math.Max(Tgrupo(x) / nRdc, Tmax(x) / nRdp), 1.5) + Math.Pow(Math.Abs(x.Vd) / Math.Min(vRdcp, vRdc), 1.5)), "EN 1992-4 7.2.3 (Tab. 7.3)");
+        mem.Linhas.Add($"{d.N} pinos ø{F(d.Db, "0")} × hef {F(hef, "0")} mm (cabeça ø{F(dh, "0")}), grade {d.Nx} × {d.Ny} a {F(d.Sx, "0")} × {F(d.Sy, "0")} mm; " +
+                       $"chapa {F(d.Bp, "0")} × {F(d.Hp, "0")} × {F(d.Tp)} mm; concreto C{F(d.Fck, "0")} {(d.Fissurado ? "fissurado" : "não fissurado")}" +
+                       (d.Borda > 0 ? $", borda a {F(d.Borda, "0")} mm." : "."));
+        mem.Linhas.Add($"Por pino: NRd,s = {F(nRds, "0.0")} kN, VRd,s = {F(vRds, "0.0")} kN, NRd,p = {F(nRdp, "0.0")} kN (γMs = {F(gMsN, "0.00")}/{F(gMsV, "0.00")}); " +
+                       $"grupo: NRd,c = {F(nRdc, "0.0")} kN (N0 = {F(n0, "0.0")} kN, Ac,N/A0 = {F(ax * ay / (scr * scr), "0.00")}), VRd,cp = {F(vRdcp, "0.0")} kN" +
+                       (d.Borda > 0 ? $", VRd,c = {F(vRdc, "0.0")} kN" : "") + "; γMc = 1,5.");
+        bool geo = d.Sx >= 5 * d.Db - 1e-9 && (d.Ny < 2 || d.Sy >= 5 * d.Db - 1e-9) && hef >= 4 * d.Db - 1e-9 && d.Tp >= 0.4 * d.Db - 1e-9;
+        FuncoesLigacao.Geo(v, grupo, "IN9", "Espaçamento, embutimento e espessura da chapa", geo,
+            $"s = {F(Math.Min(d.Sx, d.Ny > 1 ? d.Sy : d.Sx), "0")} mm, hef = {F(hef, "0")} mm, tp = {F(d.Tp)} mm", "s ≥ 5·d; hef ≥ 4·d; tp ≥ 0,4·d (solda do pino)",
+            "EN 1992-4 / ISO 13918 / AWS D1.1");
+        return v;
+    }
+}
