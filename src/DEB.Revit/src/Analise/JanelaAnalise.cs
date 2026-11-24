@@ -56,7 +56,7 @@ namespace DEB.Revit.Analise
                     w.NavigationCompleted += async (s, e) =>
                     {
                         await Task.Delay(900);
-                        if (ModoCaptura != "") await w.ExecuteScriptAsync($"document.querySelector('[data-modo=\"{ModoCaptura}\"]').click()");
+                        if (ModoCaptura != "") await w.ExecuteScriptAsync($"(document.querySelector('[data-modo=\"{ModoCaptura}\"]') || document.querySelector('[data-aba=\"{ModoCaptura}\"]')).click()");
                         await Task.Delay(400);
                         using (var fs = File.Create(Captura)) await w.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, fs);
                         Close();

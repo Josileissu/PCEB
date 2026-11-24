@@ -25,24 +25,34 @@ namespace DEB.Revit.Commands
             EstruturaObjetos e = Montar(doc, notas);
             if (e == null)
             {
-                TaskDialog.Show("Modelo de análise", "Não há estrutura para montar (pilares com consolos de vigas pré-moldadas).\n\n" + string.Join("\n", notas.Take(10)));
+                TaskDialog.Show("Modelo de análise", "Não foi possível montar a estrutura (pilares, vigas e pisos).\n\n" + string.Join("\n", notas.Take(10)));
                 return Result.Cancelled;
             }
-            var win = new JanelaAnalise(VisualizacaoAnalise.Json(e, doc.Title), doc.Title);
+            var win = new JanelaAnalise(VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc)), doc.Title);
             new WindowInteropHelper(win) { Owner = uiapp.MainWindowHandle };
             win.ShowDialog();
             if (win.Erro != null) TaskDialog.Show("Modelo de análise", win.Erro);
             return Result.Succeeded;
         }
 
-        /// <summary>Levanta, monta e analisa (as notas do levantamento vão aos avisos da estrutura).</summary>
+        /// <summary>Levanta pilares, vigas e pisos, monta a estrutura por objetos e analisa (as notas vão aos avisos da estrutura).</summary>
         internal static EstruturaObjetos Montar(Document doc, List<string> notas)
         {
             List<ColumnGroup> grupos = PrecastSurvey.Run(doc, out List<string> n0);
             notas.AddRange(n0);
             var cfg = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notas);
-            ReacoesNosConsolos.Aplicar(doc, grupos, notas, cfg, out EstruturaObjetos e);
-            if (e != null) foreach (string n in notas.Where(n => !n.StartsWith("Análise:"))) e.Avisos.Add(n);
+            var porId = new Dictionary<long, (DEB.Revit.Vigas.GrupoViga G, DEB.Revit.Vigas.MembroViga M)>();
+            try
+            {
+                foreach (var g in DEB.Revit.Vigas.VigasPreMoldadas.Levantar(doc, new List<string>()))
+                    foreach (var m in g.Membros) porId[m.Id] = (g, m);
+            }
+            catch (System.Exception ex) { notas.Add("Vigas pré-moldadas não levantadas: " + ex.Message); }
+            EstruturaObjetos e = EstruturaRevit.Montar(doc, grupos, porId, cfg, notas, out _);
+            if (e.Pilares.Count + e.Vigas.Count + e.Lajes.Count == 0) return null;
+            try { e.Analisar(cfg); }
+            catch (DEB.Core.Analise.Barras.ErroAnalise ex) { notas.Add("Análise: " + ex.Message); return null; }
+            foreach (string n in notas) e.Avisos.Add(n);
             return e;
         }
     }

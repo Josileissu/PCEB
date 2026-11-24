@@ -145,7 +145,13 @@ public static class VisualizacaoAnalise
             o.Definir("nome", nome); o.Definir("tipo", tipo);
             var d = ValorJson.NovaLista(); foreach (var u in r.Deslocamentos) d.Adicionar(Lista(u)); o.Definir("desl", d);
             var rb = ValorJson.NovaLista();
-            foreach (var be in est) { var lb = ValorJson.NovaLista(); foreach (var s in be) lb.Adicionar(Lista(s)); rb.Adicionar(lb); }
+            for (int ib = 0; ib < est.Length; ib++)
+            {
+                // barras da grelha da laje: só as pontas (a laje tem a vista de isovalores; o JSON fica leve)
+                var be = est[ib];
+                var sel = m.Barras[ib].Dono?.Tipo == TipoDono.Laje ? new[] { be[0], be[be.Length - 1] } : be;
+                var lb = ValorJson.NovaLista(); foreach (var s in sel) lb.Adicionar(Lista(s)); rb.Adicionar(lb);
+            }
             o.Definir("estacoes", rb);
             var fm = ValorJson.NovaLista(); foreach (var f in r.ForcasMolas) fm.Adicionar(Lista(f)); o.Definir("molas", fm);
             var re = ValorJson.NovaLista();

@@ -56,7 +56,7 @@ namespace DEB.Revit.Precast
             int n = 0;
             try
             {
-                estrutura = Montar(grupos, porId, cfg, out var ligacoes);
+                estrutura = DEB.Revit.Analise.EstruturaRevit.Montar(doc, grupos, porId, cfg, notas, out var ligacoes);
                 estrutura.Analisar(cfg);
                 foreach (var (k, l) in ligacoes) { k.Carga = estrutura.CargaDoConsolo(l); n++; }
                 foreach (string a in estrutura.Avisos.Distinct().Take(12)) notas.Add("Análise: " + a);
@@ -83,85 +83,6 @@ namespace DEB.Revit.Precast
                 }
             }
             return n;
-        }
-
-        /// <summary>Estrutura por objetos com os pilares que têm consolo de viga, as vigas apoiadas neles e as ligações.</summary>
-        internal static EstruturaObjetos Montar(List<ColumnGroup> grupos, Dictionary<long, (GrupoViga G, MembroViga M)> porId, ConfiguracaoProjeto cfg,
-                                                out List<(Corbel K, LigacaoConsolo L)> ligacoes)
-        {
-            var e = new EstruturaObjetos();
-            ligacoes = new List<(Corbel, LigacaoConsolo)>();
-            double fck = cfg.Numero("materiais.fck");
-            double alfaE = CalculoConsolo.FatorApoio(cfg.Texto("materiais.agregado"));
-            var mat = MaterialBarra.Concreto(fck, alfaE <= 0 ? 1 : alfaE, cfg.Numero("materiais.pesoEspecifico"));
-            var vigas = new Dictionary<long, (VigaObjeto V, MembroViga M, List<(Corbel K, double T)> Apoios)>();
-
-            // vigas: os pontos de apoio saem dos consolos em que elas apoiam (projeção do centro do consolo no eixo da viga)
-            foreach (ColumnGroup g in grupos)
-                foreach (PrecastColumn pc in g.Members)
-                    foreach (Corbel k in pc.Corbels)
-                    {
-                        if (!(k.Instance()?.SuperComponent is FamilyInstance fv) || !porId.TryGetValue(fv.Id.Value, out var gm)) continue;
-                        BoundingBoxXYZ bb = k.Instance().get_BoundingBox(null);
-                        if (bb == null) continue;
-                        PieceInfo info = gm.M.Info;
-                        double t = ((bb.Min + bb.Max) / 2 - info.Origin).DotProduct(info.AxisX);
-                        if (!vigas.TryGetValue(fv.Id.Value, out var vv)) vigas[fv.Id.Value] = vv = (null, gm.M, new List<(Corbel, double)>());
-                        vv.Apoios.Add((k, t));
-                    }
-            foreach (var kv in vigas.ToList())
-            {
-                MembroViga m = kv.Value.M;
-                PieceInfo info = m.Info;
-                double lx = info.LengthX;
-                var apoios = kv.Value.Apoios;
-                double tI = apoios.Where(a => a.T < lx / 2).Select(a => a.T).DefaultIfEmpty(0.02 * lx).Average();
-                double tJ = apoios.Where(a => a.T >= lx / 2).Select(a => a.T).DefaultIfEmpty(0.98 * lx).Average();
-                XYZ Ponto(double t) => info.Origin + info.AxisX * t + info.AxisY * (info.LengthY / 2);
-                SecaoPoligonal sec = m.Levantada?.Principal?.Secao ?? SecaoPoligonal.Retangulo(info.LengthY * Cm, info.LengthZ * Cm);
-                string marca = porId[kv.Key].G.Marca;
-                var v = new VigaObjeto
-                {
-                    Dono = new Dono { Tipo = TipoDono.Viga, Id = kv.Key.ToString(), Nome = $"{marca} ({kv.Key})" },
-                    ApoioI = V(Ponto(tI)), ApoioJ = V(Ponto(tJ)), Secao = sec, Material = mat, G = m.Cargas.G, Q = m.Cargas.Q,
-                };
-                foreach (var c in m.Cargas.Concentradas) v.Concentradas.Add((c.X - tI * Cm, c.G, c.Q));
-                e.Vigas.Add(v);
-                vigas[kv.Key] = (v, m, apoios);
-            }
-
-            // pilares e ligações
-            foreach (ColumnGroup g in grupos)
-                foreach (PrecastColumn pc in g.Members)
-                {
-                    var minhas = pc.Corbels.Where(k => k.Instance()?.SuperComponent is FamilyInstance fv && vigas.ContainsKey(fv.Id.Value)).ToList();
-                    if (minhas.Count == 0) continue;
-                    PieceInfo info = pc.Info;
-                    var p = new PilarObjeto
-                    {
-                        Dono = new Dono { Tipo = TipoDono.Pilar, Id = pc.Id, Nome = $"{g.Mark} ({pc.Id})" },
-                        Base = V(info.Origin + info.AxisX * (info.LengthX / 2) + info.AxisY * (info.LengthY / 2)),
-                        Eixo = new Vetor3(info.AxisZ.X, info.AxisZ.Y, info.AxisZ.Z),
-                        DirY = new Vetor3(info.AxisX.X, info.AxisX.Y, info.AxisX.Z),
-                        Secao = SecaoPoligonal.Retangulo(info.LengthX * Cm, info.LengthY * Cm),
-                        Comprimento = info.LengthZ * Cm, Embutimento = pc.EmbedmentMm / 10, Material = mat,
-                    };
-                    e.Pilares.Add(p);
-                    foreach (Corbel k in minhas)
-                    {
-                        var fv = (FamilyInstance)k.Instance().SuperComponent;
-                        var vv = vigas[fv.Id.Value];
-                        double t = vv.Apoios.First(a => a.K == k).T;
-                        var l = new LigacaoConsolo
-                        {
-                            Dono = new Dono { Tipo = TipoDono.Ligacao, Id = k.Instance().Id.Value.ToString(), Nome = $"consolo {g.Mark}·{porId[fv.Id.Value].G.Marca}" },
-                            Pilar = p, Viga = vv.V, PontaI = t < vv.M.Info.LengthX / 2, ZTopoConsolo = U_.ToMm(k.ZTop) / 10, Aparelho = k.Apoio,
-                        };
-                        e.Ligacoes.Add(l);
-                        ligacoes.Add((k, l));
-                    }
-                }
-            return e;
         }
 
         /// <summary>Reserva: a reação da viga isolada (cálculo do grupo da viga, D40), com Hd pela regra da ligação.</summary>

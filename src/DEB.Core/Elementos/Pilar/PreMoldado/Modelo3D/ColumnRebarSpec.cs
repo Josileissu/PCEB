@@ -315,7 +315,7 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         public void HerdarConfiguracao(ColumnRebarSpec de) => _configuracao = de?._configuracao;
 
         /// <summary>Consolo com a armadura do modelo, para o cálculo: nome com face e topo para achar no relatório.</summary>
-        private DadosConsolo DadosCalculo(Corbel k)
+        public DadosConsolo DadosCalculo(Corbel k)
         {
             double b = U_.ToMm(k.Width) / 10, a = U_.ToMm(k.Projection) / 10, h = U_.ToMm(k.HeightAtFace) / 10;
             return new DadosConsolo

@@ -70,7 +70,8 @@ public class EstruturaObjetosTests
     [Fact]
     public void PilarRecebeOMomentoDaExcentricidadeDoConsolo()
     {
-        var e = Portico(null);   // sem aparelho: articulação fixa (aviso)
+        var e = Portico(null);   // articulação fixa pedida (sem aparelho)
+        foreach (var lg in e.Ligacoes) lg.Representacao = RepresentacaoLigacao.BarraRigidaArticulada;
         e.Analisar();
         Assert.Contains(e.Avisos, a => a.Contains("articulação fixa"));
         var p1 = e.Pilares[0];
@@ -106,6 +107,16 @@ public class EstruturaObjetosTests
         var r = CalculoConsolo.Calcular(dados, carga);
         Perto(0.2 * r.Vd, r.Hd, 1e-6);
         Assert.Contains(r.Memoria.Linhas, x => x.Contains("Hd da análise"));
+    }
+
+    [Fact]
+    public void SemAparelhoUsaOPadraoDaConfiguracao()
+    {
+        var e = Portico(null);
+        e.Analisar();
+        Assert.Contains(e.Avisos, a => a.Contains("aparelho padrão"));
+        // elastômero 10 × 16 × 1 cm, G = 1 MPa: Kh = 0,1·160/1 = 16 kN/cm
+        Perto(16, e.Ligacoes[0].Mola.K[0], 1e-9);
     }
 
     [Fact]

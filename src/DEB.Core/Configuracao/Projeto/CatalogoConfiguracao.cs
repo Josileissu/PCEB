@@ -201,6 +201,8 @@ public static class CatalogoConfiguracao
         N("acoes", "coefDinamico", "Coeficiente dinâmico do içamento", 1.3, "", "NBR 9062 5.3.3", "Majora o peso próprio no manuseio.", 1.3, null);
         O("acoes", "apoioPadrao", "Apoio padrão das vigas (Hd/Fd)", new[] { "Elastômero · 0,16", "Argamassa · 0,5", "Junta seca · 0,8", "Chapas não soldadas · 0,25",
           "Concreto e chapa · 0,4", "PTFE · 0,08" }, "NBR 9062 7.3.9", "Força horizontal na ligação pela vertical, sem cálculo da rigidez.");
+        N("acoes", "lajeG", "Laje · carga permanente além do peso próprio", 1.0, "kN/m²", "NBR 6120", "Revestimento e enchimento, quando o piso não tem PCEB_Carga permanente (kN/m²).", 0, null);
+        N("acoes", "lajeQ", "Laje · carga variável", 2.0, "kN/m²", "NBR 6120 Tab. 10", "Sobrecarga de uso, quando o piso não tem PCEB_Carga variável (kN/m²).", 0, null);
         N("acoes", "gElastomero", "Módulo G do elastômero", 1.0, "MPa", "NBR 9062 7.2.3 · El Debs (2017) 3.3",
           "Rigidez do aparelho de apoio na análise (D46): Kh = G·a·b/t. Elastômero de dureza 60 Shore A: cerca de 1 MPa.", 0.5, 2);
         N("acoes", "hdMin", "Hd mínimo (× Vd)", 0.2, "", "El Debs (2017) Quadro 3.2", "Piso da força horizontal no consolo.", 0.2, null);
@@ -208,6 +210,7 @@ public static class CatalogoConfiguracao
 
         // ---- análise
         O("analise", "modelo", "Modelo", new[] { "Elemento isolado", "Pórtico 2D", "Estrutura 3D (motor externo)" }, "D44", "A estrutura completa entra na etapa 4 da D44.");
+        N("analise", "malhaLaje", "Malha da grelha das lajes", 50, "cm", "D46", "Espaçamento das faixas da grelha (menor = mais preciso e mais lento).", 15, 200);
         O("analise", "segundaOrdem", "2ª ordem local do pilar", new[] { "Pilar-padrão com rigidez κ", "Pilar-padrão com curvatura aproximada", "Momento-curvatura" },
           "NBR 6118 15.8.3", "Método para os pilares.");
 

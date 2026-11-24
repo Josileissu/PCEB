@@ -252,7 +252,8 @@ function desenhar() {
     fd = escala * 0.06 * tam / um;
   }
   let maxMapa = 1e-12;
-  if (modo === "mapa") D.barras.forEach((b, ib) => { if (b.tipo !== "Ligacao") maxMapa = Math.max(maxMapa, maxBarra(ib, k)); });
+  const soPecas = b => b.tipo !== "Ligacao" && b.tipo !== "Laje";
+  if (modo === "mapa") D.barras.forEach((b, ib) => { if (soPecas(b)) maxMapa = Math.max(maxMapa, maxBarra(ib, k)); });
 
   // vínculos e molas
   D.vinculos.forEach(v => linha(P(no(v.i)), P(no(v.j)), sel && v.dono === sel ? css("--c-sel") : css("--c-vinc"), 2, [5, 4]));
@@ -269,7 +270,7 @@ function desenhar() {
   D.barras.forEach((b, ib) => {
     let c = cor(b.tipo), w = b.tipo === "Pilar" ? 3 : b.tipo === "Laje" ? 1 : 2.5;
     if (modo === "situacao") { const dm = dimDe(b.dono); c = dm ? corSit(dm.situacao) : css("--c-vinc"); }
-    if (modo === "mapa" && b.tipo !== "Ligacao") {
+    if (modo === "mapa" && soPecas(b)) {
       // trecho a trecho pelas estações
       const est = R.estacoes[ib], pi = no(b.i), pt = s => P([0, 1, 2].map(q => pi[q] + b.ex[q] * s[0]));
       for (let n = 0; n + 1 < est.length; n++)
@@ -306,10 +307,10 @@ function desenhar() {
     ctx.fillStyle = css("--fg"); ctx.fillText(texto, x, y);
   };
   if (modo === "diagrama") {
-    let mx = 1e-12; D.barras.forEach((b, ib) => { if (b.tipo !== "Ligacao") R.estacoes[ib].forEach(s => COMP[k].forEach(c => mx = Math.max(mx, Math.abs(s[c[0]])))); });
+    let mx = 1e-12; D.barras.forEach((b, ib) => { if (soPecas(b)) R.estacoes[ib].forEach(s => COMP[k].forEach(c => mx = Math.max(mx, Math.abs(s[c[0]])))); });
     const fs = escala * 0.07 * tam / mx, cd = css("--c-diag");
     D.barras.forEach((b, ib) => {
-      if (b.tipo === "Ligacao") return;
+      if (!soPecas(b)) return;
       const est = R.estacoes[ib], pi = no(b.i);
       const base = est.map(s => [pi[0] + b.ex[0] * s[0], pi[1] + b.ex[1] * s[0], pi[2] + b.ex[2] * s[0]]);
       for (const [q, eixo, sinal] of COMP[k]) {

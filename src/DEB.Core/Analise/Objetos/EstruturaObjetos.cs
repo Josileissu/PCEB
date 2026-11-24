@@ -442,16 +442,25 @@ public sealed class LigacaoConsolo
         return new[] { kh, kh, kv, Garfo, kRot, kYaw };
     }
 
-    internal void Gerar(ModeloBarras m, double gKNcm2)
+    internal void Gerar(ModeloBarras m, double gKNcm2, string apoioPadrao = "")
     {
         NoPilar = Pilar.NoNoNivel(ZTopoConsolo);
+        // sem aparelho na família e a configuração diz elastômero: aparelho padrão (10 cm ao longo da viga, largura da viga − 4 cm, 1 cm)
+        ApoioPeca aparelho = Aparelho;
+        string padrao = "";
+        if (aparelho == null && (apoioPadrao ?? "").StartsWith("Elast", StringComparison.OrdinalIgnoreCase) && Representacao == RepresentacaoLigacao.BarraRigidaEMola)
+        {
+            aparelho = new ApoioPeca { Tipo = ApoioPeca.Neoprene, Comprimento = 10, Largura = Math.Max(10, Viga.Secao.B - 4), Espessura = 1 };
+            padrao = " (aparelho padrão da configuração: a família não informa)";
+        }
         int noApoioViga = PontaI ? Viga.NoApoioI : Viga.NoApoioJ;
         var pv = m.Nos[noApoioViga];
         // topo do consolo sob o aparelho: o mesmo ponto em planta, na altura do consolo
         Vetor3 topo = Pilar.Ponto(ZTopoConsolo);
         NoConsolo = m.NovoNo(pv.X, pv.Y, topo.Z, Dono, Dono + " topo do consolo");
         m.Rigido(NoPilar, NoConsolo, Dono, Dono + " consolo");
-        Mola = m.Mola(NoConsolo, noApoioViga, Rigidez(Aparelho, gKNcm2, Representacao, out string obs), Dono, Dono + " aparelho");
+        Mola = m.Mola(NoConsolo, noApoioViga, Rigidez(aparelho, gKNcm2, Representacao, out string obs), Dono, Dono + " aparelho");
+        obs += padrao;
         Mola.EixoX = DirecaoViga;
         Mola.VetorXZ = Vetor3.EixoZ;
         Observacao = obs;
@@ -526,10 +535,11 @@ public sealed class EstruturaObjetos
             if (la.NosLivresNaBorda > 0) Avisos.Add($"{la.Dono}: {la.NosLivresNaBorda} nós da borda sem viga nem pilar embaixo (borda livre).");
         }
         double gEl = cfg.Numero("acoes.gElastomero") / 10;   // MPa → kN/cm²
+        string apoioPadrao = cfg.Texto("acoes.apoioPadrao");
         foreach (var l in Ligacoes)
         {
-            l.Gerar(m, gEl);
-            if (l.Observacao.Contains("articulação")) Avisos.Add($"{l.Dono}: {l.Observacao}.");
+            l.Gerar(m, gEl, apoioPadrao);
+            if (l.Observacao.Contains("articulação") || l.Observacao.Contains("padrão")) Avisos.Add($"{l.Dono}: {l.Observacao}.");
         }
         // viga sem ligação numa ponta: apoio articulado fixo no próprio nó (não fica solta)
         foreach (var v in Vigas)

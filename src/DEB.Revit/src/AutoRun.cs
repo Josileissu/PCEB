@@ -472,6 +472,33 @@ namespace DEB.Revit
             Directory.CreateDirectory(dir);
             var sb = new StringBuilder();
             var notas = new List<string>();
+            // SD_LAJE = 1: piso estrutural de 12 cm sobre as vigas (no documento aberto, sem gravar), para testar as lajes
+            if (Environment.GetEnvironmentVariable("SD_LAJE") == "1")
+            {
+                var vigas = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().ToList();
+                var bbs = vigas.Select(x => x.get_BoundingBox(null)).Where(x => x != null).ToList();
+                if (bbs.Count > 0)
+                {
+                    double x0 = bbs.Min(b => b.Min.X), x1 = bbs.Max(b => b.Max.X), y0 = bbs.Min(b => b.Min.Y), y1 = bbs.Max(b => b.Max.Y), zt = bbs.Max(b => b.Max.Z);
+                    Level nivel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().Where(l => l.Elevation <= zt).OrderByDescending(l => l.Elevation).FirstOrDefault()
+                                  ?? new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().First();
+                    using (var t = new Transaction(doc, "Laje de teste"))
+                    {
+                        t.Start();
+                        var tipo = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>().First(ft => !ft.IsFoundationSlab);
+                        var loop = CurveLoop.Create(new List<Curve>
+                        {
+                            Line.CreateBound(new XYZ(x0, y0, 0), new XYZ(x1, y0, 0)), Line.CreateBound(new XYZ(x1, y0, 0), new XYZ(x1, y1, 0)),
+                            Line.CreateBound(new XYZ(x1, y1, 0), new XYZ(x0, y1, 0)), Line.CreateBound(new XYZ(x0, y1, 0), new XYZ(x0, y0, 0)),
+                        });
+                        Floor f = Floor.Create(doc, new List<CurveLoop> { loop }, tipo.Id, nivel.Id);
+                        f.get_Parameter(BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)?.Set(zt - nivel.Elevation);
+                        f.get_Parameter(BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL)?.Set(1);
+                        t.Commit();
+                        sb.AppendLine($"Laje de teste criada: {f.Id.Value}, {(x1 - x0) * 30.48:0} × {(y1 - y0) * 30.48:0} cm, topo a {zt * 30.48:0} cm");
+                    }
+                }
+            }
             var e = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, notas);
             foreach (string n in notas) sb.AppendLine("NOTA: " + n);
             if (e != null)
@@ -479,9 +506,11 @@ namespace DEB.Revit
                 var m = e.Modelo;
                 sb.AppendLine($"Modelo: {e.Pilares.Count} pilares, {e.Vigas.Count} vigas, {e.Ligacoes.Count} ligações; {m.Nos.Count} nós, {m.Barras.Count} barras, " +
                               $"{m.Molas.Count} aparelhos, {m.Vinculos.Count} vínculos");
-                string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title);
+                string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 sb.AppendLine($"JSON da janela: {json.Length / 1024} kB");
-                foreach (string modo in new[] { "modelo", "diagrama", "deformada" })
+                var dim = DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.Verificar(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
+                foreach (var d in dim) sb.AppendLine($"  {d.Dono}: {d.Situacao} — {string.Join("; ", d.Resumo)}");
+                foreach (string modo in new[] { "modelo", "diagrama", "deformada", "situacao", "laje", "peca" })
                 {
                     string png = Path.Combine(dir, "janela_" + modo + ".png");
                     var win = new DEB.Revit.Analise.JanelaAnalise(json, doc.Title) { Captura = png, ModoCaptura = modo };
