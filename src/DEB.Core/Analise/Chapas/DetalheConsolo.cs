@@ -196,4 +196,135 @@ public static class DetalheConsolo
         mef.Definir("fcd", fcd); mef.Definir("fctm", fctm);
         return Persistencia.Json.Gravar(o, indentado: false);
     }
+
+    // ================================================================ campo de tensões não linear (D50, item 9)
+
+    /// <summary>Resultado do campo de tensões do consolo: a análise, as hipóteses de armadura e o resumo.</summary>
+    public sealed class ResultadoCampo
+    {
+        public Resultado Base;
+        public CampoTensoes Campo;
+        public List<string> Hipoteses = new List<string>();
+        public double Fcd, Fyd;   // kN/cm²
+    }
+
+    /// <summary>
+    /// Campo de tensões do trecho (o mesmo da chapa elástica, com os vizinhos): armaduras do consolo (tirante, costura e estribos
+    /// verticais) pelo detalhamento do pilar, ou estimadas pela biela-tirante quando não há; armadura do pilar com ρ = 1% nas duas
+    /// faces (hipótese). Concreto e aço não lineares, carga do cálculo (λ = 1) e crescente até falhar.
+    /// </summary>
+    public static ResultadoCampo Campo(EstruturaObjetos e, LigacaoConsolo l, ConfiguracaoProjeto cfg = null)
+    {
+        cfg ??= new ConfiguracaoProjeto();
+        var r = Calcular(e, l, cfg);
+        var ch = r.Chapa;
+        double fck = cfg.Numero("materiais.fck"), fyk = 500;
+        var res = new ResultadoCampo { Base = r, Fcd = fck / cfg.Numero("normas.gamaC") / 10, Fyd = fyk / cfg.Numero("normas.gamaS") / 10 };
+        double hx = ch.Elementos.Count > 0 ? Math.Abs(ch.Nos[ch.Elementos[0].Nos[1]].X - ch.Nos[ch.Elementos[0].Nos[0]].X) : 2;
+        double hy = ch.Elementos.Count > 0 ? Math.Abs(ch.Nos[ch.Elementos[0].Nos[3]].Y - ch.Nos[ch.Elementos[0].Nos[0]].Y) : 2;
+        // nós da malha por linha e por coluna (só os usados por elementos)
+        var usados = new HashSet<int>(ch.Elementos.SelectMany(x => x.Nos));
+        double Ar(int n, double phiMm) => n * Math.PI * phiMm * phiMm / 400;
+        void Horizontal(double y, double x0, double x1, double area, string grupo)
+        {
+            if (area <= 0) return;
+            var linha = usados.Where(i => Math.Abs(ch.Nos[i].Y - y) <= hy / 2 + 1e-9).ToList();
+            if (linha.Count == 0) return;
+            double yr = linha.OrderBy(i => Math.Abs(ch.Nos[i].Y - y)).Select(i => ch.Nos[i].Y).First();
+            var nos = linha.Where(i => Math.Abs(ch.Nos[i].Y - yr) < 1e-6 && ch.Nos[i].X >= x0 - hx / 2 && ch.Nos[i].X <= x1 + hx / 2).OrderBy(i => ch.Nos[i].X).ToList();
+            for (int k = 0; k + 1 < nos.Count; k++)
+                if (ch.Nos[nos[k + 1]].X - ch.Nos[nos[k]].X < hx * 1.5) ch.Barras.Add(new BarraChapa { I = nos[k], J = nos[k + 1], Area = area, Grupo = grupo });
+        }
+        void Vertical(double x, double y0, double y1, double area, string grupo)
+        {
+            if (area <= 0) return;
+            var col = usados.Where(i => Math.Abs(ch.Nos[i].X - x) <= hx / 2 + 1e-9).ToList();
+            if (col.Count == 0) return;
+            double xr = col.OrderBy(i => Math.Abs(ch.Nos[i].X - x)).Select(i => ch.Nos[i].X).First();
+            var nos = col.Where(i => Math.Abs(ch.Nos[i].X - xr) < 1e-6 && ch.Nos[i].Y >= y0 - hy / 2 && ch.Nos[i].Y <= y1 + hy / 2).OrderBy(i => ch.Nos[i].Y).ToList();
+            for (int k = 0; k + 1 < nos.Count; k++)
+                if (ch.Nos[nos[k + 1]].Y - ch.Nos[nos[k]].Y < hy * 1.5) ch.Barras.Add(new BarraChapa { I = nos[k], J = nos[k + 1], Area = area, Grupo = grupo });
+        }
+        // armadura de um consolo (lado +1: x de 0 a A; −1: de −Lp − A a −Lp); o tirante atravessa o pilar até a face oposta
+        void Consolo(int lado, double dy, double a, double hh, double h1, LigacaoConsolo lig, double vd, double hd, double pos)
+        {
+            var c = lig?.Consolo;
+            double cob = c?.Cob ?? r.Cob, d = hh - cob - 0.8, z = 0.9 * d;
+            double asTir, asCost, asVert; double phiT;
+            if (c != null && c.TirN > 0)
+            {
+                asTir = Ar(c.TirN, c.TirPhi); phiT = c.TirPhi; asCost = 2 * Ar(Math.Max(0, c.CostN), c.CostPhi); asVert = 2 * Ar(Math.Max(0, c.VertN), c.VertPhi);
+                res.Hipoteses.Add($"{lig.Dono}: armadura do detalhamento — tirante {c.TirN} ø{c.TirPhi:0.#}, costura {c.CostN} ø{c.CostPhi:0.#} (2 ramos), verticais {c.VertN} ø{c.VertPhi:0.#} (2 ramos)");
+            }
+            else
+            {
+                double rs = vd * pos / z + Math.Max(0, hd);
+                asTir = rs / res.Fyd; phiT = 12.5; asCost = 0.4 * asTir; asVert = 0.2 * asTir;
+                res.Hipoteses.Add($"{lig?.Dono.ToString() ?? "consolo"}: sem detalhamento — armaduras estimadas: tirante {asTir:0.00} cm² (Rs/fyd), costura 0,4·As, verticais 0,2·As");
+            }
+            double yT = dy - cob - phiT / 20;
+            double xFace = lado > 0 ? 0 : -r.Lp, xPonta = xFace + lado * (a - cob), xFundo = lado > 0 ? -r.Lp + cob : -cob;
+            Horizontal(yT, Math.Min(xFundo, xPonta), Math.Max(xFundo, xPonta), asTir, "tirante");
+            int nc = c?.CostN > 0 ? c.CostN : 2;
+            for (int k = 1; k <= nc; k++)
+                Horizontal(yT - k * (2.0 / 3 * d) / (nc + 0.5), Math.Min(xFundo, xPonta), Math.Max(xFundo, xPonta), asCost / nc, "costura");
+            int nv = c?.VertN > 0 ? c.VertN : 2;
+            for (int k = 1; k <= nv; k++)
+            {
+                double u = a * k / (nv + 1), x = xFace + lado * u, inf = dy - hh + (hh - h1) * u / Math.Max(1e-6, a);
+                Vertical(x, inf + cob, dy - cob, asVert / nv, "vertical");
+            }
+        }
+        Consolo(1, 0, r.A, r.H, r.H1, l, r.Vd, r.Hd, r.Pos);
+        foreach (var v in r.Vizinhos)
+        {
+            var lv = e.Ligacoes.FirstOrDefault(x => x.Dono.ToString() == v.Nome);
+            Consolo(v.Lado, v.Dy, v.A, v.H, v.H1, lv, v.Vd, v.Hd, v.Pos);
+        }
+        // pilar: ρ = 1% da seção, metade em cada face do plano (hipótese: a armadura real do pilar não é lida aqui)
+        double yMin = ch.Nos.Min(n => n.Y), yMax = ch.Nos.Max(n => n.Y), asFace = 0.005 * r.Lp * r.Tp;
+        Vertical(-r.Lp + 4, yMin, yMax, asFace, "pilar");
+        Vertical(-4, yMin, yMax, asFace, "pilar");
+        res.Hipoteses.Add($"Pilar: ρ = 1% ({2 * asFace:0.0} cm²) em duas faces a 4 cm da borda — hipótese; estribos do pilar não entram.");
+        res.Hipoteses.Add($"Concreto C{fck:0}: parábola-retângulo (NBR 6118), sem tração, kc2 = 1/(1,2 + 55·ε1) ≤ 1, ηfc = (30/fck)^⅓ ≤ 1; aço CA-50 elastoplástico (fyd = {res.Fyd * 10:0} MPa), aderência perfeita.");
+        var campo = new CampoTensoes(ch) { Fck = fck, Fcd = res.Fcd, Fyd = res.Fyd, Ec = ch.E };
+        campo.Analisar();
+        res.Campo = campo;
+        return res;
+    }
+
+    /// <summary>JSON do campo de tensões para a página (MPa): elementos [σ2, ângulo, kc2·ηfc·fcd], barras [x1, y1, x2, y2, σs, grupo] e o resumo.</summary>
+    public static string JsonCampo(EstruturaObjetos e, LigacaoConsolo l, ConfiguracaoProjeto cfg, string chave)
+    {
+        var rc = Campo(e, l, cfg);
+        var c = rc.Campo; var ch = rc.Base.Chapa; var est = c.Calculo;
+        var o = ValorJson.NovoObjeto();
+        o.Definir("tipo", "campo"); o.Definir("chave", chave);
+        o.Definir("lambda", c.LambdaMax); o.Definir("falha", c.FalhaGovernante); o.Definir("calculou", est != null && est.Lambda >= 1 - 1e-9);
+        o.Definir("fcd", rc.Fcd * 10); o.Definir("fyd", rc.Fyd * 10);
+        var hs = ValorJson.NovaLista(); o.Definir("hipoteses", hs); foreach (string h in rc.Hipoteses) hs.Adicionar(ValorJson.De(h));
+        var els = ValorJson.NovaLista(); o.Definir("els", els);
+        double eta = Math.Min(1, Math.Pow(30 / Math.Max(1, c.Fck), 1.0 / 3)), uMax = 0, sMax = 0;
+        if (est != null)
+            for (int i = 0; i < ch.Elementos.Count; i++)
+            {
+                var q = ValorJson.NovaLista();
+                double lim = est.Kc2[i] * eta * rc.Fcd;
+                q.Adicionar(ValorJson.De(Math.Round(est.S2[i] * 10, 3))); q.Adicionar(ValorJson.De(Math.Round(est.Ang[i], 4))); q.Adicionar(ValorJson.De(Math.Round(lim * 10, 3)));
+                els.Adicionar(q);
+                uMax = Math.Max(uMax, -est.S2[i] / Math.Max(1e-9, lim));
+            }
+        var bs = ValorJson.NovaLista(); o.Definir("barras", bs);
+        for (int j = 0; j < ch.Barras.Count; j++)
+        {
+            var b = ch.Barras[j]; var q = ValorJson.NovaLista();
+            foreach (double v in new[] { ch.Nos[b.I].X, ch.Nos[b.I].Y, ch.Nos[b.J].X, ch.Nos[b.J].Y }) q.Adicionar(ValorJson.De(Math.Round(v, 2)));
+            double sg = est != null ? est.SigmaS[j] * 10 : 0;
+            q.Adicionar(ValorJson.De(Math.Round(sg, 1))); q.Adicionar(ValorJson.De(b.Grupo)); q.Adicionar(ValorJson.De(Math.Round(b.Area, 3)));
+            bs.Adicionar(q);
+            sMax = Math.Max(sMax, Math.Abs(sg) / (rc.Fyd * 10));
+        }
+        o.Definir("usoConcreto", uMax); o.Definir("usoAco", sMax);
+        return Persistencia.Json.Gravar(o, indentado: false);
+    }
 }

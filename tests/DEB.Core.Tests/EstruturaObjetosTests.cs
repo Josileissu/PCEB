@@ -353,4 +353,35 @@ public class EstruturaObjetosTests
         Perto(r.Vd + viz.Vd + r.Nacima, ry, 1e-6, 1e-6);
         Assert.Contains(r.Chapa.Elementos, x => x.Regiao == "consolo" && r.Chapa.Nos[x.Nos[0]].X < -40);
     }
+
+    [Fact]
+    public void Campo_de_tensoes_do_consolo_carrega_o_calculo_e_traciona_o_tirante()
+    {
+        var e = Portico(Elastomero);
+        e.Ligacoes[0].Consolo = new DEB.Core.Normas.Verificacao.DadosConsolo { Nome = "teste", B = 40, A = 30, H = 40, H1 = 20, Cob = 2.5, TirN = 3, TirPhi = 12.5, CostN = 2, CostPhi = 8, VertN = 2, VertPhi = 8 };
+        e.Analisar();
+        var cfg = new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto();
+        var rc = DEB.Core.Analise.Chapas.DetalheConsolo.Campo(e, e.Ligacoes[0], cfg);
+        Assert.True(rc.Campo.LambdaMax >= 1, $"λ = {rc.Campo.LambdaMax} ({rc.Campo.FalhaGovernante})");
+        var est = rc.Campo.Calculo;
+        var ch = rc.Base.Chapa;
+        // tirante tracionado no trecho do consolo; o concreto só comprime
+        var tir = Enumerable.Range(0, ch.Barras.Count).Where(j => ch.Barras[j].Grupo == "tirante" && ch.Nos[ch.Barras[j].I].X >= 0).ToList();
+        Assert.NotEmpty(tir);
+        Assert.True(tir.Max(j => est.SigmaS[j]) > 0);
+        Assert.True(est.S2.All(x => x <= 1e-9));
+        string json = DEB.Core.Analise.Chapas.DetalheConsolo.JsonCampo(e, e.Ligacoes[0], cfg, "x");
+        Assert.Contains("\"lambda\"", json);
+        string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_ANALISE");
+        if (!string.IsNullOrEmpty(pasta))
+        {
+            string chave = AjustesAnalise.Chave(e.Ligacoes[0].Dono);
+            string det = DEB.Core.Analise.Chapas.DetalheConsolo.Json(e, e.Ligacoes[0], cfg, chave), cmp = DEB.Core.Analise.Chapas.DetalheConsolo.JsonCampo(e, e.Ligacoes[0], cfg, chave);
+            string html = VisualizacaoAnalise.Pagina().Replace("<script>", "<script>window.DADOS_DEMO = " + VisualizacaoAnalise.Json(e, "teste") + ";</script><script>");
+            int k = html.LastIndexOf("</body>", System.StringComparison.Ordinal);
+            html = html.Insert(k, "<script>setTimeout(() => { sel = " + DEB.Core.Persistencia.Json.Gravar(DEB.Core.Persistencia.ValorJson.De(chave), false) + "; receber(" + det + "); receber(" + cmp +
+                                  "); campoConsolo = 'C'; document.querySelector('[data-aba=\"peca\"]').click(); lateral(); }, 300);</script>");
+            System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "consolo_campo.html"), html);
+        }
+    }
 }

@@ -141,7 +141,7 @@ details p{margin:4px 0}
 const host = window.chrome && window.chrome.webview;
 const $ = id => document.getElementById(id);
 let D = null, R = null, modo = "modelo", sel = null, selBarra = -1, aba = "3d";
-const DETALHES = {}; let campoConsolo = "S2";
+const DETALHES = {}, CAMPOS = {}; let campoConsolo = "S2";
 const cv2 = $("cv2"), ctx2 = cv2.getContext("2d");
 const corSit = t => t === "Ok" ? css("--ok") : t === "NaoAtende" ? css("--nao") : css("--conf");
 const nomeSit = t => t === "Ok" ? "OK" : t === "NaoAtende" ? "Não atende" : "Conferir";
@@ -162,9 +162,10 @@ const valor = (k, v) => ehMomento(k) ? fmt(v / 100, 2) + " kN·m" : fmt(v, 2) + 
 function enviar(m) { if (host) host.postMessage(JSON.stringify(m)); }
 function receber(txt) {
   const m = typeof txt === "string" ? JSON.parse(txt) : txt;
-  if (m.tipo === "modelo") { for (const k in DETALHES) delete DETALHES[k]; const primeira = !D, res = $("resultado").value; D = m; iniciar(primeira, res); if (m.erro) aviso(m.erro); if (m.aviso) aviso(m.aviso); }
+  if (m.tipo === "modelo") { for (const k in DETALHES) delete DETALHES[k]; for (const k in CAMPOS) delete CAMPOS[k]; const primeira = !D, res = $("resultado").value; D = m; iniciar(primeira, res); if (m.erro) aviso(m.erro); if (m.aviso) aviso(m.aviso); }
   else if (m.tipo === "aviso") alert(m.texto);
   else if (m.tipo === "consolo") { DETALHES[m.chave] = m; if (aba === "peca") desenhar(); }
+  else if (m.tipo === "campo") { CAMPOS[m.chave] = m; if (aba === "peca") desenhar(); }
 }
 if (host) host.addEventListener("message", ev => receber(ev.data));
 
@@ -418,19 +419,35 @@ function desenharConsolo(w, h, chave) {
         y0 = Math.min(-g.h, ...vz.map(v => v.dy - v.h)) - g.lp - 10, y1 = Math.max(0, ...vz.map(v => v.dy)) + g.lp + 30;
   const painel = Math.min(w * 0.68, w - 300), esc = Math.min((painel - 80) / (x1 - x0), (h - 130) / (y1 - y0));
   const ox = 50 - x0 * esc, oy = 96 + y1 * esc, X = x => ox + x * esc, Y = y => oy - y * esc;
+  // campo de tensões não linear (item 9): pedido sob demanda
+  const CT = campoConsolo === "C" ? CAMPOS[chave] : null;
+  if (campoConsolo === "C" && CT === undefined && host) { CAMPOS[chave] = null; enviar({ acao: "campo", chave }); }
+  const usoCor = u => { const t = Math.max(0, Math.min(1, u)); if (u > 1) return "rgb(178,24,43)";
+    return `rgb(${Math.round(247 - 214 * t)},${Math.round(247 - 145 * t)},${Math.round(247 - 75 * t)})`; };
   // isovalores na chapa
-  const idx = { S1: 4, S2: 5, Sx: 7, Sy: 8, Txy: 9 }[campoConsolo];
+  const idx = { S1: 4, S2: 5, Sx: 7, Sy: 8, Txy: 9, C: 5 }[campoConsolo];
   let vmin = 1e9, vmax = -1e9; mf.els.forEach(e => { vmin = Math.min(vmin, e[idx]); vmax = Math.max(vmax, e[idx]); });
   const amp = Math.max(Math.abs(vmin), Math.abs(vmax), 1e-6);
   const corV = v => { const t = Math.max(-1, Math.min(1, v / amp)); // azul = compressão, vermelho = tração
     const a = t < 0 ? [44, 127, 184] : [215, 25, 28], f = Math.abs(t); return `rgb(${Math.round(247 + (a[0] - 247) * f)},${Math.round(247 + (a[1] - 247) * f)},${Math.round(247 + (a[2] - 247) * f)})`; };
-  mf.els.forEach(e => {
-    ctx2.fillStyle = corV(e[idx]); ctx2.beginPath();
+  mf.els.forEach((e, i) => {
+    ctx2.fillStyle = CT && CT.els && CT.els[i] ? usoCor(-CT.els[i][0] / Math.max(1e-6, CT.els[i][2])) : CT !== undefined && campoConsolo === "C" ? "#eee" : corV(e[idx]); ctx2.beginPath();
     for (let k = 0; k < 4; k++) { const [x, y] = mf.nos[e[k]]; k ? ctx2.lineTo(X(x), Y(y)) : ctx2.moveTo(X(x), Y(y)); }
     ctx2.closePath(); ctx2.fill();
   });
   // direções principais (compressão) em alguns elementos
-  if (campoConsolo === "S2" || campoConsolo === "S1") {
+  if (CT && CT.els) {
+    // direções de compressão (bielas), traço proporcional à tensão
+    ctx2.strokeStyle = css("--fg"); ctx2.lineWidth = 1;
+    const smax = Math.max(1e-6, ...CT.els.map(x => -x[0]));
+    mf.els.forEach((e, i) => {
+      if (i % 2 || !CT.els[i] || -CT.els[i][0] < 0.05 * smax) return;
+      const cx = (mf.nos[e[0]][0] + mf.nos[e[2]][0]) / 2, cy = (mf.nos[e[0]][1] + mf.nos[e[2]][1]) / 2;
+      const ang = CT.els[i][1] + Math.PI / 2, l = 1 + 5 * -CT.els[i][0] / smax;
+      ctx2.beginPath(); ctx2.moveTo(X(cx - l / 2 * Math.cos(ang)), Y(cy - l / 2 * Math.sin(ang))); ctx2.lineTo(X(cx + l / 2 * Math.cos(ang)), Y(cy + l / 2 * Math.sin(ang))); ctx2.stroke();
+    });
+  }
+  else if (campoConsolo === "S2" || campoConsolo === "S1") {
     ctx2.strokeStyle = css("--fg"); ctx2.lineWidth = 1;
     mf.els.forEach((e, i) => {
       if (i % 3) return;
@@ -439,6 +456,13 @@ function desenharConsolo(w, h, chave) {
       ctx2.beginPath(); ctx2.moveTo(X(cx - l / 2 * Math.cos(ang)), Y(cy - l / 2 * Math.sin(ang))); ctx2.lineTo(X(cx + l / 2 * Math.cos(ang)), Y(cy + l / 2 * Math.sin(ang))); ctx2.stroke();
     });
   }
+  // armaduras do campo de tensões: cor por σs/fyd (verde → laranja → vermelho no escoamento; azul comprimida)
+  if (CT && CT.barras) CT.barras.forEach(b => {
+    const u = b[4] / CT.fyd;
+    ctx2.strokeStyle = u < 0 ? "rgb(33,102,172)" : u >= 0.999 ? "rgb(178,24,43)" : u > 0.6 ? "rgb(230,120,20)" : "rgb(26,152,80)";
+    ctx2.lineWidth = Math.max(1.5, Math.min(5, Math.sqrt(b[6]) * 1.6));
+    ctx2.beginPath(); ctx2.moveTo(X(b[0]), Y(b[1])); ctx2.lineTo(X(b[2]), Y(b[3])); ctx2.stroke();
+  });
   // contornos: pilar, consolo, aparelho e ponta da viga
   ctx2.strokeStyle = css("--c-pilar"); ctx2.lineWidth = 2;
   ctx2.strokeRect(X(-g.lp), Y(y1 - 30), g.lp * esc, (y1 - 30 - (y0 + 10)) * esc);
@@ -477,6 +501,22 @@ function desenharConsolo(w, h, chave) {
   // painel à direita: escala e resultados
   const px = painel + 20; let py = 100;
   const linha = (t, cor) => { texto2(px, py, t, cor || css("--fg")); py += 18; };
+  if (campoConsolo === "C") {
+    linha("Campo de tensões (não linear, λ = 1 = cálculo)", css("--suave"));
+    if (!CT) { linha(host ? "calculando… (alguns segundos)" : "prévia sem o Revit: o campo é calculado pelo PCEB", css("--suave")); }
+    else if (CT.erro) linha("não calculado: " + CT.erro, css("--c-def"));
+    else {
+      for (let k = 0; k <= 10; k++) { ctx2.fillStyle = usoCor(k / 10); ctx2.fillRect(px + k * 22, py, 22, 12); }
+      py += 26; linha("σc2 / (kc2·ηfc·fcd): 0 … 1 (vermelho > 1)", css("--suave"));
+      linha(`concreto: uso máx. ${fmt(CT.usoConcreto * 100, 0)}%   ·   aço: σs,máx/fyd ${fmt(CT.usoAco * 100, 0)}%`, CT.usoConcreto > 1 || CT.usoAco > 1 ? css("--c-def") : css("--fg"));
+      linha(`fator de carga até a falha λ = ${fmt(CT.lambda, 2)}`, CT.lambda < 1 ? css("--c-def") : css("--ok"));
+      linha(`(${CT.falha})`, css("--suave"));
+      linha("barras: verde < 60%, laranja, vermelho = escoando, azul = comprimida", css("--suave"));
+      (CT.hipoteses || []).forEach(t => { const pal = t.split(" "); let l = ""; pal.forEach(p => { if ((l + p).length > 56) { linha(l, css("--suave")); l = "  "; } l += p + " "; }); linha(l, css("--suave")); });
+    }
+    py += 6; linha("Teclas: c = campo de tensões, 1/2/x/y/t = elástico", css("--suave"));
+    return;
+  }
   linha("Campo: " + { S1: "σ1 (tração +)", S2: "σ2 (compressão −)", Sx: "σx", Sy: "σy", Txy: "τxy" }[campoConsolo] + " · MPa", css("--suave"));
   for (let k = 0; k <= 10; k++) { const v = -amp + 2 * amp * k / 10; ctx2.fillStyle = corV(v); ctx2.fillRect(px + k * 22, py, 22, 12); }
   py += 26; linha(`${fmt(-amp, 2)}  …  0  …  ${fmt(amp, 2)}`, css("--suave"));
@@ -487,7 +527,7 @@ function desenharConsolo(w, h, chave) {
   linha(`espessura: pilar ${fmt(g.tp, 0)} cm, consolo ${fmt(g.b, 0)} cm`, css("--suave"));
   py += 6; linha("Consolo: " + nomeSit(det.dim.situacao) + " (detalhes no painel)", corSit(det.dim.situacao));
   py += 6; linha("Teclas: 1 = σ1, 2 = σ2, x = σx, y = σy, t = τxy", css("--suave"));
-  py += 6; linha("σ1 > fctm: fissura — quem equilibra", css("--suave")); linha("é a armadura (campo de tensões, item 9).", css("--suave"));
+  linha("c = campo de tensões não linear (concreto fissurado + armadura)", css("--suave"));
 }
 
 function desenharPeca() {
@@ -743,7 +783,7 @@ $("resultado").addEventListener("change", () => { R = D.resultados[+$("resultado
 ["esforco", "escala", "verCargas", "verNomes"].forEach(id => $(id).addEventListener("input", desenhar));
 $("ajustar").addEventListener("click", ajustar);
 $("exportar").addEventListener("change", ev => { const f = ev.target.value; ev.target.value = ""; if (f) enviar({ acao: "exportar", formato: f }); });
-window.addEventListener("keydown", ev => { if (aba !== "peca" || !ehConsolo(sel)) return; const k = { "1": "S1", "2": "S2", "x": "Sx", "y": "Sy", "t": "Txy" }[ev.key]; if (k) { campoConsolo = k; desenhar(); } });
+window.addEventListener("keydown", ev => { if (aba !== "peca" || !ehConsolo(sel)) return; const k = { "1": "S1", "2": "S2", "x": "Sx", "y": "Sy", "t": "Txy", "c": "C" }[ev.key]; if (k) { campoConsolo = k; desenhar(); } });
 document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
   aba = b.dataset.aba; document.querySelectorAll("[data-aba]").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
   $("vista").classList.toggle("v2d", aba !== "3d"); $("grandezaLaje").hidden = aba !== "laje"; desenhar();

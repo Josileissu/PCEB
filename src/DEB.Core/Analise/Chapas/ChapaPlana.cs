@@ -11,6 +11,10 @@ public sealed class ElementoQ4
     public double Espessura { get; set; }
     /// <summary>Tensões no centro (kN/cm²): σx, σy, τxy; principais σ1 ≥ σ2 e o ângulo de σ1 com x (rad).</summary>
     public double Sx, Sy, Txy, S1, S2, Angulo;
+    /// <summary>Deformações no centro (εx, εy, γxy) da última solução.</summary>
+    public double Ex, Ey, Gxy;
+    /// <summary>Matriz constitutiva própria (secante, análise não linear); null = a elástica da chapa.</summary>
+    public double[,] D { get; set; }
     public string Regiao { get; set; } = "";
 }
 
@@ -19,8 +23,20 @@ public sealed class ElementoQ4
 /// grau, forças nodais, solução elástica por Cholesky em banda. Unidades: cm, kN, kN/cm². Validação nos testes: viga em balanço
 /// (flexão + cisalhamento de Timoshenko) e equilíbrio das reações.
 /// </summary>
+/// <summary>Barra de armadura (treliça) entre dois nós da chapa, aderência perfeita (campos de tensões, D50 item 9). Área em cm², E em kN/cm².</summary>
+public sealed class BarraChapa
+{
+    public int I, J;
+    public double Area, E = 21000, Es = 21000;
+    public string Grupo = "";
+    /// <summary>Deformação e tensão (kN/cm²) da última solução.</summary>
+    public double Eps, Sigma;
+}
+
 public sealed class ChapaPlana
 {
+    /// <summary>Armaduras da chapa (rigidez Es·A/L, Es secante na análise não linear).</summary>
+    public List<BarraChapa> Barras { get; } = new List<BarraChapa>();
     public List<(double X, double Y)> Nos { get; } = new List<(double, double)>();
     public List<ElementoQ4> Elementos { get; } = new List<ElementoQ4>();
     public double E { get; set; } = 3000;   // kN/cm²
@@ -91,13 +107,23 @@ public sealed class ChapaPlana
     {
         int n = Nos.Count * 2;
         // banda: maior diferença de índice dentro de um elemento
-        int bw = Elementos.Max(e => (e.Nos.Max() - e.Nos.Min()) * 2 + 2);
+        int bw = Math.Max(Elementos.Max(e => (e.Nos.Max() - e.Nos.Min()) * 2 + 2), Barras.Count == 0 ? 0 : Barras.Max(b => Math.Abs(b.I - b.J) * 2 + 2));
         var k = new double[n, bw];   // banda superior: k[i, j - i]
         var f = new double[n];
         var d = Dmat();
+        foreach (var br in Barras)
+        {
+            var (xi, yi) = Nos[br.I]; var (xj, yj) = Nos[br.J];
+            double L = Math.Sqrt((xj - xi) * (xj - xi) + (yj - yi) * (yj - yi)), c = (xj - xi) / L, sn = (yj - yi) / L, kk = br.Es * br.Area / L;
+            double[] t = { -c, -sn, c, sn };
+            int[] g = { br.I * 2, br.I * 2 + 1, br.J * 2, br.J * 2 + 1 };
+            for (int a = 0; a < 4; a++)
+                for (int b = 0; b < 4; b++)
+                    if (g[b] >= g[a]) k[g[a], g[b] - g[a]] += kk * t[a] * t[b];
+        }
         foreach (var el in Elementos)
         {
-            var ke = Ke(el, d);
+            var ke = Ke(el, el.D ?? d);
             for (int a = 0; a < 8; a++)
                 for (int b = 0; b < 8; b++)
                 {
@@ -150,9 +176,19 @@ public sealed class ChapaPlana
             var (b, _) = Bmat(el, 0, 0);
             var eps = new double[3];
             for (int p = 0; p < 3; p++) for (int a = 0; a < 8; a++) eps[p] += b[p, a] * u[el.Nos[a / 2] * 2 + a % 2];
-            el.Sx = d[0, 0] * eps[0] + d[0, 1] * eps[1]; el.Sy = d[1, 0] * eps[0] + d[1, 1] * eps[1]; el.Txy = d[2, 2] * eps[2];
+            el.Ex = eps[0]; el.Ey = eps[1]; el.Gxy = eps[2];
+            var de = el.D ?? d;
+            el.Sx = de[0, 0] * eps[0] + de[0, 1] * eps[1] + de[0, 2] * eps[2]; el.Sy = de[1, 0] * eps[0] + de[1, 1] * eps[1] + de[1, 2] * eps[2];
+            el.Txy = de[2, 0] * eps[0] + de[2, 1] * eps[1] + de[2, 2] * eps[2];
             double c = (el.Sx + el.Sy) / 2, r = Math.Sqrt(Math.Pow((el.Sx - el.Sy) / 2, 2) + el.Txy * el.Txy);
             el.S1 = c + r; el.S2 = c - r; el.Angulo = 0.5 * Math.Atan2(2 * el.Txy, el.Sx - el.Sy);
+        }
+        foreach (var br in Barras)
+        {
+            var (xi, yi) = Nos[br.I]; var (xj, yj) = Nos[br.J];
+            double L = Math.Sqrt((xj - xi) * (xj - xi) + (yj - yi) * (yj - yi));
+            double du = (u[br.J * 2] - u[br.I * 2]) * (xj - xi) / L + (u[br.J * 2 + 1] - u[br.I * 2 + 1]) * (yj - yi) / L;
+            br.Eps = du / L; br.Sigma = br.Es * br.Eps;
         }
     }
 

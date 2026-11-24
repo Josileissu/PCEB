@@ -632,7 +632,7 @@ namespace DEB.Revit
                 }
                 catch (Exception exE) { sb.AppendLine("Exportação: " + exE.Message); }
                 var sessaoCap = new DEB.Core.Analise.Objetos.SessaoAnalise(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc), doc.Title, DEB.Revit.Analise.AjustesRevit.Ler(doc));
-                foreach (string modo in new[] { "modelo", "diagrama", "deformada", "situacao", "laje", "peca", "consolo" })
+                foreach (string modo in new[] { "modelo", "diagrama", "deformada", "situacao", "laje", "peca", "consolo", "campo" })
                 {
                     string png = Path.Combine(dir, "janela_" + modo + ".png");
                     var win = new DEB.Revit.Analise.JanelaAnalise(json, doc.Title) { Captura = png, ModoCaptura = modo, Sessao = sessaoCap };

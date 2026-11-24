@@ -237,6 +237,15 @@ public sealed class SessaoAnalise
             try { return DEB.Core.Analise.Chapas.DetalheConsolo.Json(Estrutura, lc, Cfg, ch); }
             catch (Exception ex) { return "{\"tipo\":\"consolo\",\"chave\":" + Persistencia.Json.Gravar(ValorJson.De(ch), false) + ",\"erro\":" + Persistencia.Json.Gravar(ValorJson.De(ex.Message), false) + "}"; }
         }
+        if (acao == "campo")
+        {
+            // campo de tensões não linear do consolo (item 9), sob demanda (leva alguns segundos)
+            string ch = m["chave"]?.Texto ?? "";
+            var lc = Estrutura.Ligacoes.FirstOrDefault(x => AjustesAnalise.Chave(x.Dono) == ch);
+            if (lc == null) return "";
+            try { return DEB.Core.Analise.Chapas.DetalheConsolo.JsonCampo(Estrutura, lc, Cfg, ch); }
+            catch (Exception ex) { return "{\"tipo\":\"campo\",\"chave\":" + Persistencia.Json.Gravar(ValorJson.De(ch), false) + ",\"erro\":" + Persistencia.Json.Gravar(ValorJson.De(ex.Message), false) + "}"; }
+        }
         if (acao == "exportar")
         {
             string f = m["formato"]?.Texto ?? "";

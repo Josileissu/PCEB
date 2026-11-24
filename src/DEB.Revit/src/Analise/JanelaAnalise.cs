@@ -64,11 +64,12 @@ namespace DEB.Revit.Analise
                     w.NavigationCompleted += async (s, e) =>
                     {
                         await Task.Delay(900);
-                        if (ModoCaptura == "consolo")
+                        if (ModoCaptura == "consolo" || ModoCaptura == "campo")
                         {
                             // detalhe do consolo (D50, item 3): seleciona o primeiro consolo e abre o 2D da peça; o detalhe vem da sessão
                             await w.ExecuteScriptAsync("(() => { const c = D.molas.map(m => m.dono)[0]; if (c) { sel = c; lateral(); } document.querySelector('[data-aba=\"peca\"]').click(); })()");
                             await Task.Delay(2500);
+                            if (ModoCaptura == "campo") { await w.ExecuteScriptAsync("campoConsolo = 'C'; desenhar();"); await Task.Delay(20000); }
                         }
                         else if (ModoCaptura != "") await w.ExecuteScriptAsync($"(document.querySelector('[data-modo=\"{ModoCaptura}\"]') || document.querySelector('[data-aba=\"{ModoCaptura}\"]')).click()");
                         await Task.Delay(400);
