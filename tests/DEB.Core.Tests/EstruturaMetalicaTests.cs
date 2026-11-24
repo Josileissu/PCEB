@@ -99,7 +99,11 @@ public class EstruturaMetalicaTests
         Assert.Contains("W310X38.7", v.Resumo[0]);
         Assert.Contains(v.Memoria.Linhas, l => l.Contains("Cb = 1,1"));    // carga uniforme, viga biapoiada destravada: Cb ≈ 1,14
         // ligações flexíveis das duas pontas: chapa de alma proposta e verificada com o cortante da ponta
-        Assert.Equal(2, e.LigacoesMetalicas.Count);
+        Assert.Equal(2, e.LigacoesMetalicas.Count(x => x.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaAlma));
+        Assert.Equal(2, e.LigacoesMetalicas.Count(x => x.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.PlacaBase));
+        var base1 = res.Single(r => r.Dono.Nome.StartsWith("placa de base P1"));
+        Assert.Contains(base1.Verificacoes, x => x.Codigo == "PB1" && x.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok);
+        Assert.Contains("PCEB-PB-25", base1.Resumo[0]);
         var lig = res.Single(r => r.Dono.Tipo == TipoDono.Ligacao && r.Dono.Nome.Contains("(I)"));
         Assert.Contains(lig.Verificacoes, x => x.Codigo == "LC1" && x.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok);
         Assert.Contains("chapa", lig.Resumo[0]);

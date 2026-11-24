@@ -96,4 +96,43 @@ public class LigacoesAcoTests
         Assert.Equal(9.5, alta.Tp);
         Assert.Equal("ASTM A36", alta.AcoChapa.Nome);
     }
+
+    [Fact]
+    public void Placa_de_base_caso_C1_bate_com_o_exemplo_41_do_Design_Guide_1()
+    {
+        // W12×96 (d = 12,7", bf = 12,2"), placa 22" × 20", Pu = 700 kips, Fy = 36 ksi, fc = 3 ksi, φ = 0,65 (concreto) e 0,9 (placa):
+        // tmín = 1,60" = 40,6 mm. A NBR 8800:2024 tem a mesma estrutura (ℓmáx = máx(m, n, λ·n0)); aqui com γ = 1/φ.
+        var d = new DadosPlacaBase
+        {
+            Pilar = new PerfilI("W12x96", 12.7 * 25.4, 12.2 * 25.4, 0.9 * 25.4, 0.55 * 25.4, 0, true),
+            AcoPlaca = new AcoEstrutural { Nome = "36 ksi", Fy = 248.2, Fu = 400 }, Lx = 22 * 25.4, Ly = 20 * 25.4,
+            Fck = 20.684, GamaC = 1 / 0.65, A2A1 = 1, Db = 19, Nb = 4,
+        };
+        var c = LigacaoPlacaBase.Calcular(d, "Pu", -700 * Kip, 0, 0, gamaA1: 1 / 0.9);
+        Assert.Equal("C1", c.Tipo);
+        Assert.Equal(5.12 * 25.4, c.Lmax, 0.5);
+        Assert.Equal(1.60 * 25.4, c.TpMin, 0.4);
+        Assert.True(c.SigmaSd < c.SigmaRd);   // 700 < φPp = 729 kips
+    }
+
+    [Fact]
+    public void Placa_de_base_passa_pelos_casos_de_compressao_e_tracao()
+    {
+        var b = BibliotecaLigacoes.Carregar(null, "nao_existe.json");
+        var d = DadosPlacaBase.DoModelo(b.Buscar("PCEB-PB-25"), PerfilI.Buscar("W250X32.7"), 1.4);
+        Assert.Equal(d.Pilar.D + 4 * 50, d.LxEf, 6);           // d + 4·a1 (Tab. 18, ø25: a1 = 50)
+        Assert.Equal("C2", LigacaoPlacaBase.Calcular(d, "x", -300, 5, 10).Tipo);
+        var c3 = LigacaoPlacaBase.Calcular(d, "x", -100, 40, 10);
+        Assert.Equal("C3", c3.Tipo);
+        Assert.True(c3.Ft > 0 && c3.DbMin > 0);
+        Assert.Equal("T1", LigacaoPlacaBase.Calcular(d, "x", 80, 0, 0).Tipo);
+        var t2 = LigacaoPlacaBase.Calcular(d, "x", 80, 5, 0);
+        Assert.Equal("T2", t2.Tipo);
+        Assert.Equal(80000 / 4.0 + 5e6 / (d.A * 4), t2.Ft, 1);
+        Assert.Equal("T3", LigacaoPlacaBase.Calcular(d, "x", 10, 40, 0).Tipo);
+        var v = LigacaoPlacaBase.Verificar(d, new[] { ("ELU 1", -300.0, 20.0, 15.0), ("ELU 2", 40.0, 5.0, 5.0) }, "Base", out var mem);
+        Assert.Contains(v, x => x.Codigo == "PB1" && x.Situacao == SituacaoVerificacao.Ok);   // espessura "auto": a comercial que atende
+        Assert.Contains(v, x => x.Codigo == "PB5" && x.Situacao == SituacaoVerificacao.Conferir);   // tração: precisa de dispositivo ao cortante
+        Assert.Contains(mem.Linhas, l => l.Contains("chapa comercial"));
+    }
 }

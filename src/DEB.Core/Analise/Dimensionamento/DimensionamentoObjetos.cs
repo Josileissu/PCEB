@@ -180,6 +180,7 @@ public static class DimensionamentoObjetos
     /// <summary>Ligação flexível por chapa de alma: Vd e Nd da ponta da viga em cada combinação ELU.</summary>
     public static ResultadoPeca LigacaoMetalica(EstruturaObjetos e, LigacaoMetalica l, ConfiguracaoProjeto cfg)
     {
+        if (l.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.PlacaBase) return PlacaBase(e, l, cfg);
         var r = new ResultadoPeca { Dono = l.Dono, Chave = Chave(l.Dono) };
         var b = l.PontaI ? l.Viga.Barras[0] : l.Viga.Barras[l.Viga.Barras.Count - 1];
         var casos = new List<(string, double, double)>();
@@ -197,6 +198,34 @@ public static class DimensionamentoObjetos
         foreach (var x in v) r.Verificacoes.Add(x);
         r.Memoria.Linhas.Insert(1, $"Modelo da biblioteca: {l.Modelo?.Nome} ({l.Modelo?.Id}, {l.Modelo?.Origem}).");
         r.Resumo.Add($"{l.Modelo?.Id} · {l.Chapa.N} ø{N(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} · chapa {N(l.Chapa.Tp, "0.#")} × {N(l.Chapa.AlturaChapa, "0")} mm · Vd {N(casos.Max(c => c.Item2), "0")} kN");
+        return r;
+    }
+
+    /// <summary>Placa de base: N (tração +), M em torno do eixo de maior inércia e V do pé do pilar em cada combinação ELU (NBR 8800 6.7).</summary>
+    public static ResultadoPeca PlacaBase(EstruturaObjetos e, LigacaoMetalica l, ConfiguracaoProjeto cfg)
+    {
+        var r = new ResultadoPeca { Dono = l.Dono, Chave = Chave(l.Dono) };
+        var b = l.Pilar.Barras[0];
+        var casos = new List<(string, double, double, double)>();
+        double mFraco = 0;
+        foreach (var comb in e.DefinicaoCombinacoes.Where(x => x.Tipo == "ELU"))
+        {
+            var s = e.Estacoes(comb.Nome)[b.Id][0];
+            casos.Add((comb.Nome, s[1], s[5] / 100, Math.Sqrt(s[2] * s[2] + s[3] * s[3])));
+            mFraco = Math.Max(mFraco, Math.Abs(s[6]) / 100);
+        }
+        l.Placa.GamaC = cfg.Numero("normas.gamaC");
+        var v = LigacaoPlacaBase.Verificar(l.Placa, casos, "Ligação — " + l.Dono, out var mem, cfg.Numero("normas.gamaA1"), cfg.Numero("normas.gamaA2"));
+        r.Memoria = mem;
+        r.Memoria.Titulo = $"{l.Dono} — {mem.Titulo}";
+        r.Memoria.Linhas.Insert(0, $"Modelo da biblioteca: {l.Modelo?.Nome} ({l.Modelo?.Id}, {l.Modelo?.Origem}); base {(l.Pilar.Base == BasePilarMetalico.Engastada ? "engastada" : "rotulada")} na análise.");
+        foreach (var x in v) r.Verificacoes.Add(x);
+        if (mFraco > 0.5)
+            r.Verificacoes.Add(new ResultadoVerificacao { Codigo = "PB9", Grupo = "Ligação — " + l.Dono, Descricao = "Momento em torno do eixo de menor inércia",
+                Valor = $"{N(mFraco, "0.0")} kN·m", Referencia = "NBR 8800 6.7.1.3", Situacao = SituacaoVerificacao.Conferir,
+                Dica = "A NBR 8800 6.7 só prevê momento em torno do eixo de maior inércia: confira a base por outro método." });
+        string tp = mem.Linhas.FirstOrDefault(x => x.StartsWith("Espessura"))?.Split('→').Last().Trim().TrimEnd('.') ?? "";
+        r.Resumo.Add($"{l.Modelo?.Id} · {N(l.Placa.LxEf, "0")} × {N(l.Placa.LyEf, "0")} mm · {tp} · {l.Placa.Nb} ø{N(l.Placa.Db, "0")}");
         return r;
     }
 

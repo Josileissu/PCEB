@@ -13,12 +13,17 @@ public enum LigacaoExtremidade { Flexivel, Rigida }
 public enum BasePilarMetalico { Engastada, Rotulada }
 
 /// <summary>
-/// Ligação flexível de uma ponta de viga de aço (D46/D48): objeto próprio entre a viga e o suporte (pilar ou viga), com a chapa
-/// de alma proposta e verificada pelos esforços da ponta (V e N) de cada combinação. No modelo de barras é a rótula da ponta.
+/// Ligação metálica como objeto (D46/D48/D49), com o modelo da biblioteca: chapa de alma na ponta flexível de uma viga (entre a viga e
+/// o suporte; no modelo de barras é a rótula da ponta) ou placa de base no pé de um pilar (no modelo, o apoio). Verificada com os
+/// esforços da ponta em cada combinação.
 /// </summary>
 public sealed class LigacaoMetalica
 {
     public Dono Dono { get; set; } = new Dono { Tipo = TipoDono.Ligacao };
+    public DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao Tipo { get; set; } = DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaAlma;
+    /// <summary>Placa de base: o pilar.</summary>
+    public BarraMetalicaObjeto Pilar { get; set; }
+    public DadosPlacaBase Placa { get; set; }
     public BarraMetalicaObjeto Viga { get; set; }
     public bool PontaI { get; set; }
     public BarraMetalicaObjeto Suporte { get; set; }

@@ -636,6 +636,8 @@ public sealed class EstruturaObjetos
     public List<LigacaoMetalica> LigacoesMetalicas { get; } = new List<LigacaoMetalica>();
     /// <summary>Biblioteca de ligações (D49): a ligação flexível das vigas de aço é o primeiro modelo de chapa de alma em vigor.</summary>
     public DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes Biblioteca { get; set; }
+    /// <summary>γc do concreto dos blocos sob as placas de base (da configuração).</summary>
+    public double GamaCBases { get; set; } = 1.4;
     public ModeloBarras Modelo { get; private set; }
     public Dictionary<string, ResultadoCaso> Casos { get; private set; }
     public Dictionary<string, ResultadoCaso> Combinacoes { get; } = new Dictionary<string, ResultadoCaso>();
@@ -767,6 +769,14 @@ public sealed class EstruturaObjetos
             {
                 for (int g = 0; g < 3; g++) travado[g] = true;
                 if (pil.Obj.Base == BasePilarMetalico.Engastada) for (int g = 3; g < 6; g++) travado[g] = true;
+                var bib = Biblioteca ??= DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes.Carregar();
+                var mod = bib.Padrao(DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.PlacaBase);
+                LigacoesMetalicas.Add(new LigacaoMetalica
+                {
+                    Dono = new Dono { Tipo = TipoDono.Ligacao, Id = pil.Obj.Dono.Id + "-base", Nome = $"placa de base {Curto(pil.Obj.Dono)}" },
+                    Tipo = DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.PlacaBase, Pilar = pil.Obj, Modelo = mod,
+                    Placa = DEB.Core.Elementos.Metalica.DadosPlacaBase.DoModelo(mod, pil.Obj.Perfil, GamaCBases),
+                });
             }
             // ponta de viga sem nada mais no nó
             bool soEla = l.Select(x => x.Obj).Distinct().Count() == 1 && !l[0].Obj.Pilar && !outros.Contains(no) &&
