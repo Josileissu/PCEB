@@ -106,6 +106,7 @@ public static class VisualizacaoAnalise
         foreach (var l in e.LigacoesMetalicas)
             Obj(l.Dono, l.Placa != null
                 ? $"placa de base {Fmt.Virgula(l.Placa.LxEf, "0")} × {Fmt.Virgula(l.Placa.LyEf, "0")} mm, {l.Placa.Nb} chumbadores ø{Fmt.Virgula(l.Placa.Db, "0")} ({l.Modelo?.Id})"
+                : l.Embutida != null ? $"insert {(l.NaFace ? "na face" : "no topo")} do pilar de concreto: chapa {Fmt.Virgula(l.Embutida.Bp, "0")} × {Fmt.Virgula(l.Embutida.Hp, "0")} × {Fmt.Virgula(l.Embutida.Tp, "0.#")} mm, {l.Embutida.N} pinos ø{Fmt.Virgula(l.Embutida.Db, "0")} × {Fmt.Virgula(l.Embutida.Hef, "0")} ({l.Modelo?.Id})"
                 : l.Topo != null ? $"chapa de topo, {l.Topo.NTotal} parafusos ø{Fmt.Virgula(l.Topo.Db, "0.#")} ({l.Modelo?.Id})"
                 : l.Cantoneira != null ? $"cantoneira dupla L {Fmt.Virgula(l.Cantoneira.Aba, "0")} × {Fmt.Virgula(l.Cantoneira.T, "0.#")}, {l.Cantoneira.N} parafusos ø{Fmt.Virgula(l.Cantoneira.Db, "0.#")} ({l.Modelo?.Id})"
                 : $"chapa de alma {Fmt.Virgula(l.Chapa.Tp, "0.#")} × {Fmt.Virgula(l.Chapa.AlturaChapa, "0")} mm, {l.Chapa.N} parafusos ø{Fmt.Virgula(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} ({l.Modelo?.Id})");
@@ -119,7 +120,7 @@ public static class VisualizacaoAnalise
                 var viga = l.Viga?.Perfil ?? DEB.Core.Elementos.Metalica.PerfilI.Buscar("W310X38.7");
                 var pil = l.Suporte?.Perfil ?? l.Pilar?.Perfil ?? DEB.Core.Elementos.Metalica.PerfilI.Buscar("W250X32.7");
                 var cx = ValorJson.NovaLista();
-                foreach (var c in DEB.Core.Elementos.Metalica.Ligacoes.GeometriaLigacao.Montar(l.Modelo, viga, pil))
+                foreach (var c in DEB.Core.Elementos.Metalica.Ligacoes.GeometriaLigacao.Montar(l.Modelo, viga, pil, l.PilarConcreto != null && l.NaFace))
                 {
                     var q = ValorJson.NovaLista();
                     q.Adicionar(ValorJson.De(c.Papel.ToString()));
@@ -136,6 +137,7 @@ public static class VisualizacaoAnalise
                     var bar = pi ? peca.Barras[0] : peca.Barras[peca.Barras.Count - 1];
                     o.Definir("barra", m.Barras.IndexOf(bar)); o.Definir("pontaI", pi); o.Definir("peca", peca.Dono.ToString());
                     if (l.Suporte != null) o.Definir("suporte", l.Suporte.Dono.ToString());
+                    if (l.PilarConcreto != null) o.Definir("suporte", l.PilarConcreto.Dono + " (concreto)");
                 }
                 lacos.Definir(Chave(l.Dono), o);
             }

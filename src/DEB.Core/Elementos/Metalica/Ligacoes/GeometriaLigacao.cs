@@ -44,6 +44,40 @@ public static class GeometriaLigacao
         }
     }
 
+    /// <summary>
+    /// Insert na face lateral do pilar de concreto: concreto em x &lt; 0, chapa embutida rente à face (plano yz), pinos para dentro (−x);
+    /// a viga chega ao longo de +x com uma chapa de alma soldada na chapa embutida e parafusada na alma.
+    /// </summary>
+    private static List<Caixa> InsertNaFace(ModeloLigacao m, PerfilI viga)
+    {
+        var l = new List<Caixa>();
+        var d = DadosChapaEmbutida.DoModelo(m);
+        double dh = d.DCabeca > 0 ? d.DCabeca : 1.6 * d.Db, kc = Math.Max(8, 0.5 * d.Db), lc = Math.Max(d.Bp, d.Hp) + 300;
+        l.Add(new Caixa(PapelSolido.Concreto, -d.Hef - 300, -d.Tp, -lc / 2, lc / 2, -lc / 2, lc / 2, "pilar de concreto"));
+        // a chapa embutida: largura (bp) em y, altura (hp) em z
+        l.Add(new Caixa(PapelSolido.Chapa, -d.Tp, 0, -d.Bp / 2, d.Bp / 2, -d.Hp / 2, d.Hp / 2, $"chapa embutida {d.Bp:0} × {d.Hp:0} × {d.Tp:0.#}"));
+        for (int i = 0; i < d.Nx; i++)
+            for (int j = 0; j < d.Ny; j++)
+            {
+                double y = (i - (d.Nx - 1) / 2.0) * d.Sx, z = (j - (d.Ny - 1) / 2.0) * d.Sy;
+                l.Add(new Caixa(PapelSolido.Parafuso, -d.Tp - d.Hef, -d.Tp, y - d.Db / 2, y + d.Db / 2, z - d.Db / 2, z + d.Db / 2, $"pino ø{d.Db:0}"));
+                l.Add(new Caixa(PapelSolido.Parafuso, -d.Tp - d.Hef - kc, -d.Tp - d.Hef, y - dh / 2, y + dh / 2, z - dh / 2, z + dh / 2, "cabeça"));
+            }
+        // chapa de alma soldada na chapa embutida e a viga
+        double hp = Math.Min(d.Hp - 40, viga.D - 2 * viga.Tf - 20), bp = 110, tp = 10;
+        l.Add(new Caixa(PapelSolido.Chapa, 0, bp, viga.Tw / 2, viga.Tw / 2 + tp, -hp / 2, hp / 2, $"chapa de alma {tp:0} mm"));
+        l.Add(new Caixa(PapelSolido.Solda, 0, 6, viga.Tw / 2 - 6, viga.Tw / 2, -hp / 2, hp / 2, "filete"));
+        l.Add(new Caixa(PapelSolido.Solda, 0, 6, viga.Tw / 2 + tp, viga.Tw / 2 + tp + 6, -hp / 2, hp / 2, "filete"));
+        l.AddRange(PerfilI(viga, 12, Math.Max(2.5 * viga.D, 600), false, "viga " + viga.Nome));
+        int nb = Math.Max(2, (int)Math.Floor((hp - 70) / 75) + 1);
+        for (int k = 0; k < nb; k++)
+        {
+            double z = (k - (nb - 1) / 2.0) * 75;
+            l.Add(new Caixa(PapelSolido.Parafuso, 70 - 9.5, 70 + 9.5, -viga.Tw / 2 - 23, viga.Tw / 2 + tp + 23, z - 9.5, z + 9.5, "ø19"));
+        }
+        return l;
+    }
+
     /// <summary>Pilar de apoio inteiro atrás da face x = 0 (mesa na face, alma ao longo de x), num trecho de 3·d de altura.</summary>
     private static IEnumerable<Caixa> Suporte(PerfilI pilar, double zMeio)
     {
@@ -54,8 +88,9 @@ public static class GeometriaLigacao
         yield return new Caixa(PapelSolido.Membro, -d + tf, -tf, -tw / 2, tw / 2, z0, z1, r);
     }
 
-    public static List<Caixa> Montar(ModeloLigacao m, PerfilI viga, PerfilI pilar)
+    public static List<Caixa> Montar(ModeloLigacao m, PerfilI viga, PerfilI pilar, bool insertNaFace = false)
     {
+        if (m.Tipo == TipoLigacao.ChapaEmbutida && insertNaFace) return InsertNaFace(m, viga);
         var l = new List<Caixa>();
         var aco = AcoEstrutural.Buscar("A572");
         switch (m.Tipo)

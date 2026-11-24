@@ -220,4 +220,50 @@ public class EstruturaMetalicaTests
             }
         }
     }
+
+    [Fact]
+    public void Viga_de_aco_em_pilar_de_concreto_vira_insert_articulado()
+    {
+        var e = new EstruturaObjetos();
+        PilarObjeto PC(string n, double x, double comp) => new PilarObjeto
+        {
+            Dono = new Dono { Tipo = TipoDono.Pilar, Id = n, Nome = n }, Base = new Vetor3(x, 0, -100), Secao = DEB.Core.Pecas.SecaoPoligonal.Retangulo(40, 40),
+            Comprimento = comp, Embutimento = 100, Material = MaterialBarra.Concreto(30),
+        };
+        e.Pilares.Add(PC("PC1", 0, 600));       // viga chega na face, a 400 cm do piso
+        e.Pilares.Add(PC("PC2", 600, 500));     // viga apoiada no topo (topo a 400 cm do piso)
+        e.Metalicas.Add(new BarraMetalicaObjeto
+        {
+            Dono = new Dono { Tipo = TipoDono.Viga, Nome = "V1", Id = "V1" }, PontoI = new Vetor3(20, 0, 400), PontoJ = new Vetor3(600, 0, 400),
+            Perfil = PerfilI.Buscar("W310X38.7"), Aco = A572, G = 10, Q = 5, LigacaoI = LigacaoExtremidade.Rigida, LigacaoJ = LigacaoExtremidade.Rigida,
+        });
+        var cfg = new ConfiguracaoProjeto();
+        e.Analisar(cfg);
+        var ins = e.LigacoesMetalicas.Where(x => x.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaEmbutida).ToList();
+        Assert.Equal(2, ins.Count);
+        Assert.True(ins.Single(x => x.PontaI).NaFace);
+        Assert.False(ins.Single(x => !x.PontaI).NaFace);
+        // articulada: momento nulo nas pontas; a carga vai inteira para os dois pilares (biapoiada de 600 cm)
+        var v = e.Metalicas.Single();
+        var s = Est(e, v, EstruturaObjetos.CasoG);
+        Assert.True(Math.Abs(s.First()[5]) < 0.5 && Math.Abs(s.Last()[5]) < 0.5);
+        Assert.Equal(4500, s.Max(x => Math.Abs(x[5])), 1);
+        // dimensionamento do insert
+        var r = DimensionamentoObjetos.LigacaoMetalica(e, ins[0], cfg);
+        Assert.Contains(r.Verificacoes, x => x.Codigo == "IN4");
+        Assert.Contains("insert", AjustesAnalise.Chave(ins[0].Dono) + ins[0].Dono.Nome);
+        string j = new SessaoAnalise(e, cfg, "teste", null).Json();
+        Assert.Contains("(concreto)", j);
+        string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_ANALISE");
+        if (!string.IsNullOrEmpty(pasta))
+            foreach (var (lig, nome) in new[] { (ins.Single(x => x.NaFace), "insert_face"), (ins.Single(x => !x.NaFace), "insert_topo") })
+            {
+                string ch = AjustesAnalise.Chave(lig.Dono);
+                string html = VisualizacaoAnalise.Pagina().Replace("<script>", "<script>window.DADOS_DEMO = " + j + ";</script><script>");
+                int k = html.LastIndexOf("</body>", System.StringComparison.Ordinal);
+                html = html.Insert(k, "<script>setTimeout(() => { sel = " + DEB.Core.Persistencia.Json.Gravar(DEB.Core.Persistencia.ValorJson.De(ch), false) +
+                                      "; document.querySelector('[data-aba=\"peca\"]').click(); lateral(); }, 300);</script>");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, nome + ".html"), html);
+            }
+    }
 }

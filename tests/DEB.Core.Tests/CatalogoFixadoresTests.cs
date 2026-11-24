@@ -78,7 +78,7 @@ public class CatalogoFixadoresTests
         try
         {
             var c2 = CatalogoFixadores.Carregar(arq);
-            Assert.Single(c2.Chumbadores.Where(x => x.Produto == "Walsywa WQA (ampola)"));
+            Assert.Single(c2.Chumbadores, x => x.Produto == "Walsywa WQA (ampola)");
             Assert.Equal(99, c2.Resistencia("Walsywa WQA (ampola)", 12.7, 110, 25).NRd, 6);
             Assert.Contains("Hardinc VI 1101 + barra roscada", c2.Produtos);
         }

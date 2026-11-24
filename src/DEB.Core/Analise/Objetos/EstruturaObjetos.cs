@@ -714,6 +714,8 @@ public sealed class EstruturaObjetos
         // cargas pontuais nos pilares: nó na altura da carga
         foreach (var c in Cargas.Where(c => c.Tipo == TipoCargaObjeto.Pontual))
             if (Pilares.FirstOrDefault(p => AjustesAnalise.Chave(p.Dono) == c.Alvo) is PilarObjeto pc && !pc.Niveis.Contains(c.Posicao)) pc.Niveis.Add(c.Posicao);
+        // vigas de aço que chegam em pilar de concreto (D50): o pilar ganha nó na altura da ponta antes de ser gerado
+        foreach (var (pc, z) in PontasAcoEmConcreto()) if (!pc.Niveis.Any(x => Math.Abs(x - z) < 0.5)) pc.Niveis.Add(z);
         foreach (var p in Pilares) p.Gerar(m);
         foreach (var v in Vigas) v.Gerar(m, g, q);
         foreach (var l in LigacoesDiretas) l.Gerar(m);
@@ -804,11 +806,62 @@ public sealed class EstruturaObjetos
             }
             return p;
         }
+        Vetor3 LevarConcreto(BarraMetalicaObjeto v, Vetor3 p, bool pontaI)
+        {
+            if (ligadas.Contains((v, pontaI)) || !(PilarConcretoNaPonta(p) is (PilarObjeto pc, double z))) return p;
+            ligadas.Add((v, pontaI));
+            var bib = Biblioteca ??= DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes.Carregar();
+            var tipo = DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaEmbutida;
+            var modelo = ModeloPara($"{v.Dono.Id}-{(pontaI ? "I" : "J")}", tipo);
+            bool topo = z >= pc.Comprimento - 2;
+            LigacoesMetalicas.Add(new LigacaoMetalica
+            {
+                Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{v.Dono.Id}-{(pontaI ? "I" : "J")}",
+                                  Nome = $"insert {Curto(v.Dono)} ({(pontaI ? "I" : "J")}) → {Curto(pc.Dono)}{(topo ? " (topo)" : "")}" },
+                Tipo = tipo, Viga = v, PontaI = pontaI, PilarConcreto = pc, NaFace = !topo, Modelo = modelo,
+                Embutida = DEB.Core.Elementos.Metalica.DadosChapaEmbutida.DoModelo(modelo),
+            });
+            // articulada: a ponta da viga de aço gira livre no insert
+            if (pontaI) v.LigacaoI = LigacaoExtremidade.Flexivel; else v.LigacaoJ = LigacaoExtremidade.Flexivel;
+            return pc.Ponto(z);
+        }
         foreach (bool soPilares in new[] { true, false })
             foreach (var v in vigas)
             {
                 v.PontoI = Levar(v, v.PontoI, soPilares, true);
                 v.PontoJ = Levar(v, v.PontoJ, soPilares, false);
+                if (soPilares)
+                {
+                    v.PontoI = LevarConcreto(v, v.PontoI, true);
+                    v.PontoJ = LevarConcreto(v, v.PontoJ, false);
+                }
+            }
+    }
+
+    /// <summary>Pilar de concreto onde cai a ponta da viga de aço (ponto no eixo, dentro da seção + 30 cm) e a altura z da ponta.</summary>
+    private (PilarObjeto P, double Z)? PilarConcretoNaPonta(Vetor3 p)
+    {
+        foreach (var pc in Pilares)
+        {
+            Vetor3 e = pc.Eixo.Unitario, d = p - pc.Base;
+            double z = d.Ponto(e);
+            Vetor3 rad = d - e * z;
+            double meia = Math.Max(pc.Secao.B, pc.Secao.H) / 2;
+            if (rad.Modulo > meia + 30 || z < pc.Embutimento - 1 || z > pc.Comprimento + 30) continue;
+            return (pc, Math.Max(pc.Embutimento + 1, Math.Min(pc.Comprimento, z)));
+        }
+        return null;
+    }
+
+    /// <summary>Pontas de vigas de aço sobre pilares de concreto (sem pilar de aço perto): para os níveis dos pilares.</summary>
+    private IEnumerable<(PilarObjeto, double)> PontasAcoEmConcreto()
+    {
+        var pilaresAco = Metalicas.Where(x => x.Pilar).ToList();
+        foreach (var v in Metalicas.Where(x => !x.Pilar))
+            foreach (var p in new[] { v.PontoI, v.PontoJ })
+            {
+                if (pilaresAco.Any(a => { var (dist, t) = a.Projecao(p); return dist <= Math.Max(a.Perfil.D, a.Perfil.Bf) / 20 + 30 && t >= -1 && t <= a.Comprimento + 1; })) continue;
+                if (PilarConcretoNaPonta(p) is (PilarObjeto pc, double z)) yield return (pc, z);
             }
     }
 

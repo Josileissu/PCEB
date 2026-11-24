@@ -177,10 +177,42 @@ public static class DimensionamentoObjetos
         return r;
     }
 
+    /// <summary>
+    /// Insert da viga de aço no pilar de concreto (D50): na face lateral, a cortante da viga é cortante nos pinos e a força normal
+    /// (tração) arranca a chapa; no topo, a reação vertical comprime a chapa (sem tração nos pinos) e a força normal da viga é cortante.
+    /// </summary>
+    private static ResultadoPeca InsertConcreto(EstruturaObjetos e, LigacaoMetalica l, ConfiguracaoProjeto cfg)
+    {
+        var r = new ResultadoPeca { Dono = l.Dono, Chave = Chave(l.Dono) };
+        var b = l.PontaI ? l.Viga.Barras[0] : l.Viga.Barras[l.Viga.Barras.Count - 1];
+        var casos = new List<DEB.Core.Elementos.Metalica.EsforcoLigacao>();
+        foreach (var comb in e.DefinicaoCombinacoes.Where(x => x.Tipo == "ELU"))
+        {
+            var est = e.Estacoes(comb.Nome)[b.Id];
+            var s = l.PontaI ? est[0] : est[est.Length - 1];
+            double vz = Math.Abs(s[3]), vy = Math.Abs(s[2]), n = s[1];
+            casos.Add(l.NaFace ? new DEB.Core.Elementos.Metalica.EsforcoLigacao(comb.Nome, Math.Max(0, n), Math.Sqrt(vz * vz + vy * vy))
+                               : new DEB.Core.Elementos.Metalica.EsforcoLigacao(comb.Nome, -vz, Math.Sqrt(n * n + vy * vy)));
+        }
+        var d = l.Embutida;
+        d.Fck = cfg.Numero("materiais.fck");
+        var v = DEB.Core.Elementos.Metalica.LigacaoChapaEmbutida.Verificar(d, casos, "Insert — " + l.Dono, out var mem);
+        r.Memoria = mem;
+        r.Memoria.Titulo = $"{l.Dono} — {mem.Titulo}";
+        r.Memoria.Linhas.Insert(0, $"Viga de aço {l.Viga.Dono} {(l.NaFace ? "na face lateral" : "apoiada no topo")} do pilar de concreto {l.PilarConcreto.Dono} " +
+                                   $"(ligação articulada); {(l.NaFace ? "Vd vira cortante nos pinos e a tração da viga arranca a chapa" : "a reação comprime a chapa e a força normal da viga vira cortante")}.");
+        r.Verificacoes.AddRange(v);
+        r.Resumo.Add($"{l.Modelo?.Id} · {d.N} pinos ø{N(d.Db, "0")} × {N(d.Hef, "0")} · chapa {N(d.Bp, "0")} × {N(d.Hp, "0")} × {N(d.Tp, "0.#")} · " +
+                     (l.NaFace ? $"face · Vd {N(casos.Select(c => c.Vd).DefaultIfEmpty(0).Max(), "0.0")} kN"
+                                : $"topo · reação {N(casos.Select(c => -c.Nd).DefaultIfEmpty(0).Max(), "0.0")} kN (compressão na chapa)"));
+        return r;
+    }
+
     /// <summary>Ligação flexível por chapa de alma: Vd e Nd da ponta da viga em cada combinação ELU.</summary>
     public static ResultadoPeca LigacaoMetalica(EstruturaObjetos e, LigacaoMetalica l, ConfiguracaoProjeto cfg)
     {
         if (l.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.PlacaBase) return PlacaBase(e, l, cfg);
+        if (l.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaEmbutida && l.PilarConcreto != null) return InsertConcreto(e, l, cfg);
         var r = new ResultadoPeca { Dono = l.Dono, Chave = Chave(l.Dono) };
         var b = l.PontaI ? l.Viga.Barras[0] : l.Viga.Barras[l.Viga.Barras.Count - 1];
         var casos = new List<(string, double, double)>();

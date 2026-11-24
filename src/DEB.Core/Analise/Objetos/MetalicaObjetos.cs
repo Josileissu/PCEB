@@ -27,6 +27,11 @@ public sealed class LigacaoMetalica
     public BarraMetalicaObjeto Viga { get; set; }
     public bool PontaI { get; set; }
     public BarraMetalicaObjeto Suporte { get; set; }
+    /// <summary>Ligação aço–concreto (D50): pilar de concreto que recebe a viga de aço por um insert (chapa embutida com pinos).</summary>
+    public PilarObjeto PilarConcreto { get; set; }
+    /// <summary>Insert na face lateral do pilar (viga chegando de lado); falso = viga apoiada no topo do pilar.</summary>
+    public bool NaFace { get; set; } = true;
+    public DEB.Core.Elementos.Metalica.DadosChapaEmbutida Embutida { get; set; }
     /// <summary>Modelo da biblioteca de ligações (D49) usado nesta ligação.</summary>
     public DEB.Core.Elementos.Metalica.Ligacoes.ModeloLigacao Modelo { get; set; }
     public DadosChapaAlma Chapa { get; set; }

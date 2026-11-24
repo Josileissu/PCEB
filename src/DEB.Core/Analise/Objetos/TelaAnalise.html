@@ -687,6 +687,8 @@ function desenharLigacaoAco(w, h, chave, L) {
   const C = L.caixas.map(c => ({ p: c[0], x0: c[1], x1: c[2], y0: c[3], y1: c[4], z0: c[5], z1: c[6], r: c[7] }));
   // a peça que chega (viga) é a que tem o maior x; o resto dos membros é o suporte
   const xMaxMembro = Math.max(...C.filter(c => c.p === "Membro").map(c => c.x1));
+  // no insert em pilar de concreto todos os membros são a peça que chega (o suporte é o bloco de concreto)
+  const ehPeca = c => C.some(q => q.p === "Concreto") || (c.x1 >= xMaxMembro - 1 && c.x0 > 0);
   const COR = { suporte: [143, 176, 211], peca: [217, 118, 43], Chapa: [44, 62, 140], Enrijecedor: [44, 62, 140], Parafuso: [232, 194, 26], Solda: [235, 170, 30], Concreto: [190, 190, 190] };
   const az = VISTA_LIG.az * Math.PI / 180, el = VISTA_LIG.el * Math.PI / 180;
   // projeção: gira em z (az) e inclina (el); profundidade para o pintor
@@ -731,7 +733,7 @@ function desenharLigacaoAco(w, h, chave, L) {
       prisma(ponta(a1 - m), ponta(a1), ch, 6, COR.Parafuso);
       return;
     }
-    if (c.p === "Membro") return caixa3(c, c.x1 >= xMaxMembro - 1 && c.x0 > 0 ? COR.peca : COR.suporte, 1);
+    if (c.p === "Membro") return caixa3(c, ehPeca(c) ? COR.peca : COR.suporte, 1);
     caixa3(c, COR[c.p] || [150, 150, 150], c.p === "Concreto" ? 0.6 : 1);
   });
   // esforços da peça no nó (combinação escolhida), no sistema da ligação: x ao longo da viga, z para cima
@@ -752,7 +754,7 @@ function desenharLigacaoAco(w, h, chave, L) {
   });
   // setas na ponta da peça (verde, como no IDEA): forças retas, momentos em arco com seta dupla
   if (F) {
-    const membrosPeca = C.filter(c => c.p === "Membro" && c.x1 >= xMaxMembro - 1 && c.x0 > 0);
+    const membrosPeca = C.filter(c => c.p === "Membro" && ehPeca(c));
     const xe = xMaxMembro, zc = (Math.min(...membrosPeca.map(c => c.z0)) + Math.max(...membrosPeca.map(c => c.z1))) / 2;
     const tam = Math.max(...membrosPeca.map(c => c.z1 - c.z0)) * 0.8;
     const P0 = [xe, 0, zc], verde = "#1f9d3a";
