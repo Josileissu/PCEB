@@ -630,6 +630,8 @@ public sealed class EstruturaObjetos
     public List<LigacaoPilarViga> LigacoesDiretas { get; } = new List<LigacaoPilarViga>();
     public List<LigacaoVigaViga> LigacoesVigaViga { get; } = new List<LigacaoVigaViga>();
     public List<LajeObjeto> Lajes { get; } = new List<LajeObjeto>();
+    /// <summary>Pilares e vigas de aço (D48).</summary>
+    public List<BarraMetalicaObjeto> Metalicas { get; } = new List<BarraMetalicaObjeto>();
     public ModeloBarras Modelo { get; private set; }
     public Dictionary<string, ResultadoCaso> Casos { get; private set; }
     public Dictionary<string, ResultadoCaso> Combinacoes { get; } = new Dictionary<string, ResultadoCaso>();
@@ -654,6 +656,13 @@ public sealed class EstruturaObjetos
         foreach (var v in Vigas) v.Gerar(m, g, q);
         foreach (var l in LigacoesDiretas) l.Gerar(m);
         foreach (var l in LigacoesVigaViga) l.Gerar(m);
+        if (Metalicas.Count > 0)
+        {
+            PrepararMetalicas();
+            foreach (var b in Metalicas.Where(x => x.Pilar)) b.Gerar(m, g, q);
+            foreach (var b in Metalicas.Where(x => !x.Pilar)) b.Gerar(m, g, q);
+            ApoiosMetalicos(m);
+        }
         foreach (var la in Lajes)
         {
             la.Gerar(m, pp, g, q);
@@ -679,6 +688,76 @@ public sealed class EstruturaObjetos
         DefinicaoCombinacoes.Clear();
         DefinicaoCombinacoes.AddRange(Combinacoes8681(cfg));
         return m;
+    }
+
+    /// <summary>
+    /// Liga as vigas metálicas (D48): a ponta da viga perto do eixo de um pilar metálico vai para o eixo dele (o pilar ganha nó
+    /// nessa altura); se não, perto do eixo de outra viga metálica, vai para ele (viga sobre viga). Tolerância: metade da maior
+    /// dimensão do perfil de apoio + 30 cm.
+    /// </summary>
+    public void PrepararMetalicas()
+    {
+        foreach (var b in Metalicas) b.PontosInternos.Clear();
+        var pilares = Metalicas.Where(x => x.Pilar).ToList();
+        var vigas = Metalicas.Where(x => !x.Pilar).ToList();
+        Vetor3 Levar(BarraMetalicaObjeto v, Vetor3 p, bool soPilares)
+        {
+            foreach (var alvo in soPilares ? pilares : vigas.Where(x => x != v))
+            {
+                var (dist, t) = alvo.Projecao(p);
+                double tol = Math.Max(alvo.Perfil.D, alvo.Perfil.Bf) / 20 + 30;
+                double L = alvo.Comprimento;
+                if (dist > tol || t < (soPilares ? -1 : 1) || t > L + (soPilares ? 1 : -1)) continue;
+                t = Math.Max(0, Math.Min(L, t));
+                if (t > 1 && t < L - 1) alvo.PontosInternos.Add(t);
+                return alvo.PontoI + alvo.Direcao * t;
+            }
+            return p;
+        }
+        foreach (bool soPilares in new[] { true, false })
+            foreach (var v in vigas)
+            {
+                v.PontoI = Levar(v, v.PontoI, soPilares);
+                v.PontoJ = Levar(v, v.PontoJ, soPilares);
+            }
+    }
+
+    /// <summary>
+    /// Apoios das peças metálicas: base do pilar sem peça embaixo (engastada ou rotulada), ponta de viga solta (articulação fixa) e
+    /// giro preso nos nós onde todas as barras chegam rotuladas (só força passa: o giro do nó não tem rigidez).
+    /// </summary>
+    private void ApoiosMetalicos(ModeloBarras m)
+    {
+        var pontas = new Dictionary<int, List<(BarraMetalicaObjeto Obj, BarraPortico B, bool I)>>();
+        void Add(int no, BarraMetalicaObjeto o, BarraPortico b, bool i) { if (!pontas.TryGetValue(no, out var l)) pontas[no] = l = new List<(BarraMetalicaObjeto, BarraPortico, bool)>(); l.Add((o, b, i)); }
+        foreach (var o in Metalicas)
+            foreach (var b in o.Barras) { Add(b.NoI, o, b, true); Add(b.NoJ, o, b, false); }
+        var outros = new HashSet<int>(m.Barras.Where(b => !Metalicas.Any(o => o.Barras.Contains(b))).SelectMany(b => new[] { b.NoI, b.NoJ }));
+        foreach (var kv in pontas)
+        {
+            int no = kv.Key; var l = kv.Value;
+            var travado = new bool[6];
+            // base de pilar: o nó mais baixo de um pilar, sem outro pilar chegando por cima nele
+            var pil = l.FirstOrDefault(x => x.Obj.Pilar && x.I && x.B == x.Obj.Barras[0]);
+            bool temPilarEmbaixo = l.Any(x => x.Obj.Pilar && !x.I);
+            if (pil.Obj != null && !temPilarEmbaixo && !outros.Contains(no))
+            {
+                for (int g = 0; g < 3; g++) travado[g] = true;
+                if (pil.Obj.Base == BasePilarMetalico.Engastada) for (int g = 3; g < 6; g++) travado[g] = true;
+            }
+            // ponta de viga sem nada mais no nó
+            bool soEla = l.Select(x => x.Obj).Distinct().Count() == 1 && !l[0].Obj.Pilar && !outros.Contains(no) &&
+                         (no == l[0].Obj.NoI || no == l[0].Obj.NoJ);
+            if (soEla)
+            {
+                for (int g = 0; g < 3; g++) travado[g] = true;
+                Avisos.Add($"{l[0].Obj.Dono}: ponta {(no == l[0].Obj.NoI ? "I" : "J")} sem pilar nem viga metálica — apoio articulado fixo.");
+            }
+            // giro livre: todas as pontas rotuladas
+            bool todasRotuladas = !outros.Contains(no) && l.All(x => (x.I ? x.B.LiberaI : x.B.LiberaJ)[4] && (x.I ? x.B.LiberaI : x.B.LiberaJ)[5]);
+            if (todasRotuladas) for (int g = 3; g < 6; g++) travado[g] = true;
+            if (travado.Any(t => t)) m.Apoio(no, travado, l[0].Obj.Dono);
+        }
     }
 
     /// <summary>

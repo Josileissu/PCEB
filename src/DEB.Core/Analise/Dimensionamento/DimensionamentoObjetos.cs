@@ -6,6 +6,7 @@ using DEB.Core.Analise.Objetos;
 using DEB.Core.Configuracao.Projeto;
 using DEB.Core.Documentacao;
 using DEB.Core.Elementos.Consolo;
+using DEB.Core.Elementos.Metalica;
 using DEB.Core.Elementos.Pilar.Calculo;
 using DEB.Core.Elementos.Viga.PreMoldada.Calculo;
 using DEB.Core.Normas.Verificacao;
@@ -92,6 +93,7 @@ public static class DimensionamentoObjetos
         foreach (var p in e.Pilares) r.Add(Pilar(e, p, cfg));
         foreach (var l in e.Ligacoes) r.Add(Consolo(e, l, cfg));
         foreach (var l in e.Lajes) r.Add(Laje(e, l, cfg));
+        foreach (var b in e.Metalicas) r.Add(Metalica(e, b, cfg));
         return r;
     }
 
@@ -111,6 +113,68 @@ public static class DimensionamentoObjetos
             Codigo = cod, Grupo = "Análise — " + r.Dono, Descricao = desc, Valor = valor, Limite = limite, Referencia = refer,
             Situacao = falha ? seFalha : SituacaoVerificacao.Ok, Dica = falha ? dica : "",
         });
+
+    // ------------------------------------------------------------------ barras de aço (D48, NBR 8800:2024)
+
+    /// <summary>
+    /// Pilar ou viga de aço: para cada combinação ELU, as 11 estações de cada trecho viram casos (N, Mx = momento no plano da alma,
+    /// My, cortantes); Cb da FLT pelo diagrama de cada combinação (o menor vale para todas, a favor da segurança); comprimentos de
+    /// flambagem = comprimento da peça (K = 1) e Lb = o destravamento da peça ou o comprimento. Flecha das vigas na combinação
+    /// frequente contra L/350 (piso) da configuração.
+    /// </summary>
+    public static ResultadoPeca Metalica(EstruturaObjetos e, BarraMetalicaObjeto o, ConfiguracaoProjeto cfg)
+    {
+        var r = new ResultadoPeca { Dono = o.Dono, Chave = Chave(o.Dono) };
+        r.Memoria.Titulo = $"{(o.Pilar ? "Pilar" : "Viga")} metálico {o.Dono} — {o.Perfil.Nome}, {o.Aco.Nome} (NBR 8800:2024)";
+        double L = o.Comprimento, lb = o.Lb > 0 ? o.Lb : L;
+        var casos = new List<EsforcosAco>();
+        double cbMin = double.PositiveInfinity;
+        foreach (var comb in e.DefinicaoCombinacoes.Where(x => x.Tipo == "ELU"))
+        {
+            var est = e.Estacoes(comb.Nome);
+            var linhas = new List<(double T, double[] S)>();
+            double t0 = 0;
+            foreach (var b in o.Barras)
+            {
+                foreach (var sx in est[b.Id]) linhas.Add((t0 + sx[0], sx));
+                t0 += e.Modelo.Comprimento(b);
+            }
+            foreach (var (t, sx) in linhas)
+                casos.Add(new EsforcosAco { Nome = $"{comb.Nome}, x = {Fmt.Virgula(t, "0")} cm", N = sx[1], Mx = Math.Abs(sx[5]), My = Math.Abs(sx[6]), Vy = Math.Abs(sx[3]), Vx = Math.Abs(sx[2]) });
+            double M(double t) { var a = linhas.OrderBy(x => Math.Abs(x.T - t)).First(); return Math.Abs(a.S[5]); }
+            double mmax = linhas.Max(x => Math.Abs(x.S[5]));
+            if (mmax > 1e-6) cbMin = Math.Min(cbMin, BarraAco.Cb(mmax, M(L / 4), M(L / 2), M(3 * L / 4)));
+        }
+        if (double.IsInfinity(cbMin) || o.Lb > 0 && o.Lb < L - 1) cbMin = 1.0;   // destravamento intermediário: Cb = 1 (a favor da segurança)
+        var comp = new ComprimentosBarra { Lx = L, Ly = L, Lz = L, Lb = lb, Cb = cbMin };
+        var v = BarraAco.Verificar(o.Perfil, o.Aco, comp, casos, "Aço — " + o.Dono, out var res, cfg.Numero("normas.gamaA1"));
+        r.Memoria.Linhas.Add($"L = {N(L, "0")} cm; K = 1 (Lx = Ly = Lz = L); Lb = {N(lb, "0")} cm; Cb = {N(cbMin, "0.00")} (5.4.2.3, menor das combinações); " +
+                             $"ligações: I {(o.LigacaoI == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}, J {(o.LigacaoJ == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}" +
+                             (o.Pilar ? $"; base {(o.Base == BasePilarMetalico.Engastada ? "engastada" : "rotulada")}." : "."));
+        r.Memoria.Linhas.AddRange(res.Memoria.Linhas);
+        foreach (var x in v) r.Verificacoes.Add(x);
+        if (!o.Pilar)
+        {
+            var fr = e.DefinicaoCombinacoes.FirstOrDefault(c => c.Tipo == "ELS" && c.Nome.Contains("freq"));
+            if (fr != null)
+            {
+                var est = o.Barras.SelectMany(x => e.Estacoes(fr.Nome)[x.Id]).ToList();
+                double zi = est.First()[9], zj = est.Last()[9];
+                double flecha = est.Select((s2, k) => -(s2[9] - (zi + (zj - zi) * k / Math.Max(1, est.Count - 1)))).Max();
+                double div = cfg.Numero("dim.flechaAco"), lim = L / div;
+                r.Memoria.Linhas.Add($"Flecha ({fr.Nome}) = {N(flecha * 10, "0.0")} mm; limite L/{N(div, "0")} = {N(lim * 10, "0.0")} mm (NBR 8800 Anexo B).");
+                r.Verificacoes.Add(new ResultadoVerificacao
+                {
+                    Codigo = "MT9", Grupo = "Aço — " + o.Dono, Descricao = "Flecha (combinação frequente)", Valor = $"{N(flecha * 10, "0.0")} mm",
+                    Limite = $"≤ L/{N(div, "0")} = {N(lim * 10, "0.0")} mm", Referencia = "NBR 8800 Anexo B, Tab. B.1",
+                    Situacao = flecha > lim ? SituacaoVerificacao.NaoAtende : SituacaoVerificacao.Ok, Dica = flecha > lim ? "Aumente o perfil ou dê contraflecha (B.2)." : "",
+                });
+            }
+        }
+        double etaMax = v.Where(x => x.Valor.StartsWith("η")).Select(x => double.Parse(x.Valor.Substring(4).Split(' ')[0].Replace(',', '.'), System.Globalization.CultureInfo.InvariantCulture)).DefaultIfEmpty(0).Max();
+        r.Resumo.Add($"{o.Perfil.Nome} · η = {N(etaMax, "0.00")} · Nc,Rd {N(res.NcRd, "0")} kN · Mx,Rd {N(res.MxRd / 100, "0.0")} kN·m ({res.GovernaMx})");
+        return r;
+    }
 
     // ------------------------------------------------------------------ viga (flexão simples, cortante, flecha)
 

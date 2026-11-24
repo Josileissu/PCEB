@@ -14,6 +14,7 @@
     <EmbeddedResource Include="Configuracao\Projeto\TelaConfiguracao.html" LogicalName="DEB.Core.TelaConfiguracao.html" />
     <!-- janela do modelo de análise (D46) -->
     <EmbeddedResource Include="Analise\Objetos\TelaAnalise.html" LogicalName="DEB.Core.TelaAnalise.html" />
+    <EmbeddedResource Include="Elementos\Metalica\PerfisLaminados.txt" LogicalName="DEB.Core.PerfisLaminados.txt" />
   </ItemGroup>
 
 </Project>

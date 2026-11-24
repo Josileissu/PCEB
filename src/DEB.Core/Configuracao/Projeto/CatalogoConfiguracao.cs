@@ -125,6 +125,10 @@ public static class CatalogoConfiguracao
           "Multiplica o γf nas ligações por consolo e dente: pré-fabricado 1,0; pré-moldado 1,1.", 1.0, null);
         N("normas", "gamaNVar", "γn · consolos e dentes (caso contrário)", 1.2, "", "NBR 9062 7.3.1.1",
           "Pré-fabricado 1,1; pré-moldado 1,2.", 1.1, null);
+        S("Estruturas de aço");
+        O("normas", "nbr8800", "Aço", new[] { "NBR 8800:2024" }, "—", "Norma das estruturas de aço (D48).");
+        N("normas", "gamaA1", "γa1 · escoamento e instabilidade", 1.10, "", "NBR 8800 Tab. 3", "Resistência do aço ao escoamento, flambagem e instabilidade.", 1.10, null);
+        N("normas", "gamaA2", "γa2 · ruptura", 1.35, "", "NBR 8800 Tab. 3", "Ruptura da seção líquida, parafusos e soldas.", 1.35, null);
         S("Combinações");
         O("normas", "uso", "Uso da edificação", new[] { "Residencial", "Comercial / escritórios", "Bibliotecas, garagens e oficinas" }, "NBR 6118 Tab. 11.2",
           "Escolhe ψ0, ψ1 e ψ2.", 1);
@@ -186,6 +190,8 @@ public static class CatalogoConfiguracao
         O("materiais", "aco", "Aço das barras", new[] { "CA-50", "CA-60" }, "NBR 7480", "Aço das barras longitudinais.");
         O("materiais", "agregado", "Agregado graúdo (αE)", new[] { "Granito/gnaisse · 1,0", "Basalto/diabásio · 1,2", "Calcário · 0,9", "Arenito · 0,7" },
           "NBR 6118 8.2.8", "Corrige o módulo de elasticidade.");
+        O("materiais", "acoPerfil", "Aço dos perfis", DEB.Core.Elementos.Metalica.AcoEstrutural.Lista.Select(a => a.Nome).ToArray(), "NBR 8800 Anexo A",
+          "Aço dos perfis metálicos quando o tipo do Revit não traz o material.");
         N("materiais", "pesoEspecifico", "Peso específico do concreto armado", 25, "kN/m³", "NBR 6120", "Peso próprio das peças.", 20, 30);
 
         // ---- durabilidade
@@ -217,7 +223,15 @@ public static class CatalogoConfiguracao
         O("analise", "segundaOrdem", "2ª ordem local do pilar", new[] { "Pilar-padrão com rigidez κ", "Pilar-padrão com curvatura aproximada", "Momento-curvatura" },
           "NBR 6118 15.8.3", "Método para os pilares.");
 
+        S("Estruturas de aço");
+        O("analise", "baseMetalica", "Base dos pilares metálicos", new[] { "Engastada", "Rotulada" }, "NBR 8800 6.7",
+          "Apoio da base quando o pilar não tem peça embaixo. Rotulada exige contraventamento para a estrutura ficar estável.");
+        O("analise", "ligacaoMetalica", "Ligação viga–pilar metálica", new[] { "Flexível", "Rígida" }, "NBR 8800 6.1.2",
+          "Flexível: a viga chega rotulada (cantoneiras, chapa de alma); rígida: transmite momento (chapa de topo estendida, soldada).");
+        S("");
+
         // ---- dimensionamento
+        N("dim", "flechaAco", "Flecha das vigas de aço (L/…)", 350, "", "NBR 8800 Anexo B, Tab. B.1", "Vigas de piso: L/350; de cobertura: L/250.", 250, null);
         O("dim", "modeloCortante", "Cortante e torção", new[] { "Modelo I (θ = 45°)" }, "NBR 6118 17.4.2 e 17.7.2.1", "O mesmo θ vale para a torção.");
         O("dim", "consoloCurto", "Consolo curto", new[] { "El Debs (2017) · τ ≤ 0,2 fcd", "NBR 9062 7.3" }, "NBR 9062 7.3.2",
           "A NBR 9062 não fixa a largura da biela; El Debs recomenda τwd ≤ 0,2 fcd para 0,4 ≤ a/d ≤ 1.");
