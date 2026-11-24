@@ -115,4 +115,33 @@ public class MuroArrimoTests
         Assert.All(r.Verificacoes, v => Assert.Equal("MA0", v.Codigo));
         Assert.Equal(SituacaoVerificacao.NaoAtende, r.Situacao);
     }
+
+    [Fact]
+    public void Secao_do_muro_fecha_com_a_area_do_calculo()
+    {
+        var d = new DadosMuro();
+        var p = d.Secao();
+        double area = 0;
+        for (int i = 0; i < p.Count; i++) { var a = p[i]; var b = p[(i + 1) % p.Count]; area += a.X * b.Y - b.X * a.Y; }
+        area /= 2;
+        double esperado = d.Base * d.EspessuraSapata + (d.EspessuraTopo + d.EspessuraBase) / 2 * d.AlturaFuste;
+        Assert.Equal(esperado, area, 9);                  // anti-horário: área positiva
+        d.DenteAltura = 0.4; d.DenteLargura = 0.3; d.DenteInicio = 0.7;
+        var q = d.Secao();
+        double a2 = 0;
+        for (int i = 0; i < q.Count; i++) { var a = q[i]; var b = q[(i + 1) % q.Count]; a2 += a.X * b.Y - b.X * a.Y; }
+        Assert.Equal(esperado + 0.4 * 0.3, a2 / 2, 9);
+        Assert.Contains(q, x => System.Math.Abs(x.Y + 0.4) < 1e-9);
+    }
+
+    [Fact]
+    public void Janela_pede_para_criar_o_muro_com_o_comprimento()
+    {
+        var s = new SessaoMuro(new DadosMuro(), new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto());
+        Assert.Contains("\"temElemento\":false", s.Estado());
+        s.Processar("{\"tipo\":\"criar\",\"dados\":{\"comp\":12.5,\"h\":3}}");
+        Assert.True(s.Criar); Assert.True(s.Aplicar);
+        Assert.Equal(12.5, s.Dados.Comprimento, 9); Assert.Equal(3, s.Dados.AlturaFuste, 9);
+        Assert.Equal(12.5, SessaoMuro.DadosDeJson(SessaoMuro.DadosParaJson(s.Dados), new DadosMuro()).Comprimento, 9);
+    }
 }

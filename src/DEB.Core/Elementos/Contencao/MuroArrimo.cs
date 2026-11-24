@@ -59,7 +59,33 @@ public sealed class DadosMuro
     /// <summary>Fração do passivo mobilizado na face do dente (abaixo da base: não se escava).</summary>
     public double FracaoDente { get; set; } = 1.0;
 
+    /// <summary>Comprimento do muro ao longo do eixo (m), para criar o elemento no hospedeiro (o cálculo é por metro).</summary>
+    public double Comprimento { get; set; } = 10;
+
     public double Base => Ponta + EspessuraBase + Talao;
+
+    /// <summary>
+    /// Contorno da seção (m), no sentido anti-horário: x da borda da ponta para o talão, y da face inferior da sapata para cima; com o
+    /// dente, se houver. É o mesmo contorno do desenho e da família do muro no Revit (D50, item 7).
+    /// </summary>
+    public List<(double X, double Y)> Secao()
+    {
+        double xt = Ponta + EspessuraBase, hs = EspessuraSapata, H = AlturaTotal, B = Base;
+        var p = new List<(double, double)> { (0, 0) };
+        if (DenteAltura > 1e-9 && DenteLargura > 1e-9)
+        {
+            double a = Math.Max(0, Math.Min(B - DenteLargura, DenteInicio)), b = a + DenteLargura;
+            if (a > 1e-9) p.Add((a, 0));
+            p.Add((a, -DenteAltura)); p.Add((b, -DenteAltura));
+            if (b < B - 1e-9) p.Add((b, 0));
+        }
+        if (Math.Abs(p[p.Count - 1].Item1 - B) > 1e-9 || Math.Abs(p[p.Count - 1].Item2) > 1e-9) p.Add((B, 0));
+        p.Add((B, hs));
+        if (Talao > 1e-9) p.Add((xt, hs));
+        p.Add((xt, H)); p.Add((xt - EspessuraTopo, H)); p.Add((Ponta, hs));
+        if (Ponta > 1e-9) p.Add((0, hs));
+        return p;
+    }
     public double AlturaTotal => EspessuraSapata + AlturaFuste;
 
     /// <summary>Valores de partida da configuração do projeto (grupo "solo").</summary>

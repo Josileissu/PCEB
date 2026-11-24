@@ -91,6 +91,38 @@ namespace DEB.Revit.Contencao
         private static double Comp(Element e, params BuiltInParameter[] ps) =>
             ps.Select(p => e.get_Parameter(p)).Where(p => p != null && p.StorageType == StorageType.Double).Select(p => p.AsDouble()).DefaultIfEmpty(0).Max();
 
+        /// <summary>Dados do muro gravados num elemento qualquer (muro PCEB); sem dados: os de partida da configuração.</summary>
+        public static DadosMuro LerElemento(Element e, ConfiguracaoProjeto cfg, List<string> notas)
+        {
+            if (e is Wall w) return Ler(w, cfg, notas);
+            var partida = DadosMuro.DaConfiguracao(cfg);
+            try
+            {
+                Schema s = GetSchema(false);
+                Entity ent = s == null ? null : e.GetEntity(s);
+                string json = ent != null && ent.IsValid() ? ent.Get<string>(Campo) : null;
+                if (!string.IsNullOrWhiteSpace(json))
+                {
+                    var d = SessaoMuro.DadosDeJson(json, partida);
+                    // o comprimento vale o da instância (pode ter sido mudado no Revit)
+                    var pc = e.LookupParameter(FamiliaMuro.PComp);
+                    if (pc != null && pc.StorageType == StorageType.Double && pc.AsDouble() > 0) d.Comprimento = Math.Round(pc.AsDouble() * Pe, 3);
+                    return d;
+                }
+            }
+            catch (Exception ex) { notas.Add("Dados gravados no muro não lidos: " + ex.Message); }
+            notas.Add("O elemento não tem dados de muro gravados: valores de partida da configuração.");
+            return partida;
+        }
+
+        /// <summary>Grava os dados no elemento (dentro de uma transação aberta).</summary>
+        public static void GravarNoElemento(Element e, DadosMuro d)
+        {
+            var ent = new Entity(GetSchema(true));
+            ent.Set(Campo, SessaoMuro.DadosParaJson(d));
+            e.SetEntity(ent);
+        }
+
         /// <summary>Grava os dados aceitos na parede (abre a própria transação).</summary>
         public static void Gravar(Wall w, DadosMuro d)
         {

@@ -628,6 +628,62 @@ namespace DEB.Revit
                 DEB.Revit.Commands.MuroArrimoCommand.Abrir(doc, w, IntPtr.Zero, notas, png, aba == "secao" ? "" : aba);
                 sb.AppendLine($"Janela ({aba}): {(File.Exists(png) ? new FileInfo(png).Length + " bytes" : "não gravada")}");
             }
+            // D50, item 7: família PCEB do muro — cria dois muros (aterro à esquerda e à direita), confere a caixa e atualiza a seção
+            try
+            {
+                Level nv = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).First();
+                var dm = DEB.Core.Elementos.Contencao.DadosMuro.DaConfiguracao(cfg);
+                dm.Comprimento = 8; dm.DenteAltura = 0.4; dm.DenteLargura = 0.3; dm.DenteInicio = 0.7;
+                var lg = new StringBuilder();
+                var m1 = DEB.Revit.Contencao.FamiliaMuro.Criar(doc, dm, nv, new XYZ(0, -40 * m, 0), XYZ.BasisX, true, lg);
+                var m2 = DEB.Revit.Contencao.FamiliaMuro.Criar(doc, dm, nv, new XYZ(0, -50 * m, 0), XYZ.BasisY, false, lg);
+                sb.Append(lg);
+                foreach (var fi in new[] { m1, m2 })
+                {
+                    if (fi == null) { sb.AppendLine("Muro PCEB não criado."); continue; }
+                    BoundingBoxXYZ bb = fi.get_BoundingBox(null);
+                    sb.AppendLine($"Muro {fi.Id}: x {bb.Min.X * 0.3048:0.00}…{bb.Max.X * 0.3048:0.00}, y {bb.Min.Y * 0.3048:0.00}…{bb.Max.Y * 0.3048:0.00}, " +
+                                  $"z {(bb.Min.Z - nv.Elevation) * 0.3048:0.00}…{(bb.Max.Z - nv.Elevation) * 0.3048:0.00} m (esperado: comprimento 8, base {dm.Base:0.00}, " +
+                                  $"z {-dm.TerrenoFrente - dm.DenteAltura:0.00}…{dm.AlturaTotal - dm.TerrenoFrente:0.00})");
+                    sb.AppendLine($"  categoria {fi.Category?.Name}; família {fi.Symbol.FamilyName}");
+                }
+                if (m1 != null)
+                {
+                    var lidos = DEB.Revit.Contencao.MuroRevit.LerElemento(m1, cfg, notas);
+                    sb.AppendLine($"Relido do muro PCEB: comprimento {lidos.Comprimento:0.##} m, dente {lidos.DenteAltura:0.##} m");
+                    lidos.AlturaFuste += 0.5; lidos.Comprimento = 12;
+                    var lg2 = new StringBuilder();
+                    DEB.Revit.Contencao.FamiliaMuro.Atualizar(m1, lidos, lg2);
+                    BoundingBoxXYZ bb = m1.get_BoundingBox(null);
+                    sb.Append(lg2);
+                    sb.AppendLine($"Atualizado: {m1.Symbol.FamilyName}; caixa x {(bb.Max.X - bb.Min.X) * 0.3048:0.00} m, altura {(bb.Max.Z - bb.Min.Z) * 0.3048:0.00} m");
+                    string png = Path.Combine(dir, "janela_muro_pceb.png");
+                    DEB.Revit.Commands.MuroArrimoCommand.Abrir(doc, m1, IntPtr.Zero, notas, png, "");
+                    sb.AppendLine($"Janela do muro PCEB: {(File.Exists(png) ? "gravada" : "não gravada")}");
+                    // vista 3D isométrica dos muros
+                    try
+                    {
+                        View3D v3;
+                        using (var t = new Transaction(doc, "Teste: 3D do muro"))
+                        {
+                            t.Start();
+                            var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().First(x => x.ViewFamily == ViewFamily.ThreeDimensional);
+                            v3 = View3D.CreateIsometric(doc, vft.Id);
+                            var caixa = new BoundingBoxXYZ { Min = new XYZ(-6 * m, -54 * m, -3 * m), Max = new XYZ(16 * m, -34 * m, 6 * m) };
+                            v3.SetSectionBox(caixa);
+                            v3.DisplayStyle = DisplayStyle.ShadingWithEdges;
+                            t.Commit();
+                        }
+                        var op = new ImageExportOptions { ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, "muros_3d"), PixelSize = 1400,
+                                                          HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG, ZoomType = ZoomFitType.FitToPage };
+                        op.SetViewsAndSheets(new List<ElementId> { v3.Id });
+                        doc.ExportImage(op);
+                        sb.AppendLine("3D exportado.");
+                    }
+                    catch (Exception ex3) { sb.AppendLine("3D: " + ex3.Message); }
+                }
+            }
+            catch (Exception exM) { sb.AppendLine("Muro PCEB: " + exM); }
             foreach (string a in notas) sb.AppendLine("NOTA: " + a);
             File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
             return Path.Combine(dir, "resultado.txt");

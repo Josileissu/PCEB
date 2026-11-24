@@ -22,6 +22,10 @@ public sealed class SessaoMuro
     public string Titulo { get; }
     /// <summary>A página pediu para aplicar (gravar no elemento do hospedeiro) os dados atuais.</summary>
     public bool Aplicar { get; private set; }
+    /// <summary>Pedido de criar um muro novo no hospedeiro (D50, item 7), com a seção e o comprimento da janela.</summary>
+    public bool Criar { get; private set; }
+    /// <summary>Há um elemento do hospedeiro ligado à janela (aplicar grava nele).</summary>
+    public bool TemElemento { get; set; }
 
     public SessaoMuro(DadosMuro dados, ConfiguracaoProjeto cfg, string titulo = "")
     {
@@ -55,8 +59,10 @@ public sealed class SessaoMuro
                 Resultado = CalculoMuro.Calcular(Dados, _cfg);
                 return Estado();
             case "aplicar":
+            case "criar":
                 if (m.Tem("dados")) { Dados = LerDados(m["dados"], Dados); Resultado = CalculoMuro.Calcular(Dados, _cfg); }
                 Aplicar = true;
+                Criar = tipo == "criar";
                 return "";
             default: return "";
         }
@@ -81,6 +87,8 @@ public sealed class SessaoMuro
         C("talao", "Geometria", "Talão", "m", d => d.Talao, (d, v) => d.Talao = v, 0, 8, 0.05),
         C("es", "Geometria", "Espessura da sapata", "m", d => d.EspessuraSapata, (d, v) => d.EspessuraSapata = v, 0.2, 2, 0.05),
         C("df", "Geometria", "Terreno na frente (da base)", "m", d => d.TerrenoFrente, (d, v) => d.TerrenoFrente = v, 0, 5, 0.05),
+        C("comp", "Geometria", "Comprimento do muro", "m", d => d.Comprimento, (d, v) => d.Comprimento = v, 0.5, 200, 0.5,
+          "Para criar no Revit (o cálculo é por metro). O terreno na frente fica no nível da vista."),
         C("denteH", "Dente", "Altura do dente", "m", d => d.DenteAltura, (d, v) => d.DenteAltura = v, 0, 2, 0.05, "0 = sem dente."),
         C("denteB", "Dente", "Largura do dente", "m", d => d.DenteLargura, (d, v) => d.DenteLargura = v, 0.15, 1.5, 0.05),
         C("denteX", "Dente", "Início do dente (da ponta)", "m", d => d.DenteInicio, (d, v) => d.DenteInicio = v, 0, 10, 0.05),
@@ -149,6 +157,7 @@ public sealed class SessaoMuro
         var raiz = ValorJson.NovoObjeto();
         raiz.Definir("tipo", "muro");
         raiz.Definir("titulo", Titulo);
+        raiz.Definir("temElemento", TemElemento);
         var campos = ValorJson.NovaLista(); raiz.Definir("campos", campos);
         foreach (var c in Campos)
         {

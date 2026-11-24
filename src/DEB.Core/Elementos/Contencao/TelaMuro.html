@@ -101,6 +101,7 @@ td{font-family:var(--f-dado)}
     <div class="esp"></div>
     <button class="btn" id="bTema" title="Claro / escuro">◐</button>
     <button class="btn" id="bFechar">Fechar</button>
+    <button class="btn" id="bCriar" title="Cria o muro (família PCEB) com esta seção e o comprimento da janela; depois clique o início e a direção na planta">Criar no Revit</button>
     <button class="btn prim" id="bAplicar">Aplicar ao elemento</button>
   </div>
   <div class="barra">
@@ -152,6 +153,7 @@ $("#bTema").onclick = () => { const r = document.documentElement; const esc = ma
   const atual = r.dataset.theme || (esc ? "dark" : "light"); r.dataset.theme = atual === "dark" ? "light" : "dark"; desenhar(); };
 $("#bFechar").onclick = () => enviar({ tipo: "fechar" });
 $("#bAplicar").onclick = () => enviar({ tipo: "aplicar", dados: lerForm() });
+$("#bCriar").onclick = () => enviar({ tipo: "criar", dados: lerForm() });
 addEventListener("resize", () => desenhar());
 
 // ---------------------------------------------------------------- formulário
@@ -187,6 +189,8 @@ function tudo() {
   if (!E) return;
   if (!formMontado) montarForm();
   $("#sub").textContent = "PCEB · D47" + (E.titulo ? " · " + E.titulo : "");
+  $("#bAplicar").style.display = E.temElemento ? "" : "none";
+  $("#bCriar").classList.toggle("prim", !E.temElemento);
   const s = E.res.situacao; const selo = $("#selo"); selo.textContent = TXT[s]; selo.style.background = COR[s];
   $("#info").textContent = `B = ${fmt(E.geo.B)} m · H = ${fmt(E.geo.H)} m · Ka = ${fmt(E.res.ka, 3)} (${E.metodo})`;
   lateral(); memoria(); desenhar();
