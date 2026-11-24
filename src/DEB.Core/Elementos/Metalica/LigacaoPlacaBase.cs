@@ -33,6 +33,8 @@ public sealed class DadosPlacaBase
     public double Mu { get; set; } = 0.45;
     /// <summary>Ancoragem de catálogo (D50, item 6): produto do catálogo de fixadores; vazio = chumbador pré-concretado (só a NBR 8800 6.7).</summary>
     public string ProdutoAncoragem { get; set; } = "";
+    /// <summary>Forma do chumbador pré-concretado (sem produto de catálogo): gancho (J) ou reto com porca de ancoragem.</summary>
+    public FormaChumbador Forma { get; set; } = FormaChumbador.Gancho;
     /// <summary>Embutimento da ancoragem de catálogo (mm); 0 = o maior do catálogo.</summary>
     public double Hef { get; set; }
     /// <summary>Catálogo usado (null = o do escritório).</summary>
@@ -74,6 +76,7 @@ public sealed class DadosPlacaBase
             AcoChumbador = ach, FubChumbador = ach.Contains("55") ? 517 : 400, Fck = m.Numero("fck"), A2A1 = m.Numero("a2a1"), GamaC = gamaC,
             Perna = m.Numero("perna"), Fw = m.Numero("fw"),
             ProdutoAncoragem = m.Texto("ancoragem") == Ligacoes.EsquemasLigacao.PreConcretado ? "" : m.Texto("ancoragem"), Hef = m.Numero("hef", 0),
+            Forma = m.Texto("formaChumbador").StartsWith("Reto") ? FormaChumbador.RetoComPorca : FormaChumbador.Gancho,
         };
     }
 }

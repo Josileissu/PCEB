@@ -366,14 +366,32 @@ namespace DEB.Revit.Analise
             Caixa(doc, ch, b - XYZ.BasisZ * Mm(tp), alma, mesa, d.LxEf, d.LyEf, tp, ids);
             var (a1, a2, _, _) = d.Tabela18(out _);
             int porLado = Math.Max(1, d.Nb / 2);
+            // chumbador como família PCEB (gancho, reto, químico, expansão ou parafuso para concreto), origem no topo da placa
+            var geo = GeometriaChumbador.DaPlaca(d, Catalogo, tp);
+            var logF = new StringBuilder();
+            FamilySymbol simbolo = null;
+            try { simbolo = FamiliasChumbadores.Garantir(doc, geo, logF); } catch (Exception ex) { logF.AppendLine(ex.Message); }
+            if (Diag != null && logF.Length > 0) Diag.Append(logF);
             for (int lado = -1; lado <= 1; lado += 2)
                 for (int k = 0; k < porLado; k++)
                 {
                     double y = porLado > 1 ? (k - (porLado - 1) / 2.0) * (d.LyEf - 2 * a1) / (porLado - 1) : 0;
                     XYZ c = b + alma * Mm(lado * d.A) + mesa * Mm(y) - XYZ.BasisZ * Mm(tp);
-                    Caixa(doc, pa, c, alma, mesa, d.Db, d.Db, 2 * (tp + 300), ids);   // chumbador (trecho visível ±)
-                    // arruela e porca sobre a placa (a rosca passa da porca)
-                    Fixador(doc, ch, pa, c, XYZ.BasisZ, d.Db, tp, ids, semCabeca: true);
+                    XYZ topoPlaca = b + alma * Mm(lado * d.A) + mesa * Mm(y);
+                    if (simbolo != null)
+                    {
+                        var fi = doc.Create.NewFamilyInstance(topoPlaca, simbolo, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                        // gancho virado para o centro da placa
+                        XYZ para = (b - topoPlaca); para = new XYZ(para.X, para.Y, 0);
+                        if (geo.Forma == FormaChumbador.Gancho && para.GetLength() > 1e-6)
+                            ElementTransformUtils.RotateElement(doc, fi.Id, Line.CreateBound(topoPlaca, topoPlaca + XYZ.BasisZ), Math.Atan2(para.Y, para.X));
+                        ids.Add(fi.Id);
+                    }
+                    else
+                    {
+                        Caixa(doc, pa, c, alma, mesa, d.Db, d.Db, 2 * (tp + 300), ids);   // sem a família: barra simples
+                        Fixador(doc, ch, pa, c, XYZ.BasisZ, d.Db, tp, ids, semCabeca: true);
+                    }
                 }
         }
     }

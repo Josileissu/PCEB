@@ -157,6 +157,43 @@ namespace DEB.Revit
                         status = "OK " + Path.Combine(dir, "resultado.txt");
                         break;
                     }
+                    case "chumbadores":
+                    {
+                        // famílias PCEB dos chumbadores (D50): as cinco formas lado a lado, vista 3D em PNG
+                        string dir = Path.Combine(DetailingReport.LogDir, "chumbadores_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                        Directory.CreateDirectory(dir);
+                        var doc = uidoc.Document; var sb = new StringBuilder();
+                        var cat = DEB.Core.Elementos.Metalica.CatalogoFixadores.Carregar();
+                        View3D v3 = null;
+                        using (var t = new Transaction(doc, "Teste: chumbadores"))
+                        {
+                            t.Start();
+                            int k = 0;
+                            foreach (DEB.Core.Elementos.Metalica.FormaChumbador f in Enum.GetValues(typeof(DEB.Core.Elementos.Metalica.FormaChumbador)))
+                            {
+                                var g = new DEB.Core.Elementos.Metalica.GeometriaChumbador { Forma = f, Db = 19.05, Pega = 50, Embutimento = 300, RaioGancho = 2.5 * 19.05, PontaGancho = 4 * 19.05,
+                                                                                              DiametroFuro = 24, Porca = cat.Parafuso(19.05) };
+                                var sym = DEB.Revit.Analise.FamiliasChumbadores.Garantir(doc, g, sb);
+                                if (sym == null) continue;
+                                var fi = doc.Create.NewFamilyInstance(new XYZ(-40 + k * 0.6, -40, 0), sym, Autodesk.Revit.DB.Structure.StructuralType.NonStructural);
+                                doc.Regenerate(); var bb = fi.get_BoundingBox(null); if (bb == null) { sb.AppendLine(sym.FamilyName + ": sem geometria"); k++; continue; }
+                                sb.AppendLine($"{sym.FamilyName}: altura {(bb.Max.Z - bb.Min.Z) * 304.8:0} mm, largura {(bb.Max.X - bb.Min.X) * 304.8:0} mm");
+                                k++;
+                            }
+                            var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().First(x => x.ViewFamily == ViewFamily.ThreeDimensional);
+                            v3 = View3D.CreateIsometric(doc, vft.Id);
+                            v3.SetSectionBox(new BoundingBoxXYZ { Min = new XYZ(-40.5, -40.5, -1.5), Max = new XYZ(-40 + 5 * 0.6, -39.5, 0.4) });
+                            v3.DisplayStyle = DisplayStyle.ShadingWithEdges;
+                            t.Commit();
+                        }
+                        var op = new ImageExportOptions { ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, "chumbadores"), PixelSize = 1600,
+                                                          HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG, ZoomType = ZoomFitType.FitToPage };
+                        op.SetViewsAndSheets(new List<ElementId> { v3.Id });
+                        doc.ExportImage(op);
+                        File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
+                        status = "OK " + Path.Combine(dir, "resultado.txt");
+                        break;
+                    }
                     case "muro":
                         status = "OK " + MuroAutoTest(uidoc);
                         break;
