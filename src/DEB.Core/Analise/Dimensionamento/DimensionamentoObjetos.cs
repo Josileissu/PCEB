@@ -24,6 +24,34 @@ public sealed class ResultadoPeca
     public SituacaoVerificacao Situacao => Verificacoes.Count == 0 ? SituacaoVerificacao.Conferir : Verificacoes.Geral;
 }
 
+/// <summary>Casos de cálculo de um pilar (convenção da seção: compressão positiva; My comprime +z, Mz comprime +y; kN, kN·cm).</summary>
+public sealed class CasosPilar
+{
+    public List<(string Nome, double Nd, double My, double Mz)> Lista { get; set; } = new List<(string, double, double, double)>();
+    public double NdMax { get; set; }
+    public double MyMax { get; set; }
+    public double MzMax { get; set; }
+    public double LamY { get; set; }
+    public double LamZ { get; set; }
+    public double Le { get; set; }
+    public bool Monolitico { get; set; }
+    /// <summary>Altura do engaste a partir da base da peça (cm): onde se lê a armadura do detalhamento.</summary>
+    public double ZBase { get; set; }
+
+    /// <summary>Envoltória de vários pilares iguais (o grupo): todos os casos, os maiores valores.</summary>
+    public static CasosPilar Juntar(IEnumerable<CasosPilar> l)
+    {
+        var v = l.Where(x => x != null).ToList();
+        if (v.Count == 0) return null;
+        return new CasosPilar
+        {
+            Lista = v.SelectMany(x => x.Lista).OrderByDescending(x => (Math.Abs(x.My) + Math.Abs(x.Mz)) / Math.Max(1, x.Nd)).ToList(),
+            NdMax = v.Max(x => x.NdMax), MyMax = v.Max(x => x.MyMax), MzMax = v.Max(x => x.MzMax),
+            LamY = v.Max(x => x.LamY), LamZ = v.Max(x => x.LamZ), Le = v.Max(x => x.Le), Monolitico = v.All(x => x.Monolitico), ZBase = v[0].ZBase,
+        };
+    }
+}
+
 /// <summary>Envoltória dos esforços de cálculo (ELU) numa barra: máximo e mínimo de cada esforço por estação.</summary>
 public sealed class EnvoltoriaBarra
 {
@@ -137,29 +165,32 @@ public static class DimensionamentoObjetos
     // ------------------------------------------------------------------ pilar (etapa 3: flexo-compressão oblíqua com 2ª ordem local)
 
     /// <summary>
-    /// Pilar (D44 etapa 3): para cada combinação ELU e cada seção das pontas dos trechos, Nd e os momentos da análise (com o mínimo
-    /// de 15.3.3.2, um caso por direção) e, na base, a 2ª ordem local pelo pilar-padrão com rigidez κ (15.8.3.3.3) quando
-    /// λ1 &lt; λ ≤ 90; flexo-compressão oblíqua com a armadura do detalhamento — ou, sem ela, a menor armadura simétrica que passa
-    /// (4 a 12 barras, ø10 a ø32). Taxas de 17.3.5.3.
+    /// Pilar (D44 etapa 3): casos de cálculo pela análise (<see cref="Casos"/>) e verificação da seção com a armadura do
+    /// detalhamento ou proposta (<see cref="VerificarSecao"/>).
     /// </summary>
     public static ResultadoPeca Pilar(EstruturaObjetos e, PilarObjeto p, ConfiguracaoProjeto cfg)
     {
         var r = new ResultadoPeca { Dono = p.Dono, Chave = Chave(p.Dono) };
         r.Memoria.Titulo = $"Pilar {p.Dono} — NBR 6118:2023, 15 e 17.2 (etapa 3)";
-        var (fck, fcd, fyd, fyk, gc) = Materiais(cfg);
-        double gs = cfg.Numero("normas.gamaS");
-        double hy = p.Secao.B, hz = p.Secao.H, ac = p.Secao.Area, cob = cfg.Numero("durab.cobPilar") * 100;
+        VerificarSecao(r, p.Secao, p.Armadura, Casos(e, p, cfg), cfg);
+        return r;
+    }
+
+    /// <summary>
+    /// Casos de cálculo do pilar: para cada combinação ELU e cada seção das pontas dos trechos, Nd e os momentos da análise (com o
+    /// mínimo de 15.3.3.2, um caso por direção) e, na base, a 2ª ordem local pelo pilar-padrão com rigidez κ (15.8.3.3.3) quando
+    /// λ1 &lt; λ ≤ 90. Convenção da seção: compressão positiva; My comprime +z, Mz comprime +y.
+    /// </summary>
+    public static CasosPilar Casos(EstruturaObjetos e, PilarObjeto p, ConfiguracaoProjeto cfg)
+    {
+        var (fck, fcd, _, _, _) = Materiais(cfg);
+        double hy = p.Secao.B, hz = p.Secao.H;
         bool monolitico = e.LigacoesDiretas.Any(l => l.Pilar == p && !l.Articulada);
         double comp = p.Comprimento - p.Embutimento, le = (monolitico ? 1.0 : 2.0) * comp;
-        double lamZ = le * Math.Sqrt(12) / hz, lamY = le * Math.Sqrt(12) / hy;   // λ para flexão em z (My) e em y (Mz)
-        double zBase = p.Nos[0].Z;
-
-        // casos: (nome, Nd, My, Mz) na convenção da seção (compressão positiva; My comprime +z, Mz comprime +y)
-        var casos = new List<(string Nome, double Nd, double My, double Mz)>();
-        double ndMax = 0, myMax = 0, mzMax = 0;
-        foreach (var c in e.DefinicaoCombinacoes.Where(c => c.Tipo == "ELU"))
+        var c = new CasosPilar { Le = le, Monolitico = monolitico, LamZ = le * Math.Sqrt(12) / hz, LamY = le * Math.Sqrt(12) / hy, ZBase = p.Nos[0].Z };
+        foreach (var comb in e.DefinicaoCombinacoes.Where(x => x.Tipo == "ELU"))
         {
-            var est = e.Estacoes(c.Nome);
+            var est = e.Estacoes(comb.Nome);
             foreach (var b in p.Barras)
             {
                 var s = est[b.Id];
@@ -167,42 +198,55 @@ public static class DimensionamentoObjetos
                 foreach (var (sx, onde) in pontas)
                 {
                     double nd = Math.Max(0, -sx[1]), my = -sx[5], mz = sx[6];
-                    ndMax = Math.Max(ndMax, nd); myMax = Math.Max(myMax, Math.Abs(my)); mzMax = Math.Max(mzMax, Math.Abs(mz));
+                    c.NdMax = Math.Max(c.NdMax, nd); c.MyMax = Math.Max(c.MyMax, Math.Abs(my)); c.MzMax = Math.Max(c.MzMax, Math.Abs(mz));
                     double mMinY = nd * (1.5 + 0.03 * hz), mMinZ = nd * (1.5 + 0.03 * hy);
                     double myT = my, mzT = mz;
-                    if (Math.Abs(onde - zBase) < 1e-6 && nd > 0)
+                    if (Math.Abs(onde - c.ZBase) < 1e-6 && nd > 0)
                     {
                         double m1y = Math.Max(Math.Abs(my), mMinY), m1z = Math.Max(Math.Abs(mz), mMinZ);
-                        if (lamZ > FlexoCompressaoObliqua.Lambda1(m1y / nd, hz) && lamZ <= 90)
+                        if (c.LamZ > FlexoCompressaoObliqua.Lambda1(m1y / nd, hz) && c.LamZ <= 90)
                             myT = Sinal(my) * FlexoCompressaoObliqua.MomentoTotalKappa(nd, m1y, hz, le);
-                        if (lamY > FlexoCompressaoObliqua.Lambda1(m1z / nd, hy) && lamY <= 90)
+                        if (c.LamY > FlexoCompressaoObliqua.Lambda1(m1z / nd, hy) && c.LamY <= 90)
                             mzT = Sinal(mz) * FlexoCompressaoObliqua.MomentoTotalKappa(nd, m1z, hy, le);
                     }
-                    string nome = $"{c.Nome}, z = {Fmt.Virgula(onde, "0")} cm";
-                    casos.Add((nome + ", mín. em z", nd, Sinal(myT) * Math.Max(Math.Abs(myT), mMinY), mzT));
-                    casos.Add((nome + ", mín. em y", nd, myT, Sinal(mzT) * Math.Max(Math.Abs(mzT), mMinZ)));
+                    string nome = $"{comb.Nome}, z = {Fmt.Virgula(onde, "0")} cm";
+                    c.Lista.Add((nome + ", mín. em z", nd, Sinal(myT) * Math.Max(Math.Abs(myT), mMinY), mzT));
+                    c.Lista.Add((nome + ", mín. em y", nd, myT, Sinal(mzT) * Math.Max(Math.Abs(mzT), mMinZ)));
                 }
             }
         }
-        double nu = ndMax / (ac * fcd);
-        r.Memoria.Linhas.Add($"Seção {N(hy, "0.#")} × {N(hz, "0.#")} cm; fck = {N(fck)} MPa; Nd,máx = {N(ndMax, "0.0")} kN (ν = {N(nu, "0.00")}); " +
-                             $"My,d = {N(myMax / 100, "0.0")} kN·m, Mz,d = {N(mzMax / 100, "0.0")} kN·m (1ª ordem, envoltória ELU).");
-        r.Memoria.Linhas.Add($"le = {(monolitico ? "l" : "2·l (balanço engastado no cálice)")} = {N(le, "0")} cm → λ = {N(lamZ, "0.0")} (flexão em z) e {N(lamY, "0.0")} (em y). " +
-                             "2ª ordem local na base pelo pilar-padrão com rigidez κ aproximada (15.8.3.3.3), αb = 1, quando λ1 < λ ≤ 90; momento mínimo de 15.3.3.2 em cada direção.");
-        double lam = Math.Max(lamY, lamZ);
-        K(r, "P1", "Força normal reduzida", $"ν = {N(nu, "0.00")}", "≤ 1,0", nu > 1.0, "NBR 6118 17.2", dica: "Aumente a seção ou o fck.");
-        K(r, "P2", "Esbeltez", $"λ = {N(lam, "0.0")}", "≤ 90 (pilar-padrão)", lam > 90, "NBR 6118 15.8.3",
-          lam > 200 ? SituacaoVerificacao.NaoAtende : SituacaoVerificacao.Conferir, "λ > 90: pilar-padrão acoplado a M–N–1/r (até 140) ou método geral.");
-        if (casos.Count == 0) { r.Resumo.Add("sem esforços de cálculo"); return r; }
+        // casos mais exigentes primeiro (maior excentricidade relativa): a proposta de armadura para no primeiro que falha
+        c.Lista = c.Lista.OrderByDescending(cs => (Math.Abs(cs.My) / hz + Math.Abs(cs.Mz) / hy) / Math.Max(1, cs.Nd)).ToList();
+        return c;
+    }
 
-        SecaoArmada Nova() => new SecaoArmada { Concreto = p.Secao, FckMPa = fck, FykMPa = fyk, GamaC = gc, GamaS = gs };
-        // casos mais exigentes primeiro (maior excentricidade relativa): a proposta para no primeiro que falha
-        casos = casos.OrderByDescending(cs => (Math.Abs(cs.My) / hz + Math.Abs(cs.Mz) / hy) / Math.Max(1, cs.Nd) + cs.Nd / (ac * fcd) * 0.01).ToList();
+    /// <summary>
+    /// Verificação da seção do pilar para os casos: força normal reduzida, esbeltez, flexo-compressão oblíqua (parábola-retângulo) com a
+    /// armadura dada — ou, vazia, a menor armadura simétrica que passa (4 a 12 barras, ø10 a ø32) — e taxas de 17.3.5.3.
+    /// </summary>
+    public static void VerificarSecao(ResultadoPeca r, Pecas.SecaoPoligonal secaoConcreto, IList<(double Y, double Z, double Phi)> armadura, CasosPilar c, ConfiguracaoProjeto cfg)
+    {
+        cfg ??= new ConfiguracaoProjeto();
+        var (fck, fcd, fyd, fyk, gc) = Materiais(cfg);
+        double gs = cfg.Numero("normas.gamaS");
+        double hy = secaoConcreto.B, hz = secaoConcreto.H, ac = secaoConcreto.Area, cob = cfg.Numero("durab.cobPilar") * 100;
+        double nu = c.NdMax / (ac * fcd);
+        r.Memoria.Linhas.Add($"Seção {N(hy, "0.#")} × {N(hz, "0.#")} cm; fck = {N(fck)} MPa; Nd,máx = {N(c.NdMax, "0.0")} kN (ν = {N(nu, "0.00")}); " +
+                             $"My,d = {N(c.MyMax / 100, "0.0")} kN·m, Mz,d = {N(c.MzMax / 100, "0.0")} kN·m (1ª ordem, envoltória ELU da análise).");
+        r.Memoria.Linhas.Add($"le = {(c.Monolitico ? "l" : "2·l (balanço engastado no cálice)")} = {N(c.Le, "0")} cm → λ = {N(c.LamZ, "0.0")} (flexão em z) e {N(c.LamY, "0.0")} (em y). " +
+                             "2ª ordem local na base pelo pilar-padrão com rigidez κ aproximada (15.8.3.3.3), αb = 1, quando λ1 < λ ≤ 90; momento mínimo de 15.3.3.2 em cada direção.");
+        double lam = Math.Max(c.LamY, c.LamZ);
+        K(r, "PA1", "Força normal reduzida", $"ν = {N(nu, "0.00")}", "≤ 1,0", nu > 1.0, "NBR 6118 17.2", dica: "Aumente a seção ou o fck.");
+        K(r, "PA2", "Esbeltez", $"λ = {N(lam, "0.0")}", "≤ 90 (pilar-padrão)", lam > 90, "NBR 6118 15.8.3",
+          lam > 200 ? SituacaoVerificacao.NaoAtende : SituacaoVerificacao.Conferir, "λ > 90: pilar-padrão acoplado a M–N–1/r (até 140) ou método geral.");
+        if (c.Lista.Count == 0) { r.Resumo.Add("sem esforços de cálculo"); return; }
+
+        SecaoArmada Nova() => new SecaoArmada { Concreto = secaoConcreto, FckMPa = fck, FykMPa = fyk, GamaC = gc, GamaS = gs };
         double Pior(SecaoArmada sa, out string qual, double parar = double.PositiveInfinity)
         {
             double pior = 0; qual = "";
             var curvas = new Dictionary<double, List<(double My, double Mz)>>();
-            foreach (var cs in casos)
+            foreach (var cs in c.Lista)
             {
                 double nk = Math.Round(cs.Nd, 1);
                 if (!curvas.TryGetValue(nk, out var cv)) curvas[nk] = cv = FlexoCompressaoObliqua.Curva(sa, cs.Nd, 72);
@@ -212,35 +256,34 @@ public static class DimensionamentoObjetos
             }
             return pior;
         }
-        double asMin = Math.Max(0.15 * ndMax / fyd, 0.004 * ac), asMax = 0.04 * ac;
+        double asMin = Math.Max(0.15 * c.NdMax / fyd, 0.004 * ac), asMax = 0.04 * ac;
         SecaoArmada secao = Nova();
         string arranjo = "";
-        if (p.Armadura.Count > 0)
+        if (armadura != null && armadura.Count > 0)
         {
-            foreach (var bb in p.Armadura) secao.Barras.Add(bb);
-            arranjo = string.Join(" + ", p.Armadura.GroupBy(x => x.Phi).OrderByDescending(g => g.Key).Select(g => $"{g.Count()} ø{N(g.Key, "0.#")}")) + " (detalhamento)";
+            foreach (var bb in armadura) secao.Barras.Add(bb);
+            arranjo = string.Join(" + ", armadura.GroupBy(x => x.Phi).OrderByDescending(g => g.Key).Select(g => $"{g.Count()} ø{N(g.Key, "0.#")}")) + " (detalhamento)";
         }
         else
         {
             var cand = new List<(int N, double Phi)>();
             foreach (double phi in new[] { 10, 12.5, 16, 20, 25, 32 }) foreach (int n in new[] { 4, 6, 8, 10, 12 }) cand.Add((n, phi));
-            foreach (var (n, phi) in cand.OrderBy(c => c.N * c.Phi * c.Phi))
+            foreach (var (n, phi) in cand.OrderBy(x => x.N * x.Phi * x.Phi))
             {
                 if (n * Math.PI * phi * phi / 400 < asMin) continue;
                 var tent = Nova();
-                foreach (var bb in BarrasNoContorno(p.Secao, n, phi, cob + 0.63 + phi / 20)) tent.Barras.Add(bb);
+                foreach (var bb in BarrasNoContorno(secaoConcreto, n, phi, cob + 0.63 + phi / 20)) tent.Barras.Add(bb);
                 if (Pior(tent, out _, 1.0) <= 1.0) { secao = tent; arranjo = $"{n} ø{N(phi, "0.#")} (proposta)"; break; }
             }
-            if (arranjo == "") { foreach (var bb in BarrasNoContorno(p.Secao, 12, 32, cob + 0.63 + 1.6)) secao.Barras.Add(bb); arranjo = "12 ø32 (máximo da proposta)"; }
+            if (arranjo == "") { foreach (var bb in BarrasNoContorno(secaoConcreto, 12, 32, cob + 0.63 + 1.6)) secao.Barras.Add(bb); arranjo = "12 ø32 (máximo da proposta)"; }
         }
         double eta = Pior(secao, out string critico), asTem = secao.As;
         r.Memoria.Linhas.Add($"Armadura: {arranjo}, As = {N(asTem)} cm² (mín. {N(asMin)} = máx(0,15·Nd/fyd; 0,4 %·Ac); máx. {N(asMax)} = 4 %·Ac fora das emendas).");
         r.Memoria.Linhas.Add($"Flexo-compressão oblíqua (parábola-retângulo; curva de interação a Nd): maior aproveitamento η = {N(eta, "0.00")} em {critico}.");
-        K(r, "P3", "Flexo-compressão oblíqua", $"η = {N(eta, "0.00")} ({critico})", "≤ 1,00", eta > 1.0, "NBR 6118 17.2.5 e 15.8.3",
+        K(r, "PA3", "Flexo-compressão oblíqua", $"η = {N(eta, "0.00")} ({critico})", "≤ 1,00", eta > 1.0, "NBR 6118 17.2.5 e 15.8.3",
           dica: "Aumente a armadura ou a seção.");
-        K(r, "P4", "Taxa de armadura longitudinal", $"As = {N(asTem)} cm²", $"{N(asMin)} a {N(asMax)} cm²", asTem < asMin - 1e-9 || asTem > asMax + 1e-9, "NBR 6118 17.3.5.3");
-        r.Resumo.Add($"{arranjo} · η = {N(eta, "0.00")} · Nd {N(ndMax, "0")} kN · λ {N(lam, "0")}");
-        return r;
+        K(r, "PA4", "Taxa de armadura longitudinal", $"As = {N(asTem)} cm²", $"{N(asMin)} a {N(asMax)} cm²", asTem < asMin - 1e-9 || asTem > asMax + 1e-9, "NBR 6118 17.3.5.3");
+        r.Resumo.Add($"{arranjo} · η = {N(eta, "0.00")} · Nd {N(c.NdMax, "0")} kN · λ {N(lam, "0")}");
     }
 
     private static double Sinal(double x) => x < 0 ? -1 : 1;

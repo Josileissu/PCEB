@@ -587,9 +587,10 @@ namespace DEB.Revit
             List<ColumnGroup> groups = PrecastSurvey.Run(doc, out List<string> notes);
             var cfgProjeto = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notes);
             int carregados = ReacoesNosConsolos.Aplicar(doc, groups, notes, cfgProjeto, out var estrutura);
+            int comEsforcos = ReacoesNosConsolos.EsforcosNosPilares(estrutura, groups, cfgProjeto, notes);
             foreach (ColumnGroup g in groups) g.Spec.UsarConfiguracao(cfgProjeto);
             var sb = new StringBuilder();
-            sb.AppendLine($"Consolos com reação de viga: {carregados}");
+            sb.AppendLine($"Consolos com reação de viga: {carregados}; grupos de pilares com os esforços da análise: {comEsforcos}");
             if (estrutura != null)
             {
                 sb.AppendLine($"Análise por objetos: {estrutura.Modelo.Nos.Count} nós, {estrutura.Modelo.Barras.Count} barras, {estrutura.Modelo.Molas.Count} molas, " +

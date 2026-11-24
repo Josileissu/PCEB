@@ -9,7 +9,8 @@ Botão **Pré-moldados › Modelo de análise** (`Commands/ModeloAnaliticoComman
 | Pilar estrutural (levantamento dos pré-moldados) | `PilarObjeto` | barras no eixo (CG), nós nos níveis dos consolos/vigas/lajes, engaste no topo do cálice (embutimento) |
 | Viga com consolo aninhado apoiado no pilar | `VigaObjeto` + `LigacaoConsolo` | barra no CG; vínculo rígido do eixo do pilar ao topo do consolo; mola do aparelho (Kh = G·A/t, Kv = 5·G·S²·A/t) |
 | Outra viga (linha de locação reta) | `VigaObjeto` + `LigacaoPilarViga` | vínculo rígido ao pilar onde a ponta cai: monolítica (moldada no local) ou articulada (pré-moldada) |
-| Piso estrutural | `LajeObjeto` | grelha (analogia de Hambly: I = b·h³/12, J = b·h³/6), cargas por m² nos nós, nós ligados às vigas e pilares embaixo |
+| Piso estrutural | `LajeObjeto` | grelha (analogia de Hambly: I = b·h³/12, J = b·h³/6), cargas por m² nos nós, nós ligados às vigas e pilares embaixo; malha passando pelos eixos das vigas, pilares e aberturas |
+| Piso alveolar / treliçado / vigota protendida (nome do tipo ou `PCEB_Tipo de laje`) | `LajeObjeto` unidirecional | faixas no vão (`SpanDirectionAngle`), transversal com 0,1 %, cada vão biapoiado; peso pela fração maciça da configuração ou `PCEB_Peso próprio (kN/m²)`; **sem verificação**: Md e Vd por metro para o catálogo |
 
 - Seções: da geometria levantada (`PropriedadesSecao`: área, inércias, produto de inércia, torção por Prandtl), não das
   propriedades analíticas do Revit.
@@ -19,7 +20,8 @@ Botão **Pré-moldados › Modelo de análise** (`Commands/ModeloAnaliticoComman
 - Viga apoiada em viga: ligação articulada no ponto de apoio (a viga de suporte ganha um nó ali).
 - Laje apoiada direto no pilar: o nó da grelha sobre o pilar é preso a ele — o momento negativo ali é de pico (singularidade da
   grelha); para armar, use o valor na face do pilar.
-- Ainda não: aberturas de laje, vento, combinações completas
+- Aberturas de piso (laços internos da face de cima) saem da grelha: sem nós, barras nem carga.
+- Ainda não: vento, combinações completas
   (há um conjunto mínimo provisório — o usuário deixou as combinações para depois).
 
 ## Solver (`DEB.Core/Analise/Barras`)
@@ -28,9 +30,12 @@ Cuthill-McKee reverso. Conferido com fórmulas fechadas, com o OpenSees e com o 
 `tests/DEB.Core.Tests/Gabaritos`). Deformada ao longo da barra exata (Hermite + solução particular).
 
 ## Dimensionamento (`DEB.Core/Analise/Dimensionamento`)
-Envoltória ELU por barra e uma verificação por tipo de objeto: viga (flexão, bielas, estribos, flecha estimada), pilar (Nd, Md,
-momento mínimo, esbeltez; flexo-compressão oblíqua = etapa 3, "Conferir"), consolo (cálculo do núcleo com a armadura do
-detalhamento), laje (armadura por metro, flecha). Cada peça sai com situação, resumo, verificações e memória.
+Envoltória ELU por barra e uma verificação por tipo de objeto: viga (flexão, bielas, estribos, flecha estimada), pilar (etapa 3:
+flexo-compressão oblíqua com 2ª ordem local — `Elementos/Pilar/Calculo/FlexoCompressaoObliqua.cs`, parábola-retângulo, domínios,
+curva de interação, rigidez κ; conferida com o concreteproperties; códigos PA1–PA4), consolo (cálculo do núcleo com a armadura do
+detalhamento), laje (armadura por metro, flecha; pré-fabricada só os esforços para o catálogo).
+O pilar usa a armadura do detalhamento (longitudinais na seção logo acima do engaste) ou propõe a menor que passa. Na janela e no
+relatório dos **pilares pré-moldados** a mesma verificação roda com a armadura escolhida ali (`ColumnRebarSpec.UsarEsforcosPilar`). Cada peça sai com situação, resumo, verificações e memória.
 
 ## Janela (`DEB.Core/Analise/Objetos/TelaAnalise.html` + `VisualizacaoAnalise`; WebView2 do Revit)
 3D (girar, mover, zoom, vistas prontas) com modos Modelo, Deformada, Diagrama (momentos/cortantes/normal/torção do lado

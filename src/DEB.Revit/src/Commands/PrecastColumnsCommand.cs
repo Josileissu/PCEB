@@ -33,7 +33,14 @@ namespace DEB.Revit.Commands
             // configuração do projeto (D45): γ, γn, método do consolo, Hd mínimo, G do elastômero
             var cfgProjeto = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notes);
             // carga das vigas nos consolos (D44 etapa 1, D46: análise por objetos): CC1–CC6 na janela e no relatório
-            ReacoesNosConsolos.Aplicar(doc, groups, notes, cfgProjeto);
+            ReacoesNosConsolos.Aplicar(doc, groups, notes, cfgProjeto, out var estrutura);
+            // esforços da análise nos pilares (D44 etapa 3): flexo-compressão oblíqua na janela e no relatório
+            if (estrutura == null)
+            {
+                try { estrutura = ModeloAnaliticoCommand.Montar(doc, new List<string>()); }
+                catch (System.Exception ex) { notes.Add("Análise dos pilares não feita: " + ex.Message); }
+            }
+            ReacoesNosConsolos.EsforcosNosPilares(estrutura, groups, cfgProjeto, notes);
             foreach (ColumnGroup g in groups) g.Spec.UsarConfiguracao(cfgProjeto);
 
             var win = new PrecastColumnsWindow(groups, notes);

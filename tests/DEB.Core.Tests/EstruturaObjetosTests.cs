@@ -280,7 +280,7 @@ public class EstruturaObjetosTests
         var cfg = new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto();
         // sem armadura: proposta que passa
         var r = DimensionamentoObjetos.Pilar(e, e.Pilares[0], cfg);
-        var p3 = r.Verificacoes.First(v => v.Codigo == "P3");
+        var p3 = r.Verificacoes.First(v => v.Codigo == "PA3");
         Assert.Equal(DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok, p3.Situacao);
         Assert.Contains(r.Resumo, t => t.Contains("(proposta)"));
         // com armadura fraca (4ø10): não atende ou abaixo do mínimo

@@ -85,6 +85,30 @@ namespace DEB.Revit.Precast
             return n;
         }
 
+        /// <summary>
+        /// Esforços da análise nos pilares (D44 etapa 3): a envoltória dos casos de cálculo dos pilares de cada grupo vai ao modelo de
+        /// armadura do grupo, que verifica a flexo-compressão oblíqua com a armadura da janela. Devolve quantos grupos receberam.
+        /// </summary>
+        public static int EsforcosNosPilares(EstruturaObjetos e, List<ColumnGroup> grupos, ConfiguracaoProjeto cfg, List<string> notas)
+        {
+            if (e == null) return 0;
+            int n = 0;
+            foreach (ColumnGroup g in grupos)
+            {
+                try
+                {
+                    var casos = DEB.Core.Analise.Dimensionamento.CasosPilar.Juntar(g.Members
+                        .Select(m => e.Pilares.FirstOrDefault(p => p.Dono.Id == m.Id)).Where(p => p != null)
+                        .Select(p => DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.Casos(e, p, cfg)));
+                    if (casos == null || g.Spec == null) continue;
+                    g.Spec.UsarEsforcosPilar(casos);
+                    n++;
+                }
+                catch (Exception ex) { notas.Add($"{g.Mark}: esforços da análise não passados ao pilar ({ex.Message})."); }
+            }
+            return n;
+        }
+
         /// <summary>Reserva: a reação da viga isolada (cálculo do grupo da viga, D40), com Hd pela regra da ligação.</summary>
         private static int ReacaoIsolada(List<Corbel> todos, Dictionary<long, (GrupoViga G, MembroViga M)> porId, List<string> notas)
         {

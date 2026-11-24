@@ -190,6 +190,7 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
             D("Cobrimento", $"{Fmt.N(CoverMm)} mm");
             D("Modelo de armadura", Name);
             g.Memoria.AddRange(_memoriaConsolos);
+            if (_memoriaPilar != null) g.Memoria.Add(_memoriaPilar);
             return g;
         }
 
@@ -300,8 +301,38 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
                 _ultimas.Juntar(calc);
             }
 
+            // pilar com os esforços da análise (D44 etapa 3, D46): flexo-compressão oblíqua com a armadura longitudinal desta janela
+            _memoriaPilar = null;
+            if (_casosPilar != null && _casosPilar.Lista.Count > 0)
+            {
+                double zc = U_.Mm((_casosPilar.ZBase + 5) * 10);
+                var barras = new List<(double Y, double Z, double Phi)>();
+                foreach (var bd in ColumnRebarLayout.Compute(frame, corbels, this).Where(b => b.Role == BarRole.Longitudinal))
+                    foreach (var pts in bd.Instances())
+                        if (pts.Min(q => q.C) <= zc && pts.Max(q => q.C) >= zc)
+                        {
+                            var q0 = pts.OrderBy(q => Math.Abs(q.C - zc)).First();
+                            barras.Add((U_.ToMm(q0.A) / 10, U_.ToMm(q0.B) / 10, bd.DiameterMm));
+                        }
+                var rp = new DEB.Core.Analise.Dimensionamento.ResultadoPeca { Dono = new DEB.Core.Analise.Barras.Dono { Nome = "pilar" } };
+                rp.Memoria.Titulo = "Pilar — esforços da análise (NBR 6118 15 e 17.2)";
+                var secao = DEB.Core.Pecas.SecaoPoligonal.Retangulo(U_.ToMm(frame.Bx) / 10, U_.ToMm(frame.By) / 10);
+                DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.VerificarSecao(rp, secao, barras, _casosPilar, _configuracao);
+                var lp = new ListaVerificacoes();
+                foreach (var x in rp.Verificacoes) { x.Grupo = "Pilar — análise"; lp.Add(x); }
+                w.AddRange(lp.Avisos());
+                _ultimas.Juntar(lp);
+                _memoriaPilar = rp.Memoria;
+            }
+
             return w;
         }
+
+        private DEB.Core.Analise.Dimensionamento.CasosPilar _casosPilar;
+        private DEB.Core.Documentacao.PassoMemoria _memoriaPilar;
+
+        /// <summary>Casos de cálculo do pilar vindos da análise (envoltória do grupo); null = sem análise.</summary>
+        public void UsarEsforcosPilar(DEB.Core.Analise.Dimensionamento.CasosPilar casos) => _casosPilar = casos;
 
         private List<DEB.Core.Documentacao.PassoMemoria> _memoriaConsolos = new List<DEB.Core.Documentacao.PassoMemoria>();
 
@@ -312,7 +343,7 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         public void UsarConfiguracao(DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto cfg) => _configuracao = cfg;
 
         /// <summary>Leva a configuração do projeto de outro modelo de armadura (troca de modelo salvo na janela).</summary>
-        public void HerdarConfiguracao(ColumnRebarSpec de) => _configuracao = de?._configuracao;
+        public void HerdarConfiguracao(ColumnRebarSpec de) { _configuracao = de?._configuracao; _casosPilar = de?._casosPilar; }
 
         /// <summary>Consolo com a armadura do modelo, para o cálculo: nome com face e topo para achar no relatório.</summary>
         public DadosConsolo DadosCalculo(Corbel k)
