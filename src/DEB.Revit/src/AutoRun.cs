@@ -593,10 +593,11 @@ namespace DEB.Revit
                     foreach (string l in d.Memoria.Linhas) sb.AppendLine("      " + l);
                     foreach (var v in d.Verificacoes.Where(x => x.Situacao != DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok)) sb.AppendLine($"      [{v.Codigo}] {v.Descricao}: {v.Valor} {v.Limite}");
                 }
-                foreach (string modo in new[] { "modelo", "diagrama", "deformada", "situacao", "laje", "peca" })
+                var sessaoCap = new DEB.Core.Analise.Objetos.SessaoAnalise(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc), doc.Title, DEB.Revit.Analise.AjustesRevit.Ler(doc));
+                foreach (string modo in new[] { "modelo", "diagrama", "deformada", "situacao", "laje", "peca", "consolo" })
                 {
                     string png = Path.Combine(dir, "janela_" + modo + ".png");
-                    var win = new DEB.Revit.Analise.JanelaAnalise(json, doc.Title) { Captura = png, ModoCaptura = modo };
+                    var win = new DEB.Revit.Analise.JanelaAnalise(json, doc.Title) { Captura = png, ModoCaptura = modo, Sessao = sessaoCap };
                     win.ShowDialog();
                     sb.AppendLine($"{modo}: {(win.Erro ?? (File.Exists(png) ? new FileInfo(png).Length + " bytes" : "imagem não gravada"))}");
                 }
