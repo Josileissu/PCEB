@@ -95,3 +95,10 @@ AutoRun `analitico` (sem gravar): grava `janela_<vista>.png` de seis vistas e o 
   `resultados_<caso>.json`), CalculiX (.inp com B32R subdivididas, seção retangular equivalente; rótula solta as três rotações; P1/P2 =
   pressão na face) e SAP2000 (.s2k). As barras são divididas nos pontos de carga. Os testes rodam OpenSees (igual ao PCEB) e
   CalculiX (~2%) quando `%AppData%\PCEB\mef.txt` existe; o `analitico` exporta e roda os dois no modelo do Revit.
+
+## Unidades e parâmetros (D50)
+- A janela mostra e recebe nas unidades do grupo Unidades da configuração do projeto (`UnidadesAnalise`): força, momento, cargas
+  lineares e de superfície, momento distribuído das lajes, rigidez das molas e tensão. O cálculo continua em kN e cm; os textos do
+  núcleo (dimensionamento, memória, verificações) têm os valores com kN convertidos antes de chegar à página.
+- Lajes: `PCEB_Carga permanente (kN/m²)`, `PCEB_Carga variável (kN/m²)`, `PCEB_Peso próprio (kN/m²)` e `PCEB_Tipo de laje` são
+  compartilhados (GUIDs `6a1e3f40-…-9b0c1d2e00NN`, `Analise/ParametrosAnalise.cs`), lidos pelo GUID ou, nos modelos antigos, pelo nome.

@@ -64,6 +64,8 @@ $p.WaitForExit(540000)
   `SD_ACO=1` cria ao lado um pórtico de aço de teste (famílias W métricas da biblioteca do Revit: pilares W250X32.7, vigas W310X38.7 e
   uma secundária W200X15 sobre as vigas) — peças de aço, ligações por chapa de alma e dimensionamento pela NBR 8800 (D48).
   Ver `docs/ANALISE.md`.
+- `parametros`: botão "Parâmetros do PCEB" — lista o que falta, cria, confere e roda de novo (nada a criar). A instância fica na pergunta
+  "salvar?" ao fechar: feche pelo PID que você abriu.
 - `muro`: muro de arrimo (D47) — cria uma parede de 3,5 m com sapata corrida de arrimo (sem salvar), lê, grava e relê os dados na parede
   e grava as três abas da janela (`janela_secao.png`…). A sapata de arrimo do Revit: "Uso estrutural" = Retenção (inteiro 0), ponta e
   talão em `CONTINUOUS_FOOTING_TOP_TOE`/`_HEEL`; o solo fica do lado do talão.
@@ -142,6 +144,8 @@ Detalhe de cada funcionalidade (consulte quando for mexer nela), em `docs/`: `EX
   (`RebarData.Apply`). São valores gravados: barra editada à mão no Revit só se atualiza rodando o comando de novo.
 - Parâmetros de Formas: compartilhados com GUIDs FIXOS `8e2a5c10-4b7d-4e61-9f3a-0a1b2c3dNNNN` (nunca mudar).
 - Parâmetros de carga das vigas (D40): compartilhados com GUIDs FIXOS `3c7d9a20-5e1f-4a2b-8c3d-7b6a5f4e00NN` (nunca mudar).
+- Parâmetros da análise nas lajes (D50: cargas, peso próprio, tipo): compartilhados com GUIDs FIXOS `6a1e3f40-2c7b-4d19-8e5a-9b0c1d2e00NN`
+  (nunca mudar). O botão "Parâmetros do PCEB" cria todos os grupos de uma vez (`Commands/ParametrosPcebCommand.cs`).
 
 ## Armadilhas já encontradas
 - Guardar `Solid` sem o `GeometryElement` dono → SEHException (GC libera a memória nativa).
