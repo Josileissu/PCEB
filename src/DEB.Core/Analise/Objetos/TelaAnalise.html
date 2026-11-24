@@ -155,7 +155,7 @@ const valor = (k, v) => ehMomento(k) ? fmt(v / 100, 2) + " kN·m" : fmt(v, 2) + 
 function enviar(m) { if (host) host.postMessage(JSON.stringify(m)); }
 function receber(txt) {
   const m = typeof txt === "string" ? JSON.parse(txt) : txt;
-  if (m.tipo === "modelo") { const primeira = !D, res = $("resultado").value; D = m; iniciar(primeira, res); if (m.erro) aviso(m.erro); }
+  if (m.tipo === "modelo") { const primeira = !D, res = $("resultado").value; D = m; iniciar(primeira, res); if (m.erro) aviso(m.erro); if (m.aviso) aviso(m.aviso); }
   else if (m.tipo === "aviso") alert(m.texto);
 }
 if (host) host.addEventListener("message", ev => receber(ev.data));
@@ -546,7 +546,10 @@ function lateral() {
     const add = document.createElement("button"); add.className = "btn"; add.textContent = "Adicionar carga"; add.style.marginTop = "6px";
     add.addEventListener("click", () => enviar({ acao: "carga", op: "adicionar", alvo: chave, tipo: tipo.value, caso: caso.value, valor: val.value.replace(",", "."),
       posicao: pos.value.replace(",", "."), fim: fim.value.replace(",", "."), direcao: dir.value }));
-    sec("Cargas", box2, f, add);
+    const env = document.createElement("button"); env.className = "btn"; env.textContent = "Enviar cargas do PCEB ao Revit"; env.style.margin = "6px 0 0 6px";
+    env.title = "Cria as cargas lançadas aqui como cargas nativas do Revit (casos PCEB G e PCEB Q), ao fechar a janela.";
+    env.addEventListener("click", () => enviar({ acao: "enviarCargas" }));
+    sec("Cargas", box2, f, add, env);
   }
   const dm = dimDe(chave);
   if (dm) {

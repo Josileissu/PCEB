@@ -148,6 +148,131 @@ namespace DEB.Revit.Analise
             return r;
         }
 
+        private static XYZ Pe(Vetor3 v) => new XYZ(v.X / Cm, v.Y / Cm, v.Z / Cm);
+
+        /// <summary>Caso de carga do Revit "PCEB G" (natureza permanente) ou "PCEB Q" (variável), criado se faltar.</summary>
+        private static LoadCase CasoRevit(Document doc, string caso)
+        {
+            string nome = "PCEB " + caso;
+            var lc = new FilteredElementCollector(doc).OfClass(typeof(LoadCase)).Cast<LoadCase>().FirstOrDefault(x => x.Name == nome);
+            if (lc != null) return lc;
+            string[] chaves = caso == EstruturaObjetos.CasoG ? new[] { "Dead", "Mort", "Perm" } : new[] { "Live", "Acid", "Sobre", "Vari" };
+            var natureza = new FilteredElementCollector(doc).OfClass(typeof(LoadNature)).Cast<LoadNature>()
+                .FirstOrDefault(n => chaves.Any(k => n.Name.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0))
+                ?? LoadNature.Create(doc, caso == EstruturaObjetos.CasoG ? "PCEB permanente" : "PCEB variável");
+            return LoadCase.Create(doc, nome, natureza.Id, caso == EstruturaObjetos.CasoG ? LoadCaseCategory.Dead : LoadCaseCategory.Live);
+        }
+
+        /// <summary>Elemento analítico da peça (o associado; sem ele, cria um pela linha ou pelo contorno e associa).</summary>
+        private static ElementId Analitico(Document doc, Element fisico, object obj)
+        {
+            var am = AnalyticalToPhysicalAssociationManager.GetAnalyticalToPhysicalAssociationManager(doc);
+            ElementId id = am.GetAssociatedElementId(fisico.Id);
+            if (id != null && id != ElementId.InvalidElementId) return id;
+            Element novo;
+            switch (obj)
+            {
+                case LajeObjeto l:
+                {
+                    var pts = l.Contorno.Select(Pe).ToList();
+                    var loop = new CurveLoop();
+                    for (int i = 0; i < pts.Count; i++) loop.Append(Line.CreateBound(pts[i], pts[(i + 1) % pts.Count]));
+                    novo = AnalyticalPanel.Create(doc, loop);
+                    break;
+                }
+                case PilarObjeto p: novo = AnalyticalMember.Create(doc, Line.CreateBound(Pe(p.Base), Pe(p.Ponto(p.Comprimento)))); break;
+                default:
+                    if (fisico.Location is LocationCurve lc) { novo = AnalyticalMember.Create(doc, lc.Curve); break; }
+                    return ElementId.InvalidElementId;
+            }
+            am.AddAssociation(novo.Id, fisico.Id);
+            return novo.Id;
+        }
+
+        /// <summary>
+        /// Cria no Revit, como cargas nativas, as cargas lançadas no PCEB (D50, item 2c), hospedadas nos elementos analíticos das peças e
+        /// nos casos "PCEB G"/"PCEB Q". As enviadas saem da lista do PCEB (a partir daí são lidas como cargas do Revit). Abre a transação.
+        /// </summary>
+        public static int EnviarAoRevit(Document doc, EstruturaObjetos e, List<string> notas)
+        {
+            var obj = AjustesAnalise.Objetos(e);
+            var enviadas = new List<CargaObjeto>();
+            var tl = new FilteredElementCollector(doc).OfClass(typeof(LineLoadType)).Cast<LineLoadType>().FirstOrDefault();
+            var tp = new FilteredElementCollector(doc).OfClass(typeof(PointLoadType)).Cast<PointLoadType>().FirstOrDefault();
+            var ta = new FilteredElementCollector(doc).OfClass(typeof(AreaLoadType)).Cast<AreaLoadType>().FirstOrDefault();
+            using (var t = new Transaction(doc, "PCEB: cargas da análise para o Revit"))
+            {
+                var fho = t.GetFailureHandlingOptions();
+                fho.SetFailuresPreprocessor(new Falhas(notas));
+                t.SetFailureHandlingOptions(fho);
+                t.Start();
+                foreach (var c in e.Cargas.Where(x => x.Origem == OrigemCarga.Pceb).ToList())
+                {
+                    try
+                    {
+                        if (!obj.TryGetValue(c.Alvo, out object o)) continue;
+                        string idTxt = c.Alvo.Substring(c.Alvo.IndexOf(':') + 1);
+                        if (!long.TryParse(idTxt, out long idNum) || !(doc.GetElement(new ElementId(idNum)) is Element fis)) { notas.Add($"Carga {c.Texto()}: peça {c.Alvo} sem elemento no Revit."); continue; }
+                        ElementId host = Analitico(doc, fis, o);
+                        if (host == ElementId.InvalidElementId) { notas.Add($"Carga {c.Texto()}: sem elemento analítico para {c.Alvo}."); continue; }
+                        Vetor3 f = c.Vetor(c.Valor);
+                        LoadBase nova;
+                        if (c.Tipo == TipoCargaObjeto.Superficie)
+                            nova = AreaLoad.Create(doc, host, new XYZ(0, 0, UnitUtils.ConvertToInternalUnits(-c.Valor, UnitTypeId.KilonewtonsPerSquareMeter)), ta);
+                        else
+                        {
+                            Vetor3 a, b;
+                            switch (o)
+                            {
+                                case VigaObjeto v: a = v.ApoioI + Vetor3.EixoZ * v.AlturaEixo; b = v.ApoioJ + Vetor3.EixoZ * v.AlturaEixo; break;
+                                case BarraMetalicaObjeto bm: a = bm.PontoI + bm.DeslocamentoFisico; b = bm.PontoJ + bm.DeslocamentoFisico; break;
+                                case PilarObjeto p: a = p.Base; b = p.Ponto(p.Comprimento); break;
+                                default: continue;
+                            }
+                            Vetor3 u = (b - a).Unitario; double L = (b - a).Modulo;
+                            if (c.Tipo == TipoCargaObjeto.Linear)
+                            {
+                                double t0 = Math.Max(0, c.Posicao), t1 = c.Fim > 0 ? Math.Min(L, c.Fim) : L;
+                                XYZ fv = new XYZ(UnitUtils.ConvertToInternalUnits(f.X, UnitTypeId.KilonewtonsPerMeter), UnitUtils.ConvertToInternalUnits(f.Y, UnitTypeId.KilonewtonsPerMeter),
+                                                 UnitUtils.ConvertToInternalUnits(f.Z, UnitTypeId.KilonewtonsPerMeter));
+                                nova = LineLoad.Create(doc, host, Line.CreateBound(Pe(a + u * t0), Pe(a + u * t1)), fv, XYZ.Zero, tl);
+                            }
+                            else
+                            {
+                                XYZ fv = new XYZ(UnitUtils.ConvertToInternalUnits(f.X, UnitTypeId.Kilonewtons), UnitUtils.ConvertToInternalUnits(f.Y, UnitTypeId.Kilonewtons),
+                                                 UnitUtils.ConvertToInternalUnits(f.Z, UnitTypeId.Kilonewtons));
+                                nova = PointLoad.Create(doc, host, Pe(a + u * Math.Max(0, Math.Min(L, c.Posicao))), fv, XYZ.Zero, tp);
+                            }
+                        }
+                        nova.LoadCaseId = CasoRevit(doc, c.Caso == EstruturaObjetos.CasoG ? EstruturaObjetos.CasoG : EstruturaObjetos.CasoQ).Id;
+                        enviadas.Add(c);
+                    }
+                    catch (Exception ex) { notas.Add($"Carga {c.Texto()} em {c.Alvo} não criada no Revit: {ex.Message}"); }
+                }
+                var st = t.Commit();
+                if (st != TransactionStatus.Committed) { notas.Add($"Envio das cargas desfeito pelo Revit ({st})."); return 0; }
+            }
+            foreach (var c in enviadas) e.Cargas.Remove(c);
+            GravarPceb(doc, e.Cargas);
+            notas.Add($"{enviadas.Count} cargas do PCEB criadas no Revit (casos \"PCEB G\" e \"PCEB Q\"); daqui em diante são lidas como cargas do Revit.");
+            return enviadas.Count;
+        }
+
+        private sealed class Falhas : IFailuresPreprocessor
+        {
+            private readonly List<string> _n;
+            public Falhas(List<string> n) { _n = n; }
+            public FailureProcessingResult PreprocessFailures(FailuresAccessor fa)
+            {
+                foreach (FailureMessageAccessor m in fa.GetFailureMessages())
+                {
+                    _n.Add($"Revit [{m.GetSeverity()}]: {m.GetDescriptionText()}");
+                    if (m.GetSeverity() == FailureSeverity.Warning) fa.DeleteWarning(m);
+                }
+                return FailureProcessingResult.Continue;
+            }
+        }
+
         private static bool DentroDaLaje(LajeObjeto l, Vetor3 p)
         {
             var c = l.Contorno;

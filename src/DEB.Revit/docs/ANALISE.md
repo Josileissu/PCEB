@@ -66,3 +66,12 @@ AutoRun `analitico` (sem gravar): grava `janela_<vista>.png` de seis vistas e o 
   criado numa vista 3D (numa planta ele é projetado no plano da vista) e com 3 pontos; a API dá normal = corte × (livre − bolha).
   O eixo da análise é a linha de locação (topo da viga): `BarraMetalicaObjeto.DeslocamentoFisico` leva ao centro físico.
 - AutoRun: `ligacoes` (imagem da janela) e `analitico` com `SD_ACO=1` (modela as ligações e grava `ligacoes_3d*.png`).
+
+## Ajustes e cargas na janela (D50)
+- Seleção de um objeto → "Ajustes do modelo" (o valor vem do Revit; o ajustado fica marcado e "↺" volta) e "Cargas". A análise refaz na
+  hora. Ao fechar: ajustes e cargas do PCEB vão para o .rvt (Extensible Storage `PCEB_AjustesAnalise` e `PCEB_CargasAnalise`) e valem em
+  toda montagem (`ModeloAnaliticoCommand.Montar`): análise, pilares, vigas, ligações.
+- Cargas nativas do Revit (pontual, linear, de área) são lidas e ligadas à peça mais próxima (`CargasRevit.LerNativas`); natureza
+  permanente/morta → G, demais → Q. "Enviar cargas do PCEB ao Revit" cria as do PCEB como nativas (casos "PCEB G"/"PCEB Q"), hospedadas
+  no elemento analítico da peça (criado e associado se faltar — no Revit 2025 a carga precisa de hospedeiro analítico).
+

@@ -204,6 +204,8 @@ public sealed class SessaoAnalise
     public bool Alterado { get; private set; }
     /// <summary>As cargas lançadas na janela mudaram (o hospedeiro grava).</summary>
     public bool CargasAlteradas { get; private set; }
+    /// <summary>A página pediu para criar no hospedeiro (Revit) as cargas lançadas no PCEB (feito ao fechar a janela).</summary>
+    public bool EnviarCargas { get; private set; }
 
     public SessaoAnalise(EstruturaObjetos e, ConfiguracaoProjeto cfg, string titulo, Dictionary<string, Dictionary<string, string>> ajustes)
     {
@@ -221,6 +223,7 @@ public sealed class SessaoAnalise
         string acao = m?["acao"]?.Texto ?? "";
         if (acao == "pronto") return Json();
         if (acao == "carga") return Carga(m);
+        if (acao == "enviarCargas") { EnviarCargas = true; return Json().Insert(1, "\"aviso\":\"As cargas do PCEB serão criadas no Revit ao fechar a janela.\","); }
         if (acao != "ajustar" && acao != "restaurar") return "";
         string chave = m["chave"]?.Texto ?? "", prop = m["prop"]?.Texto ?? "";
         string erro = null;

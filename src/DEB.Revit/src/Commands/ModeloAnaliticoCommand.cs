@@ -34,6 +34,12 @@ namespace DEB.Revit.Commands
             win.ShowDialog();
             if (win.Erro != null) TaskDialog.Show("Modelo de análise", win.Erro);
             if (sessao.CargasAlteradas) CargasRevit.GravarPceb(doc, e.Cargas);
+            if (sessao.EnviarCargas)
+            {
+                var nc = new List<string>();
+                CargasRevit.EnviarAoRevit(doc, e, nc);
+                TaskDialog.Show("Modelo de análise", string.Join(System.Environment.NewLine, nc));
+            }
             if (sessao.Alterado)
             {
                 AjustesRevit.Gravar(doc, sessao.Ajustes);

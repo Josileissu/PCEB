@@ -554,6 +554,25 @@ namespace DEB.Revit
                 string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 sb.AppendLine($"JSON da janela: {json.Length / 1024} kB");
                 foreach (var c in e.Cargas) sb.AppendLine($"  carga em {c.Alvo}: {c.Texto()} [{c.Origem}] {c.Descricao}");
+                if (Environment.GetEnvironmentVariable("SD_ACO") == "1" && e.Vigas.Count > 0)
+                {
+                    // item 2c: cargas lançadas no PCEB (viga de concreto e pilar de aço) enviadas ao Revit e relidas como nativas
+                    e.Cargas.Add(new DEB.Core.Analise.Objetos.CargaObjeto { Alvo = DEB.Core.Analise.Objetos.AjustesAnalise.Chave(e.Vigas[0].Dono), Tipo = DEB.Core.Analise.Objetos.TipoCargaObjeto.Linear, Valor = 7, Caso = "G" });
+                    var pm = e.Metalicas.FirstOrDefault(x => x.Pilar);
+                    if (pm != null) e.Cargas.Add(new DEB.Core.Analise.Objetos.CargaObjeto { Alvo = DEB.Core.Analise.Objetos.AjustesAnalise.Chave(pm.Dono), Tipo = DEB.Core.Analise.Objetos.TipoCargaObjeto.Pontual, Valor = 3, Posicao = 200, Direcao = "X", Caso = "Q" });
+                    var nc = new List<string>();
+                    DEB.Revit.Analise.CargasRevit.EnviarAoRevit(doc, e, nc);
+                    foreach (string n in nc) sb.AppendLine("ENVIO: " + n);
+                    var n3 = new List<string>();
+                    var e3 = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, n3);
+                    foreach (string n in n3.Where(x => x.Contains("arga"))) sb.AppendLine("NOTA3: " + n);
+                    foreach (var ld in new FilteredElementCollector(doc).OfClass(typeof(Autodesk.Revit.DB.Structure.LoadBase)).Cast<Autodesk.Revit.DB.Structure.LoadBase>())
+                    {
+                        string geo = ld is Autodesk.Revit.DB.Structure.LineLoad l1 ? $"{l1.StartPoint * 30.48} → {l1.EndPoint * 30.48}" : ld is Autodesk.Revit.DB.Structure.PointLoad p1 ? $"{p1.Point * 30.48}" : "";
+                        sb.AppendLine($"  carga Revit {ld.Id.Value} {ld.GetType().Name} caso {ld.LoadCaseName} host {ld.HostElementId.Value}: {geo}");
+                    }
+                    foreach (var c in e3.Cargas) sb.AppendLine($"  relida em {c.Alvo}: {c.Texto()} [{c.Origem}] {c.Descricao}");
+                }
                 var dim = DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.Verificar(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 if (Environment.GetEnvironmentVariable("SD_ACO") == "1")
                 {
