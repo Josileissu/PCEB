@@ -112,6 +112,9 @@ namespace DEB.Revit
                         status = "OK " + Path.Combine(dir, "resultado.txt");
                         break;
                     }
+                    case "muro":
+                        status = "OK " + MuroAutoTest(uidoc);
+                        break;
                     case "vigas":
                         status = "OK " + Vigas.VigasAutoTest.Run(uidoc);
                         break;
@@ -772,6 +775,125 @@ namespace DEB.Revit
                 s => s.Receber("{\"acao\":\"definir\",\"nivel\":\"Projeto\",\"id\":\"normas.gamaNPerm\",\"valor\":\"1,0\"}"));
             sb.AppendLine($"Tela abriu: {abriu}; imagem: {(File.Exists(png) ? new FileInfo(png).Length + " bytes" : "não gravada")}");
             foreach (string a in avisos) sb.AppendLine("AVISO: " + a);
+            File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
+            return Path.Combine(dir, "resultado.txt");
+        }
+
+        /// <summary>
+        /// Muro de arrimo (D47): cria uma parede estrutural de 3,5 m com sapata corrida de arrimo (ponta 0,9 m, talão 1,9 m), lê o muro,
+        /// grava e relê os dados na parede e grava as imagens das três abas da janela. O modelo não é salvo (só com SD_SAVEAS).
+        /// </summary>
+        private static string MuroAutoTest(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            string dir = Path.Combine(DetailingReport.LogDir, "muro_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var sb = new StringBuilder();
+            var notas = new List<string>();
+            const double m = 1 / 0.3048;
+            Wall w;
+            using (var t = new Transaction(doc, "Teste: muro de arrimo"))
+            {
+                t.Start();
+                Level nivel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).First();
+                WallType wt = new FilteredElementCollector(doc).OfClass(typeof(WallType)).Cast<WallType>().First(x => x.Kind == WallKind.Basic);
+                WallType wt35 = wt.Duplicate("PCEB teste muro 35 " + DateTime.Now.Ticks) as WallType;
+                wt35.SetCompoundStructure(CompoundStructure.CreateSingleLayerCompoundStructure(MaterialFunctionAssignment.Structure, 0.35 * m, ElementId.InvalidElementId));
+                w = Wall.Create(doc, Line.CreateBound(new XYZ(-20 * m, -20 * m, 0), new XYZ(-12 * m, -20 * m, 0)), wt35.Id, nivel.Id, 3.5 * m, 0, false, true);
+                var ft = new FilteredElementCollector(doc).OfClass(typeof(WallFoundationType)).Cast<WallFoundationType>().FirstOrDefault();
+                if (ft != null)
+                {
+                    var ft2 = ft.Duplicate("PCEB teste arrimo " + DateTime.Now.Ticks) as WallFoundationType;
+                    Parameter uso = ft2.get_Parameter(BuiltInParameter.CONTINUOUS_FOOTING_STRUCTURAL_USAGE);
+                    for (int k = 0; k < 3 && uso != null && !DEB.Revit.Contencao.MuroRevit.DeArrimo(ft2); k++)
+                    {
+                        bool foi = uso.Set(k);
+                        sb.AppendLine($"  uso = {k}: {foi} → \"{uso.AsValueString()}\" ({uso.AsInteger()})");
+                    }
+                    sb.AppendLine($"Uso da sapata: {uso?.AsValueString()}");
+                    foreach (var bp in new[] { BuiltInParameter.CONTINUOUS_FOOTING_TOP_TOE, BuiltInParameter.CONTINUOUS_FOOTING_BOTTOM_TOE })
+                        { var p = ft2.get_Parameter(bp); if (p != null && !p.IsReadOnly) p.Set(0.9 * m); }
+                    foreach (var bp in new[] { BuiltInParameter.CONTINUOUS_FOOTING_TOP_HEEL, BuiltInParameter.CONTINUOUS_FOOTING_BOTTOM_HEEL })
+                        { var p = ft2.get_Parameter(bp); if (p != null && !p.IsReadOnly) p.Set(1.9 * m); }
+                    ft2.get_Parameter(BuiltInParameter.STRUCTURAL_FOUNDATION_THICKNESS)?.Set(0.4 * m);
+                    WallFoundation.Create(doc, ft2.Id, w.Id);
+                }
+                else sb.AppendLine("Sem tipo de sapata corrida no modelo.");
+                t.Commit();
+            }
+            var cfg = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notas);
+            var d = DEB.Revit.Contencao.MuroRevit.Ler(w, cfg, notas);
+            sb.AppendLine($"Lido: h = {d.AlturaFuste:0.###} m, t = {d.EspessuraBase:0.###} m, sapata {d.EspessuraSapata:0.###} m, ponta {d.Ponta:0.###} m, talão {d.Talao:0.###} m");
+            d.DenteAltura = 0.6; d.DenteLargura = 0.35; d.DenteInicio = 0.7; d.Beta = 10;
+            DEB.Revit.Contencao.MuroRevit.Gravar(w, d);
+            var d2 = DEB.Revit.Contencao.MuroRevit.Ler(w, cfg, notas);
+            sb.AppendLine($"Relido da parede: dente {d2.DenteAltura:0.##} m, β = {d2.Beta:0.#}°");
+            var r = DEB.Core.Elementos.Contencao.CalculoMuro.Calcular(d2, cfg);
+            sb.AppendLine($"FS tombamento {r.FsTombamento:0.00}, deslizamento {r.FsDeslizamento:0.00}, capacidade {r.FsCapacidade:0.00}; situação {r.Situacao}");
+            foreach (var v in r.Verificacoes) sb.AppendLine("  " + v.Mensagem);
+            foreach (string aba in new[] { "secao", "fuste", "memoria" })
+            {
+                string png = Path.Combine(dir, "janela_" + aba + ".png");
+                DEB.Revit.Commands.MuroArrimoCommand.Abrir(doc, w, IntPtr.Zero, notas, png, aba == "secao" ? "" : aba);
+                sb.AppendLine($"Janela ({aba}): {(File.Exists(png) ? new FileInfo(png).Length + " bytes" : "não gravada")}");
+            }
+            // D50, item 7: família PCEB do muro — cria dois muros (aterro à esquerda e à direita), confere a caixa e atualiza a seção
+            try
+            {
+                Level nv = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).First();
+                var dm = DEB.Core.Elementos.Contencao.DadosMuro.DaConfiguracao(cfg);
+                dm.Comprimento = 8; dm.DenteAltura = 0.4; dm.DenteLargura = 0.3; dm.DenteInicio = 0.7;
+                var lg = new StringBuilder();
+                var m1 = DEB.Revit.Contencao.FamiliaMuro.Criar(doc, dm, nv, new XYZ(0, -40 * m, 0), XYZ.BasisX, true, lg);
+                var m2 = DEB.Revit.Contencao.FamiliaMuro.Criar(doc, dm, nv, new XYZ(0, -50 * m, 0), XYZ.BasisY, false, lg);
+                sb.Append(lg);
+                foreach (var fi in new[] { m1, m2 })
+                {
+                    if (fi == null) { sb.AppendLine("Muro PCEB não criado."); continue; }
+                    BoundingBoxXYZ bb = fi.get_BoundingBox(null);
+                    sb.AppendLine($"Muro {fi.Id}: x {bb.Min.X * 0.3048:0.00}…{bb.Max.X * 0.3048:0.00}, y {bb.Min.Y * 0.3048:0.00}…{bb.Max.Y * 0.3048:0.00}, " +
+                                  $"z {(bb.Min.Z - nv.Elevation) * 0.3048:0.00}…{(bb.Max.Z - nv.Elevation) * 0.3048:0.00} m (esperado: comprimento 8, base {dm.Base:0.00}, " +
+                                  $"z {-dm.TerrenoFrente - dm.DenteAltura:0.00}…{dm.AlturaTotal - dm.TerrenoFrente:0.00})");
+                    sb.AppendLine($"  categoria {fi.Category?.Name}; família {fi.Symbol.FamilyName}");
+                }
+                if (m1 != null)
+                {
+                    var lidos = DEB.Revit.Contencao.MuroRevit.LerElemento(m1, cfg, notas);
+                    sb.AppendLine($"Relido do muro PCEB: comprimento {lidos.Comprimento:0.##} m, dente {lidos.DenteAltura:0.##} m");
+                    lidos.AlturaFuste += 0.5; lidos.Comprimento = 12;
+                    var lg2 = new StringBuilder();
+                    DEB.Revit.Contencao.FamiliaMuro.Atualizar(m1, lidos, lg2);
+                    BoundingBoxXYZ bb = m1.get_BoundingBox(null);
+                    sb.Append(lg2);
+                    sb.AppendLine($"Atualizado: {m1.Symbol.FamilyName}; caixa x {(bb.Max.X - bb.Min.X) * 0.3048:0.00} m, altura {(bb.Max.Z - bb.Min.Z) * 0.3048:0.00} m");
+                    string png = Path.Combine(dir, "janela_muro_pceb.png");
+                    DEB.Revit.Commands.MuroArrimoCommand.Abrir(doc, m1, IntPtr.Zero, notas, png, "");
+                    sb.AppendLine($"Janela do muro PCEB: {(File.Exists(png) ? "gravada" : "não gravada")}");
+                    // vista 3D isométrica dos muros
+                    try
+                    {
+                        View3D v3;
+                        using (var t = new Transaction(doc, "Teste: 3D do muro"))
+                        {
+                            t.Start();
+                            var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().First(x => x.ViewFamily == ViewFamily.ThreeDimensional);
+                            v3 = View3D.CreateIsometric(doc, vft.Id);
+                            var caixa = new BoundingBoxXYZ { Min = new XYZ(-6 * m, -54 * m, -3 * m), Max = new XYZ(16 * m, -34 * m, 6 * m) };
+                            v3.SetSectionBox(caixa);
+                            v3.DisplayStyle = DisplayStyle.ShadingWithEdges;
+                            t.Commit();
+                        }
+                        var op = new ImageExportOptions { ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, "muros_3d"), PixelSize = 1400,
+                                                          HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG, ZoomType = ZoomFitType.FitToPage };
+                        op.SetViewsAndSheets(new List<ElementId> { v3.Id });
+                        doc.ExportImage(op);
+                        sb.AppendLine("3D exportado.");
+                    }
+                    catch (Exception ex3) { sb.AppendLine("3D: " + ex3.Message); }
+                }
+            }
+            catch (Exception exM) { sb.AppendLine("Muro PCEB: " + exM); }
+            foreach (string a in notas) sb.AppendLine("NOTA: " + a);
             File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
             return Path.Combine(dir, "resultado.txt");
         }

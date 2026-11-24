@@ -65,6 +65,7 @@ public static class CatalogoConfiguracao
         G("materiais", "Materiais", "Valores de partida das peças; a peça pode ter exceção."),
         G("durab", "Durabilidade e cobrimentos", "Classe de agressividade e cobrimentos por elemento."),
         G("acoes", "Ações e fases", "Fases transitórias e forças nas ligações."),
+        G("solo", "Solo e contenções", "Aterro, solo de fundação e segurança dos muros de arrimo (D47)."),
         G("analise", "Análise", "Modelo estrutural e efeitos de 2ª ordem."),
         G("dim", "Dimensionamento", "Modelos de cálculo."),
         G("det", "Detalhamento", "Bitolas, fornecimento e regras de desenho da armadura."),
@@ -215,6 +216,7 @@ public static class CatalogoConfiguracao
         S("");
         N("materiais", "fck", "fck das peças", 40, "MPa", "NBR 6118 8.2", "Concreto das peças pré-moldadas.", 20, 90);
         N("materiais", "fckCapa", "fck da capa", 30, "MPa", "NBR 6118 8.2", "Concreto moldado no local (2º estágio).", 20, 90);
+        N("materiais", "fckMuro", "fck dos muros e contenções", 30, "MPa", "NBR 6118 8.2 e Tab. 7.1", "Concreto moldado no local das contenções.", 20, 90);
         N("materiais", "fcj", "fcj no saque", 20, "MPa", "NBR 9062 5.3", "Resistência na desforma e no içamento na fábrica.", 0, 90);
         O("materiais", "aco", "Aço das barras", new[] { "CA-50", "CA-60" }, "NBR 7480", "Aço das barras longitudinais.");
         O("materiais", "agregado", "Agregado graúdo (αE)", new[] { "Granito/gnaisse · 1,0", "Basalto/diabásio · 1,2", "Calcário · 0,9", "Arenito · 0,7" },
@@ -241,6 +243,8 @@ public static class CatalogoConfiguracao
         N("durab", "cobViga", "Cobrimento · viga", 0.025, "m", "NBR 6118 Tab. 7.2", "Cobrimento nominal da viga.", 0.015, null);
         N("durab", "cobLaje", "Cobrimento · laje", 0.020, "m", "NBR 6118 Tab. 7.2", "Cobrimento nominal da laje (CAA II: 25 mm; com controle rígido: 20 mm).", 0.015, null);
         N("durab", "cobConsolo", "Cobrimento · consolo", 0.025, "m", "NBR 9062 7.3.3", "Cobrimento do consolo.", 0.015, null);
+        N("durab", "cobMuro", "Cobrimento · em contato com o solo", 0.030, "m", "NBR 6118 Tab. 7.2",
+          "Muros e sapatas em contato com o solo (CAA I e II: 30 mm; III: 40 mm; IV: 50 mm).", 0.030, null);
         N("durab", "wk", "Abertura de fissura limite", 0.3, "mm", "NBR 6118 Tab. 13.4", "wk da classe de agressividade.", 0, 0.4);
 
         // ---- ações e fases
@@ -257,7 +261,31 @@ public static class CatalogoConfiguracao
         N("acoes", "hdMin", "Hd mínimo (× Vd)", 0.2, "", "El Debs (2017) Quadro 3.2", "Piso da força horizontal no consolo.", 0.2, null);
         N("acoes", "posCargaConsolo", "Posição da carga no consolo (× comprimento)", 0.75, "", "El Debs (2017) 3.4.3", "Na falta de cálculo, a reação a ¾ do consolo.", 0.5, 1);
 
+        // ---- solo e contenções (D47)
+        S("Aterro (solo contido)");
+        N("solo", "gama", "Peso específico do aterro", 18, "kN/m³", "sondagem / ensaio", "Solo acima do nível d'água.", 14, 23);
+        N("solo", "gamaSat", "Peso específico saturado", 20, "kN/m³", "sondagem / ensaio", "Solo abaixo do nível d'água (γ submerso = γsat − 10).", 16, 24);
+        N("solo", "phi", "Ângulo de atrito do aterro (φ)", 30, "°", "ensaio ou correlação com o SPT", "Aterro compactado e drenado; coesão desprezada.", 20, 45);
+        N("solo", "delta", "Atrito solo-muro (δ)", 20, "°", "Coulomb", "Usado só no método de Coulomb (comum: 2/3 de φ).", 0, 30);
+        N("solo", "sobrecarga", "Sobrecarga sobre o aterro", 10, "kN/m²", "NBR 6120", "Tráfego leve ou uso: variável, entra só onde desfavorece.", 0, null);
+        O("solo", "metodo", "Empuxo ativo", new[] { "Rankine", "Coulomb" }, "—", "Rankine: empuxo paralelo ao terreno no plano pelo fim do talão. Coulomb: com atrito δ.");
+        S("Solo de fundação");
+        N("solo", "gamaFund", "Peso específico", 18, "kN/m³", "sondagem", "Solo sob a sapata do muro.", 14, 23);
+        N("solo", "phiFund", "Ângulo de atrito (φ)", 30, "°", "sondagem", "Capacidade de carga e deslizamento.", 0, 45);
+        N("solo", "cFund", "Coesão (c)", 0, "kPa", "sondagem", "Coesão efetiva do solo de fundação.", 0, null);
+        N("solo", "sigmaAdm", "Tensão admissível (0 = só calcular)", 0, "kPa", "NBR 6122 6.3", "Da sondagem, quando houver: confere a tensão máxima da base.", 0, null);
+        N("solo", "k1", "Fator do atrito na base (k1·φ)", 0.67, "", "Das, Principles of Foundation Engineering 13.6", "tg(k1·φ) no deslizamento.", 0.5, 1);
+        N("solo", "k2", "Fator da adesão na base (k2·c)", 0.67, "", "Das, Principles of Foundation Engineering 13.6", "Adesão no deslizamento.", 0.5, 1);
+        N("solo", "fracaoPassivo", "Fração do empuxo passivo na frente", 0, "", "boa prática", "0 = desprezado (o terreno da frente pode ser escavado).", 0, 1);
+        N("solo", "fracaoDente", "Fração do passivo no dente", 1.0, "", "Das, Principles of Foundation Engineering 13.6",
+          "Passivo na face do dente sob a sapata (abaixo da base, não se escava); reduza se o deslocamento para mobilizá-lo não for aceitável.", 0, 1);
+        S("Segurança");
+        N("solo", "fsTombamento", "FS ao tombamento", 2.0, "", "NBR 11682", "Muros de arrimo.", 1.5, null);
+        N("solo", "fsDeslizamento", "FS ao deslizamento", 1.5, "", "NBR 11682", "Muros de arrimo.", 1.5, null);
+        N("solo", "fsCapacidade", "FS à capacidade de carga", 3.0, "", "NBR 6122 Tab. 1", "Fundação direta, método analítico (fator global).", 3.0, null);
+
         // ---- análise
+        S("");
         O("analise", "modelo", "Modelo", new[] { "Elemento isolado", "Pórtico 2D", "Estrutura 3D (motor externo)" }, "D44", "A estrutura completa entra na etapa 4 da D44.");
         N("analise", "malhaLaje", "Malha da grelha das lajes", 50, "cm", "D46", "Espaçamento das faixas da grelha (menor = mais preciso e mais lento).", 15, 200);
         O("analise", "segundaOrdem", "2ª ordem local do pilar", new[] { "Pilar-padrão com rigidez κ", "Pilar-padrão com curvatura aproximada", "Momento-curvatura" },

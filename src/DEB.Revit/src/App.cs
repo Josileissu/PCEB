@@ -69,6 +69,15 @@ namespace DEB.Revit
                 Image = IconFactory.Create(16, "⚙")
             };
             panel.AddItem(modLig);
+            var muro = new PushButtonData("DEB_MuroArrimo", "Muro de\narrimo", dll, typeof(MuroArrimoCommand).FullName)
+            {
+                ToolTip = "Muro de arrimo em balanço (D47): empuxo (Rankine ou Coulomb), tombamento, deslizamento, tensões e capacidade de carga, armaduras do fuste, do talão e da ponta.",
+                LongDescription = "Selecione a parede do muro (a sapata corrida dela dá a ponta e o talão; o solo fica do lado do talão). Sem parede, a janela abre só para cálculo. \"Aplicar ao elemento\" grava os dados na parede.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "◣"),
+                Image = IconFactory.Create(16, "◣")
+            };
+            panel.AddItem(muro);
 
             var diag = new PushButtonData("SD_Diagnostico", "Diagnóstico", dll, typeof(DiagnosticsCommand).FullName)
             {

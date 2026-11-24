@@ -64,6 +64,9 @@ $p.WaitForExit(540000)
   `SD_ACO=1` cria ao lado um pórtico de aço de teste (famílias W métricas da biblioteca do Revit: pilares W250X32.7, vigas W310X38.7 e
   uma secundária W200X15 sobre as vigas) — peças de aço, ligações por chapa de alma e dimensionamento pela NBR 8800 (D48).
   Ver `docs/ANALISE.md`.
+- `muro`: muro de arrimo (D47) — cria uma parede de 3,5 m com sapata corrida de arrimo (sem salvar), lê, grava e relê os dados na parede
+  e grava as três abas da janela (`janela_secao.png`…). A sapata de arrimo do Revit: "Uso estrutural" = Retenção (inteiro 0), ponta e
+  talão em `CONTINUOUS_FOOTING_TOP_TOE`/`_HEEL`; o solo fica do lado do talão.
 - `vigas`: cálculo e armação das vigas pré-moldadas (D40; `SD_CARGAS`, `SD_SOCALCULO`), ver `docs/VIGAS_PRE_MOLDADAS.md`.
   `SD_VIGA_FAMILIA` (.rfa; copie com nome sem acento), `SD_VIGA_TIPO` e `SD_VIGA_PARAMS` (`b=200;h=500;dz_aba=300;...`, mm, num tipo
   duplicado) trocam a família das vigas do Teste_PM — para testar aba e ressalto com as famílias de `familias_PCEBariantes_PCEB`
