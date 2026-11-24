@@ -566,6 +566,13 @@ public sealed class LigacaoConsolo
         return new[] { kh, kh, kv, Garfo, kRot, kYaw };
     }
 
+    /// <summary>O aparelho que a análise usou (o da família, o ajustado na janela ou o padrão da configuração); null = sem aparelho.</summary>
+    public ApoioPeca AparelhoEmUso { get; private set; }
+
+    /// <summary>Aparelho padrão: elastômero de 10 cm ao longo da viga, largura da viga − 4 cm (≥ 10) e 1 cm de espessura.</summary>
+    public static ApoioPeca AparelhoPadrao(VigaObjeto v) =>
+        new ApoioPeca { Tipo = ApoioPeca.Neoprene, Comprimento = 10, Largura = Math.Max(10, (v?.Secao.B ?? 14) - 4), Espessura = 1 };
+
     internal void Gerar(ModeloBarras m, double gKNcm2, string apoioPadrao = "")
     {
         NoPilar = Pilar.NoNoNivel(ZTopoConsolo);
@@ -574,9 +581,19 @@ public sealed class LigacaoConsolo
         string padrao = "";
         if (aparelho == null && (apoioPadrao ?? "").StartsWith("Elast", StringComparison.OrdinalIgnoreCase) && Representacao == RepresentacaoLigacao.BarraRigidaEMola)
         {
-            aparelho = new ApoioPeca { Tipo = ApoioPeca.Neoprene, Comprimento = 10, Largura = Math.Max(10, Viga.Secao.B - 4), Espessura = 1 };
+            aparelho = AparelhoPadrao(Viga);
             padrao = " (aparelho padrão da configuração: a família não informa)";
         }
+        else if (aparelho != null && aparelho.Tipo == ApoioPeca.Neoprene && (aparelho.Comprimento <= 0 || aparelho.Largura <= 0 || aparelho.Espessura <= 0))
+        {
+            // elastômero sem alguma medida (escolhido na janela ou família incompleta): completa com as do padrão
+            var p0 = AparelhoPadrao(Viga);
+            aparelho = new ApoioPeca { Tipo = aparelho.Tipo, Comprimento = aparelho.Comprimento > 0 ? aparelho.Comprimento : p0.Comprimento,
+                                       Largura = aparelho.Largura > 0 ? aparelho.Largura : p0.Largura, Espessura = aparelho.Espessura > 0 ? aparelho.Espessura : p0.Espessura,
+                                       Afastamento = aparelho.Afastamento };
+            padrao = " (medidas que faltavam: as do aparelho padrão)";
+        }
+        AparelhoEmUso = aparelho;
         int noApoioViga = PontaI ? Viga.NoApoioI : Viga.NoApoioJ;
         var pv = m.Nos[noApoioViga];
         // topo do consolo sob o aparelho: o mesmo ponto em planta, na altura do consolo

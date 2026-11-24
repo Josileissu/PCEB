@@ -126,7 +126,8 @@ public sealed class FerramentasMef
                     v.Delete(true);
         }
         catch (Exception) { }
-        string d = Path.Combine(raiz, prefixo + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff"));
+        // sufixo único: duas rodadas no mesmo milissegundo (testes em paralelo) não podem dividir a pasta
+        string d = Path.Combine(raiz, prefixo + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss_fff") + "_" + Guid.NewGuid().ToString("N").Substring(0, 6));
         Directory.CreateDirectory(d);
         return d;
     }

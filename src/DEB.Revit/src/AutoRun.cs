@@ -130,6 +130,33 @@ namespace DEB.Revit
                         status = "OK " + Path.Combine(dir, "resultado.txt");
                         break;
                     }
+                    case "sondaapoio":
+                    {
+                        // sonda: parâmetros PCEB_Apoio* e de dente das vigas (instância e tipo), e o aparelho lido pelo levantamento
+                        string dir = Path.Combine(DetailingReport.LogDir, "sondaapoio_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                        Directory.CreateDirectory(dir);
+                        var sb = new StringBuilder();
+                        var doc = uidoc.Document;
+                        foreach (var fi in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().OfType<FamilyInstance>().Take(6))
+                        {
+                            sb.AppendLine($"{fi.Id} {fi.Symbol.FamilyName} : {fi.Symbol.Name}");
+                            foreach (Parameter q in fi.Parameters.Cast<Parameter>().Concat(fi.Symbol.Parameters.Cast<Parameter>()))
+                            {
+                                string n = q.Definition?.Name ?? "";
+                                if (!(n.StartsWith("PCEB_") || n.ToLowerInvariant().Contains("dente") || n.ToLowerInvariant().Contains("apoio") || n == "b" || n == "h")) continue;
+                                string v = q.StorageType == StorageType.Double ? (q.AsDouble() * 30.48).ToString("0.###") + " (cm se comprimento)" : q.AsValueString() ?? q.AsString();
+                                sb.AppendLine($"   {(q.Element is ElementType ? "tipo" : "inst")} {n} = {v}");
+                            }
+                            foreach (var sub in fi.GetSubComponentIds().Select(doc.GetElement).OfType<FamilyInstance>())
+                            {
+                                var ap = DEB.Revit.Precast.PieceReview.Apoio(sub);
+                                sb.AppendLine($"   sub {sub.Id} {sub.Symbol.FamilyName}: aparelho = {(ap == null ? "null" : $"tipo {ap.Tipo}, {ap.Comprimento}×{ap.Largura}×{ap.Espessura}, afast {ap.Afastamento}")}");
+                            }
+                        }
+                        File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
+                        status = "OK " + Path.Combine(dir, "resultado.txt");
+                        break;
+                    }
                     case "muro":
                         status = "OK " + MuroAutoTest(uidoc);
                         break;

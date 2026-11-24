@@ -58,17 +58,25 @@ public static class AjustesAnalise
           "0,15 = concreto fissurado (prática usual); 1 = elástica."),
     };
 
-    private static ApoioPeca Aparelho(LigacaoConsolo l) => l.Aparelho ??= new ApoioPeca { Tipo = ApoioPeca.Neoprene };
+    /// <summary>Aparelho para editar: o da ligação; se não houver, parte do que a análise usou (ou do padrão), não de zeros.</summary>
+    private static ApoioPeca Aparelho(LigacaoConsolo l)
+    {
+        if (l.Aparelho != null) return l.Aparelho;
+        var b = l.AparelhoEmUso ?? LigacaoConsolo.AparelhoPadrao(l.Viga);
+        return l.Aparelho = new ApoioPeca { Tipo = b.Tipo, Comprimento = b.Comprimento, Largura = b.Largura, Espessura = b.Espessura, Afastamento = b.Afastamento };
+    }
+    /// <summary>Aparelho que a janela mostra: o que a análise usou.</summary>
+    private static ApoioPeca Mostrado(LigacaoConsolo l) => l.AparelhoEmUso ?? l.Aparelho;
     private static readonly PropriedadeAjuste[] Consolo =
     {
         P<LigacaoConsolo>("representacao", "Representação", "Modelo", "", l => l.Representacao == RepresentacaoLigacao.BarraRigidaEMola ? "Barra rígida + mola do aparelho" : "Barra rígida + articulação",
           (l, v) => l.Representacao = v.StartsWith("Barra rígida + mola") ? RepresentacaoLigacao.BarraRigidaEMola : RepresentacaoLigacao.BarraRigidaArticulada,
           new[] { "Barra rígida + mola do aparelho", "Barra rígida + articulação" }),
-        P<LigacaoConsolo>("aparelho", "Aparelho de apoio", "Aparelho", "", l => l.Aparelho == null ? "—" : ApoioPeca.Texto(l.Aparelho.Tipo),
+        P<LigacaoConsolo>("aparelho", "Aparelho de apoio", "Aparelho", "", l => Mostrado(l) == null ? "—" : ApoioPeca.Texto(Mostrado(l).Tipo),
           (l, v) => { if (v == "—") l.Aparelho = null; else Aparelho(l).Tipo = ApoioPeca.TipoDoTexto(v); }, ApoioPeca.Opcoes),
-        P<LigacaoConsolo>("apComp", "Comprimento (ao longo da viga)", "Aparelho", "cm", l => F(l.Aparelho?.Comprimento ?? 0), (l, v) => Aparelho(l).Comprimento = D(v)),
-        P<LigacaoConsolo>("apLarg", "Largura", "Aparelho", "cm", l => F(l.Aparelho?.Largura ?? 0), (l, v) => Aparelho(l).Largura = D(v)),
-        P<LigacaoConsolo>("apEsp", "Espessura do elastômero", "Aparelho", "cm", l => F(l.Aparelho?.Espessura ?? 0), (l, v) => Aparelho(l).Espessura = D(v)),
+        P<LigacaoConsolo>("apComp", "Comprimento (ao longo da viga)", "Aparelho", "cm", l => F(Mostrado(l)?.Comprimento ?? 0), (l, v) => Aparelho(l).Comprimento = D(v)),
+        P<LigacaoConsolo>("apLarg", "Largura", "Aparelho", "cm", l => F(Mostrado(l)?.Largura ?? 0), (l, v) => Aparelho(l).Largura = D(v)),
+        P<LigacaoConsolo>("apEsp", "Espessura do elastômero", "Aparelho", "cm", l => F(Mostrado(l)?.Espessura ?? 0), (l, v) => Aparelho(l).Espessura = D(v)),
         P<LigacaoConsolo>("zTopo", "Altura do topo do consolo (da base do pilar)", "Geometria", "cm", l => F(l.ZTopoConsolo), (l, v) => l.ZTopoConsolo = D(v)),
     };
 
