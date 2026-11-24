@@ -30,6 +30,8 @@ namespace DEB.Revit.Commands
                 TaskDialog.Show("Pilares pré-moldados", "Nenhum pilar estrutural encontrado no modelo.");
                 return Result.Cancelled;
             }
+            // reação das vigas calculadas nos consolos (D42, etapa 1): CC1–CC6 na janela e no relatório
+            ReacoesNosConsolos.Aplicar(doc, groups, notes);
 
             var win = new PrecastColumnsWindow(groups, notes);
             new WindowInteropHelper(win) { Owner = uiapp.MainWindowHandle };

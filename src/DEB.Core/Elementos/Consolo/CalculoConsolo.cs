@@ -25,8 +25,28 @@ public sealed class CargaConsolo
     public bool Indireta { get; set; }
     /// <summary>Coeficiente de atrito da interface (consolo muito curto, NBR 9062 7.3.5.4): 1,4 monolítico.</summary>
     public double Mu { get; set; } = 1.4;
+    /// <summary>Fração Hd/Vd da ligação (NBR 9062 7.3.9); 0 = o apoio padrão da configuração.</summary>
+    public double FatorHd { get; set; }
     /// <summary>Origem da carga, para o memorial ("reação da viga V3, ponta esquerda").</summary>
     public string Origem { get; set; } = "";
+
+    /// <summary>Fração Hd/Vd pelo aparelho de apoio da família (D36): elastômero 0,16; argamassa 0,5; concreto direto 0,8; sem informação 0.</summary>
+    public static double FatorDoApoio(DEB.Core.Intercambio.ApoioPeca apoio) => apoio == null ? 0
+        : apoio.Tipo == DEB.Core.Intercambio.ApoioPeca.Argamassa ? 0.5 : apoio.Tipo == DEB.Core.Intercambio.ApoioPeca.Direto ? 0.8 : 0.16;
+
+    /// <summary>
+    /// A maior das cargas (pela força de cálculo sem γn, γg·Vg + γq·Vq com 1,4) — envoltória dos consolos iguais de um grupo de
+    /// pilares. A origem diz de quantas reações veio. Lista vazia = null.
+    /// </summary>
+    public static CargaConsolo Maior(IEnumerable<CargaConsolo> cargas)
+    {
+        var l = cargas.Where(x => x != null).ToList();
+        if (l.Count == 0) return null;
+        var m = l.OrderByDescending(x => x.Vd > 0 ? x.Vd : 1.4 * (x.Vg + x.Vq)).ThenByDescending(x => x.Vg).First();
+        var r = (CargaConsolo)m.MemberwiseClone();
+        if (l.Count > 1) r.Origem = m.Origem + $" (a maior de {l.Count} reações dos pilares do grupo)";
+        return r;
+    }
 }
 
 /// <summary>Resultado do cálculo do consolo: classe, esforços, armaduras necessárias × desenhadas, verificações e memória.</summary>
@@ -98,7 +118,7 @@ public static class CalculoConsolo
         bool perm = carga.Vg >= carga.Vq;
         r.GamaN = carga.Vd > 0 ? 1 : cfg.GamaN(perm);
         r.Vd = carga.Vd > 0 ? carga.Vd : r.GamaN * (gg * carga.Vg + gq * carga.Vq);
-        double fatorApoio = FatorApoio(cfg.Texto("acoes.apoioPadrao")), hdMin = cfg.Numero("acoes.hdMin");
+        double fatorApoio = carga.FatorHd > 0 ? carga.FatorHd : FatorApoio(cfg.Texto("acoes.apoioPadrao")), hdMin = cfg.Numero("acoes.hdMin");
         r.Hd = carga.Hd > 0 ? carga.Hd : Math.Max(fatorApoio, hdMin) * r.Vd;
         m.Linhas.Add($"Consolo {N(b, "0.#")} × {N(c.H, "0.#")} cm (ponta {N(c.H1, "0.#")} cm), balanço {N(c.A, "0.#")} cm; d = {N(d, "0.0")} cm; fck = {N(c.FckMPa)} MPa; " +
                      $"γc = {N(gc)}, γs = {N(gs)} → fcd = {N(fcd, "0.00")} MPa, fyd = {N(fyd * 10, "0")} MPa (≤ 435).");
@@ -107,7 +127,7 @@ public static class CalculoConsolo
             : $"Vd = γn·(γg·Vg + γq·Vq) = {N(r.GamaN)}·({N(gg)}·{N(carga.Vg, "0.0")} + {N(gq)}·{N(carga.Vq, "0.0")}) = {N(r.Vd, "0.0")} kN " +
               $"(γn da NBR 9062 7.3.1.1, {(perm ? "permanente preponderante" : "variável preponderante")})" + (carga.Origem != "" ? $"; {carga.Origem}" : "") + ".");
         m.Linhas.Add(carga.Hd > 0 ? $"Hd digitado = {N(r.Hd, "0.0")} kN."
-            : $"Hd = máx({N(fatorApoio)}; {N(hdMin)})·Vd = {N(r.Hd, "0.0")} kN (ligação: NBR 9062 7.3.9; mínimo: El Debs, Quadro 3.2).");
+            : $"Hd = máx({N(fatorApoio)}; {N(hdMin)})·Vd = {N(r.Hd, "0.0")} kN (ligação{(carga.FatorHd > 0 ? " do aparelho de apoio" : " padrão")}: NBR 9062 7.3.9; mínimo: El Debs, Quadro 3.2).");
         m.Linhas.Add($"a = {N(r.A, "0.0")} cm" + (carga.A > 0 ? " (digitado)" : $" ({N(cfg.Numero("acoes.posCargaConsolo"))} do balanço)") + $" → a/d = {N(ad, "0.00")}.");
 
         // armadura desenhada

@@ -189,6 +189,7 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
             D("Relação a/c ≤ 0,45", WaterCement045 ? "sim (declarada)" : "não declarada");
             D("Cobrimento", $"{Fmt.N(CoverMm)} mm");
             D("Modelo de armadura", Name);
+            g.Memoria.AddRange(_memoriaConsolos);
             return g;
         }
 
@@ -284,7 +285,43 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
                 _ultimas.Juntar(consolos);
             }
 
+            // cálculo com a reação da viga (D42, etapa 1): um por consolo carregado, com a armadura desenhada
+            _memoriaConsolos = new List<DEB.Core.Documentacao.PassoMemoria>();
+            if (CorbelRebar)
+            {
+                var calc = new ListaVerificacoes();
+                foreach (Corbel k in corbels.Where(c => c.Carga != null))
+                {
+                    var res = DEB.Core.Elementos.Consolo.CalculoConsolo.Calcular(DadosCalculo(k), k.Carga, _configuracao);
+                    foreach (var x in res.Verificacoes) calc.Add(x);
+                    _memoriaConsolos.Add(res.Memoria);
+                }
+                w.AddRange(calc.Avisos());
+                _ultimas.Juntar(calc);
+            }
+
             return w;
+        }
+
+        private List<DEB.Core.Documentacao.PassoMemoria> _memoriaConsolos = new List<DEB.Core.Documentacao.PassoMemoria>();
+
+        // configuração do projeto (D43) do cálculo dos consolos; campo (não propriedade) para não entrar no modelo salvo em JSON
+        private DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto _configuracao;
+
+        /// <summary>Configuração do projeto (D43) usada no cálculo dos consolos; null = valores de partida.</summary>
+        public void UsarConfiguracao(DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto cfg) => _configuracao = cfg;
+
+        /// <summary>Consolo com a armadura do modelo, para o cálculo: nome com face e topo para achar no relatório.</summary>
+        private DadosConsolo DadosCalculo(Corbel k)
+        {
+            double b = U_.ToMm(k.Width) / 10, a = U_.ToMm(k.Projection) / 10, h = U_.ToMm(k.HeightAtFace) / 10;
+            return new DadosConsolo
+            {
+                Nome = $"face {ColumnRebarLayout.FaceNumber(k.Face)}, topo a {Fmt.Virgula(U_.ToMm(k.ZTop) / 10, "0.#")} cm ({Fmt.Virgula(b, "0.#")}x{Fmt.Virgula(h, "0.#")}x{Fmt.Virgula(a, "0.#")})",
+                B = b, A = a, H = h, H1 = Math.Min(h, U_.ToMm(k.TipHeight) / 10), Cob = CoverMm / 10,
+                TirN = TieCount, TirPhi = TieDiameterMm, TirAlca = !TieWeldedBar, CostN = SewCount, CostPhi = SewDiameterMm,
+                VertN = CorbelStirrupCount, VertPhi = CorbelStirrupDiameterMm, FckMPa = FckMPa, FykMPa = TabelasNbr.Fyk(LongSteel), Apoio = k.Apoio,
+            };
         }
 
         public int LongBarCount => 2 * LongBarsAlongX + 2 * Math.Max(0, LongBarsAlongY - 2);

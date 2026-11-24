@@ -473,7 +473,12 @@ namespace DEB.Revit
             Directory.CreateDirectory(dir);
 
             List<ColumnGroup> groups = PrecastSurvey.Run(doc, out List<string> notes);
+            int carregados = ReacoesNosConsolos.Aplicar(doc, groups, notes);
             var sb = new StringBuilder();
+            sb.AppendLine($"Consolos com reação de viga: {carregados}");
+            foreach (ColumnGroup g in groups)
+                foreach (Corbel k in g.Representative.Corbels.Where(c => c.Carga != null))
+                    sb.AppendLine($"{g.Mark}: consolo face {ColumnRebarLayout.FaceNumber(k.Face)}, Vg = {k.Carga.Vg:0.0} kN, Vq = {k.Carga.Vq:0.0} kN, Hd/Vd = {k.Carga.FatorHd:0.00} — {k.Carga.Origem}");
             foreach (string n in notes) sb.AppendLine("NOTA: " + n);
             if (vary)
                 for (int i = 0; i < groups.Count; i++)
