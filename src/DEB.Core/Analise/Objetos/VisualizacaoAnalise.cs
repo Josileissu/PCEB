@@ -128,6 +128,15 @@ public static class VisualizacaoAnalise
                     cx.Adicionar(q);
                 }
                 var o = ValorJson.NovoObjeto(); o.Definir("caixas", cx); o.Definir("tipo", l.Tipo.ToString()); o.Definir("modelo", l.Modelo.Nome);
+                // barra e ponta da peça que chega na ligação (esforços no nó, como no IDEA StatiCa): viga na ponta ligada; pilar na base
+                var peca = l.Viga ?? l.Pilar;
+                if (peca != null && peca.Barras.Count > 0)
+                {
+                    bool pi = l.Viga != null ? l.PontaI : true;
+                    var bar = pi ? peca.Barras[0] : peca.Barras[peca.Barras.Count - 1];
+                    o.Definir("barra", m.Barras.IndexOf(bar)); o.Definir("pontaI", pi); o.Definir("peca", peca.Dono.ToString());
+                    if (l.Suporte != null) o.Definir("suporte", l.Suporte.Dono.ToString());
+                }
                 lacos.Definir(Chave(l.Dono), o);
             }
             catch (Exception) { /* sem desenho: o painel mostra só o dimensionamento */ }

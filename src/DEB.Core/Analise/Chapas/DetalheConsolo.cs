@@ -175,6 +175,8 @@ public static class DetalheConsolo
         double ate = l.PontaI ? l.Viga.ApoioAtePontaI : l.Viga.ApoioAtePontaJ;
         double xFace = ate > 0 ? r.Pos - ate : r.Pos - r.Pad / 2 - 3;
         var pt = ValorJson.NovaLista(); g.Definir("ponta", pt);
+        // forma da ponta só se for coerente com a seção da viga (o levantamento pode trazer peças aninhadas na forma)
+        if (perfil.Any(q => q.ZTopo - q.ZBase > 1.2 * l.Viga.Secao.H || q.ZTopo > 1.2 * l.Viga.Secao.H)) perfil = new List<(double, double, double, double)>();
         if (perfil.Count == 0) perfil = new List<(double, double, double, double)> { (0, 1.5 * l.Viga.Secao.H, 0, l.Viga.Secao.H) };
         double zApoio = perfil.OrderBy(x => x.X0).First().ZBase;   // o fundo da ponta apoia no aparelho
         foreach (var (x0, x1, zb, zt) in perfil)

@@ -553,7 +553,7 @@ function desenharConsolo(w, h, chave) {
   { const xa = X(g.pos), ya0 = Y(ytq) - 18, ya1 = Y(-g.h) + 16; ctx2.strokeStyle = css("--fg"); ctx2.lineWidth = 1; ctx2.setLineDash([10, 3, 2, 3]);
     ctx2.beginPath(); ctx2.moveTo(xa, ya0); ctx2.lineTo(xa, ya1); ctx2.stroke(); ctx2.setLineDash([]);
     texto2(xa + 4, ya0 + 2, "A", css("--fg")); texto2(xa + 4, ya1 + 2, "A", css("--fg")); }
-  if (g.aparelho) texto2(X(g.pos + g.pad / 2) + 6, Y(0) + 14, g.aparelho, css("--suave"));
+  if (g.aparelho) texto2(X(g.a) + 8, Y(-g.h1 / 2), g.aparelho, css("--suave"));
   // biela e tirante
   const zt = -(g.cob + 0.8), zb = zt - b.z;
   ctx2.strokeStyle = css("--c-def"); ctx2.lineWidth = 3;
@@ -565,8 +565,14 @@ function desenharConsolo(w, h, chave) {
   // cargas
   const seta = (x, y, dx, dy, cor, t) => { ctx2.strokeStyle = cor; ctx2.fillStyle = cor; ctx2.lineWidth = 2; ctx2.beginPath(); ctx2.moveTo(x - dx, y - dy); ctx2.lineTo(x, y); ctx2.stroke();
     const a = Math.atan2(dy, dx); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x - 9 * Math.cos(a - 0.4), y - 9 * Math.sin(a - 0.4)); ctx2.lineTo(x - 9 * Math.cos(a + 0.4), y - 9 * Math.sin(a + 0.4)); ctx2.fill(); if (t) texto2(x - dx + 4, y - dy - 4, t, cor); };
-  seta(X(g.pos), Y(tAp), 0, 46, css("--c-carga"), `Vd = ${U("forca", c.vd, 1)}`);
-  if (Math.abs(c.hd) > 1e-6) { seta(X(g.pos) + (c.hd > 0 ? 50 : -50), Y(tAp / 2) - 6, c.hd > 0 ? 46 : -46, 0, css("--c-carga"), ""); texto2(X(g.pos) + 6, Y(tAp / 2) - 22, `Hd = ${U("forca", c.hd, 2)}`, css("--c-carga")); }
+  // nó A: o ponto do aparelho onde a análise entrega as forças da viga (Vd para baixo, Hd ao longo da viga)
+  { const xa = X(g.pos), ya = Y(tAp), cor = css("--c-carga");
+    seta(xa, ya - 6, 0, 70, cor, "");
+    ctx2.font = "bold 13px " + css("--f-dado"); ctx2.fillStyle = cor; ctx2.fillText(`Vd = ${U("forca", c.vd, 1)}`, xa + 8, ya - 56);
+    if (Math.abs(c.hd) > 1e-6) { const sx = c.hd >= 0 ? -1 : 1;   // Hd > 0 puxa o consolo para a viga: a seta vem do lado da viga
+      seta(xa + sx * 6, ya, sx * 80, 0, cor, ""); ctx2.fillText(`Hd = ${U("forca", Math.abs(c.hd), 2)}`, xa + sx * 86 - (sx < 0 ? 70 : 0), ya - 8); }
+    ctx2.fillStyle = cor; ctx2.beginPath(); ctx2.arc(xa, ya, 5.5, 0, 7); ctx2.fill();
+    ctx2.fillText("A (nó)", xa - 54, ya + 18); }
   if (c.n > 0) seta(X(-g.lp / 2), Y(g.lp), 0, 40, css("--c-carga"), `N = ${U("forca", c.n, 1)}`);
   // cotas e títulos
   texto2(50, 62, `${(D.objetos.find(o => o.chave === chave) || {}).nome || chave} — ${c.comb} (análise, sem γn)  ·  consolo ${fmt(g.b, 0)} × ${fmt(g.h, 0)}/${fmt(g.h1, 0)} cm, balanço ${fmt(g.a, 0)} cm, a = ${fmt(g.pos, 1)} cm${g.estimado ? " · geometria ESTIMADA (sem detalhamento do pilar)" : ""}`, css("--suave"));
@@ -587,7 +593,6 @@ function desenharConsolo(w, h, chave) {
       (CT.hipoteses || []).forEach(t => { const pal = t.split(" "); let l = ""; pal.forEach(p => { if ((l + p).length > 56) { linha(l, css("--suave")); l = "  "; } l += p + " "; }); linha(l, css("--suave")); });
     }
     py += 6; linha("Escolha o campo nos botões acima do desenho (ou teclas 1, 2, x, y, t, c).", css("--suave"));
-    corteA(px, py + 10, w - px - 20, h - py - 30, g, c);
     return;
   }
   linha("Campo: " + { S1: "σ1 (tração +)", S2: "σ2 (compressão −)", Sx: "σx", Sy: "σy", Txy: "τxy" }[campoConsolo] + " · " + S("tensao"), css("--suave"));
@@ -600,7 +605,6 @@ function desenharConsolo(w, h, chave) {
   py += 6; linha("Consolo: " + nomeSit(det.dim.situacao) + " (detalhes no painel)", corSit(det.dim.situacao));
   py += 6; linha("Campos nos botões acima do desenho; \"Campo de tensões\" = análise não", css("--suave"));
   linha("linear com o concreto fissurado e as armaduras (alguns segundos).", css("--suave"));
-  corteA(px, py + 10, w - px - 20, h - py - 30, g, c);
 }
 
 // escala arco-íris em faixas (a do IDEA StatiCa: azul escuro → ciano → verde → amarelo → vermelho), níveis redondos
@@ -674,36 +678,122 @@ function corteA(px, py, larg, alt, g, c) {
   texto2(px, Y(-g.h) + 30, `viga na ponta ${fmt(bv, 0)} × ${fmt(hv, 0)} cm · aparelho ${fmt(la, 0)} cm`, css("--suave"));
 }
 
-// ligação de aço (como na biblioteca): vista de topo, frontal, lateral e 3D com os perfis transparentes
+// ligação de aço como no IDEA StatiCa: um 3D sombreado (pilar azul, viga laranja, chapas azul-escuro, parafusos amarelos com cabeça
+// e porca sextavadas) e os esforços da peça no nó (setas de força e de momento) com a tabela por combinação
+let VISTA_LIG = { az: -35, el: 28 };
 function desenharLigacaoAco(w, h, chave, L) {
-  const COR = { Membro: "#9aa3ad", Chapa: "#e0a93b", Enrijecedor: "#b9661d", Parafuso: "#2b4a7a", Solda: "#b8322a", Concreto: "#c8c8c8" };
-  const ALFA = { Membro: .18, Concreto: .35 };
-  const C = L.caixas.map(c => ({ p: c[0], x0: c[1], x1: c[2], y0: c[3], y1: c[4], z0: c[5], z1: c[6], r: c[7] }));
-  const base = L.tipo === "PlacaBase";
   const nome = (D.objetos.find(o => o.chave === chave) || {}).nome || chave;
-  texto2(16, 62, `${nome} — ${L.modelo} (desenho da biblioteca de ligações com os perfis das peças)`, css("--suave"));
-  const pw = (w - 48) / 2, ph = (h - 110) / 2;
-  const caixa = (i, polys, tit) => {
-    const ox0 = 16 + (i % 2) * (pw + 16), oy0 = 80 + Math.floor(i / 2) * (ph + 16);
-    ctx2.strokeStyle = css("--linha"); ctx2.lineWidth = 1; ctx2.strokeRect(ox0, oy0, pw, ph); texto2(ox0 + 8, oy0 + 16, tit, css("--suave"));
-    let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9; polys.forEach(p => p.pts.forEach(([u, v]) => { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }));
-    const k = Math.min((pw - 30) / Math.max(1, u1 - u0), (ph - 40) / Math.max(1, v1 - v0)), cx = ox0 + 15 + ((pw - 30) - (u1 - u0) * k) / 2, cy = oy0 + 26 + ((ph - 40) - (v1 - v0) * k) / 2;
-    polys.sort((a, b) => a.prof - b.prof).forEach(p => {
-      ctx2.beginPath(); p.pts.forEach(([u, v], j) => { const x = cx + (u - u0) * k, y = cy + (v1 - v) * k; j ? ctx2.lineTo(x, y) : ctx2.moveTo(x, y); }); ctx2.closePath();
-      ctx2.globalAlpha = (ALFA[p.papel] ?? .95) * (p.sombra || 1); ctx2.fillStyle = COR[p.papel] || "#999"; ctx2.fill();
-      ctx2.globalAlpha = p.papel === "Membro" ? .55 : .9; ctx2.strokeStyle = "#333"; ctx2.lineWidth = .7; ctx2.stroke(); ctx2.globalAlpha = 1;
-    });
+  texto2(16, 62, `${nome} — ${L.modelo}  ·  arraste com o botão do meio ou use ← → ↑ ↓ para girar`, css("--suave"));
+  const C = L.caixas.map(c => ({ p: c[0], x0: c[1], x1: c[2], y0: c[3], y1: c[4], z0: c[5], z1: c[6], r: c[7] }));
+  // a peça que chega (viga) é a que tem o maior x; o resto dos membros é o suporte
+  const xMaxMembro = Math.max(...C.filter(c => c.p === "Membro").map(c => c.x1));
+  const COR = { suporte: [143, 176, 211], peca: [217, 118, 43], Chapa: [44, 62, 140], Enrijecedor: [44, 62, 140], Parafuso: [232, 194, 26], Solda: [235, 170, 30], Concreto: [190, 190, 190] };
+  const az = VISTA_LIG.az * Math.PI / 180, el = VISTA_LIG.el * Math.PI / 180;
+  // projeção: gira em z (az) e inclina (el); profundidade para o pintor
+  const proj = ([x, y, z]) => { const xr = x * Math.cos(az) - y * Math.sin(az), yr = x * Math.sin(az) + y * Math.cos(az);
+    return [xr, z * Math.cos(el) - yr * Math.sin(el), yr * Math.cos(el) + z * Math.sin(el)]; };
+  const luz = [0.4, -0.5, 0.75];
+  const faces = [];
+  const face = (pts, cor, alfa = 1) => {
+    const [a, b, c] = pts; const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    let n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]]; const nn = Math.hypot(...n) || 1; n = n.map(x => x / nn);
+    const pp = pts.map(proj), prof = pp.reduce((s0, q) => s0 + q[2], 0) / pp.length;
+    const k = 0.55 + 0.45 * Math.abs(n[0] * luz[0] + n[1] * luz[1] + n[2] * luz[2]);
+    faces.push({ pp, prof, cor: `rgba(${Math.round(cor[0] * k)},${Math.round(cor[1] * k)},${Math.round(cor[2] * k)},${alfa})` });
   };
-  const orto = (fu, fv, fd) => C.map(c => { const [a0, a1] = fu(c), [b0, b1] = fv(c); return { pts: [[a0, b0], [a1, b0], [a1, b1], [a0, b1]], papel: c.p, prof: fd(c) }; });
-  const q = (x, y, z) => [(x + y) * Math.cos(Math.PI / 6), z + (y - x) * Math.sin(Math.PI / 6)];
-  const iso = [];
-  C.forEach(c => [[[c.x0, c.y0, c.z1], [c.x1, c.y0, c.z1], [c.x1, c.y1, c.z1], [c.x0, c.y1, c.z1], 1], [[c.x0, c.y0, c.z0], [c.x1, c.y0, c.z0], [c.x1, c.y0, c.z1], [c.x0, c.y0, c.z1], .8],
-                  [[c.x1, c.y0, c.z0], [c.x1, c.y1, c.z0], [c.x1, c.y1, c.z1], [c.x1, c.y0, c.z1], .65]]
-    .forEach(f => iso.push({ pts: f.slice(0, 4).map(p => q(...p)), papel: c.p, sombra: f[4], prof: (c.x0 + c.x1) / 2 - (c.y0 + c.y1) / 2 + (c.p === "Membro" || c.p === "Concreto" ? -1e5 : 0) })));
-  caixa(0, orto(c => [c.x0, c.x1], c => [c.y0, c.y1], c => c.z1), base ? "Planta (vista de topo)" : "Vista de topo");
-  caixa(1, orto(c => [c.y0, c.y1], c => [c.z0, c.z1], c => base ? c.x1 : -c.x0), "Vista frontal (corte transversal)");
-  caixa(2, orto(c => [c.x0, c.x1], c => [c.z0, c.z1], c => -c.y0), "Vista lateral (corte longitudinal)");
-  caixa(3, iso, "3D — perfis transparentes");
+  const caixa3 = (c, cor, alfa) => {
+    const P = (x, y, z) => [x, y, z];
+    const v = [P(c.x0, c.y0, c.z0), P(c.x1, c.y0, c.z0), P(c.x1, c.y1, c.z0), P(c.x0, c.y1, c.z0), P(c.x0, c.y0, c.z1), P(c.x1, c.y0, c.z1), P(c.x1, c.y1, c.z1), P(c.x0, c.y1, c.z1)];
+    [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]].forEach(f => face(f.map(i => v[i]), cor, alfa));
+  };
+  // prisma (cilindro com n lados ou sextavado) entre dois pontos do eixo
+  const prisma = (a, b, r, n, cor) => {
+    const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], L0 = Math.hypot(...d), t = d.map(x => x / L0);
+    const ref = Math.abs(t[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+    let e1 = [t[1] * ref[2] - t[2] * ref[1], t[2] * ref[0] - t[0] * ref[2], t[0] * ref[1] - t[1] * ref[0]]; const m1 = Math.hypot(...e1); e1 = e1.map(x => x / m1);
+    const e2 = [t[1] * e1[2] - t[2] * e1[1], t[2] * e1[0] - t[0] * e1[2], t[0] * e1[1] - t[1] * e1[0]];
+    const anel = c0 => Array.from({ length: n }, (_, k) => { const f = 2 * Math.PI * k / n; return [0, 1, 2].map(q => c0[q] + r * (Math.cos(f) * e1[q] + Math.sin(f) * e2[q])); });
+    const A = anel(a), B = anel(b);
+    for (let k = 0; k < n; k++) face([A[k], A[(k + 1) % n], B[(k + 1) % n], B[k]], cor);
+    face(A, cor); face(B, cor);
+  };
+  C.forEach(c => {
+    if (c.p === "Parafuso") {
+      // eixo do parafuso = a maior dimensão da caixa; fuste redondo, cabeça e porca sextavadas, arruela
+      const dx = c.x1 - c.x0, dy = c.y1 - c.y0, dz = c.z1 - c.z0, mx = Math.max(dx, dy, dz);
+      const ax = mx === dx ? 0 : mx === dy ? 1 : 2, d0 = Math.min(dx, dy, dz) || 16, r = d0 / 2;
+      const cen = [(c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2, (c.z0 + c.z1) / 2];
+      const ponta = s0 => { const q = cen.slice(); q[ax] = s0; return q; };
+      const a0 = [c.x0, c.y0, c.z0][ax], a1 = [c.x1, c.y1, c.z1][ax], kc = 0.65 * d0, m = 0.85 * d0, ch = 0.85 * d0;
+      prisma(ponta(a0 + kc), ponta(a1 - m), r, 12, COR.Parafuso);
+      prisma(ponta(a0), ponta(a0 + kc), ch, 6, COR.Parafuso);
+      prisma(ponta(a1 - m - 0.12 * d0), ponta(a1 - m), 1.0 * d0, 16, COR.Parafuso);
+      prisma(ponta(a1 - m), ponta(a1), ch, 6, COR.Parafuso);
+      return;
+    }
+    if (c.p === "Membro") return caixa3(c, c.x1 >= xMaxMembro - 1 && c.x0 > 0 ? COR.peca : COR.suporte, 1);
+    caixa3(c, COR[c.p] || [150, 150, 150], c.p === "Concreto" ? 0.6 : 1);
+  });
+  // esforços da peça no nó (combinação escolhida), no sistema da ligação: x ao longo da viga, z para cima
+  let F = null;
+  if (L.barra != null && R && R.estacoes && R.estacoes[L.barra]) {
+    const est = R.estacoes[L.barra], s0 = L.pontaI ? est[0] : est[est.length - 1];
+    F = { N: s0[1], Vy: s0[2], Vz: s0[3], T: s0[4], My: s0[5], Mz: s0[6] };
+  }
+  // enquadramento
+  const pts2 = faces.flatMap(f => f.pp);
+  let u0 = Math.min(...pts2.map(q => q[0])), u1 = Math.max(...pts2.map(q => q[0])), v0 = Math.min(...pts2.map(q => q[1])), v1 = Math.max(...pts2.map(q => q[1]));
+  const larg = w - 380, alt = h - 120, k = Math.min((larg - 40) / Math.max(1, u1 - u0), (alt - 40) / Math.max(1, v1 - v0));
+  const ox = 30 + (larg - (u1 - u0) * k) / 2 - u0 * k, oy = 80 + (alt - (v1 - v0) * k) / 2 + v1 * k;
+  const XY = q => [ox + q[0] * k, oy - q[1] * k];
+  faces.sort((a, b) => a.prof - b.prof).forEach(f => {
+    ctx2.beginPath(); f.pp.forEach((q, i) => { const [x, y] = XY(q); i ? ctx2.lineTo(x, y) : ctx2.moveTo(x, y); }); ctx2.closePath();
+    ctx2.fillStyle = f.cor; ctx2.fill(); ctx2.strokeStyle = "rgba(20,30,50,0.35)"; ctx2.lineWidth = 0.5; ctx2.stroke();
+  });
+  // setas na ponta da peça (verde, como no IDEA): forças retas, momentos em arco com seta dupla
+  if (F) {
+    const membrosPeca = C.filter(c => c.p === "Membro" && c.x1 >= xMaxMembro - 1 && c.x0 > 0);
+    const xe = xMaxMembro, zc = (Math.min(...membrosPeca.map(c => c.z0)) + Math.max(...membrosPeca.map(c => c.z1))) / 2;
+    const tam = Math.max(...membrosPeca.map(c => c.z1 - c.z0)) * 0.8;
+    const P0 = [xe, 0, zc], verde = "#1f9d3a";
+    const seta3 = (dir, val, rot) => {
+      if (Math.abs(val) < 1e-6) return;
+      const sg = Math.sign(val), a = XY(proj(P0)), b = XY(proj([P0[0] + dir[0] * tam * sg, P0[1] + dir[1] * tam * sg, P0[2] + dir[2] * tam * sg]));
+      ctx2.strokeStyle = verde; ctx2.fillStyle = verde; ctx2.lineWidth = 3; ctx2.beginPath(); ctx2.moveTo(a[0], a[1]); ctx2.lineTo(b[0], b[1]); ctx2.stroke();
+      const an = Math.atan2(b[1] - a[1], b[0] - a[0]); ctx2.beginPath(); ctx2.moveTo(b[0], b[1]); ctx2.lineTo(b[0] - 12 * Math.cos(an - 0.4), b[1] - 12 * Math.sin(an - 0.4)); ctx2.lineTo(b[0] - 12 * Math.cos(an + 0.4), b[1] - 12 * Math.sin(an + 0.4)); ctx2.fill();
+      rotulo3(b[0] + 6, b[1] - 4, rot);
+    };
+    const momento3 = (eixo, val, rot) => {
+      if (Math.abs(val) < 1e-6) return;
+      // arco de 270° em volta do eixo, com duas pontas de seta (convenção do IDEA para momento)
+      const e1 = eixo[0] ? [0, 1, 0] : [1, 0, 0], e2 = [eixo[1] * e1[2] - eixo[2] * e1[1], eixo[2] * e1[0] - eixo[0] * e1[2], eixo[0] * e1[1] - eixo[1] * e1[0]];
+      const rr = tam * 0.35, c0 = [P0[0] + eixo[0] * tam * 0.5, P0[1] + eixo[1] * tam * 0.5, P0[2] + eixo[2] * tam * 0.5];
+      const pts = Array.from({ length: 28 }, (_, q) => { const f = Math.sign(val) * (q / 27) * 1.5 * Math.PI; return XY(proj([0, 1, 2].map(i => c0[i] + rr * (Math.cos(f) * e1[i] + Math.sin(f) * e2[i])))); });
+      ctx2.strokeStyle = verde; ctx2.fillStyle = verde; ctx2.lineWidth = 3; ctx2.beginPath(); pts.forEach((q, i) => i ? ctx2.lineTo(q[0], q[1]) : ctx2.moveTo(q[0], q[1])); ctx2.stroke();
+      const b = pts[pts.length - 1], a = pts[pts.length - 3], an = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      for (const off of [0, 9]) { const bx = b[0] - off * Math.cos(an), by = b[1] - off * Math.sin(an);
+        ctx2.beginPath(); ctx2.moveTo(bx, by); ctx2.lineTo(bx - 11 * Math.cos(an - 0.45), by - 11 * Math.sin(an - 0.45)); ctx2.lineTo(bx - 11 * Math.cos(an + 0.45), by - 11 * Math.sin(an + 0.45)); ctx2.fill(); }
+      rotulo3(b[0] + 6, b[1] + 12, rot);
+    };
+    const rotulo3 = (x, y, t) => { ctx2.font = "12px " + css("--f-dado"); const lw = ctx2.measureText(t).width + 8; ctx2.fillStyle = "rgba(255,255,255,0.9)"; ctx2.fillRect(x - 2, y - 12, lw, 16);
+      ctx2.strokeStyle = "#888"; ctx2.lineWidth = 0.6; ctx2.strokeRect(x - 2, y - 12, lw, 16); ctx2.fillStyle = "#111"; ctx2.fillText(t, x + 2, y); };
+    seta3([1, 0, 0], F.N, `N ${fmt(conv("forca", F.N), 2)}`);
+    seta3([0, 0, 1], F.Vz, `Vz ${fmt(conv("forca", F.Vz), 2)}`);
+    seta3([0, 1, 0], F.Vy, `Vy ${fmt(conv("forca", F.Vy), 2)}`);
+    momento3([0, 1, 0], F.My, `My ${fmt(conv("momento", F.My), 2)}`);
+    momento3([0, 0, 1], F.Mz, `Mz ${fmt(conv("momento", F.Mz), 2)}`);
+    // tabela à direita, como no IDEA
+    const px = w - 350; let py = 96;
+    texto2(px, py, `Esforços no nó · ${R.nome}`, css("--fg")); py += 20;
+    const cab = ["Peça", "N", "Vy", "Vz", "Mx", "My", "Mz"], xs = [0, 92, 132, 172, 212, 252, 292];
+    cab.forEach((t, i) => texto2(px + xs[i], py, t, css("--suave"))); py += 6;
+    ctx2.strokeStyle = css("--linha"); ctx2.beginPath(); ctx2.moveTo(px, py); ctx2.lineTo(px + 340, py); ctx2.stroke(); py += 16;
+    const vals = [(L.peca || "peça").slice(0, 13) + (L.pontaI ? " / I" : " / J"), fmt(conv("forca", F.N), 1), fmt(conv("forca", F.Vy), 1), fmt(conv("forca", F.Vz), 1),
+                  fmt(conv("momento", F.T), 1), fmt(conv("momento", F.My), 1), fmt(conv("momento", F.Mz), 1)];
+    vals.forEach((t, i) => texto2(px + xs[i], py, t, css("--fg"))); py += 22;
+    texto2(px, py, `forças em ${S("forca")}, momentos em ${S("momento")}; eixos locais da peça`, css("--suave")); py += 16;
+    if (L.suporte) texto2(px, py, `suporte: ${L.suporte}`, css("--suave"));
+  } else texto2(w - 350, 96, "Sem esforços da peça neste resultado.", css("--suave"));
 }
 
 function desenharPeca() {
@@ -965,6 +1055,11 @@ $("resultado").addEventListener("change", () => { R = D.resultados[+$("resultado
 ["esforco", "escala", "verCargas", "verNomes"].forEach(id => $(id).addEventListener("input", desenhar));
 $("ajustar").addEventListener("click", ajustar);
 $("exportar").addEventListener("change", ev => { const f = ev.target.value; ev.target.value = ""; if (f) enviar({ acao: "exportar", formato: f }); });
+window.addEventListener("keydown", ev => {
+  if (aba !== "peca" || !(D && D.ligacoesAco && D.ligacoesAco[sel])) return;
+  const d = { ArrowLeft: [-10, 0], ArrowRight: [10, 0], ArrowUp: [0, 6], ArrowDown: [0, -6] }[ev.key];
+  if (d) { VISTA_LIG.az += d[0]; VISTA_LIG.el = Math.max(-80, Math.min(85, VISTA_LIG.el + d[1])); desenhar(); ev.preventDefault(); }
+});
 document.querySelectorAll("#camposConsolo button").forEach(b => b.addEventListener("click", () => { campoConsolo = b.dataset.campo; desenhar(); }));
 window.addEventListener("keydown", ev => { if (aba !== "peca" || !ehConsolo(sel)) return; const k = { "1": "S1", "2": "S2", "x": "Sx", "y": "Sy", "t": "Txy", "c": "C" }[ev.key]; if (k) { campoConsolo = k; desenhar(); } });
 document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
