@@ -115,34 +115,68 @@ namespace DEB.Revit.Escadas
                 var p = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - 3 * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
                 Criar(doc, w.Resultado, p, dir, "premoldada", sb);
 
-                // ---- 5. escada em U por peças: os dois lances chegam pelo lado do patamar, que apoia na viga do patamar ----
-                var c = new ConjuntoEscada();
-                c.Pecas.Add(("L1", ep)); c.Pecas.Add(("L2", ep.Copia()));
-                var pat = new EscadaLaje
+            }
+            // ---- 5. escadas em U (com a viga do patamar) e em L, pela janela do conjunto, criadas de uma vez ----
+            {
+                var lp = e.Copia();
+                lp.Execucao = ExecucaoEscada.PreMoldada; lp.PatamarInferior = 40; lp.PatamarSuperior = 60;
+                lp.LigacaoInferior = new LigacaoEscada { Ponta = PontaPreMoldada.ApoioDireto, ComprimentoApoio = 15, Apoio = ApoioPreMoldado.Elastomero, Pinos = 2, BitolaPino = 16 };
+                lp.LigacaoSuperior = new LigacaoEscada { Ponta = PontaPreMoldada.Dente, ComprimentoApoio = 15, AlturaDente = 10, ComprimentoDente = 25, Apoio = ApoioPreMoldado.Argamassa, Pinos = 2, BitolaPino = 16 };
+                foreach (var (modelo, nome, dy) in new[] { (0, "conjunto_u", 4), (1, "conjunto_l", 6) })
                 {
-                    Peca = PecaEscada.Patamar, ComprimentoPatamar = 150, Largura = 255, Espessura = 16, Execucao = ExecucaoEscada.PreMoldada,
-                    LigacaoInferior = new LigacaoEscada { Ponta = PontaPreMoldada.ApoioDireto, ComprimentoApoio = 15, Apoio = ApoioPreMoldado.Elastomero, Pinos = 2, BitolaPino = 16 },
-                    LigacaoSuperior = new LigacaoEscada { Ponta = PontaPreMoldada.ApoioDireto, ComprimentoApoio = 15, Apoio = ApoioPreMoldado.Argamassa, Pinos = 2, BitolaPino = 16 },
-                };
-                c.Pecas.Add(("PAT", pat));
-                c.Vigas.Add(new VigaPatamar { Nome = "VE", B = 20, H = 50, Comprimento = 320, ApoioE = 10, ApoioD = 10, Fck = 40 });
-                c.Apoios.Add(new ApoioEntrePecas { Apoiada = "L1", Ponta = PontaPeca.Superior, Suporte = "PAT", X = 15 });
-                c.Apoios.Add(new ApoioEntrePecas { Apoiada = "L2", Ponta = PontaPeca.Inferior, Suporte = "PAT", X = 15 });
-                c.Apoios.Add(new ApoioEntrePecas { Apoiada = "PAT", Ponta = PontaPeca.Superior, Suporte = "VE", X = 160, Direcao = DirecaoApoio.AoLongo });
-                var rc = CalculoConjuntoEscada.Calcular(c);
-                sb.AppendLine($"== conjunto em U: ordem {string.Join(" → ", rc.Ordem)}; erros: {string.Join(" | ", rc.Erros)}");
-                foreach (string t in rc.Transferencias) sb.AppendLine("  " + t);
-                foreach (var re in rc.ReacoesExternas) sb.AppendLine($"  sai do conjunto: {re.Peca} ({re.Ponta}) G {re.G:0.0} + Q {re.Q:0.0} kN");
-                if (rc.Vigas.TryGetValue("VE", out var rv)) sb.AppendLine($"  VE 20×50: Md {rv.MdMax:0.0} kN·m, reações G {rv.RkE_G:0.0}/{rv.RkD_G:0.0} kN, flecha {rv.FlechaTotal:0.00} cm");
-                if (rc.Pecas.TryGetValue("PAT", out var rp))
-                {
-                    var wp = new EscadaWindow(rp.Entrada, "Autoteste");
-                    wp.ConferirMefAgora();
-                    Escrever(sb, "patamar", wp.Resultado);
-                    foreach (var lc in wp.Resultado.Ligacoes) sb.AppendLine($"  ligação {lc.Lado}: Fd {lc.Fd:0.0} kN/m, Hd {lc.Hd:0.0} kN/m");
-                    RenderToPng(wp, Path.Combine(dir, "janela_patamar.png"));
-                    var pp = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - 4 * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
-                    Criar(doc, wp.Resultado, pp, dir, "patamar", sb);
+                    var wc = new ConjuntoEscadaWindow(lp, "Autoteste");
+                    wc.Montar(modelo);
+                    var rc = wc.Resultado;
+                    sb.AppendLine($"== {nome}: {wc.Conjunto.Modelo}; ordem {string.Join(" → ", rc.Ordem)}; erros: {string.Join(" | ", rc.Erros)}");
+                    foreach (string t in rc.Transferencias) sb.AppendLine("  " + t);
+                    foreach (string a in rc.Avisos) sb.AppendLine("  aviso: " + a);
+                    foreach (var re in rc.ReacoesExternas) sb.AppendLine($"  sai do conjunto: {re.Peca} ({re.Ponta}) G {re.G:0.0} + Q {re.Q:0.0} kN");
+                    foreach (var kv in rc.Vigas) sb.AppendLine($"  {kv.Key}: Md {kv.Value.MdMax:0.0} kN·m, reações G {kv.Value.RkE_G:0.0}/{kv.Value.RkD_G:0.0} kN, {string.Join("; ", kv.Value.ResumoProposta())}");
+                    foreach (var kv in rc.Pecas) sb.AppendLine($"  {kv.Key}: Md {kv.Value.MdMax:0.00} kN·m/m, {kv.Value.Verificacoes.Count(v => v.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.NaoAtende)} não atende");
+                    RenderToPng(wc, wc.Abas, Path.Combine(dir, $"janela_{nome}.png"));
+                    var org = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - dy * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
+                    var logs = ConjuntoEscadaCommand.Criar(doc, wc.Conjunto, rc, org);
+                    foreach (var kv in logs)
+                    {
+                        sb.AppendLine($"  criada {kv.Key}");
+                        foreach (var w in kv.Value.Warnings) sb.AppendLine("    ATENÇÃO " + w);
+                        foreach (var w in kv.Value.Errors) sb.AppendLine("    ERRO " + w);
+                    }
+                    // barras dentro da caixa de cada peça
+                    var inst = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
+                        .Where(x => x.Symbol.Family.Name.StartsWith(EscadasRevit.PrefixoFamilia) && logs.Keys.Any(k => k.EndsWith("(" + x.Symbol.Family.Name.Substring(EscadasRevit.PrefixoFamilia.Length) + ")"))).ToList();
+                    BoundingBoxXYZ caixa = null;
+                    foreach (var fi in inst)
+                    {
+                        var bb = fi.get_BoundingBox(null);
+                        caixa = caixa == null ? new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max } : new BoundingBoxXYZ
+                        {
+                            Min = new XYZ(Math.Min(caixa.Min.X, bb.Min.X), Math.Min(caixa.Min.Y, bb.Min.Y), Math.Min(caixa.Min.Z, bb.Min.Z)),
+                            Max = new XYZ(Math.Max(caixa.Max.X, bb.Max.X), Math.Max(caixa.Max.Y, bb.Max.Y), Math.Max(caixa.Max.Z, bb.Max.Z)),
+                        };
+                        var rbs = new FilteredElementCollector(doc).OfClass(typeof(Rebar)).Cast<Rebar>().Where(x => x.GetHostId() == fi.Id).ToList();
+                        double tol = 10 * Cm;
+                        int fora = rbs.Count(x => { var b2 = x.get_BoundingBox(null); return b2 == null || b2.Min.X < bb.Min.X - tol || b2.Max.X > bb.Max.X + tol || b2.Min.Y < bb.Min.Y - tol || b2.Max.Y > bb.Max.Y + tol || b2.Min.Z < bb.Min.Z - tol || b2.Max.Z > bb.Max.Z + tol; });
+                        sb.AppendLine($"  {fi.Symbol.Family.Name}: {rbs.Count} conjuntos, {rbs.Sum(x => x.Quantity)} barras, fora da peça: {fora}");
+                    }
+                    if (caixa == null) continue;
+                    View3D v3;
+                    using (var t = new Transaction(doc, "3D do conjunto (autoteste)"))
+                    {
+                        t.Start();
+                        var t3d = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>().First(v => v.ViewFamily == ViewFamily.ThreeDimensional);
+                        v3 = View3D.CreateIsometric(doc, t3d.Id);
+                        v3.Name = $"Escada {nome} — 3D (autoteste)"; v3.DetailLevel = ViewDetailLevel.Fine;
+                        v3.SetSectionBox(new BoundingBoxXYZ { Min = caixa.Min - new XYZ(1, 1, 1), Max = caixa.Max + new XYZ(1, 1, 1) });
+                        t.Commit();
+                    }
+                    var ieo = new ImageExportOptions
+                    {
+                        ExportRange = ExportRange.SetOfViews, FilePath = Path.Combine(dir, nome + "_3d"), FitDirection = FitDirectionType.Horizontal,
+                        HLRandWFViewsFileType = ImageFileType.PNG, ShadowViewsFileType = ImageFileType.PNG, ImageResolution = ImageResolution.DPI_150, PixelSize = 2000, ZoomType = ZoomFitType.FitToPage,
+                    };
+                    ieo.SetViewsAndSheets(new List<ElementId> { v3.Id });
+                    doc.ExportImage(ieo);
                 }
             }
             sb.AppendLine("diálogos fechados: " + string.Join(" | ", AutoRun.Dialogs));
@@ -253,12 +287,14 @@ namespace DEB.Revit.Escadas
         }
 
         /// <summary>Uma imagem por aba (janela.png, janela_2.png…).</summary>
-        public static void RenderToPng(EscadaWindow w, string path, int width = 1500, int height = 900)
+        public static void RenderToPng(EscadaWindow w, string path, int width = 1500, int height = 900) => RenderToPng(w, w.Abas, path, width, height);
+
+        public static void RenderToPng(Window w, System.Windows.Controls.TabControl abas, string path, int width = 1500, int height = 900)
         {
             var root = (FrameworkElement)w.Content;
-            for (int t = 0; t < w.Abas.Items.Count; t++)
+            for (int t = 0; t < abas.Items.Count; t++)
             {
-                w.Abas.SelectedIndex = t;
+                abas.SelectedIndex = t;
                 root.Measure(new System.Windows.Size(width, height));
                 root.Arrange(new Rect(0, 0, width, height));
                 root.UpdateLayout();
@@ -272,7 +308,7 @@ namespace DEB.Revit.Escadas
                 string arq = t == 0 ? path : Path.Combine(Path.GetDirectoryName(path), Path.GetFileNameWithoutExtension(path) + "_" + (t + 1) + ".png");
                 using (var fs = File.Create(arq)) enc.Save(fs);
             }
-            w.Abas.SelectedIndex = 0;
+            abas.SelectedIndex = 0;
         }
     }
 }

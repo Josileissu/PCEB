@@ -171,8 +171,19 @@ fica para depois, como tipo próprio.
   vão) ou em concentradas, e é calculada pelo cálculo da viga pré-moldada (D40).
 - Conferido: patamar à mão (pℓ²/8 e reações), equilíbrio da escada em U (o que as peças pesam = o que sai pelas pontas + o que vai para
   a viga), patamar sobre patamar, MEF do patamar com as cargas dos lances (OpenSees 0,4 %, CalculiX 2,2 % no Md).
-- Falta: janela do conjunto (hoje o conjunto é calculado no núcleo e no autoteste; na janela de cada peça as cargas são digitadas) e
-  posicionar o conjunto no Revit de uma vez.
+- **Arranjos prontos** (`ModelosConjunto`), com a posição de cada peça em planta (`PosicaoPeca`):
+  - *em U*: os lances lado a lado, separados pela folga; o patamar é peça própria e vence a largura da caixa (transversal aos lances),
+    com uma ponta na estrutura e a outra na viga do patamar (ou na estrutura);
+  - *em L*: o 2º lance sai a 90° do patamar superior do 1º e apoia nele (o patamar do 1º cresce para caber a largura do 2º);
+  - *em linha*: o 2º lance apoia no patamar superior do 1º.
+
+  `ConferirPosicoes` confere se cada ponta cai sobre o suporte (x do apoio, dentro da largura, mesma cota de topo ou de assento).
+- **Janela "Escada L/U"** (botão no painel Concreto armado): arranjo e medidas, peças editáveis na janela da escada, x de cada apoio;
+  abas Planta, Cargas entre peças, Peças, Viga do patamar e Verificações (das peças e da viga).
+- **No Revit**: clica-se o eixo do apoio de baixo do 1º lance e o sentido de subida; todas as peças entram com as barras, cada uma na
+  sua posição; a viga do patamar entra como peça de concreto (sem barras: a armação é a do comando de vigas, D40).
+- **Não modelado**: o encaixe (rebaixo) da peça que recebe a outra. As peças ficam com o topo nivelado e a ponta apoiada ocupa o mesmo
+  volume no apoio; a janela avisa.
 
 ## 7. Decisões
 

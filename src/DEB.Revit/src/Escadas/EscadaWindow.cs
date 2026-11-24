@@ -57,7 +57,7 @@ namespace DEB.Revit.Escadas
         public ResultadoEscada Resultado { get; private set; }
         public TabControl Abas => _abas;
 
-        public EscadaWindow(EscadaLaje entrada, string origem = null)
+        public EscadaWindow(EscadaLaje entrada, string origem = null, string textoOk = null)
         {
             Entrada = entrada.Copia(); _origem = origem;
             Title = "PCEB — Escada em laje";
@@ -73,7 +73,7 @@ namespace DEB.Revit.Escadas
             var rodape = new Border { Background = Estilo.B(Estilo.Branco), BorderBrush = Estilo.B(Estilo.Linha), BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(14, 8, 14, 8) };
             var rp = new DockPanel();
             var botoes = new StackPanel { Orientation = Orientation.Horizontal };
-            var ok = Estilo.Primario("Criar no Revit", () => { if (Calcular()) DialogResult = true; });
+            var ok = Estilo.Primario(textoOk ?? "Criar no Revit", () => { if (Calcular()) DialogResult = true; });
             ok.IsDefault = true; ok.Margin = new Thickness(0, 0, 8, 0); ok.Padding = new Thickness(18, 5, 18, 5);
             botoes.Children.Add(ok);
             var cancel = Estilo.Botao("Cancelar", () => DialogResult = false); cancel.IsCancel = true; cancel.Padding = new Thickness(14, 5, 14, 5);

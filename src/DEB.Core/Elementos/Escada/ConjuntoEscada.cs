@@ -74,6 +74,11 @@ public sealed class ConjuntoEscada
     public List<(string Nome, EscadaLaje Peca)> Pecas { get; } = new List<(string, EscadaLaje)>();
     public List<VigaPatamar> Vigas { get; } = new List<VigaPatamar>();
     public List<ApoioEntrePecas> Apoios { get; } = new List<ApoioEntrePecas>();
+    /// <summary>Posição em planta de cada peça e viga (pelo nome), para a planta da janela e para criar no Revit.</summary>
+    public Dictionary<string, PosicaoPeca> Posicoes { get; } = new Dictionary<string, PosicaoPeca>();
+    /// <summary>Nome do arranjo (texto) e ajustes feitos ao montar.</summary>
+    public string Modelo { get; set; } = "";
+    public List<string> Avisos { get; } = new List<string>();
 
     public EscadaLaje Peca(string nome) => Pecas.FirstOrDefault(p => p.Nome == nome).Peca;
 }
@@ -129,6 +134,8 @@ public static class CalculoConjuntoEscada
         foreach (var d in c.Apoios.GroupBy(a => (a.Apoiada, a.Ponta)).Where(g => g.Count() > 1))
             res.Erros.Add($"A ponta {(d.Key.Ponta == PontaPeca.Inferior ? "inferior" : "superior")} de \"{d.Key.Apoiada}\" tem mais de um apoio.");
         if (res.Erros.Count > 0) return res;
+        res.Avisos.AddRange(c.Avisos);
+        if (c.Posicoes.Count > 0) res.Avisos.AddRange(ModelosConjunto.ConferirPosicoes(c).Select(a => "Posição: " + a));
 
         // ordem: uma peça só é calculada depois de todas as que se apoiam nela
         var pendentes = new List<string>(nomes);

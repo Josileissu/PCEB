@@ -189,6 +189,74 @@ namespace DEB.Revit.Escadas
 
         private static int k(ResultadoEscada r) => r.Geo.Contorno.Count;
 
+        /// <summary>Família da viga do patamar (D43): retângulo b × h extrudado no comprimento, origem na ponta esquerda, no meio da
+        /// largura, no topo. Sem barras (a armação da viga é a do comando de vigas, D40). Fora de transação.</summary>
+        public static Family CriarFamiliaViga(Document doc, VigaPatamar v, string marca, PieceLog log)
+        {
+            var app = doc.Application;
+            Document fd = app.NewFamilyDocument(Modelo(app));
+            try
+            {
+                using (var t = new Transaction(fd, "Viga do patamar PCEB"))
+                {
+                    t.Start();
+                    fd.OwnerFamily.get_Parameter(BuiltInParameter.FAMILY_CAN_HOST_REBAR)?.Set(1);
+                    var k = new[] { (0.0, -v.H), (v.Comprimento, -v.H), (v.Comprimento, 0.0), (0.0, 0.0) };
+                    var loop = new CurveArray();
+                    for (int i = 0; i < k.Length; i++)
+                    {
+                        var a = k[i]; var b = k[(i + 1) % k.Length];
+                        loop.Append(Line.CreateBound(new XYZ(a.Item1 * Cm, 0, a.Item2 * Cm), new XYZ(b.Item1 * Cm, 0, b.Item2 * Cm)));
+                    }
+                    var perfil = new CurveArrArray(); perfil.Append(loop);
+                    var sp = SketchPlane.Create(fd, Plane.CreateByNormalAndOrigin(XYZ.BasisY, XYZ.Zero));
+                    double w = v.B * Cm;
+                    Extrusion ex = fd.FamilyCreate.NewExtrusion(true, perfil, sp, w);
+                    ex.StartOffset = -w / 2; ex.EndOffset = w / 2;
+                    var conc = new FilteredElementCollector(fd).OfClass(typeof(Material)).Cast<Material>()
+                        .FirstOrDefault(m => m.Name.IndexOf("concret", StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (conc == null) { var id = Material.Create(fd, "Concreto armado (PCEB)"); conc = fd.GetElement(id) as Material; }
+                    if (conc != null) ex.get_Parameter(BuiltInParameter.MATERIAL_ID_PARAM)?.Set(conc.Id);
+                    t.Commit();
+                }
+                string dir = Path.Combine(Path.GetTempPath(), "PCEB_Escadas");
+                Directory.CreateDirectory(dir);
+                string arq = Path.Combine(dir, PrefixoFamilia + marca + ".rfa");
+                fd.SaveAs(arq, new SaveAsOptions { OverwriteExistingFile = true });
+                Family fam = fd.LoadFamily(doc, new SempreSobrescrever());
+                log?.Info($"Família {fam?.Name} (viga do patamar {v.B:0}×{v.H:0}, {v.Comprimento:0} cm) gerada e carregada.");
+                return fam;
+            }
+            finally { fd.Close(false); }
+        }
+
+        /// <summary>Coloca a viga do patamar (dentro de transação): ponta esquerda em <paramref name="pos"/>.Base (topo), ao longo de Direcao.</summary>
+        public static FamilyInstance ColocarViga(Document doc, Family fam, PosicaoEscada pos, VigaPatamar v, string marca)
+        {
+            var sym = doc.GetElement(fam.GetFamilySymbolIds().First()) as FamilySymbol;
+            if (!sym.IsActive) sym.Activate();
+            var nivel = pos.Nivel ?? NivelAbaixo(doc, pos.Base.Z);
+            var fi = doc.Create.NewFamilyInstance(pos.Base, sym, nivel, StructuralType.NonStructural);
+            double ang = Math.Atan2(pos.Direcao.Y, pos.Direcao.X);
+            if (Math.Abs(ang) > 1e-9) ElementTransformUtils.RotateElement(doc, fi.Id, Line.CreateBound(pos.Base, pos.Base + XYZ.BasisZ), ang);
+            doc.Regenerate();
+            if (fi.Location is LocationPoint lp && Math.Abs(lp.Point.Z - pos.Base.Z) > 1e-4)
+                ElementTransformUtils.MoveElement(doc, fi.Id, new XYZ(0, 0, pos.Base.Z - lp.Point.Z));
+            fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.Set(marca);
+            fi.get_Parameter(BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)?.Set($"Viga do patamar PCEB {v.Nome} {v.B:0}×{v.H:0}, {v.Comprimento:0} cm, fck {v.Fck:0} — arme pelo comando de vigas");
+            return fi;
+        }
+
+        /// <summary>Posição no modelo de uma peça do conjunto: origem e sentido do conjunto (pés) + a posição dela (cm, graus).</summary>
+        public static PosicaoEscada NoModelo(PosicaoEscada origem, PosicaoPeca p, Document doc)
+        {
+            XYZ d = origem.Direcao.Normalize(), s = new XYZ(-d.Y, d.X, 0);
+            var b = origem.Base + d * (p.X * Cm) + s * (p.Y * Cm) + XYZ.BasisZ * (p.Z * Cm);
+            double a = p.Angulo * Math.PI / 180;
+            var dir = d * Math.Cos(a) + s * Math.Sin(a);
+            return new PosicaoEscada { Base = b, Direcao = dir.Normalize(), Nivel = origem.Nivel, Origem = origem.Origem };
+        }
+
         // ------------------------------------------------------------------ instância e barras
 
         /// <summary>Coloca a escada e cria as barras. Dentro de transação do projeto.</summary>

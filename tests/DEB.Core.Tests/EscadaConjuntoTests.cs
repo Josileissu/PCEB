@@ -191,6 +191,38 @@ public class EscadaConjuntoTests
     }
 
     [Fact]
+    public void ModelosProntosTemPosicoesCoerentesECalculam()
+    {
+        var l = EscadaTests.PreMoldada();
+        var p = ModelosConjunto.LancePadrao();
+        foreach (var c in new[]
+        {
+            ModelosConjunto.EmLinha(l, l),
+            ModelosConjunto.EmL(l, l),
+            ModelosConjunto.EmU(l, l),
+            ModelosConjunto.EmU(l, l, viga: new VigaPatamar { Nome = "VE", B = 20, H = 50 }),
+            ModelosConjunto.EmU(p, p, viga: new VigaPatamar { Nome = "VE", B = 20, H = 50 }),
+            ModelosConjunto.EmL(p, p),
+            ModelosConjunto.EmLinha(p, p),
+        })
+        {
+            Assert.Empty(ModelosConjunto.ConferirPosicoes(c));
+            var res = CalculoConjuntoEscada.Calcular(c);
+            Assert.Empty(res.Erros);
+            Assert.DoesNotContain(res.Avisos, a => a.StartsWith("Posição"));
+            Assert.Equal(c.Pecas.Count, res.Pecas.Count);
+            Assert.Equal(c.Pecas.Count + c.Vigas.Count, c.Posicoes.Count);
+        }
+        // conferência acusa a peça fora do lugar
+        var u = ModelosConjunto.EmU(l, l);
+        u.Posicoes["L2"].Y += 300;
+        Assert.NotEmpty(ModelosConjunto.ConferirPosicoes(u));
+        u = ModelosConjunto.EmU(l, l);
+        u.Posicoes["PAT"].Z += 10;
+        Assert.Contains(ModelosConjunto.ConferirPosicoes(u), a => a.Contains("topo"));
+    }
+
+    [Fact]
     public void ApoioEmCicloEReferenciaErradaDaoErro()
     {
         var c = new ConjuntoEscada();

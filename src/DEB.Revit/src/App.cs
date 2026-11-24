@@ -136,6 +136,18 @@ namespace DEB.Revit
                 Image = IconFactory.Create(16, "E")
             };
             concreto.AddItem(escada);
+            var escadaLU = new PushButtonData("DEB_EscadaLU", "Escada L/U", dll, typeof(ConjuntoEscadaCommand).FullName)
+            {
+                ToolTip = "Escada em L ou U montada por peças (lances, patamar e viga do patamar), no local ou pré-moldada.",
+                LongDescription =
+                    "Clique o eixo do apoio de baixo do 1º lance e o sentido de subida numa planta. A janela monta o arranjo (em U com o patamar como " +
+                    "peça e a viga do patamar, em L ou em linha com o patamar de um lance sobre o do outro), deixa editar cada peça, passa as reações de " +
+                    "uma peça para a outra e calcula a viga do patamar. No aceite, cria todas as peças com as barras.",
+                AvailabilityClassName = typeof(ProjectOnlyAvailability).FullName,
+                LargeImage = IconFactory.Create(32, "LU"),
+                Image = IconFactory.Create(16, "U")
+            };
+            concreto.AddItem(escadaLU);
 
             AddToolsPanel(application, dll);
             AddFormasPanel(application, dll);

@@ -18,6 +18,11 @@ espessura do patamar). O campo "Cargas de outras peças" recebe as pontas que se
 metro de largura; x = centro da carga a partir do apoio de baixo). O autoteste monta uma escada em U (dois lances, patamar e viga do
 patamar), mostra as transferências no `resultado.txt` e cria o patamar.
 
+**Escada L/U** (botão próprio): clique o eixo do apoio de baixo do 1º lance e o sentido de subida numa planta. A janela monta o arranjo
+(em U com o patamar como peça e a viga do patamar, em L ou em linha com o patamar de um lance sobre o do outro), deixa editar cada
+peça ("Editar…" abre a janela da escada) e o x de cada apoio, e mostra a planta, as cargas entre peças, as peças, a viga do patamar e as
+verificações. "Criar no Revit" cria todas as peças com as barras e a viga do patamar (sem barras). O autoteste cria uma em U e uma em L.
+
 Na transversal e no balanço o cálculo é feito numa faixa de 1 m ao longo do lance. A prévia mostra também o corte transversal no meio do lance, com as barras na largura e as dobras.
 
 ## Como usar
