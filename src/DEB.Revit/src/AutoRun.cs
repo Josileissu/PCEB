@@ -509,7 +509,12 @@ namespace DEB.Revit
                 string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 sb.AppendLine($"JSON da janela: {json.Length / 1024} kB");
                 var dim = DEB.Core.Analise.Dimensionamento.DimensionamentoObjetos.Verificar(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
-                foreach (var d in dim) sb.AppendLine($"  {d.Dono}: {d.Situacao} — {string.Join("; ", d.Resumo)}");
+                foreach (var d in dim)
+                {
+                    sb.AppendLine($"  {d.Dono}: {d.Situacao} — {string.Join("; ", d.Resumo)}");
+                    foreach (string l in d.Memoria.Linhas) sb.AppendLine("      " + l);
+                    foreach (var v in d.Verificacoes.Where(x => x.Situacao != DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok)) sb.AppendLine($"      [{v.Codigo}] {v.Descricao}: {v.Valor} {v.Limite}");
+                }
                 foreach (string modo in new[] { "modelo", "diagrama", "deformada", "situacao", "laje", "peca" })
                 {
                     string png = Path.Combine(dir, "janela_" + modo + ".png");
