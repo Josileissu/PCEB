@@ -75,3 +75,23 @@ AutoRun `analitico` (sem gravar): grava `janela_<vista>.png` de seis vistas e o 
   permanente/morta → G, demais → Q. "Enviar cargas do PCEB ao Revit" cria as do PCEB como nativas (casos "PCEB G"/"PCEB Q"), hospedadas
   no elemento analítico da peça (criado e associado se faltar — no Revit 2025 a carga precisa de hospedeiro analítico).
 
+
+## Consolo, ligações, catálogo, exportação e campos de tensões (D50, itens 3–9)
+- **Detalhe do consolo** (`DEB.Core/Analise/Chapas/DetalheConsolo.cs`): aba "2D da peça" com um consolo selecionado — trecho do pilar,
+  consolo, aparelho, ponta da viga, Vd/Hd/N da combinação ELU de maior V, biela e tirante (z = 0,9·d) e chapa elástica Q4
+  (`ChapaPlana`) com isovalores (teclas 1, 2, x, y, t). Consolos do mesmo pilar e plano entram na mesma chapa (vizinhos).
+- **Campos de tensões** (`CampoTensoes.cs`, tecla c): chapa não linear com as armaduras discretas (tirante, costura, verticais do
+  detalhamento ou estimadas; pilar com ρ = 1% como hipótese) — concreto sem tração, parábola-retângulo com kc2 e ηfc (linha do CSFM),
+  aço elastoplástico; secante com relaxação e convergência por tensões e deformações; carga crescente até a falha (λ ≤ 3). Leva ~8 s
+  por consolo (a janela espera).
+- **Desenhos das ligações** (`GeometriaLigacao.cs`): sólidos em caixas → vista de topo, frontal, lateral e 3D com os perfis transparentes.
+- **Tipologias** (`LigacoesComplementares.cs`): apoio de terça, contraventamento em chapa de nó (Whitmore, K = 0,65), tubo com chapa em
+  fenda (Ct; Lw ≥ 1,3·D) e emenda com talas; a biblioteca mostra as resistências (bisseção sobre as verificações). Ainda sem modelagem
+  no Revit (o comando avisa).
+- **Catálogo de fixadores** (`CatalogoFixadores.cs`): parafusos/porcas/arruelas pelas normas de produto e comprimento comercial pela
+  pega; chumbadores de fabricantes em `%AppData%\PCEB\padroes\fixadores.json` (fora do Git, com a fonte de cada linha); a placa de
+  base confere a ancoragem escolhida (PB9, PB10).
+- **Exportação** (`DEB.Core/Analise/Barras/ExportacaoAnalise.cs`, menu "Exportar…"): OpenSees (script openseespy; grava
+  `resultados_<caso>.json`), CalculiX (.inp com B32R subdivididas, seção retangular equivalente; rótula solta as três rotações; P1/P2 =
+  pressão na face) e SAP2000 (.s2k). As barras são divididas nos pontos de carga. Os testes rodam OpenSees (igual ao PCEB) e
+  CalculiX (~2%) quando `%AppData%\PCEB\mef.txt` existe; o `analitico` exporta e roda os dois no modelo do Revit.
