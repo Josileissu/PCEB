@@ -121,6 +121,9 @@ details p{margin:4px 0}
       <button type="button" data-vista="xz">Elev. XZ</button><button type="button" data-vista="yz">Elev. YZ</button>
     </div>
     <button class="btn" type="button" id="ajustar">Ajustar</button>
+    <select class="btn" id="exportar" title="Exporta o modelo de barras (nós, barras, aparelhos, vínculos, apoios e casos de carga)">
+      <option value="">Exportar…</option><option value="OpenSees">OpenSees (script Python)</option><option value="CalculiX">CalculiX (.inp)</option><option value="Sap2000">SAP2000 (.s2k)</option>
+    </select>
     <span style="flex:1"></span>
     <button class="btn prim" type="button" id="fechar">Fechar</button>
   </div>
@@ -739,6 +742,7 @@ document.querySelectorAll("[data-vista]").forEach(b => b.addEventListener("click
 $("resultado").addEventListener("change", () => { R = D.resultados[+$("resultado").value]; lateral(); desenhar(); });
 ["esforco", "escala", "verCargas", "verNomes"].forEach(id => $(id).addEventListener("input", desenhar));
 $("ajustar").addEventListener("click", ajustar);
+$("exportar").addEventListener("change", ev => { const f = ev.target.value; ev.target.value = ""; if (f) enviar({ acao: "exportar", formato: f }); });
 window.addEventListener("keydown", ev => { if (aba !== "peca" || !ehConsolo(sel)) return; const k = { "1": "S1", "2": "S2", "x": "Sx", "y": "Sy", "t": "Txy" }[ev.key]; if (k) { campoConsolo = k; desenhar(); } });
 document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
   aba = b.dataset.aba; document.querySelectorAll("[data-aba]").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));

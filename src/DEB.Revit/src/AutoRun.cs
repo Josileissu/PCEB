@@ -593,6 +593,44 @@ namespace DEB.Revit
                     foreach (string l in d.Memoria.Linhas) sb.AppendLine("      " + l);
                     foreach (var v in d.Verificacoes.Where(x => x.Situacao != DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok)) sb.AppendLine($"      [{v.Codigo}] {v.Descricao}: {v.Valor} {v.Limite}");
                 }
+                // exportação (D50, item 8): os três formatos; OpenSees e CalculiX rodam se estiverem configurados (%AppData%\PCEB\mef.txt)
+                try
+                {
+                    var mm = e.Modelo;
+                    foreach (DEB.Core.Analise.Barras.FormatoExportacao fx in Enum.GetValues(typeof(DEB.Core.Analise.Barras.FormatoExportacao)))
+                        File.WriteAllText(Path.Combine(dir, "modelo" + DEB.Core.Analise.Barras.ExportacaoAnalise.Extensao(fx)), DEB.Core.Analise.Barras.ExportacaoAnalise.Exportar(mm, fx, doc.Title));
+                    string mef = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PCEB", "mef.txt");
+                    string Cam(string k) => File.Exists(mef) ? File.ReadAllLines(mef).Where(l => l.StartsWith(k + "=")).Select(l => l.Substring(k.Length + 1).Trim()).FirstOrDefault() : null;
+                    var pceb = new DEB.Core.Analise.Barras.SolverBarras(mm).Resolver();
+                    string py = Cam("python");
+                    if (py != null && File.Exists(py))
+                    {
+                        var psi = new System.Diagnostics.ProcessStartInfo(py, "-I modelo.py") { WorkingDirectory = dir, UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
+                        using (var pr = System.Diagnostics.Process.Start(psi)) { string err = pr.StandardError.ReadToEnd(); pr.WaitForExit(300000); if (pr.ExitCode != 0) sb.AppendLine("OpenSees: " + err); }
+                        foreach (var cs in mm.Casos)
+                        {
+                            string rj = Path.Combine(dir, "resultados_" + cs.Nome + ".json");
+                            if (!File.Exists(rj)) { sb.AppendLine($"OpenSees: sem resultado do caso {cs.Nome}"); continue; }
+                            var jr = DEB.Core.Persistencia.Json.Ler(File.ReadAllText(rj))["deslocamentos"];
+                            double dmax = 0, umax = 0;
+                            for (int n = 0; n < mm.Nos.Count; n++)
+                                for (int g = 0; g < 3; g++)
+                                {
+                                    double a1 = pceb[cs.Nome].Deslocamentos[n][g], b1 = jr[(n + 1).ToString(System.Globalization.CultureInfo.InvariantCulture)][g].Numero;
+                                    dmax = Math.Max(dmax, Math.Abs(a1 - b1)); umax = Math.Max(umax, Math.Abs(a1));
+                                }
+                            sb.AppendLine($"OpenSees caso {cs.Nome}: deslocamento máx. {umax:0.0000} cm; maior diferença para o PCEB {dmax:0.000000} cm");
+                        }
+                    }
+                    string ccx = Cam("ccx");
+                    if (ccx != null && File.Exists(ccx))
+                    {
+                        var psi = new System.Diagnostics.ProcessStartInfo(ccx, "modelo") { WorkingDirectory = dir, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+                        using (var pr = System.Diagnostics.Process.Start(psi)) { string o = pr.StandardOutput.ReadToEnd(); pr.WaitForExit(300000); if (o.Contains("*ERROR")) sb.AppendLine("CalculiX: " + string.Join(" | ", o.Split(new[] { Environment.NewLine, "\n" }, StringSplitOptions.None).Where(l => l.Contains("ERROR")).Take(3))); }
+                        sb.AppendLine($"CalculiX: {(File.Exists(Path.Combine(dir, "modelo.dat")) ? new FileInfo(Path.Combine(dir, "modelo.dat")).Length + " bytes em modelo.dat" : "sem modelo.dat")}");
+                    }
+                }
+                catch (Exception exE) { sb.AppendLine("Exportação: " + exE.Message); }
                 var sessaoCap = new DEB.Core.Analise.Objetos.SessaoAnalise(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc), doc.Title, DEB.Revit.Analise.AjustesRevit.Ler(doc));
                 foreach (string modo in new[] { "modelo", "diagrama", "deformada", "situacao", "laje", "peca", "consolo" })
                 {

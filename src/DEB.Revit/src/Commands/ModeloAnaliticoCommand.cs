@@ -29,6 +29,19 @@ namespace DEB.Revit.Commands
                 return Result.Cancelled;
             }
             var sessao = new SessaoAnalise(e, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc), doc.Title, AjustesRevit.Ler(doc));
+            // exportação (D50, item 8): pergunta onde gravar
+            string pastaDoc = string.IsNullOrEmpty(doc.PathName) ? System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments) : System.IO.Path.GetDirectoryName(doc.PathName);
+            sessao.GravarArquivo = (nome, texto) =>
+            {
+                var dlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    FileName = System.IO.Path.GetFileNameWithoutExtension(doc.Title) + "_" + nome, InitialDirectory = pastaDoc,
+                    Filter = "Arquivo (*" + System.IO.Path.GetExtension(nome) + ")|*" + System.IO.Path.GetExtension(nome), Title = "Exportar o modelo de análise",
+                };
+                if (dlg.ShowDialog() != true) return null;
+                System.IO.File.WriteAllText(dlg.FileName, texto, new System.Text.UTF8Encoding(false));
+                return dlg.FileName;
+            };
             var win = new JanelaAnalise(sessao.Json(), doc.Title) { Sessao = sessao };
             new WindowInteropHelper(win) { Owner = uiapp.MainWindowHandle };
             win.ShowDialog();

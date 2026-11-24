@@ -206,6 +206,11 @@ public sealed class SessaoAnalise
     public bool CargasAlteradas { get; private set; }
     /// <summary>A página pediu para criar no hospedeiro (Revit) as cargas lançadas no PCEB (feito ao fechar a janela).</summary>
     public bool EnviarCargas { get; private set; }
+    /// <summary>
+    /// Gravação de um arquivo exportado (D50, item 8): o hospedeiro recebe o nome sugerido e o texto, pergunta onde gravar e devolve
+    /// o caminho (null = cancelado). Sem hospedeiro, a exportação só devolve o texto.
+    /// </summary>
+    public Func<string, string, string> GravarArquivo { get; set; }
 
     public SessaoAnalise(EstruturaObjetos e, ConfiguracaoProjeto cfg, string titulo, Dictionary<string, Dictionary<string, string>> ajustes)
     {
@@ -231,6 +236,24 @@ public sealed class SessaoAnalise
             if (lc == null) return "";
             try { return DEB.Core.Analise.Chapas.DetalheConsolo.Json(Estrutura, lc, Cfg, ch); }
             catch (Exception ex) { return "{\"tipo\":\"consolo\",\"chave\":" + Persistencia.Json.Gravar(ValorJson.De(ch), false) + ",\"erro\":" + Persistencia.Json.Gravar(ValorJson.De(ex.Message), false) + "}"; }
+        }
+        if (acao == "exportar")
+        {
+            string f = m["formato"]?.Texto ?? "";
+            var fmt = f == "CalculiX" ? DEB.Core.Analise.Barras.FormatoExportacao.CalculiX : f == "Sap2000" ? DEB.Core.Analise.Barras.FormatoExportacao.Sap2000
+                    : DEB.Core.Analise.Barras.FormatoExportacao.OpenSees;
+            string aviso;
+            try
+            {
+                string texto = DEB.Core.Analise.Barras.ExportacaoAnalise.Exportar(Estrutura.Modelo, fmt, Titulo);
+                string nome = "modelo_pceb" + DEB.Core.Analise.Barras.ExportacaoAnalise.Extensao(fmt);
+                string arq = GravarArquivo?.Invoke(nome, texto);
+                aviso = arq == null ? (GravarArquivo == null ? "Exportação gerada (prévia sem o Revit: nada gravado)." : "Exportação cancelada.")
+                      : $"Modelo exportado para {fmt}: {arq}" + (fmt == DEB.Core.Analise.Barras.FormatoExportacao.OpenSees ? " (rode com python; os resultados saem em resultados_<caso>.json)"
+                        : fmt == DEB.Core.Analise.Barras.FormatoExportacao.CalculiX ? " (rode com ccx; seção retangular equivalente nas inércias)" : " (SAP2000: Arquivo → Importar → .s2k)");
+            }
+            catch (Exception ex) { aviso = "Exportação não feita: " + ex.Message; }
+            return "{\"tipo\":\"aviso\",\"texto\":" + Persistencia.Json.Gravar(ValorJson.De(aviso), false) + "}";
         }
         if (acao == "enviarCargas") { EnviarCargas = true; return Json().Insert(1, "\"aviso\":\"As cargas do PCEB serão criadas no Revit ao fechar a janela.\","); }
         if (acao != "ajustar" && acao != "restaurar") return "";
