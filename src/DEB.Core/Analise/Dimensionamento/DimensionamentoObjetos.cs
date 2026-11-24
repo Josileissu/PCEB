@@ -298,6 +298,30 @@ public static class DimensionamentoObjetos
         r.Memoria.Titulo = $"Laje {la.Dono} — grelha, envoltória ELU (NBR 6118 19)";
         var (fck, fcd, fyd, _, _) = Materiais(cfg);
         double h = la.Espessura, cob = cfg.Numero("durab.cobLaje") * 100, d = h - cob - 0.5;
+        if (la.Unidirecional)
+        {
+            // produto de catálogo (sem verificação, pedido de 24/11): momento e cortante por metro no vão para escolher no fabricante
+            double mMax = 0, mNeg = 0, vMax = 0;
+            foreach (var c in e.DefinicaoCombinacoes.Where(c => c.Tipo == "ELU"))
+            {
+                var res = e.Combinacoes[c.Nome];
+                // faixas sobre viga ou borda apoiada (as duas pontas presas) acompanham a viga: não são vão de laje
+                foreach (var b in la.BarrasX.Where(b => !(la.Apoiado(b.NoI) && la.Apoiado(b.NoJ))))
+                {
+                    double[] f = res.ForcasBarras[b.Id], larg = { b.Secao.A / la.Espessura };
+                    mMax = Math.Max(mMax, Math.Max(f[4], -f[10]) / larg[0]); mNeg = Math.Max(mNeg, Math.Max(-f[4], f[10]) / larg[0]);
+                    vMax = Math.Max(vMax, Math.Max(Math.Abs(f[2]), Math.Abs(f[8])) / larg[0] * 100);
+                }
+            }
+            string tipo = la.Tipo == TipoLaje.Alveolar ? "alveolar" : la.Tipo == TipoLaje.Trelicada ? "treliçada" : "de vigota protendida";
+            r.Memoria.Titulo = $"Laje {tipo} {la.Dono} — produto de catálogo";
+            r.Memoria.Linhas.Add($"Laje {tipo}, h = {N(h, "0.#")} cm, vão na direção x da malha; peso próprio pela fração maciça {N(la.FracaoMacica)}.");
+            r.Memoria.Linhas.Add($"Para escolher no catálogo do fabricante (ELU, por metro de largura): Md+ = {N(mMax)} kN·m/m, Md− = {N(mNeg)} kN·m/m, Vd = {N(vMax, "0.0")} kN/m.");
+            K(r, "L0", $"Laje {tipo} (produto de catálogo)", $"Md = {N(mMax)} kN·m/m; Vd = {N(vMax, "0.0")} kN/m", "catálogo do fabricante", true, "NBR 9062 · NBR 14859 / 14861",
+              SituacaoVerificacao.Conferir, "O PCEB não calcula a laje pré-fabricada: confira no catálogo com estes esforços.");
+            r.Resumo.Add($"{tipo}: Md {N(mMax)} kN·m/m · Vd {N(vMax, "0.0")} kN/m (catálogo)");
+            return r;
+        }
         double mxPos = 0, mxNeg = 0, myPos = 0, myNeg = 0;
         foreach (var c in e.DefinicaoCombinacoes.Where(c => c.Tipo == "ELU"))
         {
@@ -308,7 +332,7 @@ public static class DimensionamentoObjetos
         var fl = new Flexao(fck, fcd, fyd);
         double As(double mKNm) => fl.Armadura(mKNm * 100, 100, d, cob).As;   // por metro
         double asMin = TabelasNbr.RhoMinVigaPct(fck) / 100 * 100 * h * 0.67;
-        r.Memoria.Linhas.Add($"h = {N(h, "0.#")} cm, d = {N(d, "0.#")} cm; malha {N(la.Sx, "0")} × {N(la.Sy, "0")} cm.");
+        r.Memoria.Linhas.Add($"h = {N(h, "0.#")} cm, d = {N(d, "0.#")} cm; malha de {N(la.Sx, "0")} × {N(la.Sy, "0")} cm em média (passando pelas vigas e pilares).");
         r.Memoria.Linhas.Add($"mx: +{N(mxPos)} / −{N(mxNeg)} kN·m/m → As = {N(As(mxPos))} / {N(As(mxNeg))} cm²/m; my: +{N(myPos)} / −{N(myNeg)} kN·m/m → As = {N(As(myPos))} / {N(As(myNeg))} cm²/m; mínimo {N(asMin)} cm²/m (0,67·ρmín, 19.3.3.2).");
         double mmax = new[] { mxPos, mxNeg, myPos, myNeg }.Max();
         double xd = fl.Armadura(mmax * 100, 100, d, cob).XsobreD;
@@ -318,7 +342,7 @@ public static class DimensionamentoObjetos
         {
             var (uz, _, _, _) = la.Resultados(e.Combinacoes[qp.Nome]);
             double wmax = 0; foreach (double v in uz) if (!double.IsNaN(v)) wmax = Math.Max(wmax, -v);
-            double lmenor = Math.Min(la.Nx * la.Sx, la.Ny * la.Sy), lim = lmenor / 250, w25 = 2.5 * wmax;
+            double lmenor = Math.Min(la.Xs[la.Nx], la.Ys[la.Ny]), lim = lmenor / 250, w25 = 2.5 * wmax;
             r.Memoria.Linhas.Add($"Flecha elástica ({qp.Nome}) = {N(wmax * 10, "0.0")} mm (com a das vigas); estimada ×2,5 = {N(w25 * 10, "0.0")} mm; L/250 = {N(lim * 10, "0.0")} mm.");
             K(r, "L2", "Flecha (estimativa ×2,5)", $"{N(w25 * 10, "0.0")} mm", $"≤ {N(lim * 10, "0.0")} mm", w25 > lim, "NBR 6118 13.3", SituacaoVerificacao.Conferir);
         }

@@ -203,6 +203,9 @@ public static class CatalogoConfiguracao
           "Concreto e chapa · 0,4", "PTFE · 0,08" }, "NBR 9062 7.3.9", "Força horizontal na ligação pela vertical, sem cálculo da rigidez.");
         N("acoes", "lajeG", "Laje · carga permanente além do peso próprio", 1.0, "kN/m²", "NBR 6120", "Revestimento e enchimento, quando o piso não tem PCEB_Carga permanente (kN/m²).", 0, null);
         N("acoes", "lajeQ", "Laje · carga variável", 2.0, "kN/m²", "NBR 6120 Tab. 10", "Sobrecarga de uso, quando o piso não tem PCEB_Carga variável (kN/m²).", 0, null);
+        N("acoes", "fracaoAlveolar", "Laje alveolar · fração maciça (peso)", 0.55, "", "catálogo do fabricante", "Peso próprio = 25 kN/m³ × h × fração (vazios dos alvéolos), quando o piso não tem PCEB_Peso próprio (kN/m²).", 0.3, 1);
+        N("acoes", "fracaoTrelicada", "Laje treliçada · fração maciça (peso)", 0.55, "", "catálogo do fabricante", "Peso próprio = 25 kN/m³ × h × fração (enchimento de EPS ou cerâmico).", 0.3, 1);
+        N("acoes", "fracaoVigota", "Laje de vigota protendida · fração maciça (peso)", 0.6, "", "catálogo do fabricante", "Peso próprio = 25 kN/m³ × h × fração (lajotas).", 0.3, 1);
         N("acoes", "gElastomero", "Módulo G do elastômero", 1.0, "MPa", "NBR 9062 7.2.3 · El Debs (2017) 3.3",
           "Rigidez do aparelho de apoio na análise (D46): Kh = G·a·b/t. Elastômero de dureza 60 Shore A: cerca de 1 MPa.", 0.5, 2);
         N("acoes", "hdMin", "Hd mínimo (× Vd)", 0.2, "", "El Debs (2017) Quadro 3.2", "Piso da força horizontal no consolo.", 0.2, null);

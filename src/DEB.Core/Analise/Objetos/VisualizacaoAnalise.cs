@@ -69,7 +69,7 @@ public static class VisualizacaoAnalise
         foreach (var la in e.Lajes)
         {
             var o = ValorJson.NovoObjeto();
-            o.Definir("chave", Chave(la.Dono)); o.Definir("nx", la.Nx); o.Definir("ny", la.Ny); o.Definir("sx", la.Sx); o.Definir("sy", la.Sy);
+            o.Definir("chave", Chave(la.Dono)); o.Definir("nx", la.Nx); o.Definir("ny", la.Ny); o.Definir("xs", Lista(la.Xs)); o.Definir("ys", Lista(la.Ys)); o.Definir("sx", la.Sx); o.Definir("sy", la.Sy);
             o.Definir("origem", Vet(la.Origem)); o.Definir("ex", Vet(la.Ex)); o.Definir("ey", Vet(la.Ey));
             var nl = new List<double>();
             for (int i = 0; i <= la.Nx; i++) for (int j = 0; j <= la.Ny; j++) nl.Add(la.Nos[i, j]);

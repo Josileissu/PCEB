@@ -202,6 +202,9 @@ public sealed class LigacaoVigaViga
     }
 }
 
+/// <summary>Tipo da laje: maciça (grelha nas duas direções) ou pré-fabricada unidirecional (produto de catálogo, sem verificação).</summary>
+public enum TipoLaje { Macica, Alveolar, Trelicada, VigotaProtendida }
+
 /// <summary>
 /// Laje em grelha (D46; padrão para laje maciça/nervurada moldada no local): malha nas duas direções sobre o contorno, faixas com a
 /// espessura da laje (I = b·h³/12, torção de placa J = b·h³/6 — analogia de Hambly), cargas por m² nos nós pela área de influência,
@@ -225,6 +228,28 @@ public sealed class LajeObjeto
     public Vetor3? DirX { get; set; }
     /// <summary>Teste e laje isolada: bordas com apoio simples (translações), sem vigas.</summary>
     public bool ApoiarBordas { get; set; }
+    /// <summary>Maciça = grelha nas duas direções; pré-fabricada = unidirecional na direção x (vão), transversal com 0,1 % da rigidez.</summary>
+    public TipoLaje Tipo { get; set; } = TipoLaje.Macica;
+    public bool Unidirecional => Tipo != TipoLaje.Macica;
+    /// <summary>Fração maciça da seção para o peso próprio (alveolar, treliçada e vigota têm vazios ou enchimento); 1 = maciça.</summary>
+    public double FracaoMacica { get; set; } = 1;
+    /// <summary>Aberturas (contornos no plano da laje, cm, mundo): sem nós, sem barras e sem carga.</summary>
+    public List<List<Vetor3>> Aberturas { get; } = new List<List<Vetor3>>();
+    private List<List<(double X, double Y)>> _abertLocal = new List<List<(double X, double Y)>>();
+    /// <summary>Ponto (sistema da laje) dentro de alguma abertura (o contorno da abertura conta como laje).</summary>
+    private bool NaAbertura(double x, double y) => _abertLocal.Any(a => DentroPoligono(a, x, y, -0.01) && !NaBorda(a, x, y, 0.01 * Math.Min(Sx, Sy)));
+    private static bool NaBorda(IList<(double X, double Y)> p, double x, double y, double tol)
+    {
+        for (int i = 0, j = p.Count - 1; i < p.Count; j = i++)
+        {
+            var (xi, yi) = p[i]; var (xj, yj) = p[j];
+            double dx = xj - xi, dy = yj - yi, l2 = dx * dx + dy * dy;
+            double t = l2 < 1e-12 ? 0 : Math.Max(0, Math.Min(1, ((x - xi) * dx + (y - yi) * dy) / l2));
+            double ex = x - xi - t * dx, ey = y - yi - t * dy;
+            if (Math.Sqrt(ex * ex + ey * ey) <= tol) return true;
+        }
+        return false;
+    }
 
     // gerado
     public Vetor3 Origem { get; private set; }
@@ -232,8 +257,32 @@ public sealed class LajeObjeto
     public Vetor3 Ey { get; private set; }
     public int Nx { get; private set; }
     public int Ny { get; private set; }
+    /// <summary>Passo médio da malha (cm; só para texto).</summary>
     public double Sx { get; private set; }
     public double Sy { get; private set; }
+    /// <summary>Coordenadas das linhas da malha no sistema da laje (cm): passam pelos eixos das vigas, pelos pilares e pelas aberturas.</summary>
+    public double[] Xs { get; private set; }
+    public double[] Ys { get; private set; }
+    private double Mx(int i) => (Xs[i] + Xs[i + 1]) / 2;
+    private double My(int j) => (Ys[j] + Ys[j + 1]) / 2;
+
+    /// <summary>Linhas obrigatórias (ordenadas, as muito próximas juntas) e o passo entre elas no máximo igual à malha.</summary>
+    private double[] Linhas(List<double> obrig, double L)
+    {
+        var o = obrig.Where(x => x > -1e-6 && x < L + 1e-6).Select(x => Math.Max(0, Math.Min(L, x))).OrderBy(x => x).ToList();
+        var u = new List<double>();
+        double junta = Math.Max(2, 0.15 * Malha);
+        foreach (double x in o) if (u.Count == 0 || x - u[u.Count - 1] > junta) u.Add(x); else if (Math.Abs(x - L) < 1e-6) u[u.Count - 1] = L;
+        if (u[0] > 1e-6) u.Insert(0, 0);
+        if (u[u.Count - 1] < L - 1e-6) u.Add(L);
+        var r = new List<double> { u[0] };
+        for (int k = 0; k + 1 < u.Count; k++)
+        {
+            int n = Math.Max(1, (int)Math.Ceiling((u[k + 1] - u[k]) / Malha - 1e-9));
+            for (int q = 1; q <= n; q++) r.Add(u[k] + (u[k + 1] - u[k]) * q / n);
+        }
+        return r.ToArray();
+    }
     /// <summary>Nó da grelha em (i, j); −1 = fora do contorno.</summary>
     public int[,] Nos { get; private set; }
     public List<BarraPortico> BarrasX { get; } = new List<BarraPortico>();
@@ -242,10 +291,13 @@ public sealed class LajeObjeto
     private readonly List<(int I, int J, VigaObjeto Viga, double T, PilarObjeto Pilar)> _apoios = new List<(int, int, VigaObjeto, double, PilarObjeto)>();
     private bool[,] _dentro;
     public int NosLivresNaBorda { get; private set; }
+    private readonly HashSet<int> _nosApoiados = new HashSet<int>();
+    /// <summary>O nó da grelha está preso a uma viga ou pilar (ou é borda apoiada).</summary>
+    public bool Apoiado(int no) => _nosApoiados.Contains(no);
 
     private (double X, double Y) Local(Vetor3 p) { var d = p - Origem; return (d.Ponto(Ex), d.Ponto(Ey)); }
     public Vetor3 Mundo(double x, double y) => Origem + Ex * x + Ey * y;
-    public Vetor3 Ponto(int i, int j) => Mundo(i * Sx, j * Sy);
+    public Vetor3 Ponto(int i, int j) => Mundo(Xs[i], Ys[j]);
 
     private static bool DentroPoligono(IList<(double X, double Y)> p, double x, double y, double tol)
     {
@@ -271,10 +323,29 @@ public sealed class LajeObjeto
         var loc = Contorno.Select(Local).ToList();
         double x0 = loc.Min(p => p.X), y0 = loc.Min(p => p.Y), x1 = loc.Max(p => p.X), y1 = loc.Max(p => p.Y);
         Origem = Mundo(x0, y0); loc = Contorno.Select(Local).ToList();
-        Nx = Math.Max(2, (int)Math.Ceiling((x1 - x0) / Malha)); Ny = Math.Max(2, (int)Math.Ceiling((y1 - y0) / Malha));
-        Sx = (x1 - x0) / Nx; Sy = (y1 - y0) / Ny;
+        _abertLocal = Aberturas.Select(a => a.Select(Local).ToList()).ToList();
+        // linhas da malha: bordas, eixos das vigas paralelas aos eixos da malha, centros dos pilares e vértices das aberturas
+        double lx = x1 - x0, ly = y1 - y0;
+        var lxs = new List<double> { 0, lx }; var lys = new List<double> { 0, ly };
+        foreach (var (px, py) in loc) { lxs.Add(px); lys.Add(py); }
+        if (!ApoiarBordas)
+        {
+            foreach (var v in vigas)
+            {
+                var a = Local(v.ApoioI); var b = Local(v.ApoioJ);
+                Vetor3 dir = new Vetor3(v.Direcao.X, v.Direcao.Y, 0).Unitario;
+                if (Math.Abs(dir.Ponto(Ey)) > 0.95) lxs.Add((a.X + b.X) / 2);
+                else if (Math.Abs(dir.Ponto(Ex)) > 0.95) lys.Add((a.Y + b.Y) / 2);
+            }
+            foreach (var pl in pilares) { var c = Local(pl.Base); lxs.Add(c.X); lys.Add(c.Y); }
+        }
+        foreach (var ab in _abertLocal) foreach (var (qx, qy) in ab) { lxs.Add(qx); lys.Add(qy); }
+        Xs = Linhas(lxs, lx); Ys = Linhas(lys, ly);
+        Nx = Xs.Length - 1; Ny = Ys.Length - 1;
+        Sx = lx / Nx; Sy = ly / Ny;
         _dentro = new bool[Nx + 1, Ny + 1];
-        for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++) _dentro[i, j] = DentroPoligono(loc, i * Sx, j * Sy, 0.01 * Math.Min(Sx, Sy));
+        for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++)
+            _dentro[i, j] = DentroPoligono(loc, Xs[i], Ys[j], 0.01 * Math.Min(Sx, Sy)) && !NaAbertura(Xs[i], Ys[j]);
         _apoios.Clear();
         if (ApoiarBordas) return;
         for (int i = 0; i <= Nx; i++)
@@ -319,29 +390,41 @@ public sealed class LajeObjeto
                 Nos[i, j] = m.NovoNo(p.X, p.Y, p.Z, Dono, $"{Dono} ({i},{j})");
             }
         var mat = new MaterialBarra { E = Material.E, G = Material.G, Peso = 0, Descricao = Material.Descricao };
-        SecaoBarra Faixa(double b) => new SecaoBarra { A = b * Espessura, Iy = b * Math.Pow(Espessura, 3) / 12, Iz = Espessura * Math.Pow(b, 3) / 12, J = b * Math.Pow(Espessura, 3) / 6, Descricao = $"faixa {b:0.#}×{Espessura:0.#}" };
-        bool Celula(int i, int j) => i >= 0 && j >= 0 && i < Nx && j < Ny && Nos[i, j] >= 0 && Nos[i + 1, j] >= 0 && Nos[i, j + 1] >= 0 && Nos[i + 1, j + 1] >= 0;
+        var apoioNo = new HashSet<(int, int)>(_apoios.Select(a => (a.I, a.J)));
+        // pré-fabricada (unidirecional): a direção x é o vão; a transversal e a torção ficam com 0,1 % (só para não haver mecanismo)
+        SecaoBarra Faixa(double b, bool transversal)
+        {
+            double f = Unidirecional ? (transversal ? 0.001 : 1) : 1, ft = Unidirecional ? 0.001 : 1;
+            return new SecaoBarra { A = b * Espessura, Iy = f * b * Math.Pow(Espessura, 3) / 12, Iz = Espessura * Math.Pow(b, 3) / 12, J = ft * b * Math.Pow(Espessura, 3) / 6, Descricao = $"faixa {b:0.#}×{Espessura:0.#}" };
+        }
+        bool Celula(int i, int j) => i >= 0 && j >= 0 && i < Nx && j < Ny && Nos[i, j] >= 0 && Nos[i + 1, j] >= 0 && Nos[i, j + 1] >= 0 && Nos[i + 1, j + 1] >= 0
+                                     && !NaAbertura(Mx(i), My(j));
         for (int i = 0; i <= Nx; i++)
             for (int j = 0; j <= Ny; j++)
             {
                 if (Nos[i, j] < 0) continue;
                 // largura de influência de cada faixa: meia malha de cada lado que tem célula
-                if (i < Nx && Nos[i + 1, j] >= 0)
+                if (i < Nx && Nos[i + 1, j] >= 0 && !NaAbertura(Mx(i), Ys[j]))
                 {
-                    double b = (Celula(i, j - 1) ? Sy / 2 : 0) + (Celula(i, j) ? Sy / 2 : 0);
-                    if (b > 0) { var bx = m.Barra(Nos[i, j], Nos[i + 1, j], Faixa(b), mat, Dono, $"{Dono} x({i},{j})"); bx.VetorXZ = Vetor3.EixoZ; BarrasX.Add(bx); }
+                    double b = (Celula(i, j - 1) ? (Ys[j] - Ys[j - 1]) / 2 : 0) + (Celula(i, j) ? (Ys[j + 1] - Ys[j]) / 2 : 0);
+                    if (b > 0)
+                    {
+                        var bx = m.Barra(Nos[i, j], Nos[i + 1, j], Faixa(b, false), mat, Dono, $"{Dono} x({i},{j})"); bx.VetorXZ = Vetor3.EixoZ; BarrasX.Add(bx);
+                        // pré-fabricada: cada vão biapoiado — rótula logo depois de um apoio interno (um lado basta)
+                        if (Unidirecional && i > 0 && Nos[i - 1, j] >= 0 && apoioNo.Contains((i, j))) bx.LiberaI[4] = true;
+                    }
                 }
-                if (j < Ny && Nos[i, j + 1] >= 0)
+                if (j < Ny && Nos[i, j + 1] >= 0 && !NaAbertura(Xs[i], My(j)))
                 {
-                    double b = (Celula(i - 1, j) ? Sx / 2 : 0) + (Celula(i, j) ? Sx / 2 : 0);
-                    if (b > 0) { var by = m.Barra(Nos[i, j], Nos[i, j + 1], Faixa(b), mat, Dono, $"{Dono} y({i},{j})"); by.VetorXZ = Vetor3.EixoZ; BarrasY.Add(by); }
+                    double b = (Celula(i - 1, j) ? (Xs[i] - Xs[i - 1]) / 2 : 0) + (Celula(i, j) ? (Xs[i + 1] - Xs[i]) / 2 : 0);
+                    if (b > 0) { var by = m.Barra(Nos[i, j], Nos[i, j + 1], Faixa(b, true), mat, Dono, $"{Dono} y({i},{j})"); by.VetorXZ = Vetor3.EixoZ; BarrasY.Add(by); }
                 }
             }
         // cargas nos nós pela área de influência (cada célula dá ¼ da área a cada canto)
         var area = new double[Nx + 1, Ny + 1];
         for (int i = 0; i < Nx; i++) for (int j = 0; j < Ny; j++)
-            if (Celula(i, j)) { double a = Sx * Sy / 4; area[i, j] += a; area[i + 1, j] += a; area[i, j + 1] += a; area[i + 1, j + 1] += a; }
-        double qpp = PesoEspecifico * Espessura / 100;   // kN/m²
+            if (Celula(i, j)) { double a = (Xs[i + 1] - Xs[i]) * (Ys[j + 1] - Ys[j]) / 4; area[i, j] += a; area[i + 1, j] += a; area[i, j + 1] += a; area[i + 1, j + 1] += a; }
+        double qpp = PesoEspecifico * Espessura / 100 * FracaoMacica;   // kN/m²
         for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++)
         {
             if (Nos[i, j] < 0 || area[i, j] <= 0) continue;
@@ -355,18 +438,20 @@ public sealed class LajeObjeto
         if (ApoiarBordas)
         {
             for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++)
-                if (Nos[i, j] >= 0 && Borda(i, j)) m.Apoio(Nos[i, j], tr, Dono);
+                if (Nos[i, j] >= 0 && Borda(i, j)) { m.Apoio(Nos[i, j], tr, Dono); _nosApoiados.Add(Nos[i, j]); }
             return;
         }
         var apoiados = new HashSet<(int, int)>();
+        _nosApoiados.Clear();
         foreach (var (i, j, v, t, pil) in _apoios)
         {
             int mestre = v != null ? v.NoNaPosicao(t) : pil.NoNoNivel((Ponto(i, j) - pil.Base).Ponto(pil.Eixo.Unitario));
             m.Rigido(mestre, Nos[i, j], Dono, $"{Dono} apoio ({i},{j})", tr);
             apoiados.Add((i, j));
+            _nosApoiados.Add(Nos[i, j]);
         }
         NosLivresNaBorda = 0;
-        for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++) if (Nos[i, j] >= 0 && Borda(i, j) && !apoiados.Contains((i, j))) NosLivresNaBorda++;
+        for (int i = 0; i <= Nx; i++) for (int j = 0; j <= Ny; j++) if (Nos[i, j] >= 0 && Borda(i, j) && !BordaDeAbertura(i, j) && !apoiados.Contains((i, j))) NosLivresNaBorda++;
     }
 
     /// <summary>
@@ -404,7 +489,18 @@ public sealed class LajeObjeto
     private bool Borda(int i, int j)
     {
         if (i == 0 || j == 0 || i == Nx || j == Ny) return true;
-        return Nos[i - 1, j] < 0 || Nos[i + 1, j] < 0 || Nos[i, j - 1] < 0 || Nos[i, j + 1] < 0;
+        if (Nos[i - 1, j] < 0 || Nos[i + 1, j] < 0 || Nos[i, j - 1] < 0 || Nos[i, j + 1] < 0) return true;
+        // borda de abertura: alguma célula vizinha está na abertura
+        for (int a = -1; a <= 0; a++) for (int b = -1; b <= 0; b++) if (NaAbertura(Mx(i + a), My(j + b))) return true;
+        return false;
+    }
+
+    /// <summary>Nós na borda de abertura (para não contar como borda livre de apoio).</summary>
+    internal bool BordaDeAbertura(int i, int j)
+    {
+        if (i == 0 || j == 0 || i == Nx || j == Ny) return false;
+        for (int a = -1; a <= 0; a++) for (int b = -1; b <= 0; b++) if (NaAbertura(Mx(i + a), My(j + b))) return true;
+        return false;
     }
 }
 

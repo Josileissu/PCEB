@@ -442,7 +442,7 @@ function desenharLaje() {
   const L = D.lajes[il], g = $("grandezaLaje").value, dados = R.lajes[il][g], ny1 = L.ny + 1;
   const V = (i, j) => { const v = dados[i * ny1 + j]; return v === null ? null : g === "uz" ? v * 10 : v; };   // uz em mm
   let vmin = Infinity, vmax = -Infinity; dados.forEach((v, k) => { if (v !== null) { const x = g === "uz" ? v * 10 : v; vmin = Math.min(vmin, x); vmax = Math.max(vmax, x); } });
-  const lx = L.nx * L.sx, ly = L.ny * L.sy, mg = 70, esc = Math.min((w - 2 * mg) / lx, (h - 2 * mg - 30) / ly);
+  const lx = L.xs[L.nx], ly = L.ys[L.ny], mg = 70, esc = Math.min((w - 2 * mg) / lx, (h - 2 * mg - 30) / ly);
   const ox = (w - lx * esc) / 2, oy = (h + ly * esc) / 2;
   const P2 = (x, y) => [ox + x * esc, oy - y * esc];
   const amp = Math.max(Math.abs(vmin), Math.abs(vmax), 1e-9), divergente = vmin < -1e-9 && vmax > 1e-9;
@@ -454,23 +454,24 @@ function desenharLaje() {
     for (let p = 0; p < sub; p++) for (let q = 0; q < sub; q++) {
       const u = (p + 0.5) / sub, v = (q + 0.5) / sub, val = a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
       ctx2.fillStyle = rampaDiv(faixa(val));
-      const [x0, y0] = P2((i + p / sub) * L.sx, (j + (q + 1) / sub) * L.sy);
-      ctx2.fillRect(x0, y0, L.sx * esc / sub + 0.6, L.sy * esc / sub + 0.6);
+      const dx = L.xs[i + 1] - L.xs[i], dy = L.ys[j + 1] - L.ys[j];
+      const [x0, y0] = P2(L.xs[i] + dx * p / sub, L.ys[j] + dy * (q + 1) / sub);
+      ctx2.fillRect(x0, y0, dx * esc / sub + 0.6, dy * esc / sub + 0.6);
     }
   }
   // malha e contorno
   ctx2.strokeStyle = css("--linha"); ctx2.lineWidth = 0.5;
   for (let i = 0; i <= L.nx; i++) for (let j = 0; j <= L.ny; j++) {
     if (L.nos[i * ny1 + j] < 0) continue;
-    const [x, y] = P2(i * L.sx, j * L.sy);
-    if (i < L.nx && L.nos[(i + 1) * ny1 + j] >= 0) { const [x2, y2] = P2((i + 1) * L.sx, j * L.sy); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x2, y2); ctx2.stroke(); }
-    if (j < L.ny && L.nos[i * ny1 + j + 1] >= 0) { const [x2, y2] = P2(i * L.sx, (j + 1) * L.sy); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x2, y2); ctx2.stroke(); }
+    const [x, y] = P2(L.xs[i], L.ys[j]);
+    if (i < L.nx && L.nos[(i + 1) * ny1 + j] >= 0) { const [x2, y2] = P2(L.xs[i + 1], L.ys[j]); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x2, y2); ctx2.stroke(); }
+    if (j < L.ny && L.nos[i * ny1 + j + 1] >= 0) { const [x2, y2] = P2(L.xs[i], L.ys[j + 1]); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x2, y2); ctx2.stroke(); }
   }
   // máximo e mínimo
   let pMax = null, pMin = null;
   for (let i = 0; i <= L.nx; i++) for (let j = 0; j <= L.ny; j++) { const v = V(i, j); if (v === null) continue; if (!pMax || v > pMax[2]) pMax = [i, j, v]; if (!pMin || v < pMin[2]) pMin = [i, j, v]; }
   const un = g === "uz" ? "mm" : "kN·m/m";
-  for (const [i, j, v] of [pMax, pMin]) { const [x, y] = P2(i * L.sx, j * L.sy); ctx2.fillStyle = css("--fg"); ctx2.beginPath(); ctx2.arc(x, y, 3.5, 0, 7); ctx2.fill(); texto2(x + 6, y - 6, `${fmt(v, 2)} ${un}`); }
+  for (const [i, j, v] of [pMax, pMin]) { const [x, y] = P2(L.xs[i], L.ys[j]); ctx2.fillStyle = css("--fg"); ctx2.beginPath(); ctx2.arc(x, y, 3.5, 0, 7); ctx2.fill(); texto2(x + 6, y - 6, `${fmt(v, 2)} ${un}`); }
   const o = D.objetos.find(x => x.chave === L.chave) || {};
   texto2(16, 62, `${o.nome || "laje"} — ${R.nome} · ${$("grandezaLaje").selectedOptions[0].textContent} · ${fmt(lx / 100, 2)} × ${fmt(ly / 100, 2)} m (eixo x da malha →)`, css("--suave"));
   // legenda em faixas

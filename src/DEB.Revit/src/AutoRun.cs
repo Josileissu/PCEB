@@ -472,8 +472,10 @@ namespace DEB.Revit
             Directory.CreateDirectory(dir);
             var sb = new StringBuilder();
             var notas = new List<string>();
-            // SD_LAJE = 1: piso estrutural de 12 cm sobre as vigas (no documento aberto, sem gravar), para testar as lajes
-            if (Environment.GetEnvironmentVariable("SD_LAJE") == "1")
+            // SD_LAJE = 1: piso estrutural de 12 cm sobre as vigas (no documento aberto, sem gravar), para testar as lajes;
+            // "abertura" acrescenta um furo de 2 × 2 m no meio; "alveolar" usa um tipo de piso com "alveolar" no nome
+            string sdLaje = Environment.GetEnvironmentVariable("SD_LAJE") ?? "";
+            if (sdLaje != "")
             {
                 var vigas = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming).WhereElementIsNotElementType().ToList();
                 var bbs = vigas.Select(x => x.get_BoundingBox(null)).Where(x => x != null).ToList();
@@ -486,12 +488,23 @@ namespace DEB.Revit
                     {
                         t.Start();
                         var tipo = new FilteredElementCollector(doc).OfClass(typeof(FloorType)).Cast<FloorType>().First(ft => !ft.IsFoundationSlab);
+                        if (sdLaje.Contains("alveolar")) tipo = (FloorType)tipo.Duplicate("PCEB teste laje alveolar " + DateTime.Now.ToString("HHmmss"));
                         var loop = CurveLoop.Create(new List<Curve>
                         {
                             Line.CreateBound(new XYZ(x0, y0, 0), new XYZ(x1, y0, 0)), Line.CreateBound(new XYZ(x1, y0, 0), new XYZ(x1, y1, 0)),
                             Line.CreateBound(new XYZ(x1, y1, 0), new XYZ(x0, y1, 0)), Line.CreateBound(new XYZ(x0, y1, 0), new XYZ(x0, y0, 0)),
                         });
-                        Floor f = Floor.Create(doc, new List<CurveLoop> { loop }, tipo.Id, nivel.Id);
+                        var lacos = new List<CurveLoop> { loop };
+                        if (sdLaje.Contains("abertura"))
+                        {
+                            double cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, a = 100 / 30.48;
+                            lacos.Add(CurveLoop.Create(new List<Curve>
+                            {
+                                Line.CreateBound(new XYZ(cx - a, cy - a, 0), new XYZ(cx - a, cy + a, 0)), Line.CreateBound(new XYZ(cx - a, cy + a, 0), new XYZ(cx + a, cy + a, 0)),
+                                Line.CreateBound(new XYZ(cx + a, cy + a, 0), new XYZ(cx + a, cy - a, 0)), Line.CreateBound(new XYZ(cx + a, cy - a, 0), new XYZ(cx - a, cy - a, 0)),
+                            }));
+                        }
+                        Floor f = Floor.Create(doc, lacos, tipo.Id, nivel.Id);
                         f.get_Parameter(BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)?.Set(zt - nivel.Elevation);
                         f.get_Parameter(BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL)?.Set(1);
                         t.Commit();

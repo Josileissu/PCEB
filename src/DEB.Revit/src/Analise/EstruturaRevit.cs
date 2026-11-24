@@ -31,7 +31,7 @@ namespace DEB.Revit.Analise
         private static Vetor3 V(XYZ p) => new Vetor3(p.X * Cm, p.Y * Cm, p.Z * Cm);
 
         /// <summary>Parâmetros de carga das lajes (por nome; criados pelo usuário ou num passo futuro do plugin).</summary>
-        public const string ParamLajeG = "PCEB_Carga permanente (kN/m²)", ParamLajeQ = "PCEB_Carga variável (kN/m²)";
+        public const string ParamLajeG = "PCEB_Carga permanente (kN/m²)", ParamLajeQ = "PCEB_Carga variável (kN/m²)", ParamLajePeso = "PCEB_Peso próprio (kN/m²)";
 
         public static EstruturaObjetos Montar(Document doc, List<ColumnGroup> grupos, Dictionary<long, (GrupoViga G, MembroViga M)> porId,
                                               ConfiguracaoProjeto cfg, List<string> notas, out List<(Corbel K, LigacaoConsolo L)> ligacoes)
@@ -47,16 +47,33 @@ namespace DEB.Revit.Analise
             foreach (ColumnGroup g in grupos)
                 foreach (PrecastColumn pc in g.Members)
                 {
-                    PieceInfo info = pc.Info;
+                    // sistema canônico do grupo (Frame): o mesmo da armadura e dos consolos
+                    ColumnFrame f = pc.Frame;
                     var p = new PilarObjeto
                     {
                         Dono = new Dono { Tipo = TipoDono.Pilar, Id = pc.Id, Nome = $"{g.Mark} ({pc.Id})" },
-                        Base = V(info.Origin + info.AxisX * (info.LengthX / 2) + info.AxisY * (info.LengthY / 2)),
-                        Eixo = new Vetor3(info.AxisZ.X, info.AxisZ.Y, info.AxisZ.Z),
-                        DirY = new Vetor3(info.AxisX.X, info.AxisX.Y, info.AxisX.Z),
-                        Secao = SecaoPoligonal.Retangulo(info.LengthX * Cm, info.LengthY * Cm),
-                        Comprimento = info.LengthZ * Cm, Embutimento = pc.EmbedmentMm / 10, Material = mat,
+                        Base = V(f.O + f.X * (f.Bx / 2) + f.Y * (f.By / 2)),
+                        Eixo = new Vetor3(f.Z.X, f.Z.Y, f.Z.Z),
+                        DirY = new Vetor3(f.X.X, f.X.Y, f.X.Z),
+                        Secao = SecaoPoligonal.Retangulo(f.Bx * Cm, f.By * Cm),
+                        Comprimento = f.H * Cm, Embutimento = pc.EmbedmentMm / 10, Material = mat,
                     };
+                    // armadura do detalhamento: longitudinais que cruzam a seção logo acima do engaste
+                    try
+                    {
+                        if (g.Spec != null)
+                        {
+                            double zc = (p.Embutimento + 5) / Cm;
+                            foreach (var bd in ColumnRebarLayout.Compute(f, pc.Corbels, g.Spec).Where(b => b.Role == BarRole.Longitudinal))
+                                foreach (var pts in bd.Instances())
+                                    if (pts.Min(q => q.C) <= zc && pts.Max(q => q.C) >= zc)
+                                    {
+                                        var q0 = pts.OrderBy(q => Math.Abs(q.C - zc)).First();
+                                        p.Armadura.Add((q0.A * Cm, q0.B * Cm, bd.DiameterMm));
+                                    }
+                        }
+                    }
+                    catch (Exception ex) { notas.Add($"{g.Mark}: armadura do detalhamento não lida ({ex.Message}); o dimensionamento propõe uma."); }
                     e.Pilares.Add(p);
                     pilares[pc.Instance.Id.Value] = (p, pc, g);
                 }
@@ -211,24 +228,29 @@ namespace DEB.Revit.Analise
                     foreach (Face fc in so.Faces)
                         if (fc is PlanarFace pf && pf.FaceNormal.Z > 0.99 && (topo == null || pf.Area > topo.Area)) topo = pf;
             if (topo == null) { notas.Add($"Piso {f.Id.Value}: sem face de cima plana (inclinado?) — fora da análise."); return null; }
-            var lacos = topo.GetEdgesAsCurveLoops();
-            List<XYZ> melhor = null; double areaMax = 0;
-            foreach (CurveLoop lp in lacos)
+            // laços da face de cima: o de maior área é o contorno; os outros são aberturas (shafts, furos)
+            var lacos = new List<(List<XYZ> Pts, double Area)>();
+            foreach (CurveLoop lp in topo.GetEdgesAsCurveLoops())
             {
                 var pts = new List<XYZ>();
                 foreach (Curve c in lp) { var t = c.Tessellate(); for (int i = 0; i < t.Count - 1; i++) pts.Add(t[i]); }
                 double area = 0;
                 for (int i = 0; i < pts.Count; i++) { var p0 = pts[i]; var p1 = pts[(i + 1) % pts.Count]; area += p0.X * p1.Y - p1.X * p0.Y; }
-                if (Math.Abs(area) > areaMax) { areaMax = Math.Abs(area); melhor = pts; }
+                if (pts.Count >= 3) lacos.Add((pts, Math.Abs(area)));
             }
-            if (melhor == null || melhor.Count < 3) return null;
-            if (lacos.Count() > 1) notas.Add($"Piso {f.Id.Value}: aberturas ignoradas na grelha (só o contorno externo).");
+            if (lacos.Count == 0) return null;
+            var melhor = lacos.OrderByDescending(x => x.Area).First().Pts;
+            var aberturas = lacos.OrderByDescending(x => x.Area).Skip(1).Select(x => x.Pts).ToList();
             double Par(string nome, string chave)
             {
                 Parameter p = f.LookupParameter(nome);
                 return p != null && p.StorageType == StorageType.Double && p.HasValue ? p.AsDouble() : cfg.Numero(chave);
             }
             string marca = f.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+            // tipo: parâmetro "PCEB_Tipo de laje" (texto) ou o nome do tipo de piso
+            string nomeTipo = ((f.LookupParameter("PCEB_Tipo de laje")?.AsString() ?? "") + " " + (f.FloorType?.Name ?? "")).ToLowerInvariant();
+            TipoLaje tipo = nomeTipo.Contains("alveol") ? TipoLaje.Alveolar : nomeTipo.Contains("treli") ? TipoLaje.Trelicada
+                          : nomeTipo.Contains("vigota") || nomeTipo.Contains("protendid") ? TipoLaje.VigotaProtendida : TipoLaje.Macica;
             var la = new LajeObjeto
             {
                 Dono = new Dono { Tipo = TipoDono.Laje, Id = f.Id.Value.ToString(), Nome = $"{(string.IsNullOrEmpty(marca) ? "laje" : marca)} ({f.Id.Value})" },
@@ -236,6 +258,19 @@ namespace DEB.Revit.Analise
                 G = Par(ParamLajeG, "acoes.lajeG"), Q = Par(ParamLajeQ, "acoes.lajeQ"), Malha = cfg.Numero("analise.malhaLaje"),
             };
             la.Contorno.AddRange(melhor.Select(p => V(p) + new Vetor3(0, 0, -h / 2)));
+            foreach (var ab in aberturas) la.Aberturas.Add(ab.Select(p => V(p) + new Vetor3(0, 0, -h / 2)).ToList());
+            la.Tipo = tipo;
+            if (tipo != TipoLaje.Macica)
+            {
+                // vão na direção do piso (SpanDirectionAngle); peso pela fração maciça ou pelo parâmetro
+                double ang = f.SpanDirectionAngle;
+                la.DirX = new Vetor3(Math.Cos(ang), Math.Sin(ang), 0);
+                la.FracaoMacica = cfg.Numero(tipo == TipoLaje.Alveolar ? "acoes.fracaoAlveolar" : tipo == TipoLaje.Trelicada ? "acoes.fracaoTrelicada" : "acoes.fracaoVigota");
+                Parameter pp = f.LookupParameter(ParamLajePeso);
+                if (pp != null && pp.StorageType == StorageType.Double && pp.HasValue && pp.AsDouble() > 0)
+                    la.FracaoMacica = pp.AsDouble() / (la.PesoEspecifico * h / 100);
+            }
+            if (aberturas.Count > 0) notas.Add($"{la.Dono}: {aberturas.Count} abertura(s) na grelha.");
             return la;
         }
     }
