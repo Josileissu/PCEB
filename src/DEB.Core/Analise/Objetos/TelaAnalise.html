@@ -27,9 +27,9 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-texto);fo
 .topo .sub{color:#c9d6cd;font-size:.8rem}
 .topo .esp{flex:1}
 .topo select{background:#1d4a39;color:#fff;border:1px solid #3d6252;border-radius:5px;padding:4px 8px;font:inherit}
-.barra{display:flex;gap:10px;align-items:center;padding:7px 14px;border-bottom:1px solid var(--linha);flex-wrap:wrap;background:var(--card)}
+.barra{display:flex;gap:8px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--linha);flex-wrap:wrap;background:var(--card)}
 .seg{display:flex;border:1px solid var(--linha);border-radius:6px;overflow:hidden}
-.seg button{background:var(--card);color:var(--fg);border:0;border-right:1px solid var(--linha);padding:5px 11px;font:inherit;cursor:pointer}
+.seg button{background:var(--card);color:var(--fg);border:0;border-right:1px solid var(--linha);padding:4px 9px;font:inherit;cursor:pointer}
 .seg button:last-child{border-right:0}
 .seg button[aria-pressed="true"]{background:var(--mata);color:#fff}
 .barra select,.barra input[type=range]{font:inherit}
@@ -52,7 +52,7 @@ canvas.arrastando{cursor:grabbing}
 .legenda span{display:flex;align-items:center;gap:5px}
 .legenda i{width:16px;height:4px;border-radius:2px;display:inline-block}
 .legenda i.rampa{width:150px;height:10px;border-radius:3px;background:linear-gradient(90deg,#2c7fb8,#41b6c4,#fdae61,#d7191c,#7f0000)}
-.dica{position:absolute;right:12px;bottom:10px;font-size:.74rem;color:var(--suave)}
+.dica{position:absolute;right:12px;top:8px;font-size:.74rem;color:var(--suave);pointer-events:none}
 .lateral{border-left:1px solid var(--linha);background:var(--campo);overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
 .lateral h4{margin:0 0 4px;font-family:var(--f-titulo);font-weight:600;font-size:.9rem}
 .vazio{color:var(--suave);font-size:.86rem}
@@ -84,8 +84,8 @@ td{font-family:var(--f-dado)}
       <button type="button" data-modo="mapa" aria-pressed="false">Mapa de cores</button>
     </div>
     <select id="esforco" aria-label="Esforço">
-      <option value="M">Momentos fletores (My e Mz)</option><option value="V">Cortantes (Vy e Vz)</option>
-      <option value="N">Força normal</option><option value="T">Torção</option>
+      <option value="M" title="Momentos fletores My e Mz">Momentos (My, Mz)</option><option value="V">Cortantes (Vy, Vz)</option>
+      <option value="N">Normal</option><option value="T">Torção</option>
     </select>
     <label class="filtro" id="rotEscala">escala <input type="range" id="escala" min="0.2" max="5" step="0.1" value="1"></label>
     <label class="filtro"><input type="checkbox" id="verCargas" checked> cargas</label>
@@ -272,6 +272,13 @@ function desenhar() {
     D.vinculos.concat(D.molas).forEach(v => linha(P(noDesl(v.i, fd)), P(noDesl(v.j, fd)), c, 1, [3, 3]));
   }
   // diagramas: cada componente no seu plano local, do lado tracionado (momentos)
+  const rotulos = [];
+  const rotular = (x, y, texto) => {   // pula o rótulo que cairia em cima de outro
+    ctx.font = "11px " + css("--f-dado"); const w = ctx.measureText(texto).width + 6, h = 14;
+    if (rotulos.some(r => x < r[0] + r[2] && x + w > r[0] && y - h < r[1] && y > r[1] - r[3])) return;
+    rotulos.push([x, y, w, h]); ctx.fillStyle = css("--card"); ctx.globalAlpha = 0.8; ctx.fillRect(x - 2, y - 11, w - 2, 14); ctx.globalAlpha = 1;
+    ctx.fillStyle = css("--fg"); ctx.fillText(texto, x, y);
+  };
   if (modo === "diagrama") {
     let mx = 1e-12; D.barras.forEach((b, ib) => { if (b.tipo !== "Ligacao") R.estacoes[ib].forEach(s => COMP[k].forEach(c => mx = Math.max(mx, Math.abs(s[c[0]])))); });
     const fs = escala * 0.07 * tam / mx, cd = css("--c-diag");
@@ -289,9 +296,9 @@ function desenhar() {
         ponta.forEach(p => { const t = P(p); ctx.lineTo(t[0], t[1]); });
         const bn = P(base[base.length - 1]); ctx.lineTo(bn[0], bn[1]); ctx.closePath(); ctx.fill(); ctx.stroke();
         let n = 0; est.forEach((s, i) => { if (Math.abs(s[q]) > Math.abs(est[n][q])) n = i; });
-        if (Math.abs(est[n][q]) > 0.02 * mx) {
+        if (Math.abs(est[n][q]) > 0.1 * mx) {
           const t = P(ponta[n]), v = k === "M" ? Math.abs(est[n][q]) : est[n][q];
-          ctx.fillStyle = css("--fg"); ctx.font = "11px " + css("--f-dado"); ctx.fillText(`${NOMES[q]} ${valor(q, v)}`, t[0] + 4, t[1] - 3);
+          rotular(t[0] + 4, t[1] - 3, `${NOMES[q]} ${valor(q, v)}`);
         }
       }
     });
