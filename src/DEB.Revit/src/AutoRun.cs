@@ -512,12 +512,15 @@ namespace DEB.Revit
                     }
                 }
             }
+            // SD_ACO = 1: pórtico de aço de teste ao lado (4 pilares W250X32.7 de 4 m, vigas W310X38.7 e uma secundária W200X15 sobre as
+            // vigas), com as famílias W métricas da biblioteca do Revit — no documento aberto, sem gravar
+            if (Environment.GetEnvironmentVariable("SD_ACO") == "1") sb.AppendLine(CriarPorticoAco(doc));
             var e = DEB.Revit.Commands.ModeloAnaliticoCommand.Montar(doc, notas);
             foreach (string n in notas) sb.AppendLine("NOTA: " + n);
             if (e != null)
             {
                 var m = e.Modelo;
-                sb.AppendLine($"Modelo: {e.Pilares.Count} pilares, {e.Vigas.Count} vigas, {e.Ligacoes.Count} ligações; {m.Nos.Count} nós, {m.Barras.Count} barras, " +
+                sb.AppendLine($"Modelo: {e.Pilares.Count} pilares, {e.Vigas.Count} vigas, {e.Metalicas.Count} peças de aço, {e.Ligacoes.Count} ligações; {m.Nos.Count} nós, {m.Barras.Count} barras, " +
                               $"{m.Molas.Count} aparelhos, {m.Vinculos.Count} vínculos");
                 string json = DEB.Core.Analise.Objetos.VisualizacaoAnalise.Json(e, doc.Title, DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc));
                 sb.AppendLine($"JSON da janela: {json.Length / 1024} kB");
@@ -538,6 +541,64 @@ namespace DEB.Revit
             }
             File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
             return Path.Combine(dir, "resultado.txt");
+        }
+
+        private sealed class FalhasAco : IFailuresPreprocessor
+        {
+            private readonly List<string> _l;
+            public FalhasAco(List<string> l) { _l = l; }
+            public FailureProcessingResult PreprocessFailures(FailuresAccessor fa)
+            {
+                foreach (FailureMessageAccessor f in fa.GetFailureMessages())
+                {
+                    _l.Add($"[{f.GetSeverity()}] {f.GetDescriptionText()}");
+                    if (f.GetSeverity() == FailureSeverity.Warning) fa.DeleteWarning(f);
+                }
+                return FailureProcessingResult.Continue;
+            }
+        }
+
+        private static string CriarPorticoAco(Document doc)
+        {
+            const string lib = @"C:\ProgramData\Autodesk\RVT 2025\Libraries\English\US\";
+            string famPilar = lib + @"Structural Columns\Steel\AISC 15.0\M_W Shapes-Column.rfa", famViga = lib + @"Structural Framing\Steel\AISC 15.0\M_W Shapes.rfa";
+            if (!File.Exists(famPilar) || !File.Exists(famViga)) return "Pórtico de aço: famílias W da biblioteca não encontradas.";
+            const double m = 1 / 0.3048;
+            var falhas = new List<string>();
+            using (var t = new Transaction(doc, "Pórtico de aço de teste"))
+            {
+                var fho = t.GetFailureHandlingOptions();
+                fho.SetFailuresPreprocessor(new FalhasAco(falhas));
+                t.SetFailureHandlingOptions(fho);
+                t.Start();
+                FamilySymbol Tipo(string arq, string nome)
+                {
+                    // carrega só o tipo pedido (o arquivo .txt ao lado é o catálogo de tipos)
+                    doc.LoadFamilySymbol(arq, nome, out FamilySymbol s);
+                    s ??= new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().FirstOrDefault(x => x.Name == nome);
+                    if (s != null && !s.IsActive) s.Activate();
+                    return s;
+                }
+                FamilySymbol pil = Tipo(famPilar, "W250X32.7"), vig = Tipo(famViga, "W310X38.7"), sec = Tipo(famViga, "W200X15");
+                if (pil == null || vig == null || sec == null) { t.RollBack(); return "Pórtico de aço: tipos W não carregados."; }
+                Level nivel = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).First();
+                double x0 = -30 * m, y0 = -30 * m, h = 4 * m, z0 = nivel.Elevation;
+                var cantos = new[] { new XYZ(x0, y0, z0), new XYZ(x0 + 6 * m, y0, z0), new XYZ(x0, y0 + 5 * m, z0), new XYZ(x0 + 6 * m, y0 + 5 * m, z0) };
+                foreach (XYZ c in cantos)
+                    doc.Create.NewFamilyInstance(Line.CreateBound(c, c + XYZ.BasisZ * h), pil, nivel, Autodesk.Revit.DB.Structure.StructuralType.Column);
+                XYZ T(XYZ c) => c + XYZ.BasisZ * h;
+                doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[0]), T(cantos[1])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[2]), T(cantos[3])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[0]), T(cantos[2])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[1]), T(cantos[3])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                XYZ meioA = (T(cantos[0]) + T(cantos[1])) / 2, meioB = (T(cantos[2]) + T(cantos[3])) / 2;
+                var ult = doc.Create.NewFamilyInstance(Line.CreateBound(meioA, meioB), sec, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                var tipoMat = ult.StructuralMaterialType;
+                var mat = doc.GetElement(ult.StructuralMaterialId) as Material;
+                t.Commit();
+                return string.Join(Environment.NewLine, falhas.Select(f => "FALHA: " + f)) + (falhas.Count > 0 ? Environment.NewLine : "") + $"Pórtico de aço de teste criado (4 pilares W250X32.7, 4 vigas W310X38.7, secundária W200X15); material {tipoMat} \"{mat?.Name}\"; " +
+                       $"perfil lido: {DEB.Revit.Analise.MetalicaRevit.Perfil(sec)?.Nome ?? "nenhum"} (tipo \"{sec.Name}\", família \"{sec.FamilyName}\").";
+            }
         }
 
         /// <summary>

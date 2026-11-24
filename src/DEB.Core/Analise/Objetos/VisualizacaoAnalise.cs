@@ -61,6 +61,9 @@ public static class VisualizacaoAnalise
         }
         foreach (var p in e.Pilares) Obj(p.Dono, $"seção {Fmt.Virgula(p.Secao.B, "0.#")}×{Fmt.Virgula(p.Secao.H, "0.#")} cm, {Fmt.Virgula(p.Comprimento, "0")} cm, engaste a {Fmt.Virgula(p.Embutimento, "0")} cm da base");
         foreach (var v in e.Vigas) Obj(v.Dono, $"seção {Fmt.Virgula(v.Secao.B, "0.#")}×{Fmt.Virgula(v.Secao.H, "0.#")} cm, g = {Fmt.Virgula(v.G, "0.##")} kN/m, q = {Fmt.Virgula(v.Q, "0.##")} kN/m");
+        foreach (var b in e.Metalicas)
+            Obj(b.Dono, $"{b.Perfil.Nome} ({b.Aco.Nome}), {Fmt.Virgula(b.Comprimento, "0")} cm" + (b.Pilar ? $", base {(b.Base == BasePilarMetalico.Engastada ? "engastada" : "rotulada")}"
+                : $", ligações {(b.LigacaoI == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}/{(b.LigacaoJ == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}, g = {Fmt.Virgula(b.G, "0.##")} kN/m, q = {Fmt.Virgula(b.Q, "0.##")} kN/m"));
         foreach (var l in e.Ligacoes) Obj(l.Dono, l.Observacao);
         foreach (var la in e.Lajes) Obj(la.Dono, $"h = {Fmt.Virgula(la.Espessura, "0.#")} cm, g = {Fmt.Virgula(la.G, "0.##")} kN/m², q = {Fmt.Virgula(la.Q, "0.##")} kN/m², malha {Fmt.Virgula(la.Sx, "0")} × {Fmt.Virgula(la.Sy, "0")} cm");
 

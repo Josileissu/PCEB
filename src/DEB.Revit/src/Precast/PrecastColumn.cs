@@ -117,8 +117,8 @@ namespace DEB.Revit.Precast
             List<FamilyInstance> precast = columns.Where(fi => fi.StructuralMaterialType == Autodesk.Revit.DB.Structure.StructuralMaterialType.PrecastConcrete).ToList();
             if (precast.Count == 0 && columns.Count > 0)
             {
-                notes.Add("Nenhum pilar com material \"Concreto pré-moldado\": todos os pilares estruturais foram considerados.");
-                precast = columns;
+                notes.Add("Nenhum pilar com material \"Concreto pré-moldado\": todos os pilares estruturais (menos os de aço) foram considerados.");
+                precast = columns.Where(fi => fi.StructuralMaterialType != Autodesk.Revit.DB.Structure.StructuralMaterialType.Steel).ToList();
             }
 
             // Candidatos a consolo: subcomponentes aninhados (ex.: consolos da família da viga) e

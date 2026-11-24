@@ -126,13 +126,16 @@ namespace DEB.Revit.Analise
                     ligacoes.Add((k, l));
                 }
 
+            // ---------------- peças de aço (D48): objetos próprios, perfil pelo tipo
+            HashSet<long> deAco = MetalicaRevit.Ler(doc, e, cfg, notas);
+
             // ---------------- demais vigas: linha de locação reta, ligadas ao pilar onde a ponta cai
             int semPilar = 0, curvas = 0, sobreViga = 0;
             var gerais = new List<(VigaObjeto V, bool PreMoldada)>();
             foreach (FamilyInstance fi in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralFraming)
                          .WhereElementIsNotElementType().OfType<FamilyInstance>().Where(x => x.SuperComponent == null))
             {
-                if (vigas.ContainsKey(fi.Id.Value)) continue;
+                if (vigas.ContainsKey(fi.Id.Value) || deAco.Contains(fi.Id.Value) || MetalicaRevit.DeAco(fi)) continue;
                 if (!(fi.Location is LocationCurve lc) || !(lc.Curve is Line linha)) { curvas++; continue; }
                 BoundingBoxXYZ bb = fi.get_BoundingBox(null);
                 if (bb == null) continue;
