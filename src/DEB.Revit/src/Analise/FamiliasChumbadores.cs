@@ -34,6 +34,51 @@ namespace DEB.Revit.Analise
             return sym;
         }
 
+        /// <summary>
+        /// Parafuso PCEB (D50): fuste redondo no comprimento comercial, cabeça sextavada, arruela e porca sextavada, com as medidas do
+        /// catálogo. Família baseada em plano de trabalho: o eixo do parafuso é a normal do plano (z da família); z = 0 na face onde encosta a
+        /// cabeça, a porca do outro lado da pega. Uma família por diâmetro, comprimento e pega.
+        /// </summary>
+        public static FamilySymbol GarantirParafuso(Document doc, DimensoesParafuso p, double comp, double pega, StringBuilder log)
+        {
+            string nome = $"PCEB Parafuso ø{DEB.Core.Fmt.Virgula(p.Db, "0.#")} L{Math.Round(comp):0} P{Math.Round(pega):0}";   // sem "/" (3/4") no nome do arquivo
+            FamilySymbol Achar() => new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().FirstOrDefault(s => s.FamilyName == nome);
+            var sym = Achar();
+            if (sym != null) return sym;
+            string modelo = Modelo(doc.Application);
+            if (modelo == null) return null;
+            Directory.CreateDirectory(Pasta);
+            string arq = Path.Combine(Pasta, nome + ".rfa");
+            Document fd = doc.Application.NewFamilyDocument(modelo);
+            try
+            {
+                using (var t = new Transaction(fd, "PCEB: " + nome))
+                {
+                    t.Start();
+                    try { fd.OwnerFamily.FamilyCategory = fd.Settings.Categories.get_Item(BuiltInCategory.OST_StructConnections); } catch { }
+                    fd.OwnerFamily.get_Parameter(BuiltInParameter.FAMILY_WORK_PLANE_BASED)?.Set(1);
+                    var vert = fd.OwnerFamily.get_Parameter(BuiltInParameter.FAMILY_ALWAYS_VERTICAL); if (vert != null && !vert.IsReadOnly) vert.Set(0);
+                    var fm = fd.FamilyManager;
+                    if (fm.CurrentType == null) fm.NewType("Padrão");
+                    fm.AddParameter(FamiliasLigacoes.PLigacao, GroupTypeId.IdentityData, SpecTypeId.String.Text, true);
+                    var c = new Construtor(fd) { Aco = MaterialDe(fd, "PCEB Parafuso", new Color(225, 190, 40)) };
+                    double r = p.Db / 2;
+                    c.Sextavado(p.Chave, -p.AlturaCabeca, 0);                                             // cabeça
+                    c.Cilindro(0, 0, 0, comp, r);                                                          // fuste
+                    c.Cilindro(0, 0, pega, pega + p.EspessuraArruela, p.DiametroArruela / 2, r + 1);         // arruela
+                    c.Sextavado(p.Chave, pega + p.EspessuraArruela, pega + p.EspessuraArruela + p.AlturaPorca);   // porca
+                    t.Commit();
+                }
+                fd.SaveAs(arq, new SaveAsOptions { OverwriteExistingFile = true });
+            }
+            catch (Exception ex) { log.AppendLine($"{nome}: não foi possível criar ({ex.Message})."); return null; }
+            finally { fd.Close(false); }
+            doc.LoadFamily(arq, out Family _);
+            sym = Achar();
+            if (sym != null && !sym.IsActive) sym.Activate();
+            return sym;
+        }
+
         private static string Modelo(Autodesk.Revit.ApplicationServices.Application app)
         {
             string raiz = app.FamilyTemplatePath;

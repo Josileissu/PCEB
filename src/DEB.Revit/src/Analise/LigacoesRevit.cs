@@ -205,6 +205,17 @@ namespace DEB.Revit.Analise
             double comp = fusteMm > 0 ? fusteMm : dim.ComprimentoPara(pega);
             if (!semCabeca)
             {
+                // parafuso inteiro como família PCEB (fuste redondo, cabeça e porca sextavadas), no plano com normal = eixo
+                FamilySymbol sp = null;
+                try { sp = FamiliasChumbadores.GarantirParafuso(doc, dim, comp, pega, Diag ?? new StringBuilder()); } catch { }
+                if (sp != null)
+                {
+                    ReferencePlane rp = doc.Create.NewReferencePlane2(inicio - a * 3, inicio + a * 3, inicio + b * 3, Vista3D(doc));
+                    if (rp.Normal.DotProduct(eixo) < 0) rp.Flip();
+                    var fi = doc.Create.NewFamilyInstance(rp.GetReference(), inicio, a, sp);
+                    ids.Add(fi.Id);
+                    return;
+                }
                 Caixa(doc, pa, inicio + eixo * Mm(comp / 2), a, b, db, db, comp, ids);                                  // fuste
                 Caixa(doc, ch, inicio - eixo * Mm(dim.AlturaCabeca), a, b, dim.Chave, dim.Chave, dim.AlturaCabeca, ids); // cabeça
             }
