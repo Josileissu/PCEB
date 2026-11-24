@@ -103,6 +103,16 @@ public sealed class VigaObjeto
     /// <summary>Nós do eixo com a posição (cm a partir do apoio I).</summary>
     public List<(double T, int No)> NosEixo { get; } = new List<(double, int)>();
     public double Vao => (ApoioJ - ApoioI).Modulo;
+
+    /// <summary>
+    /// Forma da ponta da viga no modelo (desenho do detalhe do consolo): trechos a partir da face da ponta (x, cm) com a faixa de altura
+    /// (z, cm, a partir do fundo da seção corrente) — dente Gerber, ressalto. Vazio = seção corrente até a ponta.
+    /// </summary>
+    public List<(double X0, double X1, double ZBase, double ZTopo)> PerfilPontaI { get; } = new List<(double, double, double, double)>();
+    public List<(double X0, double X1, double ZBase, double ZTopo)> PerfilPontaJ { get; } = new List<(double, double, double, double)>();
+    /// <summary>Distância do ponto de apoio (centro do aparelho) à face da ponta da viga (cm); 0 = não informado.</summary>
+    public double ApoioAtePontaI { get; set; }
+    public double ApoioAtePontaJ { get; set; }
     public Vetor3 Direcao => (ApoioJ - ApoioI).Unitario;
     /// <summary>Nó do eixo mais perto da posição t.</summary>
     public int NoNaPosicao(double t) => NosEixo.OrderBy(n => Math.Abs(n.T - t)).First().No;

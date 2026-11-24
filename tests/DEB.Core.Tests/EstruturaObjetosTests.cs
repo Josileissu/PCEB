@@ -304,6 +304,8 @@ public class EstruturaObjetosTests
     {
         var e = Portico(Elastomero);
         e.Ligacoes[0].Consolo = new DEB.Core.Normas.Verificacao.DadosConsolo { Nome = "teste", B = 40, A = 30, H = 40, H1 = 20, Cob = 2.5, TirN = 3, TirPhi = 12.5, CostN = 2, CostPhi = 8, VertN = 2, VertPhi = 8 };
+        // ponta com dente Gerber de 25 × 25 cm (do modelo): o dente apoia no aparelho, centro do aparelho a 12,5 cm da face da ponta
+        e.Vigas[0].PerfilPontaI.Add((0, 25, 25, 50)); e.Vigas[0].PerfilPontaI.Add((25, 80, 0, 50)); e.Vigas[0].ApoioAtePontaI = 12.5;
         e.Analisar();
         var r = DEB.Core.Analise.Chapas.DetalheConsolo.Calcular(e, e.Ligacoes[0], new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto());
         var c = r.Chapa;
@@ -318,6 +320,7 @@ public class EstruturaObjetosTests
         Assert.True(c.Elementos.Where(x => x.Regiao == "consolo" && c.Nos[x.Nos[3]].Y > -3).Max(x => x.S1) > 0);
         string json = DEB.Core.Analise.Chapas.DetalheConsolo.Json(e, e.Ligacoes[0], new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto(), "Ligacao:P1·V1");
         Assert.Contains("\"mef\"", json);
+        Assert.Contains("\"pontaModelo\":true", json);
         string pasta = System.Environment.GetEnvironmentVariable("PCEB_PREVIA_ANALISE");
         if (!string.IsNullOrEmpty(pasta))
         {

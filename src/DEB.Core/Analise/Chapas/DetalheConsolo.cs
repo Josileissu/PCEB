@@ -165,6 +165,24 @@ public static class DetalheConsolo
                                         ("hViga", l.Viga.Secao.H), ("bViga", l.Viga.Secao.B) })
             g.Definir(k, v);
         g.Definir("estimado", r.Estimado);
+        // aparelho e ponta da viga como estão no modelo: espessura do aparelho em uso e a forma da ponta (dente, ressalto) sobre ele
+        var ap = l.AparelhoEmUso;
+        double tAp = ap != null && ap.Espessura > 0 ? ap.Espessura : 1.2;
+        g.Definir("tAp", tAp);
+        g.Definir("aparelho", ap == null ? "sem aparelho (articulação)" : $"{DEB.Core.Intercambio.ApoioPeca.Texto(ap.Tipo)} {Fmt.Virgula(ap.Comprimento, "0.#")} × {Fmt.Virgula(ap.Largura, "0.#")} × {Fmt.Virgula(ap.Espessura, "0.#")} cm");
+        var perfil = l.PontaI ? l.Viga.PerfilPontaI : l.Viga.PerfilPontaJ;
+        double ate = l.PontaI ? l.Viga.ApoioAtePontaI : l.Viga.ApoioAtePontaJ;
+        double xFace = ate > 0 ? r.Pos - ate : r.Pos - r.Pad / 2 - 3;
+        var pt = ValorJson.NovaLista(); g.Definir("ponta", pt);
+        if (perfil.Count == 0) perfil = new List<(double, double, double, double)> { (0, 1.5 * l.Viga.Secao.H, 0, l.Viga.Secao.H) };
+        double zApoio = perfil.OrderBy(x => x.X0).First().ZBase;   // o fundo da ponta apoia no aparelho
+        foreach (var (x0, x1, zb, zt) in perfil)
+        {
+            var q = ValorJson.NovaLista();
+            foreach (double v in new[] { xFace + x0, xFace + x1, tAp + zb - zApoio, tAp + zt - zApoio }) q.Adicionar(ValorJson.De(Math.Round(v, 2)));
+            pt.Adicionar(q);
+        }
+        g.Definir("pontaModelo", (l.PontaI ? l.Viga.PerfilPontaI : l.Viga.PerfilPontaJ).Count > 0);
         var cg = ValorJson.NovoObjeto(); o.Definir("cargas", cg);
         cg.Definir("vd", r.Vd); cg.Definir("hd", r.Hd); cg.Definir("n", r.Nacima); cg.Definir("comb", r.Combinacao);
         var vz = ValorJson.NovaLista(); o.Definir("vizinhos", vz);

@@ -109,6 +109,22 @@ namespace DEB.Revit.Analise
                     ApoioI = V(Ponto(tI)), ApoioJ = V(Ponto(tJ)), Secao = sec, Material = mat, G = m.Cargas.G, Q = m.Cargas.Q,
                 };
                 foreach (var c in m.Cargas.Concentradas) v.Concentradas.Add((c.X - tI * Cm, c.G, c.Q));
+                // forma das pontas (dente, ressalto) pelos trechos do levantamento: para o detalhe do consolo
+                try
+                {
+                    var tr = m.Levantada?.Trechos;
+                    if (tr != null && tr.Count > 0)
+                    {
+                        double z0 = (m.Levantada.Principal?.Secao ?? tr[0].Secao).ZMin, L = m.Levantada.Comprimento > 0 ? m.Levantada.Comprimento : tr.Max(x => x.X1);
+                        double hMax = sec.H * 2.5;
+                        foreach (var x in tr.Where(x => x.X0 < hMax).OrderBy(x => x.X0))
+                            v.PerfilPontaI.Add((x.X0, Math.Min(x.X1, hMax), x.Secao.ZMin - z0, x.Secao.ZMax - z0));
+                        foreach (var x in tr.Where(x => L - x.X1 < hMax).OrderByDescending(x => x.X1))
+                            v.PerfilPontaJ.Add((L - x.X1, Math.Min(L - x.X0, hMax), x.Secao.ZMin - z0, x.Secao.ZMax - z0));
+                    }
+                    v.ApoioAtePontaI = tI * Cm; v.ApoioAtePontaJ = (lx - tJ) * Cm;
+                }
+                catch { /* sem forma: o detalhe desenha a seção corrente */ }
                 e.Vigas.Add(v);
                 vigas[kv.Key] = (v, m, apoios);
             }

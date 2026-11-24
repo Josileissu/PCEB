@@ -69,6 +69,8 @@ td{font-family:var(--f-dado)}
 .kv b{font-weight:500;color:var(--suave)}
 .kv span{font-family:var(--f-dado)}
 .abas{position:absolute;left:12px;top:8px;z-index:2}
+.camposConsolo{position:absolute;left:250px;top:8px;z-index:2}
+.camposConsolo button[aria-pressed="true"]{background:var(--mata,#1e4d3a);color:#fff}
 #cv2{display:none;cursor:default}
 .vista.v2d #cv{display:none}.vista.v2d #cv2{display:block}
 .ponto{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:1px}
@@ -131,6 +133,8 @@ details p{margin:4px 0}
     <nav class="lista" id="lista" aria-label="Objetos"></nav>
     <div class="vista" id="vista"><div class="seg abas" role="group" aria-label="Vista">
         <button type="button" data-aba="3d" aria-pressed="true">3D</button><button type="button" data-aba="peca" aria-pressed="false">2D da peça</button><button type="button" data-aba="laje" aria-pressed="false">Laje · isovalores</button>
+      </div><div class="seg camposConsolo" id="camposConsolo" role="group" aria-label="Campo mostrado no consolo" hidden>
+        <button type="button" data-campo="S1">σ1</button><button type="button" data-campo="S2">σ2</button><button type="button" data-campo="Sx">σx</button><button type="button" data-campo="Sy">σy</button><button type="button" data-campo="Txy">τxy</button><button type="button" data-campo="C" title="Análise não linear: concreto fissurado sem tração e as armaduras (alguns segundos)">Campo de tensões</button>
       </div><canvas id="cv" aria-label="Vista 3D do modelo de análise"></canvas><canvas id="cv2" aria-label="Vista 2D"></canvas><div class="legenda" id="legenda"></div><div class="dica">arrastar: girar · Shift/botão direito: mover · roda: zoom · clique: selecionar</div></div>
     <div class="divisor" id="divLista" title="Arraste para ajustar a largura da lista"></div><div class="divisor" id="divLateral" title="Arraste para ajustar a largura do painel (seleção, ajustes, cargas). Duplo clique volta ao padrão."></div>
     <aside class="lateral" id="lateral"><div><h4>Seleção</h4><div class="vazio">Clique numa barra ou num objeto da lista.</div></div></aside>
@@ -415,15 +419,51 @@ function texto2(x, y, t, cor, alin) { ctx2.fillStyle = cor || css("--fg"); ctx2.
 function ehConsolo(c) { return c && D.molas.some(m => m.dono === c); }
 
 // ---------------------------------------------------------------- detalhe do consolo (item 3): pilar, consolo, aparelho, viga, cargas, biela e tirante, chapa
+// curvas de nível sobre a malha de quadriláteros: nos [x, y], els [n1..n4, …], valor por elemento (null = sem valor)
+function isolinhas(nos, els, vEl, X, Y) {
+  const soma = new Float64Array(nos.length), cont = new Float64Array(nos.length);
+  els.forEach((e, i) => { const v = vEl[i]; if (v == null || !isFinite(v)) return; for (let k = 0; k < 4; k++) { soma[e[k]] += v; cont[e[k]]++; } });
+  const vn = Array.from(soma, (s0, k) => cont[k] ? s0 / cont[k] : null);
+  let mn = Infinity, mx = -Infinity; vn.forEach(v => { if (v != null) { mn = Math.min(mn, v); mx = Math.max(mx, v); } });
+  if (!isFinite(mn) || mx - mn < 1e-9) return;
+  // níveis "redondos": passo 1, 2 ou 5 × 10^n, uns 8 a 12 níveis
+  const bruto = (mx - mn) / 10, pot = Math.pow(10, Math.floor(Math.log10(bruto))), passo = [1, 2, 5, 10].map(f => f * pot).find(p => p >= bruto);
+  const niveis = []; for (let v = Math.ceil(mn / passo) * passo; v <= mx; v += passo) niveis.push(+v.toFixed(10));
+  ctx2.save(); ctx2.lineWidth = 0.8; ctx2.strokeStyle = "rgba(40,40,40,0.55)"; ctx2.font = "9px " + css("--f-dado"); ctx2.fillStyle = "rgba(30,30,30,0.85)";
+  const rotulados = {};
+  els.forEach(e => {
+    const p = [0, 1, 2, 3].map(k => [nos[e[k]][0], nos[e[k]][1], vn[e[k]]]);
+    if (p.some(q => q[2] == null)) return;
+    niveis.forEach(nv => {
+      const pts = [];
+      for (let k = 0; k < 4; k++) {
+        const a = p[k], b = p[(k + 1) % 4];
+        if ((a[2] - nv) * (b[2] - nv) < 0) { const t = (nv - a[2]) / (b[2] - a[2]); pts.push([a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]); }
+      }
+      for (let k = 0; k + 1 < pts.length; k += 2) {
+        ctx2.beginPath(); ctx2.moveTo(X(pts[k][0]), Y(pts[k][1])); ctx2.lineTo(X(pts[k + 1][0]), Y(pts[k + 1][1])); ctx2.stroke();
+        const ch = nv.toFixed(6);
+        if (!rotulados[ch] || rotulados[ch] < 1) { rotulados[ch] = (rotulados[ch] || 0) + 1; ctx2.fillText(fmt(nv, Math.abs(passo) < 1 ? 1 : 0), X(pts[k][0]) + 2, Y(pts[k][1]) - 2); }
+      }
+    });
+  });
+  ctx2.restore();
+}
+function botoesCampo(mostrar) {
+  const b = document.getElementById("camposConsolo"); if (!b) return;
+  b.hidden = !mostrar;
+  b.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x.dataset.campo === campoConsolo ? "true" : "false"));
+}
 function desenharConsolo(w, h, chave) {
+  botoesCampo(true);
   const det = DETALHES[chave];
   if (!det) { texto2(20, 60, host ? "Calculando o detalhe do consolo (chapa e biela-tirante)…" : "Prévia sem o Revit: o detalhe do consolo é calculado pelo PCEB."); if (host && !det) { DETALHES[chave] = null; enviar({ acao: "detalhe", chave }); } return; }
   if (det.erro) { texto2(20, 60, "Detalhe não calculado: " + det.erro, css("--erro")); return; }
   const g = det.geo, c = det.cargas, b = det.biela, mf = det.mef;
   // janela: x de −Lp − 10 até A + comprimento de viga; y de −(H + Lp) até Lp + 10
   const vz = det.vizinhos || [];
-  const x0 = -g.lp - 25 - Math.max(0, ...vz.filter(v => v.lado < 0).map(v => v.a)), x1 = g.a + Math.max(60, 1.5 * g.hViga),
-        y0 = Math.min(-g.h, ...vz.map(v => v.dy - v.h)) - g.lp - 10, y1 = Math.max(0, ...vz.map(v => v.dy)) + g.lp + 30;
+  const x0 = -g.lp - 25 - Math.max(0, ...vz.filter(v => v.lado < 0).map(v => v.a)), x1 = Math.max(g.a + Math.max(60, 1.5 * g.hViga), ...((g.ponta || []).map(q => q[1] + 6))),
+        y0 = Math.min(-g.h, ...vz.map(v => v.dy - v.h)) - g.lp - 10, y1 = Math.max(Math.max(0, ...vz.map(v => v.dy)) + g.lp + 30, ...((g.ponta || []).map(q => q[3] + 20)));
   const painel = Math.min(w * 0.68, w - 300), esc = Math.min((painel - 80) / (x1 - x0), (h - 130) / (y1 - y0));
   const ox = 50 - x0 * esc, oy = 96 + y1 * esc, X = x => ox + x * esc, Y = y => oy - y * esc;
   // campo de tensões não linear (item 9): pedido sob demanda
@@ -442,6 +482,11 @@ function desenharConsolo(w, h, chave) {
     for (let k = 0; k < 4; k++) { const [x, y] = mf.nos[e[k]]; k ? ctx2.lineTo(X(x), Y(y)) : ctx2.moveTo(X(x), Y(y)); }
     ctx2.closePath(); ctx2.fill();
   });
+  // isovalores: médias nos nós e curvas de nível em cada quadrilátero (valores do campo mostrado, na unidade da tela)
+  {
+    const vEl = mf.els.map((e, i) => CT && CT.els ? (CT.els[i] ? conv("tensao", CT.els[i][0]) : null) : conv("tensao", e[idx]));
+    if (!(campoConsolo === "C" && !(CT && CT.els))) isolinhas(mf.nos, mf.els, vEl, X, Y);
+  }
   // direções principais (compressão) em alguns elementos
   if (CT && CT.els) {
     // direções de compressão (bielas), traço proporcional à tensão
@@ -484,11 +529,16 @@ function desenharConsolo(w, h, chave) {
     texto2(X(xf + sx * v.a / 2), Y(v.dy - v.h) + 14, v.nome, css("--suave"), "center");
   });
   ctx2.beginPath(); ctx2.moveTo(X(0), Y(0)); ctx2.lineTo(X(g.a), Y(0)); ctx2.lineTo(X(g.a), Y(-g.h1)); ctx2.lineTo(X(0), Y(-g.h)); ctx2.stroke();
-  const tAp = 1.2;
+  const tAp = g.tAp || 1.2;
   ctx2.fillStyle = "#333"; ctx2.fillRect(X(g.pos - g.pad / 2), Y(tAp), g.pad * esc, tAp * esc);
+  // ponta da viga como está no modelo (dente, ressalto): trechos [x0, x1, y base, y topo] a partir da face do pilar
   ctx2.strokeStyle = css("--c-viga"); ctx2.lineWidth = 2; ctx2.setLineDash([6, 4]);
-  ctx2.strokeRect(X(g.pos - g.pad / 2 - 3), Y(tAp + g.hViga), (x1 - g.pos + g.pad / 2 - 10) * esc, g.hViga * esc); ctx2.setLineDash([]);
-  texto2(X(g.pos + 10), Y(tAp + g.hViga / 2), "viga (ponta)", css("--c-viga"));
+  const ponta = g.ponta && g.ponta.length ? g.ponta : [[g.pos - g.pad / 2 - 3, x1 - 10, tAp, tAp + g.hViga]];
+  ponta.forEach(([a, b, yb, yt]) => { const bb = Math.min(b, x1 - 4); if (bb > a) ctx2.strokeRect(X(a), Y(yt), (bb - a) * esc, (yt - yb) * esc); });
+  ctx2.setLineDash([]);
+  const pm = ponta[ponta.length - 1];
+  texto2(X(Math.min(pm[0] + 4, x1 - 60)), Y((pm[2] + pm[3]) / 2), "viga (ponta" + (g.pontaModelo ? ", do modelo)" : ")"), css("--c-viga"));
+  if (g.aparelho) texto2(X(g.pos + g.pad / 2) + 6, Y(0) + 14, g.aparelho, css("--suave"));
   // biela e tirante
   const zt = -(g.cob + 0.8), zb = zt - b.z;
   ctx2.strokeStyle = css("--c-def"); ctx2.lineWidth = 3;
@@ -521,7 +571,7 @@ function desenharConsolo(w, h, chave) {
       linha("barras: verde < 60%, laranja, vermelho = escoando, azul = comprimida", css("--suave"));
       (CT.hipoteses || []).forEach(t => { const pal = t.split(" "); let l = ""; pal.forEach(p => { if ((l + p).length > 56) { linha(l, css("--suave")); l = "  "; } l += p + " "; }); linha(l, css("--suave")); });
     }
-    py += 6; linha("Teclas: c = campo de tensões, 1/2/x/y/t = elástico", css("--suave"));
+    py += 6; linha("Escolha o campo nos botões acima do desenho (ou teclas 1, 2, x, y, t, c).", css("--suave"));
     return;
   }
   linha("Campo: " + { S1: "σ1 (tração +)", S2: "σ2 (compressão −)", Sx: "σx", Sy: "σy", Txy: "τxy" }[campoConsolo] + " · " + S("tensao"), css("--suave"));
@@ -533,14 +583,15 @@ function desenharConsolo(w, h, chave) {
   if (vz.length) linha(`${vz.length} consolo(s) vizinho(s) no mesmo trecho`, css("--suave"));
   linha(`espessura: pilar ${fmt(g.tp, 0)} cm, consolo ${fmt(g.b, 0)} cm`, css("--suave"));
   py += 6; linha("Consolo: " + nomeSit(det.dim.situacao) + " (detalhes no painel)", corSit(det.dim.situacao));
-  py += 6; linha("Teclas: 1 = σ1, 2 = σ2, x = σx, y = σy, t = τxy", css("--suave"));
-  linha("c = campo de tensões não linear (concreto fissurado + armadura)", css("--suave"));
+  py += 6; linha("Campos nos botões acima do desenho; \"Campo de tensões\" = análise não", css("--suave"));
+  linha("linear com o concreto fissurado e as armaduras (alguns segundos).", css("--suave"));
 }
 
 function desenharPeca() {
   const [w, h] = medir2(); ctx2.clearRect(0, 0, w, h);
   let chave = sel; const tipoDe = c => (D.objetos.find(o => o.chave === c) || {}).tipo;
   if (ehConsolo(chave)) return desenharConsolo(w, h, chave);
+  botoesCampo(false);
   if (!chave || !["Viga", "Pilar"].includes(tipoDe(chave))) chave = (D.objetos.find(o => o.tipo === "Viga") || D.objetos.find(o => o.tipo === "Pilar") || {}).chave;
   if (!chave) { texto2(20, 60, "Selecione uma viga ou um pilar."); return; }
   const o = D.objetos.find(x => x.chave === chave), viga = o.tipo === "Viga";
@@ -794,10 +845,11 @@ $("resultado").addEventListener("change", () => { R = D.resultados[+$("resultado
 ["esforco", "escala", "verCargas", "verNomes"].forEach(id => $(id).addEventListener("input", desenhar));
 $("ajustar").addEventListener("click", ajustar);
 $("exportar").addEventListener("change", ev => { const f = ev.target.value; ev.target.value = ""; if (f) enviar({ acao: "exportar", formato: f }); });
+document.querySelectorAll("#camposConsolo button").forEach(b => b.addEventListener("click", () => { campoConsolo = b.dataset.campo; desenhar(); }));
 window.addEventListener("keydown", ev => { if (aba !== "peca" || !ehConsolo(sel)) return; const k = { "1": "S1", "2": "S2", "x": "Sx", "y": "Sy", "t": "Txy", "c": "C" }[ev.key]; if (k) { campoConsolo = k; desenhar(); } });
 document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
   aba = b.dataset.aba; document.querySelectorAll("[data-aba]").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
-  $("vista").classList.toggle("v2d", aba !== "3d"); $("grandezaLaje").hidden = aba !== "laje"; desenhar();
+  $("vista").classList.toggle("v2d", aba !== "3d"); $("grandezaLaje").hidden = aba !== "laje"; botoesCampo(aba === "peca" && ehConsolo(sel)); desenhar();
 }));
 $("grandezaLaje").addEventListener("input", desenhar);
 $("fechar").addEventListener("click", () => enviar({ acao: "fechar" }));
