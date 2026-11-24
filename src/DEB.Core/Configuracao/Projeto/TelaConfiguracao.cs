@@ -66,7 +66,7 @@ public sealed class SessaoConfiguracao
             {
                 case "estado": break;
                 case "definir":
-                    Definir(nivel, id, m["valor"]?.Texto ?? "", m["justificativa"]?.Texto);
+                    Definir(nivel, id, ParaCampo(id, m["valor"]?.Texto ?? "", Cfg.AteNivel(nivel)), m["justificativa"]?.Texto);
                     break;
                 case "justificar":
                 {
@@ -129,6 +129,38 @@ public sealed class SessaoConfiguracao
     }
 
     /// <summary>Estado do nível para a página: grupos, campos (valor em vigor, origem, cadeia de níveis), fora da norma.</summary>
+    /// <summary>
+    /// Unidade de tela de um campo numérico com grandeza (a escolhida no grupo Unidades), com as conversões do valor do catálogo
+    /// (unidade do campo) para a tela. null = o campo aparece na unidade dele.
+    /// </summary>
+    private (string Sim, Func<string, string> Conv, Func<double, double> Num)? Tela(CampoConfiguracao c, ConfiguracaoProjeto vista)
+    {
+        var g = CatalogoConfiguracao.GrandezaDoCampo(c);
+        if (g == null) return null;
+        string sim = vista.Texto(CatalogoConfiguracao.IdUnidade(g.Value));
+        if (sim == c.Unidade || !Unidades.Aceita(g.Value, sim)) return null;
+        double Base(double x) => c.Unidade == Unidades.Base(g.Value) ? x : Unidades.ParaBase(g.Value, x, c.Unidade);
+        double Num(double x) => Math.Round(Unidades.DaBase(g.Value, Base(x), sim), 6);
+        string Conv(string t) => double.TryParse((t ?? "").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double x)
+            ? Num(x).ToString("0.######", CultureInfo.InvariantCulture) : t;
+        return (sim, Conv, Num);
+    }
+
+    /// <summary>Valor digitado na unidade de tela → unidade do campo (o que o catálogo guarda).</summary>
+    private string ParaCampo(string id, string texto, ConfiguracaoProjeto vista)
+    {
+        if (!CatalogoConfiguracao.Existe(id)) return texto;
+        var c = CatalogoConfiguracao.Campo(id);
+        var g = CatalogoConfiguracao.GrandezaDoCampo(c);
+        if (g == null) return texto;
+        string sim = vista.Texto(CatalogoConfiguracao.IdUnidade(g.Value));
+        if (sim == c.Unidade || !Unidades.Aceita(g.Value, sim)) return texto;
+        if (!double.TryParse((texto ?? "").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double x)) return texto;
+        double b = Unidades.ParaBase(g.Value, x, sim);
+        double v = c.Unidade == Unidades.Base(g.Value) ? b : Unidades.DaBase(g.Value, b, c.Unidade);
+        return Math.Round(v, 9).ToString("0.#########", CultureInfo.InvariantCulture);
+    }
+
     public string Estado(NivelConfiguracao nivel, string erro = null)
     {
         if (!ComProjeto) nivel = NivelConfiguracao.Escritorio;
@@ -166,9 +198,17 @@ public sealed class SessaoConfiguracao
             if (c.Min.HasValue) o.Definir("min", c.Min.Value);
             if (c.Max.HasValue) o.Definir("max", c.Max.Value);
             var (valor, origem) = vista.Ler(c.Id);
+            var tela = Tela(c, vista);
+            if (tela != null)
+            {
+                valor = tela.Value.Conv(valor);
+                o.Definir("unidade", tela.Value.Sim);
+                if (c.Min.HasValue) o.Definir("min", tela.Value.Num(c.Min.Value));
+                if (c.Max.HasValue) o.Definir("max", tela.Value.Num(c.Max.Value));
+            }
             o.Definir("valor", valor);
             o.Definir("origem", NomeNivel(origem));
-            o.Definir("herdado", acima.Texto(c.Id));
+            o.Definir("herdado", tela != null ? tela.Value.Conv(acima.Texto(c.Id)) : acima.Texto(c.Id));
             o.Definir("alterado", origem == nivel);
             if (Cfg.Nivel(nivel).Justificativas.TryGetValue(c.Id, out string j)) o.Definir("justificativa", j);
             if (fora.TryGetValue(c.Id, out var f))

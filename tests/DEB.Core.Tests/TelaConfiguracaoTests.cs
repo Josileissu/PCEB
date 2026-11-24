@@ -76,7 +76,7 @@ public class TelaConfiguracaoTests
         s.Receber("{\"acao\":\"sistema\",\"nivel\":\"Projeto\",\"sistema\":\"Técnico de prancha · kgf, cm\"}");
         Assert.Equal("kgf·cm", s.Cfg.Unidade(Grandeza.Torcao));
         s.Receber("{\"acao\":\"restaurarGrupo\",\"nivel\":\"Projeto\",\"grupo\":\"unid\"}");
-        Assert.Equal("kN", s.Cfg.Unidade(Grandeza.Forca));
+        Assert.Equal("tf", s.Cfg.Unidade(Grandeza.Forca));     // padrão do PCEB
         Assert.Null(s.Fim);
         s.Receber("{\"acao\":\"salvar\",\"nivel\":\"Projeto\"}");
         Assert.Equal("salvar", s.Fim);
@@ -84,6 +84,24 @@ public class TelaConfiguracaoTests
         var so = new SessaoConfiguracao(new ConfiguracaoProjeto()) { ComProjeto = false };
         so.Receber("{\"acao\":\"definir\",\"nivel\":\"Projeto\",\"id\":\"materiais.fck\",\"valor\":\"50\"}");
         Assert.Equal("50", so.Cfg.Escritorio.Valores["materiais.fck"]);
+    }
+
+    [Fact]
+    public void Campo_numerico_aparece_e_entra_na_unidade_escolhida()
+    {
+        var s = new SessaoConfiguracao(new ConfiguracaoProjeto());
+        // padrão do PCEB: peso específico em kgf/m³ → 25 kN/m³ aparece como 2549,3 kgf/m³
+        string e = s.Receber("{\"acao\":\"estado\",\"nivel\":\"Projeto\"}");
+        Assert.Contains("\"unidade\":\"kgf/m³\"", e);
+        Assert.Contains("2549.29", e);
+        // digitado em kgf/m³, guardado em kN/m³
+        s.Receber("{\"acao\":\"definir\",\"nivel\":\"Projeto\",\"id\":\"materiais.pesoEspecifico\",\"valor\":\"2500\"}");
+        Assert.Equal(24.516625, s.Cfg.Numero("materiais.pesoEspecifico"), 5);
+        // trocando a unidade para kN/m³ a tela mostra o número guardado
+        s.Receber("{\"acao\":\"definir\",\"nivel\":\"Projeto\",\"id\":\"unid.PesoEspecifico\",\"valor\":\"kN/m³\"}");
+        Assert.Contains("24.516625", s.Receber("{\"acao\":\"estado\",\"nivel\":\"Projeto\"}"));
+        Assert.Equal(78.5, s.Cfg.Numero("materiais.pesoCA50"));
+        Assert.Equal(78.5, s.Cfg.Numero("materiais.pesoCP190"));
     }
 
     [Fact]

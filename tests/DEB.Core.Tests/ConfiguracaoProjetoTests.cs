@@ -72,7 +72,7 @@ public class ConfiguracaoProjetoTests
         Assert.Equal(32.2, Unidades.DaBase(Grandeza.ModuloElasticidade, 32200, "GPa"), 6);
         Assert.Equal(25, Unidades.DaBase(Grandeza.Velocidade, 25 / 3.6, "km/h"), 6);
         var cfg = new ConfiguracaoProjeto();
-        Assert.Equal("74,0 kN·m", cfg.Formatar(Grandeza.Momento, 74, 1));
+        Assert.Equal("7,5 tf·m", cfg.Formatar(Grandeza.Momento, 74, 1));     // padrão do PCEB: tf·m (24/11/2026)
         cfg.AplicarSistema(NivelConfiguracao.Projeto, "Técnico · tf, m");
         Assert.Equal("tf", cfg.Unidade(Grandeza.Forca));
         Assert.Equal("7,55 tf·m", cfg.Formatar(Grandeza.Momento, 74, 2));

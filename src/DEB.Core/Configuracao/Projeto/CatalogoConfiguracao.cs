@@ -71,6 +71,35 @@ public static class CatalogoConfiguracao
         G("apres", "Apresentação", "Idioma e números na prancha."),
     };
 
+    /// <summary>
+    /// Unidades de partida do PCEB (24/11/2026: as do escritório do usuário passaram a ser o padrão): sistema técnico em tf e kgf, cm
+    /// nas cotas do modelo. As demais grandezas ficam no primeiro símbolo da lista.
+    /// </summary>
+    public static IReadOnlyDictionary<Grandeza, string> UnidadesPadrao { get; } = new Dictionary<Grandeza, string>
+    {
+        [Grandeza.Forca] = "tf", [Grandeza.Cortante] = "tf", [Grandeza.Normal] = "tf", [Grandeza.Momento] = "tf·m", [Grandeza.Torcao] = "tf·m",
+        [Grandeza.CargaLinear] = "kgf/m", [Grandeza.CargaSuperficie] = "kgf/m²", [Grandeza.PesoEspecifico] = "kgf/m³", [Grandeza.Comprimento] = "cm",
+        [Grandeza.MomentoDistribuido] = "tf·m/m", [Grandeza.RigidezMola] = "tf/m", [Grandeza.RigidezRotacao] = "tf·m/rad", [Grandeza.Idade] = "dias",
+    };
+
+    /// <summary>
+    /// Grandeza de um campo numérico (a tela mostra e recebe o valor na unidade escolhida no grupo Unidades; o catálogo guarda na
+    /// unidade do campo). null = sem conversão (fatores, contagens, cm de malha, mm de abertura de fissura…).
+    /// </summary>
+    public static Grandeza? GrandezaDoCampo(CampoConfiguracao c)
+    {
+        if (c.Tipo != TipoCampo.Numero) return null;
+        if (c.Id.StartsWith("durab.cob")) return Projeto.Grandeza.Cobrimento;
+        return c.Unidade switch
+        {
+            "kN/m³" => Projeto.Grandeza.PesoEspecifico,
+            "MPa" => Projeto.Grandeza.Tensao,
+            "kN/m²" => Projeto.Grandeza.CargaSuperficie,
+            "kN/m" => Projeto.Grandeza.CargaLinear,
+            _ => (Grandeza?)null,
+        };
+    }
+
     public static IReadOnlyList<BitolaDisponivel> BitolasPadrao { get; } = new[]
     {
         new BitolaDisponivel { Phi = 5, Aco = "CA-60", Fornecimento = Fornecimento.Rolo },
@@ -177,7 +206,7 @@ public static class CatalogoConfiguracao
         {
             var (s, rot, ex) = nomes[g];
             var ops = Unidades.Opcoes(g);
-            string padrao = g == Grandeza.Idade ? "meses" : g == Grandeza.ModuloElasticidade ? "GPa" : ops[0];
+            string padrao = UnidadesPadrao.TryGetValue(g, out string up) && ops.Contains(up) ? up : g == Grandeza.ModuloElasticidade ? "GPa" : ops[0];
             l.Add(new CampoConfiguracao { Id = IdUnidade(g), Grupo = "unid", Subgrupo = s, Rotulo = rot, Explicacao = ex, Tipo = TipoCampo.Unidade,
                 Grandeza = g, Opcoes = ops, Padrao = padrao, Referencia = "—" });
         }
@@ -193,6 +222,17 @@ public static class CatalogoConfiguracao
         O("materiais", "acoPerfil", "Aço dos perfis", DEB.Core.Elementos.Metalica.AcoEstrutural.Lista.Select(a => a.Nome).ToArray(), "NBR 8800 Anexo A",
           "Aço dos perfis metálicos quando o tipo do Revit não traz o material.");
         N("materiais", "pesoEspecifico", "Peso específico do concreto armado", 25, "kN/m³", "NBR 6120", "Peso próprio das peças.", 20, 30);
+        S("Pesos específicos dos aços");
+        foreach (var (id, rot, refer, ex) in new[]
+        {
+            ("CA25", "CA-25", "NBR 7480", "Barras de armadura passiva."), ("CA50", "CA-50", "NBR 7480", "Barras de armadura passiva."),
+            ("CA60", "CA-60", "NBR 7480", "Fios de armadura passiva."), ("CP175", "CP-175", "NBR 7483", "Cordoalhas e fios de protensão."),
+            ("CP190", "CP-190", "NBR 7483", "Cordoalhas e fios de protensão."), ("CP210", "CP-210", "NBR 7483", "Cordoalhas e fios de protensão."),
+            ("CP220", "CP-220", "NBR 7483 (conferir a edição)", "Cordoalhas e fios de protensão."),
+            ("Perfis", "Perfis e chapas de aço estrutural", "NBR 8800 4.9.4", "Perfis, chapas e parafusos das estruturas de aço."),
+        })
+            N("materiais", "peso" + id, "Peso específico · " + rot, 78.5, "kN/m³", refer, ex + " Massa específica de 7850 kg/m³.", 70, 85);
+        S("");
 
         // ---- durabilidade
         O("durab", "caa", "Classe de agressividade", new[] { "I", "II", "III", "IV" }, "NBR 6118 Tab. 6.1", "fck mínimo, cobrimento e wk.", 1);
