@@ -42,6 +42,15 @@ namespace DEB.Revit
             };
             panel.AddItem(config);
 
+            var cfgProjeto = new PushButtonData("DEB_ConfiguracaoProjeto", "Configuração\ndo projeto", dll, typeof(ConfiguracaoProjetoCommand).FullName)
+            {
+                ToolTip = "Normas, coeficientes, materiais, durabilidade, unidades e bitolas do projeto (D43): padrão do escritório e do projeto.",
+                LongDescription = "O escritório fica num arquivo comum ao CAD; o projeto fica gravado dentro do modelo. Valor fora da norma é aceito com justificativa, que sai no memorial.",
+                LargeImage = IconFactory.Create(32, "⚖"),
+                Image = IconFactory.Create(16, "⚖")
+            };
+            panel.AddItem(cfgProjeto);
+
             var diag = new PushButtonData("SD_Diagnostico", "Diagnóstico", dll, typeof(DiagnosticsCommand).FullName)
             {
                 ToolTip = "Grava um levantamento do modelo (pilares, vigas, consolos, contatos entre peças) para análise.",

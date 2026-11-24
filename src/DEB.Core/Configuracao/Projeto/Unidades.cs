@@ -43,7 +43,7 @@ public static class Unidades
         [Grandeza.Cortante] = ("kN", new[] { ("kN", 1.0), ("tf", G), ("kgf", G / 1000) }),
         [Grandeza.Normal] = ("kN", new[] { ("kN", 1.0), ("tf", G), ("kgf", G / 1000) }),
         [Grandeza.Momento] = ("kN·m", new[] { ("kN·m", 1.0), ("tf·m", G), ("kN·cm", 0.01), ("kgf·cm", G / 1000 * 0.01) }),
-        [Grandeza.Torcao] = ("kN·m", new[] { ("kN·m", 1.0), ("tf·m", G), ("kN·cm", 0.01) }),
+        [Grandeza.Torcao] = ("kN·m", new[] { ("kN·m", 1.0), ("tf·m", G), ("kN·cm", 0.01), ("kgf·cm", G / 1000 * 0.01) }),
         [Grandeza.CargaLinear] = ("kN/m", new[] { ("kN/m", 1.0), ("tf/m", G), ("kgf/m", G / 1000) }),
         [Grandeza.CargaSuperficie] = ("kN/m²", new[] { ("kN/m²", 1.0), ("tf/m²", G), ("kgf/m²", G / 1000) }),
         [Grandeza.MomentoDistribuido] = ("kN·m/m", new[] { ("kN·m/m", 1.0), ("tf·m/m", G) }),
@@ -114,7 +114,7 @@ public static class Unidades
             },
             ["Técnico de prancha · kgf, cm"] = new Dictionary<Grandeza, string>
             {
-                [Grandeza.Forca] = "kgf", [Grandeza.Cortante] = "kgf", [Grandeza.Normal] = "kgf", [Grandeza.Momento] = "kgf·cm", [Grandeza.Torcao] = "kN·cm",
+                [Grandeza.Forca] = "kgf", [Grandeza.Cortante] = "kgf", [Grandeza.Normal] = "kgf", [Grandeza.Momento] = "kgf·cm", [Grandeza.Torcao] = "kgf·cm",
                 [Grandeza.CargaLinear] = "kgf/m", [Grandeza.CargaSuperficie] = "kgf/m²", [Grandeza.Comprimento] = "cm", [Grandeza.Tensao] = "kgf/cm²",
             },
         };

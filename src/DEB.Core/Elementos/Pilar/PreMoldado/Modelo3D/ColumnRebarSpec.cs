@@ -311,6 +311,9 @@ namespace DEB.Core.Elementos.Pilar.PreMoldado.Modelo3D
         /// <summary>Configuração do projeto (D43) usada no cálculo dos consolos; null = valores de partida.</summary>
         public void UsarConfiguracao(DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto cfg) => _configuracao = cfg;
 
+        /// <summary>Leva a configuração do projeto de outro modelo de armadura (troca de modelo salvo na janela).</summary>
+        public void HerdarConfiguracao(ColumnRebarSpec de) => _configuracao = de?._configuracao;
+
         /// <summary>Consolo com a armadura do modelo, para o cálculo: nome com face e topo para achar no relatório.</summary>
         private DadosConsolo DadosCalculo(Corbel k)
         {

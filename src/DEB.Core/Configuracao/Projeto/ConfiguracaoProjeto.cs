@@ -99,10 +99,23 @@ public sealed class ConfiguracaoProjeto
         var n = Nivel(nivel);
         n.Valores.Remove(id);
         n.Justificativas.Remove(id);
-        if (Texto(id) == valor) return;   // herdado já vale isso
+        if (AcimaDe(nivel).Texto(id) == valor) return;   // herdado dos níveis de cima já vale isso
         n.Valores[id] = valor;
         if (!string.IsNullOrWhiteSpace(justificativa)) n.Justificativas[id] = justificativa.Trim();
     }
+
+    /// <summary>A configuração vista de um nível: só ele e os de cima (a tela do escritório não enxerga o projeto).</summary>
+    public ConfiguracaoProjeto AteNivel(NivelConfiguracao nivel) => new ConfiguracaoProjeto
+    {
+        Escritorio = nivel >= NivelConfiguracao.Escritorio ? Escritorio : Vazio(NivelConfiguracao.Escritorio),
+        Projeto = nivel >= NivelConfiguracao.Projeto ? Projeto : Vazio(NivelConfiguracao.Projeto),
+        Grupo = nivel >= NivelConfiguracao.Grupo ? Grupo : Vazio(NivelConfiguracao.Grupo),
+    };
+
+    /// <summary>O que o nível herda: os níveis acima dele.</summary>
+    public ConfiguracaoProjeto AcimaDe(NivelConfiguracao nivel) => AteNivel(nivel - 1);
+
+    private static NivelValores Vazio(NivelConfiguracao n) => new NivelValores { Nivel = n };
 
     /// <summary>Volta o campo ao valor herdado no nível dado.</summary>
     public void Restaurar(NivelConfiguracao nivel, string id) { var n = Nivel(nivel); n.Valores.Remove(id); n.Justificativas.Remove(id); }

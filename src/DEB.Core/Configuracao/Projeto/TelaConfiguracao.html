@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Configuração do projeto</title>
+<style>
+/* Tela de configuração do PCEB (D43): árvore de grupos | campos | painel lateral, na identidade mata e ipê. Sem rede: fontes do sistema. */
+:root{
+  --mata:#123a2c; --mata-claro:#e7efe9; --ipe:#e3a92b; --ocre:#8a5a00; --anil:#1d3f6e; --erro:#9b2c1f;
+  --papel:#f2f1ec; --tinta:#13201a; --suave:#5d665f; --linha:#d9d7cf; --branco:#ffffff;
+  --bg:var(--papel); --fg:var(--tinta); --card:var(--branco); --campo:#fbfaf7;
+  --f-titulo:"Segoe UI Semibold","Segoe UI",system-ui,sans-serif; --f-texto:"Segoe UI",system-ui,sans-serif; --f-dado:Consolas,"Cascadia Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --ocre:#e3a92b; --anil:#8fb3e8; --erro:#f08a7a; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
+  --ocre:#e3a92b; --anil:#8fb3e8; --erro:#f08a7a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-texto);font-size:14px;line-height:1.5;margin:0}
+.app{height:100%;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;background:var(--card)}
+.topo{background:var(--mata);color:#fff;display:flex;align-items:center;gap:14px;padding:10px 16px;flex-wrap:wrap}
+.topo .nome{font-family:var(--f-titulo);font-size:1.1rem}
+.topo .sub{color:#c9d6cd;font-size:.82rem}
+.topo .esp{flex:1}
+.escopo{display:flex;border:1px solid #3d6252;border-radius:6px;overflow:hidden}
+.escopo button{background:transparent;color:#dfe8e2;border:0;padding:6px 14px;font:inherit;font-size:.86rem;cursor:pointer}
+.escopo button[aria-pressed="true"]{background:var(--ipe);color:#13201a;font-weight:600}
+.escopo button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ipe);outline-offset:1px}
+.barra{display:flex;gap:12px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--linha);flex-wrap:wrap}
+.barra input[type=search]{flex:1;min-width:200px;padding:6px 10px;border:1px solid var(--linha);border-radius:5px;background:var(--campo);color:var(--fg);font:inherit}
+.filtro{font-size:.84rem;color:var(--suave);display:flex;gap:6px;align-items:center}
+.corpo{display:grid;grid-template-columns:220px minmax(0,1fr) 290px;min-height:0}
+.arvore{border-right:1px solid var(--linha);padding:8px;display:flex;flex-direction:column;gap:2px;background:var(--campo);overflow:auto}
+.grupo{display:flex;justify-content:space-between;align-items:center;gap:8px;text-align:left;border:0;background:transparent;color:var(--fg);font:inherit;font-size:.88rem;padding:7px 9px;border-radius:5px;cursor:pointer}
+.grupo:hover{background:var(--mata-claro)}
+.grupo[aria-current="true"]{background:var(--mata);color:#fff}
+.grupo .n{font-family:var(--f-dado);font-size:.72rem;background:var(--ipe);color:#13201a;border-radius:9px;padding:0 6px}
+.campos{padding:4px 18px 24px;min-width:0;overflow:auto}
+.campos h3{font-family:var(--f-titulo);font-weight:600;font-size:1.02rem;margin:14px 0 2px}
+.campos .desc{color:var(--suave);font-size:.86rem;margin:0 0 6px}
+.sub-g{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--suave);font-weight:600;margin:16px 0 2px}
+.linha{display:grid;grid-template-columns:minmax(190px,1fr) minmax(150px,210px) minmax(0,150px) 26px;gap:10px;align-items:center;padding:7px 6px;border-bottom:1px solid var(--linha);border-radius:4px}
+.linha.sel{background:var(--mata-claro)}
+.linha .rot b{font-weight:500;display:block;hyphens:none}
+.linha .rot small{color:var(--suave);font-size:.78rem}
+.entrada{display:flex;gap:6px;align-items:center}
+.entrada .un{font-family:var(--f-dado);font-size:.8rem;color:var(--suave);white-space:nowrap}
+.linha input,.linha select{width:100%;min-width:0;padding:4px 7px;border:1px solid var(--linha);border-radius:4px;background:var(--campo);color:var(--fg);font-family:var(--f-dado);font-size:.86rem}
+.linha.alt input,.linha.alt select{border-color:var(--ipe);box-shadow:inset 3px 0 0 var(--ipe)}
+.linha.fora input{border-color:var(--erro);box-shadow:inset 3px 0 0 var(--erro)}
+.ref{font-family:var(--f-dado);font-size:.72rem;color:var(--anil);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reset{border:0;background:transparent;color:var(--ocre);cursor:pointer;font-size:1rem;padding:2px;border-radius:4px}
+.reset[hidden]{visibility:hidden}
+.just{grid-column:1 / -1;display:grid;gap:4px;padding:6px 8px;border-left:3px solid var(--erro);background:var(--campo);font-size:.82rem}
+.just.ok{border-left-color:var(--ocre)}
+.just input{font-family:var(--f-texto)}
+.sistemas{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 2px}
+.bitolas{border-collapse:collapse;margin-top:6px;font-size:.86rem}
+.bitolas th,.bitolas td{padding:4px 10px;border-bottom:1px solid var(--linha);text-align:left}
+.bitolas th{font-weight:600;color:var(--suave);font-size:.78rem}
+.bitolas td:nth-child(2){font-family:var(--f-dado)}
+.bitolas select{padding:3px 6px;border:1px solid var(--linha);border-radius:4px;background:var(--campo);color:var(--fg);font:inherit}
+.lateral{border-left:1px solid var(--linha);padding:14px;display:flex;flex-direction:column;gap:16px;background:var(--campo);min-width:0;overflow:auto}
+.lateral h4{margin:0 0 4px;font-family:var(--f-titulo);font-weight:600;font-size:.92rem}
+.ajuda{font-size:.86rem;display:grid;gap:6px}
+.ajuda .fonte{font-family:var(--f-dado);font-size:.76rem;color:var(--anil)}
+.cadeia{display:grid;gap:4px;font-size:.8rem}
+.cadeia div{display:flex;justify-content:space-between;gap:8px;padding:4px 8px;border-radius:4px;border:1px solid var(--linha)}
+.cadeia div.vale{border-color:var(--mata);background:var(--mata-claro);font-weight:600}
+.cadeia span:last-child{font-family:var(--f-dado);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lista{font-size:.82rem;display:grid;gap:4px}
+.lista div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--linha);padding-bottom:3px}
+.lista span:last-child{font-family:var(--f-dado);color:var(--ocre);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50%}
+.pend{color:var(--erro);font-size:.82rem;display:grid;gap:4px}
+.btn{border:1px solid var(--linha);background:var(--card);color:var(--fg);font:inherit;font-size:.84rem;padding:6px 12px;border-radius:5px;cursor:pointer}
+.btn.prim{background:var(--mata);color:#fff;border-color:var(--mata)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.rodape{display:flex;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid var(--linha);flex-wrap:wrap}
+.rodape .esp{flex:1}
+.rodape .msg{font-size:.84rem;color:var(--suave)}
+.rodape .msg.erro{color:var(--erro);font-weight:600}
+pre{font-family:var(--f-dado);font-size:.72rem;white-space:pre-wrap;margin:0;max-height:220px;overflow:auto;border:1px solid var(--linha);padding:8px;border-radius:4px;background:var(--card)}
+.vazio{color:var(--suave);font-size:.88rem;padding:20px 0}
+@media (max-width:980px){.corpo{grid-template-columns:180px minmax(0,1fr)}.lateral{display:none}}
+@media (max-width:640px){.corpo{grid-template-columns:1fr}.arvore{flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--linha)}
+  .linha{grid-template-columns:minmax(0,1fr) 140px 26px}.linha .ref{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topo">
+    <div><div class="nome">Configuração do projeto</div><div class="sub" id="contexto"></div></div>
+    <div class="esp"></div>
+    <div class="escopo" role="group" aria-label="Nível da configuração">
+      <button type="button" data-nivel="Escritorio" aria-pressed="false">Escritório</button>
+      <button type="button" data-nivel="Projeto" aria-pressed="true">Projeto</button>
+    </div>
+  </div>
+  <div class="barra">
+    <input type="search" id="busca" placeholder="Buscar: cobrimento, γn, fck, ψ2, gancho, unidade…" aria-label="Buscar configuração">
+    <label class="filtro"><input type="checkbox" id="soAlt"> só os alterados neste nível</label>
+  </div>
+  <div class="corpo">
+    <nav class="arvore" id="arvore" aria-label="Grupos"></nav>
+    <main class="campos" id="campos"></main>
+    <aside class="lateral">
+      <div><h4>Sobre o campo</h4><div class="ajuda" id="ajuda"><span class="vazio">Clique num campo para ver a explicação, a norma e de onde vem o valor.</span></div></div>
+      <div><h4>De onde vem o valor</h4><div class="cadeia" id="cadeia"></div></div>
+      <div id="blocoPend" hidden><h4>Fora da norma sem justificativa</h4><div class="pend" id="pend"></div></div>
+      <div><h4 id="tituloDifs">Alterados neste nível</h4><div class="lista" id="difs"></div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" type="button" id="bJson">Ver como JSON</button>
+        <button class="btn" type="button" id="bPromover" title="Copia os valores do projeto para o padrão do escritório">Tornar padrão do escritório</button>
+      </div>
+      <pre id="json" hidden></pre>
+    </aside>
+  </div>
+  <div class="rodape">
+    <span class="msg" id="msg"></span>
+    <div class="esp"></div>
+    <button class="btn" type="button" id="bCancelar">Cancelar</button>
+    <button class="btn prim" type="button" id="bSalvar">Gravar</button>
+  </div>
+</div>
+<script>
+"use strict";
+// A página só mostra e pede: cada mudança vai ao núcleo (SessaoConfiguracao.Receber) e volta o estado completo.
+const host = window.chrome && window.chrome.webview;
+let E = null, nivel = "Projeto", grupoSel = null, campoSel = null;
+const $ = id => document.getElementById(id);
+const el = (tag, attrs, ...filhos) => { const e = document.createElement(tag); for (const k in attrs || {}) { if (k === "class") e.className = attrs[k]; else if (k.startsWith("on")) e.addEventListener(k.slice(2), attrs[k]); else if (attrs[k] !== undefined && attrs[k] !== null && attrs[k] !== false) e.setAttribute(k, attrs[k] === true ? "" : attrs[k]); } for (const f of filhos) if (f !== null && f !== undefined) e.append(f.nodeType ? f : String(f)); return e; };
+
+function enviar(m) {
+  m.nivel = nivel;
+  if (host) host.postMessage(JSON.stringify(m));
+  else if (window.demoReceber) receber(window.demoReceber(JSON.stringify(m)));
+}
+function receber(txt) {
+  const e = typeof txt === "string" ? JSON.parse(txt) : txt;
+  if (e.tipo !== "estado") return;
+  E = e; nivel = e.nivel;
+  if (!grupoSel) grupoSel = e.grupos[0].id;
+  render();
+  const m = $("msg");
+  if (e.erro) { m.textContent = e.erro; m.className = "msg erro"; }
+  else { m.textContent = e.alterado ? "Alterações ainda não gravadas." : ""; m.className = "msg"; }
+}
+if (host) host.addEventListener("message", ev => receber(ev.data));
+
+const virgula = () => { const s = E.campos.find(c => c.id === "apres.separador"); return !s || s.valor !== "Ponto"; };
+const mostrarNum = v => virgula() ? String(v).replace(".", ",") : String(v);
+const campo = id => E.campos.find(c => c.id === id);
+
+function render() {
+  document.querySelectorAll(".escopo button").forEach(b => {
+    b.setAttribute("aria-pressed", b.dataset.nivel === nivel ? "true" : "false");
+    b.disabled = b.dataset.nivel === "Projeto" && !E.comProjeto;
+  });
+  $("contexto").textContent = E.contexto;
+  $("bPromover").hidden = nivel !== "Projeto";
+  $("tituloDifs").textContent = nivel === "Projeto" ? "O que difere do escritório" : "O que difere do padrão do PCEB";
+  arvore(); campos(); lateral();
+}
+
+function arvore() {
+  const a = $("arvore"); a.textContent = "";
+  for (const g of E.grupos) {
+    a.append(el("button", { class: "grupo", type: "button", "aria-current": g.id === grupoSel && !$("busca").value ? "true" : "false",
+      onclick: () => { grupoSel = g.id; $("busca").value = ""; render(); } }, el("span", {}, g.nome), g.alterados ? el("span", { class: "n", title: "alterados neste nível" }, g.alterados) : null));
+  }
+}
+
+function visiveis() {
+  const q = $("busca").value.trim().toLowerCase(), so = $("soAlt").checked;
+  return E.campos.filter(c => (q ? (c.rotulo + " " + c.explicacao + " " + c.referencia + " " + c.id + " " + c.valor).toLowerCase().includes(q) : c.grupo === grupoSel) && (!so || c.alterado));
+}
+
+function campos() {
+  const box = $("campos"); box.textContent = "";
+  const q = $("busca").value.trim();
+  const lista = visiveis();
+  let grupoAtual = null, sub = null;
+  if (!q) {
+    const g = E.grupos.find(x => x.id === grupoSel);
+    box.append(el("h3", {}, g.nome), el("p", { class: "desc" }, g.descricao));
+    if (g.id === "unid") {
+      const s = el("div", { class: "sistemas" }, el("span", { class: "herda", style: "align-self:center;color:var(--suave);font-size:.84rem" }, "Atalhos:"));
+      for (const x of E.sistemas) s.append(el("button", { class: "btn", type: "button", onclick: () => enviar({ acao: "sistema", sistema: x }) }, x));
+      box.append(s);
+    }
+    if (g.alterados) box.append(el("button", { class: "btn", type: "button", style: "margin-top:6px", onclick: () => enviar({ acao: "restaurarGrupo", grupo: g.id }) }, "Restaurar o grupo neste nível"));
+  }
+  if (!lista.length) { box.append(el("div", { class: "vazio" }, q ? "Nada encontrado." : "Nenhum campo alterado neste grupo.")); return; }
+  for (const c of lista) {
+    if (q && c.grupo !== grupoAtual) { grupoAtual = c.grupo; sub = null; box.append(el("h3", {}, E.grupos.find(x => x.id === c.grupo).nome)); }
+    if (c.subgrupo && c.subgrupo !== sub) { sub = c.subgrupo; box.append(el("div", { class: "sub-g" }, sub)); }
+    box.append(c.tipo === "Bitolas" ? bitolas(c) : linha(c));
+  }
+}
+
+function linha(c) {
+  const cls = "linha" + (c.alterado ? " alt" : "") + (c.fora ? " fora" : "") + (c.id === campoSel ? " sel" : "");
+  let ent;
+  if (c.tipo === "Opcao" || c.tipo === "Unidade") {
+    ent = el("select", { "aria-label": c.rotulo, onchange: e => enviar({ acao: "definir", id: c.id, valor: e.target.value }) });
+    for (const o of c.opcoes) { const op = el("option", { value: o }, o); if (o === c.valor) op.selected = true; ent.append(op); }
+  } else {
+    ent = el("input", { type: "text", value: c.tipo === "Numero" ? mostrarNum(c.valor) : c.valor, "aria-label": c.rotulo, inputmode: c.tipo === "Numero" ? "decimal" : null });
+    const mandar = () => { const v = ent.value.trim(); if (v !== (c.tipo === "Numero" ? mostrarNum(c.valor) : c.valor)) enviar({ acao: "definir", id: c.id, valor: v }); };
+    ent.addEventListener("change", mandar);
+    ent.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); ent.blur(); } });
+  }
+  const herdado = c.alterado ? `herdado: ${c.tipo === "Numero" ? mostrarNum(c.herdado) : c.herdado}` : `vem do ${c.origem.toLowerCase().replace("padrão do pceb", "padrão do PCEB")}`;
+  const l = el("div", { class: cls, onclick: () => { campoSel = c.id; document.querySelectorAll(".linha.sel").forEach(x => x.classList.remove("sel")); l.classList.add("sel"); lateral(); } },
+    el("div", { class: "rot" }, el("b", {}, c.rotulo), el("small", {}, herdado)),
+    el("div", { class: "entrada" }, ent, c.unidade ? el("span", { class: "un" }, c.unidade) : null),
+    el("div", { class: "ref", title: c.referencia }, c.referencia),
+    el("button", { class: "reset", type: "button", title: "Voltar ao valor herdado", "aria-label": "Restaurar " + c.rotulo, hidden: !c.alterado, onclick: e => { e.stopPropagation(); enviar({ acao: "restaurar", id: c.id }); } }, "↺"));
+  if (c.fora) {
+    const j = el("input", { type: "text", value: c.justificativa || "", placeholder: "Por que este valor vale aqui (vai ao memorial)", "aria-label": "Justificativa de " + c.rotulo });
+    j.addEventListener("change", () => enviar({ acao: "justificar", id: c.id, justificativa: j.value }));
+    j.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); j.blur(); } });
+    l.append(el("div", { class: "just" + (c.justificado ? " ok" : "") }, el("span", {}, c.justificado ? "Fora da faixa da norma, com justificativa:" : `Fora da faixa da norma (${c.referencia}). Aceito com justificativa:`), j));
+  }
+  return l;
+}
+
+function bitolas(c) {
+  const lista = c.valor.split(";").map(s => s.trim().split("|")).filter(p => p.length >= 4).map(p => ({ phi: p[0], aco: p[1], forn: p[2], usar: p[3] === "1" }));
+  const texto = () => lista.map(b => `${b.phi}|${b.aco}|${b.forn}|${b.usar ? 1 : 0}`).join("; ");
+  const t = el("table", { class: "bitolas" }, el("tr", {}, el("th", {}, "Usar"), el("th", {}, "ø (mm)"), el("th", {}, "Aço"), el("th", {}, "Fornecimento")));
+  const nomes = { Rolo: "Rolo", Barra: "Barra de 12 m", RoloEBarra: "Rolo e barra" };
+  lista.forEach(b => {
+    const chk = el("input", { type: "checkbox", "aria-label": "Usar ø" + b.phi }); chk.checked = b.usar;
+    chk.addEventListener("change", () => { b.usar = chk.checked; enviar({ acao: "definir", id: c.id, valor: texto() }); });
+    const sel = el("select", { "aria-label": "Fornecimento ø" + b.phi });
+    for (const k in nomes) { const o = el("option", { value: k }, nomes[k]); if (k === b.forn) o.selected = true; sel.append(o); }
+    sel.addEventListener("change", () => { b.forn = sel.value; enviar({ acao: "definir", id: c.id, valor: texto() }); });
+    t.append(el("tr", {}, el("td", {}, chk), el("td", {}, mostrarNum(b.phi)), el("td", {}, b.aco), el("td", {}, sel)));
+  });
+  return el("div", { class: "linha" + (c.alterado ? " alt" : ""), style: "grid-template-columns:1fr", onclick: () => { campoSel = c.id; lateral(); } },
+    el("div", { class: "rot" }, el("b", {}, c.rotulo), el("small", {}, c.alterado ? "alterado neste nível" : "vem do " + c.origem.toLowerCase()),
+      c.alterado ? el("button", { class: "btn", type: "button", style: "margin-left:8px", onclick: e => { e.stopPropagation(); enviar({ acao: "restaurar", id: c.id }); } }, "Restaurar") : null),
+    t);
+}
+
+function lateral() {
+  const c = campoSel && campo(campoSel);
+  const aj = $("ajuda"), ca = $("cadeia"); aj.textContent = ""; ca.textContent = "";
+  if (c) {
+    aj.append(el("b", {}, c.rotulo), el("span", {}, c.explicacao), el("span", { class: "fonte" }, c.referencia));
+    if (c.min !== undefined || c.max !== undefined) aj.append(el("span", { class: "fonte" }, "Faixa da norma: " + (c.min !== undefined ? "≥ " + mostrarNum(c.min) : "") + (c.min !== undefined && c.max !== undefined ? " e " : "") + (c.max !== undefined ? "≤ " + mostrarNum(c.max) : "")));
+    if (c.fora) aj.append(el("span", { style: "color:var(--erro)" }, c.textoFora));
+    for (const x of c.cadeia) ca.append(el("div", { class: x.vale ? "vale" : "" }, el("span", {}, x.nivel), el("span", { title: x.valor }, c.tipo === "Numero" ? mostrarNum(x.valor) : (c.tipo === "Bitolas" ? "(lista)" : x.valor))));
+  } else aj.append(el("span", { class: "vazio" }, "Clique num campo para ver a explicação, a norma e de onde vem o valor."));
+  const d = $("difs"); d.textContent = "";
+  const alt = E.campos.filter(x => x.alterado);
+  if (!alt.length) d.append(el("span", { class: "vazio", style: "padding:0" }, "Nada: tudo herdado."));
+  for (const x of alt) d.append(el("div", {}, el("span", {}, x.rotulo), el("span", { title: x.valor }, x.tipo === "Numero" ? mostrarNum(x.valor) : x.tipo === "Bitolas" ? "(lista)" : x.valor)));
+  $("blocoPend").hidden = !E.pendencias.length;
+  const p = $("pend"); p.textContent = ""; for (const t of E.pendencias) p.append(el("div", {}, t));
+  if (!$("json").hidden) $("json").textContent = E.jsonNivel;
+}
+
+document.querySelectorAll(".escopo button").forEach(b => b.addEventListener("click", () => { nivel = b.dataset.nivel; enviar({ acao: "estado" }); }));
+$("busca").addEventListener("input", () => { arvore(); campos(); });
+$("soAlt").addEventListener("change", campos);
+$("bJson").addEventListener("click", () => { const j = $("json"); j.hidden = !j.hidden; $("bJson").textContent = j.hidden ? "Ver como JSON" : "Esconder JSON"; lateral(); });
+$("bPromover").addEventListener("click", () => { if (confirm("Copiar os valores deste projeto para o padrão do escritório? O projeto volta a herdar tudo.")) enviar({ acao: "promover" }); });
+$("bSalvar").addEventListener("click", () => enviar({ acao: "salvar" }));
+$("bCancelar").addEventListener("click", () => enviar({ acao: "cancelar" }));
+enviar({ acao: "estado" });
+</script>
+</body>
+</html>

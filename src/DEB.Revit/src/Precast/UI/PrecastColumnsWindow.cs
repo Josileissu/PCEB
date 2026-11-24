@@ -601,6 +601,7 @@ namespace DEB.Revit.Precast.UI
             ColumnRebarSpec copy = p.Clone();
             // O tamanho do embutimento é da peça, não do modelo.
             if (copy.BaseZoneLengthMm <= 0) copy.BaseZoneLengthMm = Current.Spec.BaseZoneLengthMm;
+            copy.HerdarConfiguracao(Current.Spec);   // a configuração do projeto (D43) é do modelo do Revit, não do modelo de armadura
             Current.Spec = copy;
             LoadCurrent();
             Changed();

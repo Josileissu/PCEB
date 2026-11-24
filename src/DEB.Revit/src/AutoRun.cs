@@ -95,6 +95,9 @@ namespace DEB.Revit
                     case "precast":
                         status = "OK " + PrecastAutoTest(uidoc);
                         break;
+                    case "configuracao":
+                        status = "OK " + ConfiguracaoAutoTest(uidoc);
+                        break;
                     case "vigas":
                         status = "OK " + Vigas.VigasAutoTest.Run(uidoc);
                         break;
@@ -455,6 +458,33 @@ namespace DEB.Revit
         /// SD_VARIAR = 1: pilares "50x50" ficam 1,50 m mais altos (comprimentos diferentes) e cada grupo recebe outra
         /// armadura (bitolas e quantidades diferentes), para testar pranchas com barras e comprimentos variados.
         /// </summary>
+        /// <summary>
+        /// Configuração do projeto (D43): grava e relê o nível do projeto no modelo (sem a cópia .pceb.json e sem tocar no arquivo do
+        /// escritório) e grava a imagem da tela (WebView2) com um γc fora da norma.
+        /// </summary>
+        private static string ConfiguracaoAutoTest(UIDocument uidoc)
+        {
+            Document doc = uidoc.Document;
+            string dir = Path.Combine(DetailingReport.LogDir, "configuracao_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+            Directory.CreateDirectory(dir);
+            var sb = new StringBuilder();
+            var avisos = new List<string>();
+            var cfg = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, avisos);
+            cfg.Definir(DEB.Core.Configuracao.Projeto.NivelConfiguracao.Projeto, "durab.caa", "III");
+            cfg.Definir(DEB.Core.Configuracao.Projeto.NivelConfiguracao.Projeto, "normas.gamaC", "1.3", "teste automático");
+            DEB.Revit.Configuracao.ConfiguracaoRevit.GravarProjeto(doc, cfg.Projeto, avisos, copia: false);
+            var lida = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, avisos);
+            sb.AppendLine($"Relido do modelo: caa = {lida.Texto("durab.caa")} ({lida.Ler("durab.caa").Origem}); γc = {lida.Numero("normas.gamaC")}; " +
+                          $"justificativa = {(lida.Projeto.Justificativas.TryGetValue("normas.gamaC", out string j) ? j : "—")}");
+            string png = Path.Combine(dir, "tela.png");
+            bool abriu = DEB.Revit.Commands.ConfiguracaoProjetoCommand.Abrir(doc, IntPtr.Zero, avisos, png, out _,
+                s => s.Receber("{\"acao\":\"definir\",\"nivel\":\"Projeto\",\"id\":\"normas.gamaNPerm\",\"valor\":\"1,0\"}"));
+            sb.AppendLine($"Tela abriu: {abriu}; imagem: {(File.Exists(png) ? new FileInfo(png).Length + " bytes" : "não gravada")}");
+            foreach (string a in avisos) sb.AppendLine("AVISO: " + a);
+            File.WriteAllText(Path.Combine(dir, "resultado.txt"), sb.ToString(), Encoding.UTF8);
+            return Path.Combine(dir, "resultado.txt");
+        }
+
         private static string PrecastAutoTest(UIDocument uidoc)
         {
             Document doc = uidoc.Document;
@@ -474,6 +504,8 @@ namespace DEB.Revit
 
             List<ColumnGroup> groups = PrecastSurvey.Run(doc, out List<string> notes);
             int carregados = ReacoesNosConsolos.Aplicar(doc, groups, notes);
+            var cfgProjeto = DEB.Revit.Configuracao.ConfiguracaoRevit.Carregar(doc, notes);
+            foreach (ColumnGroup g in groups) g.Spec.UsarConfiguracao(cfgProjeto);
             var sb = new StringBuilder();
             sb.AppendLine($"Consolos com reação de viga: {carregados}");
             foreach (ColumnGroup g in groups)
