@@ -92,6 +92,14 @@ public static class EsquemasLigacao
     private static readonly string[] Acos = AcoEstrutural.Lista.Select(a => a.Nome).ToArray();
     private static readonly string[] Parafusos = TipoParafuso.Lista.Select(a => a.Nome).ToArray();
     private static readonly string[] SimNao = { "Sim", "Não" };
+    /// <summary>Opção da placa de base sem produto de catálogo.</summary>
+    public const string PreConcretado = "Pré-concretado (NBR 8800 6.7)";
+    /// <summary>Opções de ancoragem: pré-concretado e os produtos do catálogo de fixadores do escritório (D50, item 6).</summary>
+    private static string[] Ancoragens()
+    {
+        try { return new[] { PreConcretado }.Concat(CatalogoFixadores.Carregar().Produtos).ToArray(); }
+        catch { return new[] { PreConcretado }; }
+    }
 
     private static ParametroLigacao N(string id, string rot, string g, string un, string padrao, double? min, double? max, bool auto = false, string ex = "") =>
         new ParametroLigacao { Id = id, Rotulo = rot, Grupo = g, Unidade = un, Padrao = padrao, Min = min, Max = max, PodeAuto = auto, Explicacao = ex };
@@ -157,6 +165,9 @@ public static class EsquemasLigacao
             N("dChumb", "Diâmetro dos chumbadores", "Chumbadores", "mm", "25", 12, 64),
             O("acoChumb", "Aço dos chumbadores", "Chumbadores", new[] { "ASTM F1554 Gr. 36", "ASTM F1554 Gr. 55", "SAE 1020" }, "ASTM F1554 Gr. 36",
               "As distâncias às bordas e entre chumbadores seguem a Tabela 18 (a1, a2) pelo diâmetro. O método de 6.7 vale para aço equivalente ao A36."),
+            O("ancoragem", "Ancoragem no concreto", "Chumbadores", Ancoragens(), PreConcretado,
+              "Pré-concretado: só a NBR 8800 6.7. Produto do catálogo (químico ou mecânico): confere também a resistência do fabricante (arquivo fixadores.json do escritório)."),
+            N("hef", "Embutimento (ancoragem de catálogo)", "Chumbadores", "mm", "auto", 40, 1000, true, "auto: o maior embutimento do catálogo para o diâmetro."),
             N("fck", "fck do bloco de concreto", "Apoio", "MPa", "25", 20, 90),
             N("a2a1", "Relação A2/A1 do apoio", "Apoio", "", "1", 1, 4, false, "Área do apoio confinada / área da placa (≤ 4)."),
             N("perna", "Perna do filete pilar–placa", "Solda", "mm", "8", 3, 16),

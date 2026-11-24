@@ -31,6 +31,12 @@ public sealed class DadosPlacaBase
     public double Perna { get; set; } = 8;
     public double Fw { get; set; } = 485;
     public double Mu { get; set; } = 0.45;
+    /// <summary>Ancoragem de catálogo (D50, item 6): produto do catálogo de fixadores; vazio = chumbador pré-concretado (só a NBR 8800 6.7).</summary>
+    public string ProdutoAncoragem { get; set; } = "";
+    /// <summary>Embutimento da ancoragem de catálogo (mm); 0 = o maior do catálogo.</summary>
+    public double Hef { get; set; }
+    /// <summary>Catálogo usado (null = o do escritório).</summary>
+    public CatalogoFixadores Catalogo { get; set; }
     /// <summary>Espessura adotada na última verificação (a do modelo ou a comercial escolhida).</summary>
     public double TpAdotada { get; set; }
 
@@ -67,6 +73,7 @@ public sealed class DadosPlacaBase
             Tp = m.Numero("tp", 0), Lx = m.Numero("h", 0), Ly = m.Numero("b", 0), Nb = (int)m.Numero("nChumb"), Db = m.Numero("dChumb"),
             AcoChumbador = ach, FubChumbador = ach.Contains("55") ? 517 : 400, Fck = m.Numero("fck"), A2A1 = m.Numero("a2a1"), GamaC = gamaC,
             Perna = m.Numero("perna"), Fw = m.Numero("fw"),
+            ProdutoAncoragem = m.Texto("ancoragem") == Ligacoes.EsquemasLigacao.PreConcretado ? "" : m.Texto("ancoragem"), Hef = m.Numero("hef", 0),
         };
     }
 }
@@ -237,6 +244,29 @@ public static class LigacaoPlacaBase
               "Aumente a perna do filete ou use penetração total nas mesas.");
             mem.Linhas.Add($"Solda: filete de {F(d.Perna)} mm ({F(fwRd * 1000, "0")} N/mm), {F(compMesa, "0")} mm por mesa e {F(compAlma, "0")} mm na alma; " +
                            "mesa: M/(d − tf) + tração proporcional à área da mesa; alma: V. Compressão por contato (6.1.6).");
+        }
+        // ancoragem de catálogo (químico ou mecânico): resistência do fabricante no fck do bloco e no embutimento
+        if (!string.IsNullOrEmpty(d.ProdutoAncoragem) && res.Count > 0)
+        {
+            var cat = d.Catalogo ?? CatalogoFixadores.Carregar();
+            var ra = cat.Resistencia(d.ProdutoAncoragem, d.Db, d.Hef, d.Fck);
+            if (ra == null)
+                K("PB9", "Ancoragem do catálogo", $"{d.ProdutoAncoragem} ø{F(d.Db, "0.#")}", "diâmetro no catálogo", SituacaoVerificacao.NaoAtende, "catálogo de fixadores",
+                  "O produto não tem esse diâmetro no catálogo do escritório.");
+            else
+            {
+                double nb = Math.Max(1, d.Nb);
+                var pior = res.Select(r => (Eta: ra.NRd > 0 ? Math.Max(r.Ft / 1000 / ra.NRd, 0) + (ra.VRd > 0 ? Math.Max(0, r.Vd - Math.Max(0, r.VRd)) / nb / ra.VRd : 0)
+                                                    : (r.Ft > 0 ? 99 : 0), r.Nome)).OrderByDescending(x => x.Eta).First();
+                K("PB9", "Ancoragem do catálogo: tração + corte por chumbador (linear)", $"η = {F(pior.Eta, "0.00")} ({pior.Nome})", "≤ 1,00", Ok(pior.Eta <= 1 + 1e-9),
+                  "catálogo do fabricante (" + ra.Base.Fonte + ")", "Aumente o embutimento, o diâmetro ou o número de chumbadores.");
+                mem.Linhas.Add($"Ancoragem: {ra.Texto} → NRd = {F(ra.NRd, "0.0")} kN e VRd = {F(ra.VRd, "0.0")} kN por chumbador; o corte que o atrito não leva vai aos chumbadores.");
+
+                K("PB10", "Ancoragem do catálogo: distâncias à borda e entre chumbadores", $"borda da placa a1 = {F(d.A1, "0")} mm (a borda do bloco também conta)",
+                  $"C ≥ Ccr = {F(ra.Base.Ccr, "0")} mm; S ≥ Scr = {F(ra.Base.Scr, "0")} mm; h ≥ {F(ra.Base.Hmin, "0")} mm", SituacaoVerificacao.Conferir,
+                  "catálogo do fabricante", "A resistência do catálogo vale com as distâncias críticas; menores: reduza pelos fatores do fabricante.");
+
+            }
         }
         return v;
     }
