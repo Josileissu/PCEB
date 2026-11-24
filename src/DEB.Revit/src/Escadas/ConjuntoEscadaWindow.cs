@@ -23,6 +23,8 @@ namespace DEB.Revit.Escadas
         private readonly ComboBox _modelo = new ComboBox { ItemsSource = Modelos, SelectedIndex = 0 };
         private readonly TextBox _folga = new TextBox { Text = "15" }, _prof = new TextBox { Text = "150" }, _apoioPat = new TextBox { Text = "10" },
                                  _vB = new TextBox { Text = "20" }, _vH = new TextBox { Text = "50" }, _vFck = new TextBox { Text = "40" };
+        private readonly CheckBox _encaixe = new CheckBox { Content = "Encaixe invertido (dente de meia espessura)", IsChecked = true, Margin = new Thickness(0, 4, 0, 4) };
+        private readonly TextBox _folgaEnc = new TextBox { Text = "1,5" };
         private readonly CheckBox _comViga = new CheckBox { Content = "Patamar apoiado na viga do patamar", IsChecked = true, Margin = new Thickness(0, 4, 0, 4) };
         private readonly StackPanel _pecas = new StackPanel(), _apoios = new StackPanel(), _resumoDir = new StackPanel();
         private readonly ConjuntoPlanta _planta = new ConjuntoPlanta();
@@ -79,6 +81,8 @@ namespace DEB.Revit.Escadas
             arr.Children.Add(Estilo.Campo("Folga entre lances (U)", _folga, "cm", 150));
             arr.Children.Add(Estilo.Campo("Profundidade do patamar (U)", _prof, "cm", 150));
             arr.Children.Add(Estilo.Campo("Apoio do patamar na estrutura", _apoioPat, "cm", 150));
+            arr.Children.Add(_encaixe);
+            arr.Children.Add(Estilo.Campo("Folga do encaixe", _folgaEnc, "cm", 150));
             arr.Children.Add(_comViga);
             arr.Children.Add(Estilo.Campo("Viga do patamar: b", _vB, "cm", 150));
             arr.Children.Add(Estilo.Campo("Viga do patamar: h", _vH, "cm", 150));
@@ -129,6 +133,8 @@ namespace DEB.Revit.Escadas
                 2 => ModelosConjunto.EmLinha(_l1, _l2),
                 _ => ModelosConjunto.EmU(_l1, _l2, Num(_folga, 15), Num(_prof, 150), Num(_apoioPat, 10), viga, _pat),
             };
+            Conjunto.EncaixeInvertido = _encaixe.IsChecked == true;
+            Conjunto.FolgaEncaixe = Num(_folgaEnc, 1.5);
             // o arranjo pode ajustar a entrada (patamar do L1 no L): guarda o que ficou
             _l1 = Conjunto.Peca("L1").Copia(); _l2 = Conjunto.Peca("L2").Copia();
             if (Conjunto.Peca("PAT") != null) _pat = Conjunto.Peca("PAT").Copia();
@@ -275,14 +281,13 @@ namespace DEB.Revit.Escadas
             foreach (var kv in res.Vigas) tot.Add(($"{kv.Key}: apoios (G + Q)", $"{F(kv.Value.RkE_G + kv.Value.RkD_G, "0.0")} + {F(kv.Value.RkE_Q + kv.Value.RkD_Q, "0.0")} kN"));
             foreach (var kv in res.Pecas.Where(p => p.Value.Icamento != null)) tot.Add(($"{kv.Key}: peso", $"{F(kv.Value.Icamento.Peso, "0.0")} kN"));
             _resumoDir.Children.Add(Estilo.Cartao("Conjunto", Estilo.Pares(tot, 150)));
-            var pend = new StackPanel();
-            pend.Children.Add(new TextBlock
-            {
-                Text = "O encaixe (rebaixo) da peça que recebe a outra não é modelado: as peças ficam com o topo nivelado e a ponta apoiada ocupa o mesmo volume no apoio. " +
-                       "Confira o detalhe da ligação.",
-                TextWrapping = TextWrapping.Wrap, Foreground = Estilo.B(Estilo.Suave),
-            });
-            _resumoDir.Children.Add(Estilo.Cartao("Atenção", pend));
+            var enc = new List<(string, string)>();
+            foreach (var kv in res.Pecas)
+                foreach (var rc in kv.Value.Rebaixos)
+                    enc.Add(($"{kv.Key} ← {rc.Rebaixo.Nome}", $"rebaixo {F(rc.Rebaixo.Altura, "0.#")} × {F(rc.Rebaixo.Profundidade, "0.#")} cm · Fd {F(rc.Fd, "0.0")} kN/m · tirante ø{F(rc.Tirante.Bitola, "0.#")} c/{F(rc.Tirante.Esp, "0.#")} · suspensão ø{F(rc.Suspensao.Bitola, "0.#")} c/{F(rc.Suspensao.Esp, "0.#")}"));
+            if (enc.Count > 0) _resumoDir.Children.Add(Estilo.Cartao($"Encaixe invertido (folga {F(Conjunto.FolgaEncaixe, "0.#")} cm)", Estilo.Pares(enc, 110)));
+            else if (!Conjunto.EncaixeInvertido)
+                _resumoDir.Children.Add(Estilo.Cartao("Atenção", new TextBlock { Text = "Sem encaixe: as peças ficam com o topo nivelado e a ponta apoiada ocupa o mesmo volume no apoio.", TextWrapping = TextWrapping.Wrap, Foreground = Estilo.B(Estilo.Suave) }));
         }
 
         /// <summary>Pincel opcional (para não depender de Brush nulo nos parâmetros).</summary>

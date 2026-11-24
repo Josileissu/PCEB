@@ -182,8 +182,17 @@ fica para depois, como tipo próprio.
   abas Planta, Cargas entre peças, Peças, Viga do patamar e Verificações (das peças e da viga).
 - **No Revit**: clica-se o eixo do apoio de baixo do 1º lance e o sentido de subida; todas as peças entram com as barras, cada uma na
   sua posição; a viga do patamar entra como peça de concreto (sem barras: a armação é a do comando de vigas, D40).
-- **Não modelado**: o encaixe (rebaixo) da peça que recebe a outra. As peças ficam com o topo nivelado e a ponta apoiada ocupa o mesmo
-  volume no apoio; a janela avisa.
+- **Encaixe invertido** (padrão do escritório, 24/11/2026: "encaixe invertido, um dente com meia espessura e 1,5 cm de folga"), para as
+  pontas apoiadas ao longo da borda (L e U):
+  - a peça apoiada ganha um dente de meia espessura da peça que recebe; comprimento do dente = comprimento de apoio + folga;
+  - a peça que recebe ganha um rebaixo lateral de meia espessura, com a largura da peça apoiada mais a folga de cada lado e a
+    profundidade do comprimento de apoio mais a folga; topos nivelados;
+  - o dente invertido que sobra é verificado como dente (NBR 9062, 7.4): tirante, suspensão e biela, com a = (profundidade + folga)/2;
+    grampos do tirante e da suspensão repetidos ao longo do rebaixo; as barras de cima que passariam pelo vazio saem daquela borda;
+  - no Revit, o rebaixo é um vazio na família.
+
+  Com laje de 16 cm o dente invertido fica com 8 cm: a/d > 1 (aviso "funciona como balanço") e o laço do tirante não cabe (tirante reto
+  com barra soldada). Ponta contra ponta (arranjo em linha) o encaixe só é avisado.
 
 ## 7. Decisões
 

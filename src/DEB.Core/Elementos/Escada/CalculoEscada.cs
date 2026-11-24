@@ -39,6 +39,10 @@ public sealed class BarraEscada
     /// <summary>Forma da barra transversal no corte: (y na largura, deslocamento perpendicular à laje a partir da linha de
     /// <see cref="Pontos"/>), em cm; y = 0 no meio da largura. Vazio = reta de ponta a ponta da largura (menos o cobrimento).</summary>
     public List<(double Y, double N)> PerfilY { get; set; } = new List<(double, double)>();
+    /// <summary>Barras longitudinais: faixa da largura ocupada pelo conjunto (cm, y = 0 no meio); null = de borda a borda menos o
+    /// cobrimento. Usada para afastar as barras de cima de um rebaixo lateral.</summary>
+    public double? YMin { get; set; }
+    public double? YMax { get; set; }
     /// <summary>Comprimento de uma barra (cm).</summary>
     public double Comprimento { get; set; }
     public string Texto => $"{Nome} — {Quantidade} ø{Fmt.Virgula(Bitola, "0.#")} c/{Fmt.Virgula(Espacamento, "0.#")} ({Funcao})";
@@ -104,6 +108,8 @@ public sealed class ResultadoEscada
     public List<BarraEscada> Barras { get; } = new List<BarraEscada>();
     /// <summary>Pré-moldada (D43): ligações das pontas, içamento e a armadura superior da peça.</summary>
     public List<LigacaoCalculada> Ligacoes { get; } = new List<LigacaoCalculada>();
+    /// <summary>Rebaixos laterais do encaixe invertido (dente invertido de cada um).</summary>
+    public List<RebaixoCalculado> Rebaixos { get; } = new List<RebaixoCalculado>();
     public IcamentoEscada Icamento { get; set; }
     public double AsSuperiorPm { get; set; }
     public (double Bitola, double Esp) SuperiorPm { get; set; }
@@ -448,6 +454,7 @@ public static partial class CalculoEscada
         // ---------------- 9. barras na elevação ----------------
         if (e.PreMoldada) CalcularPreMoldada(r, k);
         else if (r.Principal.Esp > 0) GerarBarras(r);
+        if (e.Rebaixos.Count > 0) CalcularRebaixos(r, k);
         return r;
     }
 

@@ -174,6 +174,23 @@ namespace DEB.Revit.Escadas
                                 fd.FamilyCreate.NewExtrusion(false, pf, spz, (zt - zb) * Cm);
                             }
                     }
+                    // encaixe invertido: rebaixos laterais (vazio de meia espessura na borda onde a outra peça assenta)
+                    foreach (var rb in r.Entrada.Rebaixos)
+                    {
+                        var g = r.Geo; var e = r.Entrada;
+                        double zTop = e.SoPatamar || rb.X1 <= g.X1 + 1e-6 ? 0 : e.Desnivel, s = rb.Lado, yB = e.Largura / 2;
+                        double yIn = s * (yB - rb.Profundidade), yOut = s * (yB + 2);
+                        var pts = new[] { (rb.X0, yIn), (rb.X1, yIn), (rb.X1, yOut), (rb.X0, yOut) };
+                        var lr = new CurveArray();
+                        for (int i = 0; i < 4; i++)
+                        {
+                            var p0 = pts[i]; var p1 = pts[(i + 1) % 4];
+                            lr.Append(Line.CreateBound(new XYZ(p0.Item1 * Cm, p0.Item2 * Cm, (zTop - rb.Altura) * Cm), new XYZ(p1.Item1 * Cm, p1.Item2 * Cm, (zTop - rb.Altura) * Cm)));
+                        }
+                        var pr = new CurveArrArray(); pr.Append(lr);
+                        var spr = SketchPlane.Create(fd, Plane.CreateByNormalAndOrigin(XYZ.BasisZ, new XYZ(0, 0, (zTop - rb.Altura) * Cm)));
+                        fd.FamilyCreate.NewExtrusion(false, pr, spr, (rb.Altura + 2) * Cm);
+                    }
                     t.Commit();
                 }
                 string dir = Path.Combine(Path.GetTempPath(), "PCEB_Escadas");
@@ -293,7 +310,8 @@ namespace DEB.Revit.Escadas
                 {
                     if (!b.Transversal)
                     {
-                        double y0 = -(B / 2 - cob - b.Bitola / 20);
+                        double yA = b.YMin ?? -(B / 2 - cob), yZ = b.YMax ?? (B / 2 - cob);   // faixa da largura (rebaixo lateral tira um lado)
+                        double y0 = yA + b.Bitola / 20;
                         var curvas = new List<Curve>();
                         for (int i = 1; i < b.Pontos.Count; i++)
                         {
@@ -303,7 +321,7 @@ namespace DEB.Revit.Escadas
                         }
                         var rb = Rebar.CreateFromCurves(doc, RebarStyle.Standard, tipo, null, null, fi, s, curvas,
                             RebarHookOrientation.Left, RebarHookOrientation.Left, true, true);
-                        double arr = (B - 2 * cob - b.Bitola / 10) * Cm;
+                        double arr = (yZ - yA - b.Bitola / 10) * Cm;
                         rb.GetShapeDrivenAccessor().SetLayoutAsMaximumSpacing(b.Espacamento * Cm, arr, true, true, true);
                         barras.Add(rb.Id); compr[rb.Id] = b.Comprimento;
                     }

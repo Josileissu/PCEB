@@ -78,6 +78,10 @@ public sealed class ConjuntoEscada
     public Dictionary<string, PosicaoPeca> Posicoes { get; } = new Dictionary<string, PosicaoPeca>();
     /// <summary>Nome do arranjo (texto) e ajustes feitos ao montar.</summary>
     public string Modelo { get; set; } = "";
+    /// <summary>Encaixe invertido (padrão do escritório): a peça apoiada tem dente de meia espessura e a que recebe, um rebaixo de meia
+    /// espessura na borda, com <see cref="FolgaEncaixe"/> nas faces verticais. Vale para as pontas apoiadas ao longo da borda (L e U).</summary>
+    public bool EncaixeInvertido { get; set; } = true;
+    public double FolgaEncaixe { get; set; } = 1.5;
     public List<string> Avisos { get; } = new List<string>();
 
     public EscadaLaje Peca(string nome) => Pecas.FirstOrDefault(p => p.Nome == nome).Peca;
@@ -146,9 +150,24 @@ public static class CalculoConjuntoEscada
             res.Ordem.Add(livre); pendentes.Remove(livre);
         }
 
+        // encaixe invertido: dente de meia espessura na ponta apoiada (antes de calcular as peças)
+        var pecas = c.Pecas.ToDictionary(p => p.Nome, p => p.Peca.Copia());
+        if (c.EncaixeInvertido)
+            foreach (var a in c.Apoios)
+            {
+                if (!pecas.TryGetValue(a.Suporte, out var sup)) continue;
+                if (a.Direcao != DirecaoApoio.AoLongo) { res.Avisos.Add($"{a.Apoiada} → {a.Suporte}: encaixe invertido ponta contra ponta não é modelado (só nas bordas, em L e U)."); continue; }
+                var ea = pecas[a.Apoiada];
+                var lig = a.Ponta == PontaPeca.Inferior ? ea.LigacaoInferior : ea.LigacaoSuperior;
+                double hs = GeometriaEscada.De(sup).Hp;
+                lig.Ponta = PontaPreMoldada.Dente;
+                lig.AlturaDente = hs / 2;
+                lig.ComprimentoDente = lig.ComprimentoApoio + c.FolgaEncaixe;
+            }
+
         foreach (string nome in res.Ordem)
         {
-            var e = c.Peca(nome).Copia();
+            var e = pecas[nome].Copia();
             foreach (var a in c.Apoios.Where(a => a.Suporte == nome))
             {
                 var ra = res.Pecas[a.Apoiada]; var ea = ra.Entrada;
@@ -163,6 +182,22 @@ public static class CalculoConjuntoEscada
                                        $"{N(g * bA / 100, "0.0")} + {N(q * bA / 100, "0.0")} kN, em x = {N(a.X, "0")} cm " +
                                        (a.Direcao == DirecaoApoio.AoLongo ? $"ao longo de {N(comp, "0")} cm do vão" : $"no apoio de {N(comp, "0")} cm") +
                                        $" ({N(gS, "0.00")} + {N(qS, "0.00")} kN por metro de largura de {nome}).");
+                if (c.EncaixeInvertido && a.Direcao == DirecaoApoio.AoLongo)
+                {
+                    var lig = a.Ponta == PontaPeca.Inferior ? ea.LigacaoInferior : ea.LigacaoSuperior;
+                    double f = c.FolgaEncaixe, hs = GeometriaEscada.De(e).Hp;
+                    int lado = 1;
+                    if (c.Posicoes.TryGetValue(a.Apoiada, out var pa) && c.Posicoes.TryGetValue(nome, out var ps))
+                    {
+                        var pt = pa.Em(a.Ponta == PontaPeca.Inferior ? 0 : ra.Geo.Vao);
+                        lado = ps.Local(pt.X, pt.Y).Lado >= 0 ? 1 : -1;
+                    }
+                    e.Rebaixos.Add(new RebaixoLateral
+                    {
+                        Nome = a.Apoiada, X0 = a.X - bA / 2 - f, X1 = a.X + bA / 2 + f, Lado = lado, Profundidade = lig.ComprimentoApoio + f, Altura = hs / 2, Folga = f,
+                        G = g, Q = q, CoefHd = PadroesPreMoldado.CoefHd(lig.Apoio),
+                    });
+                }
                 if (a.Direcao == DirecaoApoio.Transversal && bA < 0.9 * bS)
                     res.Avisos.Add($"{nome}: a carga de {a.Apoiada} ocupa {N(bA, "0")} cm da largura de {N(bS, "0")} cm — o cálculo por faixa de 1 m usa a média; confira a faixa mais carregada.");
             }

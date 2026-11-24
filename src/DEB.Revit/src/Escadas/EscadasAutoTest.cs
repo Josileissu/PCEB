@@ -133,6 +133,10 @@ namespace DEB.Revit.Escadas
                     foreach (var re in rc.ReacoesExternas) sb.AppendLine($"  sai do conjunto: {re.Peca} ({re.Ponta}) G {re.G:0.0} + Q {re.Q:0.0} kN");
                     foreach (var kv in rc.Vigas) sb.AppendLine($"  {kv.Key}: Md {kv.Value.MdMax:0.0} kN·m, reações G {kv.Value.RkE_G:0.0}/{kv.Value.RkD_G:0.0} kN, {string.Join("; ", kv.Value.ResumoProposta())}");
                     foreach (var kv in rc.Pecas) sb.AppendLine($"  {kv.Key}: Md {kv.Value.MdMax:0.00} kN·m/m, {kv.Value.Verificacoes.Count(v => v.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.NaoAtende)} não atende");
+                    foreach (var kv in rc.Pecas)
+                        foreach (var rr in kv.Value.Rebaixos)
+                            sb.AppendLine($"  encaixe: {kv.Key} recebe {rr.Rebaixo.Nome}: rebaixo x {rr.Rebaixo.X0:0}–{rr.Rebaixo.X1:0}, lado {rr.Rebaixo.Lado}, {rr.Rebaixo.Altura:0.#}×{rr.Rebaixo.Profundidade:0.#} cm; Fd {rr.Fd:0.0} kN/m; tirante ø{rr.Tirante.Bitola:0.#} c/{rr.Tirante.Esp:0.#}; suspensão ø{rr.Suspensao.Bitola:0.#} c/{rr.Suspensao.Esp:0.#}");
+                    foreach (var kv in rc.Pecas) foreach (string av in kv.Value.Avisos) sb.AppendLine($"  aviso {kv.Key}: {av}");
                     RenderToPng(wc, wc.Abas, Path.Combine(dir, $"janela_{nome}.png"));
                     var org = new PosicaoEscada { Base = new XYZ(xMin - 20, yMin - 20 - dy * 300 * Cm, z0), Direcao = XYZ.BasisX, Nivel = nivel, Origem = "autoteste" };
                     var logs = ConjuntoEscadaCommand.Criar(doc, wc.Conjunto, rc, org);

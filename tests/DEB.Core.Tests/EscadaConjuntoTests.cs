@@ -223,6 +223,54 @@ public class EscadaConjuntoTests
     }
 
     [Fact]
+    public void EncaixeInvertidoComDenteDeMeiaEspessuraEFolga()
+    {
+        var l = ModelosConjunto.LancePadrao();
+        foreach (var c in new[] { ModelosConjunto.EmU(l, l, viga: new VigaPatamar { Nome = "VE" }), ModelosConjunto.EmL(l, l) })
+        {
+            Assert.True(c.EncaixeInvertido);
+            var res = CalculoConjuntoEscada.Calcular(c);
+            Assert.Empty(res.Erros);
+            foreach (var a in c.Apoios.Where(a => res.Pecas.ContainsKey(a.Suporte)))
+            {
+                var ea = res.Pecas[a.Apoiada].Entrada;
+                var lig = a.Ponta == PontaPeca.Inferior ? ea.LigacaoInferior : ea.LigacaoSuperior;
+                var sup = res.Pecas[a.Suporte];
+                Assert.Equal(PontaPreMoldada.Dente, lig.Ponta);
+                Assert.Equal(sup.Geo.Hp / 2, lig.AlturaDente, 9);                          // meia espessura
+                Assert.Equal(lig.ComprimentoApoio + 1.5, lig.ComprimentoDente, 9);          // apoio + folga
+                var rb = sup.Entrada.Rebaixos.Single(x => x.Nome == a.Apoiada);
+                Assert.Equal(ea.Largura + 3, rb.X1 - rb.X0, 9);                              // largura + folga dos dois lados
+                Assert.Equal(lig.ComprimentoApoio + 1.5, rb.Profundidade, 9);
+                Assert.Equal(sup.Geo.Hp / 2, rb.Altura, 9);
+                // o rebaixo fica do lado em que a peça apoiada chega
+                var pa = c.Posicoes[a.Apoiada]; var ps = c.Posicoes[a.Suporte];
+                var pt = pa.Em(a.Ponta == PontaPeca.Inferior ? 0 : res.Pecas[a.Apoiada].Geo.Vao);
+                Assert.Equal(Math.Sign(ps.Local(pt.X, pt.Y).Lado), rb.Lado);
+                // verificações e barras do dente invertido
+                Assert.Contains(sup.Verificacoes, v => v.Codigo == "R1" && v.Grupo.Contains(a.Apoiada));
+                Assert.Contains(sup.Barras, b => b.Funcao.StartsWith($"tirante do rebaixo ({a.Apoiada})"));
+                Assert.Contains(sup.Barras, b => b.Funcao.StartsWith($"suspensão do rebaixo ({a.Apoiada})"));
+                // nenhuma barra longitudinal passa pelo vazio do rebaixo
+                double zTop = sup.Entrada.SoPatamar ? 0 : sup.Entrada.Desnivel, B = sup.Entrada.Largura, cob = sup.Entrada.Cobrimento;
+                foreach (var b in sup.Barras.Where(b => !b.Transversal))
+                {
+                    double yA = b.YMin ?? -(B / 2 - cob), yZ = b.YMax ?? (B / 2 - cob);
+                    bool alcanca = rb.Lado > 0 ? yZ > B / 2 - rb.Profundidade + 1e-6 : yA < -(B / 2 - rb.Profundidade) - 1e-6;
+                    if (!alcanca) continue;
+                    for (int i = 1; i < b.Pontos.Count; i++)
+                        for (int t = 0; t <= 20; t++)
+                        {
+                            var p0 = b.Pontos[i - 1]; var p1 = b.Pontos[i];
+                            double x = p0.X + (p1.X - p0.X) * t / 20, z = p0.Z + (p1.Z - p0.Z) * t / 20;
+                            Assert.False(x > rb.X0 && x < rb.X1 && z > zTop - rb.Altura, $"{b.Nome} ({b.Funcao}) passa pelo rebaixo em x = {x:0}, z = {z:0}");
+                        }
+                }
+            }
+        }
+    }
+
+    [Fact]
     public void ApoioEmCicloEReferenciaErradaDaoErro()
     {
         var c = new ConjuntoEscada();

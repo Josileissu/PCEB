@@ -112,6 +112,20 @@ namespace DEB.Revit.Escadas
                 var p0 = P(f.P.Em(f.G.XPontaInf + 4, -b + 4));
                 dc.DrawText(fz, new WPoint(p0.X + 2, p0.Y - fz.Height));
             }
+            // rebaixos do encaixe invertido (do resultado: a peça que recebe)
+            var penR = new Pen(Estilo.B(Estilo.Ocre), 1) { DashStyle = DashStyles.Dash }; penR.Freeze();
+            if (Resultado != null)
+                foreach (var kv in Resultado.Pecas)
+                {
+                    if (!c.Posicoes.TryGetValue(kv.Key, out var pr)) continue;
+                    double yB = kv.Value.Entrada.Largura / 2;
+                    foreach (var rb in kv.Value.Entrada.Rebaixos)
+                    {
+                        double yi = rb.Lado * (yB - rb.Profundidade), yo = rb.Lado * yB;
+                        var pts = new List<(double X, double Y)> { pr.Em(rb.X0, yi), pr.Em(rb.X1, yi), pr.Em(rb.X1, yo), pr.Em(rb.X0, yo) };
+                        dc.DrawGeometry(new SolidColorBrush(Color.FromArgb(70, 0xe3, 0xa9, 0x2b)), penR, Poli(pts));
+                    }
+                }
             // apoios entre peças: ponto e carga
             var cor = Estilo.B(Estilo.Ocre);
             var penA = new Pen(cor, 2); penA.Freeze();

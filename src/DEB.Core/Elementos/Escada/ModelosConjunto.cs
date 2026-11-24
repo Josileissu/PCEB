@@ -62,11 +62,15 @@ public static class ModelosConjunto
     {
         var c = new ConjuntoEscada { Modelo = "Em L (patamar sobre patamar)" };
         var a = l1.Copia(); var b = l2.Copia();
-        // o patamar superior do 1º precisa caber a largura do 2º
-        if (a.PatamarSuperior < b.Largura + 10) { c.Avisos.Add($"L1: patamar superior aumentado para {b.Largura + 10:0} cm (cabe a largura do L2)."); a.PatamarSuperior = b.Largura + 10; }
+        // o patamar superior do 1º precisa caber a largura do 2º (com a folga do encaixe e longe do dente da ponta)
+        double f = 1.5;
+        var ls = a.LigacaoSuperior;
+        double dente = a.PreMoldada && ls.Ponta == PontaPreMoldada.Dente ? ls.ComprimentoDente - ls.Balanco : 0;
+        double psMin = b.Largura + 2 * f + 10 + Math.Max(0, dente);
+        if (a.PatamarSuperior < psMin) { c.Avisos.Add($"L1: patamar superior aumentado para {psMin:0} cm (cabe a largura do L2)."); a.PatamarSuperior = psMin; }
         var g1 = GeometriaEscada.De(a);
         c.Pecas.Add(("L1", a)); c.Pecas.Add(("L2", b));
-        double x = g1.Vao - 5 - b.Largura / 2;                          // eixo do L2 sobre o patamar do L1
+        double x = Math.Min(g1.Vao, g1.XRecorteSup) - 5 - f - b.Largura / 2;   // eixo do L2 sobre o patamar do L1
         double cA = b.LigacaoInferior.ComprimentoApoio;
         c.Posicoes["L1"] = new PosicaoPeca();
         // o apoio do L2 fica dentro da largura do L1, junto à borda esquerda

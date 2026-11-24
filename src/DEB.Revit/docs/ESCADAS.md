@@ -22,6 +22,8 @@ patamar), mostra as transferências no `resultado.txt` e cria o patamar.
 (em U com o patamar como peça e a viga do patamar, em L ou em linha com o patamar de um lance sobre o do outro), deixa editar cada
 peça ("Editar…" abre a janela da escada) e o x de cada apoio, e mostra a planta, as cargas entre peças, as peças, a viga do patamar e as
 verificações. "Criar no Revit" cria todas as peças com as barras e a viga do patamar (sem barras). O autoteste cria uma em U e uma em L.
+Por padrão as ligações entre peças são por **encaixe invertido** (dente de meia espessura, folga de 1,5 cm, rebaixo lateral na peça que
+recebe, com tirante e suspensão próprios); desmarque no cartão "Arranjo" para apoiar sem encaixe.
 
 Na transversal e no balanço o cálculo é feito numa faixa de 1 m ao longo do lance. A prévia mostra também o corte transversal no meio do lance, com as barras na largura e as dobras.
 

@@ -165,6 +165,8 @@ public sealed class EscadaLaje
     public double ComprimentoPatamar { get; set; } = 150;
     /// <summary>Cargas de outras peças apoiadas nesta (escadas em L e U montadas por peças).</summary>
     public List<CargaApoiada> CargasApoiadas { get; set; } = new List<CargaApoiada>();
+    /// <summary>Rebaixos laterais para o encaixe invertido de outras peças (o conjunto preenche).</summary>
+    public List<RebaixoLateral> Rebaixos { get; set; } = new List<RebaixoLateral>();
     public bool SoPatamar => Peca == PecaEscada.Patamar && Tipo == TipoEscada.Longitudinal;
     public ExecucaoEscada Execucao { get; set; } = ExecucaoEscada.MoldadaNoLocal;
     /// <summary>Pré-moldada: ligação da ponta de baixo e da de cima.</summary>
@@ -223,6 +225,7 @@ public sealed class EscadaLaje
         var c = (EscadaLaje)MemberwiseClone();
         c.LigacaoInferior = LigacaoInferior.Copia(); c.LigacaoSuperior = LigacaoSuperior.Copia();
         c.CargasApoiadas = CargasApoiadas.Select(a => a.Copia()).ToList();
+        c.Rebaixos = Rebaixos.Select(a => a.Copia()).ToList();
         return c;
     }
 }
