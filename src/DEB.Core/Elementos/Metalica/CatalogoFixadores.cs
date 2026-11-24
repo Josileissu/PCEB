@@ -102,8 +102,8 @@ public sealed class ResistenciaAncoragem
 
 /// <summary>
 /// Catálogo de fixadores (D50, item 6): parafusos com porca e arruela (embutidos no PCEB, das normas de produto) e chumbadores de
-/// fabricantes (arquivo do escritório <c>%AppData%\PCEB\padroes\fixadores.json</c>, com a fonte de cada linha; os catálogos são de
-/// terceiros e ficam fora do Git).
+/// fabricantes com a fonte de cada linha: os do PCEB embutidos (<c>FixadoresPceb.json</c>, vão com o programa) e os do escritório
+/// (<c>%AppData%\PCEB\padroes\fixadores.json</c>), que acrescentam produtos ou substituem pelo mesmo nome.
 /// </summary>
 public sealed class CatalogoFixadores
 {
@@ -178,10 +178,25 @@ public sealed class CatalogoFixadores
     {
         var c = new CatalogoFixadores();
         c.Parafusos.AddRange(PadraoParafusos);
+        // os do PCEB (embutidos)
+        try
+        {
+            using (Stream st = typeof(CatalogoFixadores).Assembly.GetManifestResourceStream("DEB.Core.FixadoresPceb.json"))
+                if (st != null) using (var r = new StreamReader(st)) c.LerJson(r.ReadToEnd());
+        }
+        catch (Exception ex) { avisos?.Add($"Catálogo de fixadores do PCEB não lido ({ex.Message})."); }
+        // os do escritório: acrescentam produtos; o mesmo nome de produto substitui o do PCEB
         string arq = arquivoEscritorio ?? CaminhoEscritorio;
         try
         {
-            if (File.Exists(arq)) c.LerJson(File.ReadAllText(arq));
+            if (File.Exists(arq))
+            {
+                var esc = new CatalogoFixadores();
+                esc.LerJson(File.ReadAllText(arq));
+                var nomes = new HashSet<string>(esc.Chumbadores.Select(x => x.Produto));
+                c.Chumbadores.RemoveAll(x => nomes.Contains(x.Produto));
+                c.Chumbadores.AddRange(esc.Chumbadores);
+            }
         }
         catch (Exception ex) { avisos?.Add($"Catálogo de fixadores do escritório não lido ({ex.Message})."); }
         return c;

@@ -16,6 +16,7 @@
     <EmbeddedResource Include="Analise\Objetos\TelaAnalise.html" LogicalName="DEB.Core.TelaAnalise.html" />
     <EmbeddedResource Include="Elementos\Metalica\PerfisLaminados.txt" LogicalName="DEB.Core.PerfisLaminados.txt" />
     <EmbeddedResource Include="Elementos\Metalica\Ligacoes\LigacoesPceb.json" LogicalName="DEB.Core.LigacoesPceb.json" />
+    <EmbeddedResource Include="Elementos\Metalica\FixadoresPceb.json" LogicalName="DEB.Core.FixadoresPceb.json" />
     <EmbeddedResource Include="Elementos\Metalica\Ligacoes\TelaBibliotecaLigacoes.html" LogicalName="DEB.Core.TelaBibliotecaLigacoes.html" />
     <EmbeddedResource Include="Elementos\Contencao\TelaMuro.html" LogicalName="DEB.Core.TelaMuro.html" />
   </ItemGroup>

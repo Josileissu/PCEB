@@ -63,4 +63,25 @@ public class CatalogoFixadoresTests
         Assert.StartsWith("η = 0,2", pb9.Valor);
         Assert.Contains(v, x => x.Codigo == "PB10");
     }
+
+    [Fact]
+    public void Catalogo_do_PCEB_vem_embutido_e_o_escritorio_substitui_pelo_nome()
+    {
+        string arq = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "pceb_fix_" + System.Guid.NewGuid().ToString("N") + ".json");
+        var c = CatalogoFixadores.Carregar(arq + ".nao_existe");
+        Assert.Contains("Hardinc VI 1101 + barra roscada", c.Produtos);
+        Assert.Contains("Walsywa WQA (ampola)", c.Produtos);
+        // Hardinc 5/8" (M16), hef 125, C30: 4.470 kgf de cálculo (Tabela 6) = 43,84 kN
+        Assert.Equal(4470 * 0.00980665, c.Resistencia("Hardinc VI 1101 + barra roscada", 15.875, 125, 30).NRd, 1);
+        // o escritório troca o produto inteiro pelo mesmo nome
+        System.IO.File.WriteAllText(arq, @"{ ""chumbadores"": [ { ""produto"": ""Walsywa WQA (ampola)"", ""natureza"": ""Cálculo"", ""linhas"": [ { ""db"": 12.7, ""hef"": 110, ""fck"": 20, ""n"": 99, ""v"": 9 } ] } ] }");
+        try
+        {
+            var c2 = CatalogoFixadores.Carregar(arq);
+            Assert.Single(c2.Chumbadores.Where(x => x.Produto == "Walsywa WQA (ampola)"));
+            Assert.Equal(99, c2.Resistencia("Walsywa WQA (ampola)", 12.7, 110, 25).NRd, 6);
+            Assert.Contains("Hardinc VI 1101 + barra roscada", c2.Produtos);
+        }
+        finally { System.IO.File.Delete(arq); }
+    }
 }
