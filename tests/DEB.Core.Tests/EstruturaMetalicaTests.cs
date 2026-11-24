@@ -167,7 +167,11 @@ public class EstruturaMetalicaTests
     public void Cargas_lancadas_na_janela_entram_na_analise()
     {
         var e = Portico(LigacaoExtremidade.Flexivel);
-        var s = new SessaoAnalise(e, new ConfiguracaoProjeto(), "teste", null);
+        // a janela recebe as cargas na unidade da configuração: aqui o projeto está em kN (o padrão do PCEB é tf e kgf/m)
+        var cfg = new ConfiguracaoProjeto();
+        foreach (var g in new[] { Grandeza.Forca, Grandeza.CargaLinear, Grandeza.CargaSuperficie })
+            cfg.Definir(NivelConfiguracao.Projeto, CatalogoConfiguracao.IdUnidade(g), g == Grandeza.Forca ? "kN" : g == Grandeza.CargaLinear ? "kN/m" : "kN/m²");
+        var s = new SessaoAnalise(e, cfg, "teste", null);
         var v = e.Metalicas.Single(x => x.Dono.Nome == "V1");
         var p1 = e.Metalicas.Single(x => x.Dono.Nome == "P1"); var p2 = e.Metalicas.Single(x => x.Dono.Nome == "P2");
         string kv = AjustesAnalise.Chave(v.Dono), kp = AjustesAnalise.Chave(p1.Dono);

@@ -275,6 +275,10 @@ public sealed class SessaoAnalise
             // valida no próprio objeto antes de guardar (perfil inexistente, número inválido…)
             if (AjustesAnalise.Objetos(Estrutura).TryGetValue(chave, out object alvo) && AjustesAnalise.Do(alvo).FirstOrDefault(p => p.Id == prop) is PropriedadeAjuste pa)
             {
+                // a tela mostra na unidade da configuração: volta à unidade interna antes de guardar
+                var unid = new UnidadesAnalise(Cfg);
+                if (unid.Conversao(pa.Unidade) != null && double.TryParse(valor.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double vt))
+                    valor = unid.DaTela(pa.Unidade, vt).ToString("R", CultureInfo.InvariantCulture);
                 string atual = pa.Ler(alvo);
                 try { pa.Gravar(alvo, valor); pa.Gravar(alvo, atual); }
                 catch (Exception ex)
@@ -345,7 +349,9 @@ public sealed class SessaoAnalise
             else
                 e.Cargas.Add(new CargaObjeto
                 {
-                    Alvo = alvo, Tipo = t, Caso = (m["caso"]?.Texto ?? "G") == "Q" ? EstruturaObjetos.CasoQ : EstruturaObjetos.CasoG, Valor = N("valor"),
+                    // o valor vem na unidade da tela (configuração do projeto)
+                    Alvo = alvo, Tipo = t, Caso = (m["caso"]?.Texto ?? "G") == "Q" ? EstruturaObjetos.CasoQ : EstruturaObjetos.CasoG,
+                    Valor = new UnidadesAnalise(Cfg).DaTela(new CargaObjeto { Tipo = t }.UnidadeInterna, N("valor")),
                     Posicao = N("posicao"), Fim = N("fim"), Direcao = m["direcao"]?.Texto is string d && (d == "X" || d == "Y") ? d : "Z", Origem = OrigemCarga.Pceb,
                 });
         }

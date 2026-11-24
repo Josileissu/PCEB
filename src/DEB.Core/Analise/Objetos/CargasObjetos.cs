@@ -38,11 +38,15 @@ public sealed class CargaObjeto
 
     public Vetor3 Vetor(double v) => Direcao == "X" ? new Vetor3(v, 0, 0) : Direcao == "Y" ? new Vetor3(0, v, 0) : new Vetor3(0, 0, -v);
 
-    public string Texto()
+    /// <summary>Unidade interna do valor: kN/m, kN ou kN/m².</summary>
+    public string UnidadeInterna => Tipo == TipoCargaObjeto.Linear ? "kN/m" : Tipo == TipoCargaObjeto.Pontual ? "kN" : "kN/m²";
+
+    /// <summary>Texto da carga (com <paramref name="un"/>, o valor sai na unidade da tela).</summary>
+    public string Texto(UnidadesAnalise un = null)
     {
-        string un = Tipo == TipoCargaObjeto.Linear ? "kN/m" : Tipo == TipoCargaObjeto.Pontual ? "kN" : "kN/m²";
         string onde = Tipo == TipoCargaObjeto.Pontual ? $" a {Posicao:0} cm" : Tipo == TipoCargaObjeto.Linear && (Posicao > 0 || Fim > 0) ? $" de {Posicao:0} a {(Fim > 0 ? Fim.ToString("0") : "fim")} cm" : "";
-        return $"{Caso} · {Valor:0.###} {un}{(Direcao == "Z" ? "" : " em " + Direcao)}{onde}";
+        string val = un != null ? un.Texto(UnidadeInterna, Valor, "0.###") : $"{Fmt.Virgula(Valor, "0.###")} {UnidadeInterna}";
+        return $"{Caso} · {val}{(Direcao == "Z" ? "" : " em " + Direcao)}{onde}";
     }
 }
 

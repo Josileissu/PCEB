@@ -384,4 +384,32 @@ public class EstruturaObjetosTests
             System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "consolo_campo.html"), html);
         }
     }
+
+    [Fact]
+    public void Janela_da_analise_mostra_e_recebe_nas_unidades_da_configuracao()
+    {
+        var cfg = new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto();          // padrão do PCEB: tf, tf·m, kgf/m
+        var un = new UnidadesAnalise(cfg);
+        Perto(1 / 9.80665, un.ParaTela("kN", 1).Valor, 1e-9);
+        Assert.Equal("tf", un.ParaTela("kN", 1).Simbolo);
+        Perto(1 / 9.80665, un.ParaTela("kN·cm", 100).Valor, 1e-9);           // 100 kN·cm = 1 kN·m
+        Assert.Equal("tf·m", un.ParaTela("kN·cm", 100).Simbolo);
+        Perto(1000 / 9.80665, un.ParaTela("kN/m", 1).Valor, 1e-9);           // kgf/m
+        Perto(10, un.DaTela("kN/m", un.ParaTela("kN/m", 10).Valor), 1e-9);
+        // textos do núcleo: valores com kN viram tf; tensões e comprimentos ficam
+        Assert.Equal("Vd 9,12 tf · Hd 0,722 tf; Kh = 229,4 tf/m; 3,5 MPa; 15 cm", un.ConverterTexto("Vd 89,4 kN · Hd 7,08 kN; Kh = 22,5 kN/cm; 3,5 MPa; 15 cm"));
+        Assert.Equal("Md = 9,33 tf·m", un.ConverterTexto("Md = 91,5 kN·m"));
+        // a viga do pórtico: o ajuste de g chega em kgf/m e fica guardado em kN/m
+        var e = Portico(Elastomero);
+        e.Analisar();
+        var s = new SessaoAnalise(e, cfg, "teste", null);
+        string chave = AjustesAnalise.Chave(e.Vigas[0].Dono);
+        string j = s.Receber("{\"acao\":\"ajustar\",\"chave\":\"" + chave + "\",\"prop\":\"g\",\"valor\":\"1500\"}");
+        Perto(1500 * 9.80665 / 1000, e.Vigas[0].G, 1e-9);
+        Assert.Contains("\"unid\"", j);
+        Assert.Contains("kgf/m", j);
+        // em kN (escolha do projeto) não converte
+        cfg.Definir(DEB.Core.Configuracao.Projeto.NivelConfiguracao.Projeto, DEB.Core.Configuracao.Projeto.CatalogoConfiguracao.IdUnidade(DEB.Core.Configuracao.Projeto.Grandeza.CargaLinear), "kN/m");
+        Perto(10, new UnidadesAnalise(cfg).ParaTela("kN/m", 10).Valor, 1e-12);
+    }
 }

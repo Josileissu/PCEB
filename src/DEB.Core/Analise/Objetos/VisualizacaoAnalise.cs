@@ -44,6 +44,9 @@ public static class VisualizacaoAnalise
         var raiz = ValorJson.NovoObjeto();
         raiz.Definir("tipo", "modelo");
         raiz.Definir("titulo", titulo);
+        // unidades da tela pela configuração do projeto (a página converte os valores internos em kN e cm)
+        var un = new UnidadesAnalise(cfg);
+        raiz.Definir("unid", un.Json());
 
         var nos = ValorJson.NovaLista(); raiz.Definir("nos", nos);
         foreach (var n in m.Nos)
@@ -58,7 +61,7 @@ public static class VisualizacaoAnalise
         void Obj(Dono d, string resumo)
         {
             var o = ValorJson.NovoObjeto();
-            o.Definir("chave", Chave(d)); o.Definir("tipo", d.Tipo.ToString()); o.Definir("nome", d.ToString()); o.Definir("resumo", resumo);
+            o.Definir("chave", Chave(d)); o.Definir("tipo", d.Tipo.ToString()); o.Definir("nome", d.ToString()); o.Definir("resumo", un.ConverterTexto(resumo));
             // ajustes da janela (D50): propriedades editáveis, valor em vigor e se foi ajustado
             if (objAjuste.TryGetValue(Chave(d), out object alvo))
             {
@@ -68,7 +71,7 @@ public static class VisualizacaoAnalise
                 foreach (var c in e.Cargas.Where(x => x.Alvo == Chave(d)))
                 {
                     var q = ValorJson.NovoObjeto(); cs.Adicionar(q);
-                    q.Definir("id", c.Id); q.Definir("texto", c.Texto()); q.Definir("origem", c.Origem.ToString()); q.Definir("descricao", c.Descricao);
+                    q.Definir("id", c.Id); q.Definir("texto", c.Texto(un)); q.Definir("origem", c.Origem.ToString()); q.Definir("descricao", c.Descricao);
                 }
                 var aj = ValorJson.NovaLista(); o.Definir("ajustes", aj);
                 Dictionary<string, string> feitos = null;
@@ -79,8 +82,15 @@ public static class VisualizacaoAnalise
                 foreach (var p in props)
                 {
                     var q = ValorJson.NovoObjeto(); aj.Adicionar(q);
-                    q.Definir("id", p.Id); q.Definir("rotulo", p.Rotulo); q.Definir("grupo", p.Grupo); q.Definir("unidade", p.Unidade); q.Definir("dica", p.Dica);
-                    q.Definir("valor", p.Valor); q.Definir("alterado", feitos != null && feitos.ContainsKey(p.Id));
+                    // número com unidade convertível: valor e símbolo na unidade da tela
+                    string valorTela = p.Valor, unTela = p.Unidade;
+                    if (un.Conversao(p.Unidade) != null && double.TryParse(p.Valor, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double vNum))
+                    {
+                        var (vt, st) = un.ParaTela(p.Unidade, vNum);
+                        valorTela = Math.Round(vt, 6).ToString("0.######", System.Globalization.CultureInfo.InvariantCulture); unTela = st;
+                    }
+                    q.Definir("id", p.Id); q.Definir("rotulo", p.Rotulo); q.Definir("grupo", p.Grupo); q.Definir("unidade", unTela); q.Definir("dica", p.Dica);
+                    q.Definir("valor", valorTela); q.Definir("alterado", feitos != null && feitos.ContainsKey(p.Id));
                     var ops = ValorJson.NovaLista(); q.Definir("opcoes", ops);
                     foreach (string x in p.Opcoes) ops.Adicionar(ValorJson.De(x));
                 }
@@ -88,10 +98,10 @@ public static class VisualizacaoAnalise
             donos.Adicionar(o);
         }
         foreach (var p in e.Pilares) Obj(p.Dono, $"seção {Fmt.Virgula(p.Secao.B, "0.#")}×{Fmt.Virgula(p.Secao.H, "0.#")} cm, {Fmt.Virgula(p.Comprimento, "0")} cm, engaste a {Fmt.Virgula(p.Embutimento, "0")} cm da base");
-        foreach (var v in e.Vigas) Obj(v.Dono, $"seção {Fmt.Virgula(v.Secao.B, "0.#")}×{Fmt.Virgula(v.Secao.H, "0.#")} cm, g = {Fmt.Virgula(v.G, "0.##")} kN/m, q = {Fmt.Virgula(v.Q, "0.##")} kN/m");
+        foreach (var v in e.Vigas) Obj(v.Dono, $"seção {Fmt.Virgula(v.Secao.B, "0.#")}×{Fmt.Virgula(v.Secao.H, "0.#")} cm, g = {un.Texto("kN/m", v.G)}, q = {un.Texto("kN/m", v.Q)}");
         foreach (var b in e.Metalicas)
             Obj(b.Dono, $"{b.Perfil.Nome} ({b.Aco.Nome}), {Fmt.Virgula(b.Comprimento, "0")} cm" + (b.Pilar ? $", base {(b.Base == BasePilarMetalico.Engastada ? "engastada" : "rotulada")}"
-                : $", ligações {(b.LigacaoI == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}/{(b.LigacaoJ == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}, g = {Fmt.Virgula(b.G, "0.##")} kN/m, q = {Fmt.Virgula(b.Q, "0.##")} kN/m"));
+                : $", ligações {(b.LigacaoI == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}/{(b.LigacaoJ == LigacaoExtremidade.Flexivel ? "flexível" : "rígida")}, g = {un.Texto("kN/m", b.G)}, q = {un.Texto("kN/m", b.Q)}"));
         foreach (var l in e.Ligacoes) Obj(l.Dono, l.Observacao);
         foreach (var l in e.LigacoesMetalicas)
             Obj(l.Dono, l.Placa != null
@@ -216,18 +226,18 @@ public static class VisualizacaoAnalise
         {
             var o = ValorJson.NovoObjeto();
             o.Definir("chave", rp.Chave); o.Definir("situacao", rp.Situacao.ToString());
-            var rs = ValorJson.NovaLista(); foreach (string t in rp.Resumo) rs.Adicionar(ValorJson.De(t)); o.Definir("resumo", rs);
+            var rs = ValorJson.NovaLista(); foreach (string t in rp.Resumo) rs.Adicionar(ValorJson.De(un.ConverterTexto(t))); o.Definir("resumo", rs);
             var vs = ValorJson.NovaLista();
             foreach (var v in rp.Verificacoes)
             {
                 var x = ValorJson.NovoObjeto();
-                x.Definir("codigo", v.Codigo); x.Definir("descricao", v.Descricao); x.Definir("valor", v.Valor); x.Definir("limite", v.Limite);
+                x.Definir("codigo", v.Codigo); x.Definir("descricao", v.Descricao); x.Definir("valor", un.ConverterTexto(v.Valor)); x.Definir("limite", un.ConverterTexto(v.Limite));
                 x.Definir("situacao", v.Situacao.ToString()); x.Definir("referencia", v.Referencia); x.Definir("dica", v.Dica ?? "");
                 vs.Adicionar(x);
             }
             o.Definir("verificacoes", vs);
             var mem = ValorJson.NovoObjeto(); mem.Definir("titulo", rp.Memoria.Titulo ?? "");
-            var ml = ValorJson.NovaLista(); foreach (string t in rp.Memoria.Linhas) ml.Adicionar(ValorJson.De(t)); mem.Definir("linhas", ml);
+            var ml = ValorJson.NovaLista(); foreach (string t in rp.Memoria.Linhas) ml.Adicionar(ValorJson.De(un.ConverterTexto(t))); mem.Definir("linhas", ml);
             o.Definir("memoria", mem);
             dim.Adicionar(o);
         }

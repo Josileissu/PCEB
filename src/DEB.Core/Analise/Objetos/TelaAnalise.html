@@ -157,12 +157,19 @@ const ROTULO = { M: "momentos (lado tracionado)", V: "cortantes", N: "força nor
 const intensidade = (s, e) => Math.hypot(...COMP[e].map(c => s[c[0]]));
 const ehMomento = k => k >= 4;
 const fmt = (v, c = 1) => (Math.abs(v) < 1e-9 ? 0 : v).toLocaleString("pt-BR", { minimumFractionDigits: c, maximumFractionDigits: c });
-const valor = (k, v) => ehMomento(k) ? fmt(v / 100, 2) + " kN·m" : fmt(v, 2) + " kN";
+// unidades da tela pela configuração do projeto: D.unid[g] = { s: símbolo, f: fator a partir da unidade interna }
+const UNID0 = { forca: "kN", momento: "kN·m", linear: "kN/m", superficie: "kN/m²", momDist: "kN·m/m", mola: "kN/cm", tensao: "MPa" };
+const FAT0 = { momento: 0.01 };   // sem configuração: momento interno kN·cm → kN·m
+const UN = g => (D && D.unid && D.unid[g]) || { s: UNID0[g], f: FAT0[g] || 1 };
+const S = g => UN(g).s;
+const conv = (g, v) => v * UN(g).f;
+const U = (g, v, c = 2) => fmt(conv(g, v), c) + " " + S(g);
+const valor = (k, v) => ehMomento(k) ? U("momento", v) : U("forca", v);
 
 function enviar(m) { if (host) host.postMessage(JSON.stringify(m)); }
 function receber(txt) {
   const m = typeof txt === "string" ? JSON.parse(txt) : txt;
-  if (m.tipo === "modelo") { for (const k in DETALHES) delete DETALHES[k]; for (const k in CAMPOS) delete CAMPOS[k]; const primeira = !D, res = $("resultado").value; D = m; iniciar(primeira, res); if (m.erro) aviso(m.erro); if (m.aviso) aviso(m.aviso); }
+  if (m.tipo === "modelo") { for (const k in DETALHES) delete DETALHES[k]; for (const k in CAMPOS) delete CAMPOS[k]; const primeira = !D, res = $("resultado").value; D = m; document.querySelectorAll("#grandezaLaje option").forEach(op => { op.textContent = op.textContent.replace(/\((kN·m\/m|tf·m\/m|[^)]*·m\/m)\)/, "(" + S("momDist") + ")"); }); iniciar(primeira, res); if (m.erro) aviso(m.erro); if (m.aviso) aviso(m.aviso); }
   else if (m.tipo === "aviso") alert(m.texto);
   else if (m.tipo === "consolo") { DETALHES[m.chave] = m; if (aba === "peca") desenhar(); }
   else if (m.tipo === "campo") { CAMPOS[m.chave] = m; if (aba === "peca") desenhar(); }
@@ -472,7 +479,7 @@ function desenharConsolo(w, h, chave) {
     ctx2.strokeStyle = css("--c-pilar"); ctx2.lineWidth = 2; ctx2.beginPath();
     ctx2.moveTo(X(xf), Y(v.dy)); ctx2.lineTo(X(xf + sx * v.a), Y(v.dy)); ctx2.lineTo(X(xf + sx * v.a), Y(v.dy - v.h1)); ctx2.lineTo(X(xf), Y(v.dy - v.h)); ctx2.stroke();
     ctx2.fillStyle = "#333"; ctx2.fillRect(X(xf + sx * v.pos - v.pad / 2), Y(v.dy + 1.2), v.pad * esc, 1.2 * esc);
-    texto2(X(xf + sx * v.pos) + (sx > 0 ? 4 : -4), Y(v.dy) - 40, `Vd = ${fmt(v.vd, 1)} kN`, css("--c-carga"), sx > 0 ? "left" : "right");
+    texto2(X(xf + sx * v.pos) + (sx > 0 ? 4 : -4), Y(v.dy) - 40, `Vd = ${U("forca", v.vd, 1)}`, css("--c-carga"), sx > 0 ? "left" : "right");
     ctx2.strokeStyle = css("--c-carga"); ctx2.beginPath(); ctx2.moveTo(X(xf + sx * v.pos), Y(v.dy) - 36); ctx2.lineTo(X(xf + sx * v.pos), Y(v.dy) - 2); ctx2.stroke();
     texto2(X(xf + sx * v.a / 2), Y(v.dy - v.h) + 14, v.nome, css("--suave"), "center");
   });
@@ -488,14 +495,14 @@ function desenharConsolo(w, h, chave) {
   ctx2.beginPath(); ctx2.moveTo(X(-g.lp + 4), Y(zt)); ctx2.lineTo(X(g.pos), Y(zt)); ctx2.stroke();
   ctx2.strokeStyle = css("--c-diag"); ctx2.setLineDash([8, 4]);
   ctx2.beginPath(); ctx2.moveTo(X(g.pos), Y(zt)); ctx2.lineTo(X(0), Y(zb)); ctx2.stroke(); ctx2.setLineDash([]);
-  texto2(X(-g.lp) + 4, Y(zt) + 16, `tirante Rs = ${fmt(b.rs, 1)} kN`, css("--c-def"));
-  texto2(X(g.pos * 0.55) + 6, Y((zt + zb) / 2) + 14, `biela Rc = ${fmt(b.rc, 1)} kN (θ = ${fmt(b.theta, 0)}°)`, css("--c-diag"));
+  texto2(X(-g.lp) + 4, Y(zt) + 16, `tirante Rs = ${U("forca", b.rs, 1)}`, css("--c-def"));
+  texto2(X(g.pos * 0.55) + 6, Y((zt + zb) / 2) + 14, `biela Rc = ${U("forca", b.rc, 1)} (θ = ${fmt(b.theta, 0)}°)`, css("--c-diag"));
   // cargas
   const seta = (x, y, dx, dy, cor, t) => { ctx2.strokeStyle = cor; ctx2.fillStyle = cor; ctx2.lineWidth = 2; ctx2.beginPath(); ctx2.moveTo(x - dx, y - dy); ctx2.lineTo(x, y); ctx2.stroke();
     const a = Math.atan2(dy, dx); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x - 9 * Math.cos(a - 0.4), y - 9 * Math.sin(a - 0.4)); ctx2.lineTo(x - 9 * Math.cos(a + 0.4), y - 9 * Math.sin(a + 0.4)); ctx2.fill(); if (t) texto2(x - dx + 4, y - dy - 4, t, cor); };
-  seta(X(g.pos), Y(tAp), 0, 46, css("--c-carga"), `Vd = ${fmt(c.vd, 1)} kN`);
-  if (Math.abs(c.hd) > 1e-6) { seta(X(g.pos) + (c.hd > 0 ? 50 : -50), Y(tAp / 2) - 6, c.hd > 0 ? 46 : -46, 0, css("--c-carga"), ""); texto2(X(g.pos) + 6, Y(tAp / 2) - 22, `Hd = ${fmt(c.hd, 2)} kN`, css("--c-carga")); }
-  if (c.n > 0) seta(X(-g.lp / 2), Y(g.lp), 0, 40, css("--c-carga"), `N = ${fmt(c.n, 1)} kN`);
+  seta(X(g.pos), Y(tAp), 0, 46, css("--c-carga"), `Vd = ${U("forca", c.vd, 1)}`);
+  if (Math.abs(c.hd) > 1e-6) { seta(X(g.pos) + (c.hd > 0 ? 50 : -50), Y(tAp / 2) - 6, c.hd > 0 ? 46 : -46, 0, css("--c-carga"), ""); texto2(X(g.pos) + 6, Y(tAp / 2) - 22, `Hd = ${U("forca", c.hd, 2)}`, css("--c-carga")); }
+  if (c.n > 0) seta(X(-g.lp / 2), Y(g.lp), 0, 40, css("--c-carga"), `N = ${U("forca", c.n, 1)}`);
   // cotas e títulos
   texto2(50, 62, `${(D.objetos.find(o => o.chave === chave) || {}).nome || chave} — ${c.comb} (análise, sem γn)  ·  consolo ${fmt(g.b, 0)} × ${fmt(g.h, 0)}/${fmt(g.h1, 0)} cm, balanço ${fmt(g.a, 0)} cm, a = ${fmt(g.pos, 1)} cm${g.estimado ? " · geometria ESTIMADA (sem detalhamento do pilar)" : ""}`, css("--suave"));
   // painel à direita: escala e resultados
@@ -517,11 +524,11 @@ function desenharConsolo(w, h, chave) {
     py += 6; linha("Teclas: c = campo de tensões, 1/2/x/y/t = elástico", css("--suave"));
     return;
   }
-  linha("Campo: " + { S1: "σ1 (tração +)", S2: "σ2 (compressão −)", Sx: "σx", Sy: "σy", Txy: "τxy" }[campoConsolo] + " · MPa", css("--suave"));
+  linha("Campo: " + { S1: "σ1 (tração +)", S2: "σ2 (compressão −)", Sx: "σx", Sy: "σy", Txy: "τxy" }[campoConsolo] + " · " + S("tensao"), css("--suave"));
   for (let k = 0; k <= 10; k++) { const v = -amp + 2 * amp * k / 10; ctx2.fillStyle = corV(v); ctx2.fillRect(px + k * 22, py, 22, 12); }
-  py += 26; linha(`${fmt(-amp, 2)}  …  0  …  ${fmt(amp, 2)}`, css("--suave"));
-  py += 6; linha(`σ1,máx = ${fmt(mf.s1max, 2)} MPa (fctm = ${fmt(mf.fctm, 2)})`, mf.s1max > mf.fctm ? css("--c-def") : css("--fg"));
-  linha(`σ2,mín = ${fmt(mf.s2min, 2)} MPa (fcd = ${fmt(mf.fcd, 2)})`, -mf.s2min > mf.fcd ? css("--c-def") : css("--fg"));
+  py += 26; linha(`${fmt(conv("tensao", -amp), 2)}  …  0  …  ${fmt(conv("tensao", amp), 2)} ${S("tensao")}`, css("--suave"));
+  py += 6; linha(`σ1,máx = ${U("tensao", mf.s1max)} (fctm = ${U("tensao", mf.fctm)})`, mf.s1max > mf.fctm ? css("--c-def") : css("--fg"));
+  linha(`σ2,mín = ${U("tensao", mf.s2min)} (fcd = ${U("tensao", mf.fcd)})`, -mf.s2min > mf.fcd ? css("--c-def") : css("--fg"));
   linha(`chapa elástica Q4: ${mf.els.length} elementos`, css("--suave"));
   if (vz.length) linha(`${vz.length} consolo(s) vizinho(s) no mesmo trecho`, css("--suave"));
   linha(`espessura: pilar ${fmt(g.tp, 0)} cm, consolo ${fmt(g.b, 0)} cm`, css("--suave"));
@@ -544,14 +551,15 @@ function desenharPeca() {
   const L = acc, mx0 = 70, mx1 = w - 30;
   const X = s => mx0 + (mx1 - mx0) * s / L;
   // séries: [rótulo, índice, sinal de desenho, unidade]
-  const series = viga ? [["M (kN·m) · positivo embaixo", [[5, -1, "M"]]], ["V (kN)", [[3, 1, "V"]]], ["N (kN) · tração +", [[1, 1, "N"]]]]
-                      : [["M (kN·m)", [[5, 1, "My"], [6, 1, "Mz"]]], ["V (kN)", [[3, 1, "Vz"], [2, 1, "Vy"]]], ["N (kN) · tração +", [[1, 1, "N"]]]];
+  const sm = S("momento"), sf = S("forca");
+  const series = viga ? [[`M (${sm}) · positivo embaixo`, [[5, -1, "M"]]], [`V (${sf})`, [[3, 1, "V"]]], [`N (${sf}) · tração +`, [[1, 1, "N"]]]]
+                      : [[`M (${sm})`, [[5, 1, "My"], [6, 1, "Mz"]]], [`V (${sf})`, [[3, 1, "Vz"], [2, 1, "Vy"]]], [`N (${sf}) · tração +`, [[1, 1, "N"]]]];
   const elu = resultadosELU();
   const topo = 86, alt = (h - topo - 20) / series.length;
   texto2(mx0, 62, `${o.nome} — ${R.nome}  ·  tracejado: envoltória ELU (${elu.length} combinações)  ·  ${viga ? "apoio I → apoio J" : "base → topo"}, L = ${fmt(L / 100, 2)} m`, css("--suave"));
   series.forEach(([rot, comps], n) => {
     const y0 = topo + alt * n + alt / 2;
-    const val = (res, ib, k, q, sg) => sg * res.estacoes[ib][k][q] / (q >= 4 ? 100 : 1);
+    const val = (res, ib, k, q, sg) => sg * conv(q >= 4 ? "momento" : "forca", res.estacoes[ib][k][q]);
     let vmax = 1e-9;
     comps.forEach(([q, sg]) => [R, ...elu].forEach(res => pts.forEach(p => vmax = Math.max(vmax, Math.abs(val(res, p.ib, p.k, q, sg))))));
     const esc = (alt * 0.42) / vmax;
@@ -588,7 +596,7 @@ function desenharLaje() {
   if (!D.lajes || !D.lajes.length) { texto2(20, 70, "Não há lajes no modelo."); return; }
   let il = D.lajes.findIndex(l => l.chave === sel); if (il < 0) il = 0;
   const L = D.lajes[il], g = $("grandezaLaje").value, dados = R.lajes[il][g], ny1 = L.ny + 1;
-  const V = (i, j) => { const v = dados[i * ny1 + j]; return v === null ? null : g === "uz" ? v * 10 : v; };   // uz em mm
+  const V = (i, j) => { const v = dados[i * ny1 + j]; return v === null ? null : g === "uz" ? v * 10 : conv("momDist", v); };   // uz em mm
   let vmin = Infinity, vmax = -Infinity; dados.forEach((v, k) => { if (v !== null) { const x = g === "uz" ? v * 10 : v; vmin = Math.min(vmin, x); vmax = Math.max(vmax, x); } });
   const lx = L.xs[L.nx], ly = L.ys[L.ny], mg = 70, esc = Math.min((w - 2 * mg) / lx, (h - 2 * mg - 30) / ly);
   const ox = (w - lx * esc) / 2, oy = (h + ly * esc) / 2;
@@ -618,7 +626,7 @@ function desenharLaje() {
   // máximo e mínimo
   let pMax = null, pMin = null;
   for (let i = 0; i <= L.nx; i++) for (let j = 0; j <= L.ny; j++) { const v = V(i, j); if (v === null) continue; if (!pMax || v > pMax[2]) pMax = [i, j, v]; if (!pMin || v < pMin[2]) pMin = [i, j, v]; }
-  const un = g === "uz" ? "mm" : "kN·m/m";
+  const un = g === "uz" ? "mm" : S("momDist");
   for (const [i, j, v] of [pMax, pMin]) { const [x, y] = P2(L.xs[i], L.ys[j]); ctx2.fillStyle = css("--fg"); ctx2.beginPath(); ctx2.arc(x, y, 3.5, 0, 7); ctx2.fill(); texto2(x + 6, y - 6, `${fmt(v, 2)} ${un}`); }
   const o = D.objetos.find(x => x.chave === L.chave) || {};
   texto2(16, 62, `${o.nome || "laje"} — ${R.nome} · ${$("grandezaLaje").selectedOptions[0].textContent} · ${fmt(lx / 100, 2)} × ${fmt(ly / 100, 2)} m (eixo x da malha →)`, css("--suave"));
@@ -671,12 +679,14 @@ function lateral() {
     });
     if (!(o.cargas || []).length) { const v = document.createElement("div"); v.className = "vazio"; v.textContent = "Sem cargas além do peso próprio e das cargas da peça."; box2.append(v); }
     const f = document.createElement("div"); f.className = "aj"; f.style.marginTop = "8px";
-    const NOMES = { Linear: "Linear (kN/m)", Pontual: "Pontual (kN)", Superficie: "Superfície (kN/m²)" };
+    const NOMES = { Linear: `Linear (${S("linear")})`, Pontual: `Pontual (${S("forca")})`, Superficie: `Superfície (${S("superficie")})` };
     const campo = (rot, el, un = "") => { const l = document.createElement("label"); l.textContent = rot; const u = document.createElement("span"); u.className = "un"; u.textContent = un; f.append(l, el, u, document.createElement("span")); return el; };
     const sel = (ops, nomes) => { const s2 = document.createElement("select"); ops.forEach(v => { const op = document.createElement("option"); op.value = v; op.textContent = nomes ? nomes[v] : v; s2.append(op); }); return s2; };
     const inp = v => { const i = document.createElement("input"); i.value = v; return i; };
     const tipo = campo("Tipo", sel(o.tiposCarga, NOMES)), caso = campo("Caso", sel(["G", "Q"], { G: "G · permanente", Q: "Q · variável" }));
     const val = campo("Valor (Z: + para baixo)", inp(""), ""), dir = campo("Direção", sel(["Z", "X", "Y"]));
+    const unVal = val.nextSibling, UNT = { Linear: "linear", Pontual: "forca", Superficie: "superficie" };
+    const porTipo = () => { unVal.textContent = S(UNT[tipo.value]); }; tipo.addEventListener("change", porTipo); porTipo();
     const pos = campo(o.tipo === "Pilar" ? "Altura z (da base)" : "Posição / início x", inp("0"), "cm"), fim = campo("Fim do trecho (0 = até J)", inp("0"), "cm");
     const add = document.createElement("button"); add.className = "btn"; add.textContent = "Adicionar carga"; add.style.marginTop = "6px";
     add.addEventListener("click", () => enviar({ acao: "carga", op: "adicionar", alvo: chave, tipo: tipo.value, caso: caso.value, valor: val.value.replace(",", "."),
@@ -712,7 +722,7 @@ function lateral() {
     if (m.dono !== chave) return;
     const f = R.molas[im];
     sec("Forças no aparelho · " + R.nome, kv([["V (sobre o consolo)", valor(1, -f[2])], ["H ao longo da viga", valor(1, f[0])], ["H transversal", valor(1, f[1])],
-      ["Kh / Kv", `${fmt(m.k[0], 1)} / ${fmt(m.k[2], 0)} kN/cm`]]));
+      ["Kh / Kv", `${fmt(conv("mola", m.k[0]), 1)} / ${fmt(conv("mola", m.k[2]), 0)} ${S("mola")}`]]));
   });
   // barras do objeto: esforços nas pontas
   const t = document.createElement("table");
@@ -723,20 +733,21 @@ function lateral() {
     for (const [rot, s] of [["I", est[0]], ["J", est[est.length - 1]]]) {
       const tr = document.createElement("tr");
       const c0 = document.createElement("td"); c0.textContent = (b.nome || "#" + ib).replace(o.nome, "").trim() + " · " + rot; tr.append(c0);
-      for (let q = 1; q <= 6; q++) { const c = document.createElement("td"); c.textContent = ehMomento(q) ? fmt(s[q] / 100, 2) : fmt(s[q], 2); tr.append(c); }
+      for (let q = 1; q <= 6; q++) { const c = document.createElement("td"); c.textContent = fmt(conv(ehMomento(q) ? "momento" : "forca", s[q]), 2); tr.append(c); }
       t.append(tr);
     }
   });
-  if (t.rows.length > 1) { const n = document.createElement("div"); n.className = "vazio"; n.textContent = "kN e kN·m; N > 0 tração; eixos locais da barra"; sec("Esforços nas pontas · " + R.nome, t, n); }
+  if (t.rows.length > 1) { const n = document.createElement("div"); n.className = "vazio"; n.textContent = `${S("forca")} e ${S("momento")}; N > 0 tração; eixos locais da barra`; sec("Esforços nas pontas · " + R.nome, t, n); }
   // reações dos apoios do objeto
   const re = R.reacoes.filter(r => D.barras.some(b => b.dono === chave && (b.i === r.no || b.j === r.no)));
-  re.forEach(r => sec("Reação no apoio", kv([["Fx, Fy, Fz", r.R.slice(0, 3).map(v => fmt(v, 2)).join("; ") + " kN"], ["Mx, My, Mz", r.R.slice(3).map(v => fmt(v / 100, 2)).join("; ") + " kN·m"]])));
+  re.forEach(r => sec("Reação no apoio", kv([["Fx, Fy, Fz", r.R.slice(0, 3).map(v => fmt(conv("forca", v), 2)).join("; ") + " " + S("forca")],
+                                               ["Mx, My, Mz", r.R.slice(3).map(v => fmt(conv("momento", v), 2)).join("; ") + " " + S("momento")]])));
 }
 function resumoResultado(sec, kv) {
   const somaZ = R.reacoes.reduce((s, r) => s + r.R[2], 0);
   const um = Math.max(...R.desl.map(u => Math.hypot(u[0], u[1], u[2])));
   sec("Resultado · " + R.nome, kv([["nós / barras", `${D.nos.length} / ${D.barras.length}`], ["aparelhos / vínculos", `${D.molas.length} / ${D.vinculos.length}`],
-    ["Σ reações verticais", fmt(somaZ, 2) + " kN"], ["maior deslocamento", fmt(um * 10, 2) + " mm"]]));
+    ["Σ reações verticais", U("forca", somaZ)], ["maior deslocamento", fmt(um * 10, 2) + " mm"]]));
 }
 
 function escolher(px, py) {
