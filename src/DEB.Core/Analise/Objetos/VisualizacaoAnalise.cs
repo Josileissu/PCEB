@@ -36,7 +36,7 @@ public static class VisualizacaoAnalise
     private static ValorJson Vet(Vetor3 v) => Lista(new[] { v.X, v.Y, v.Z });
 
     /// <summary>JSON completo para a página: modelo, cargas e resultados (casos e combinações).</summary>
-    public static string Json(EstruturaObjetos e, string titulo = "")
+    public static string Json(EstruturaObjetos e, string titulo = "", Configuracao.Projeto.ConfiguracaoProjeto cfg = null)
     {
         ModeloBarras m = e.Modelo;
         var raiz = ValorJson.NovoObjeto();
@@ -62,6 +62,20 @@ public static class VisualizacaoAnalise
         foreach (var p in e.Pilares) Obj(p.Dono, $"seção {Fmt.Virgula(p.Secao.B, "0.#")}×{Fmt.Virgula(p.Secao.H, "0.#")} cm, {Fmt.Virgula(p.Comprimento, "0")} cm, engaste a {Fmt.Virgula(p.Embutimento, "0")} cm da base");
         foreach (var v in e.Vigas) Obj(v.Dono, $"seção {Fmt.Virgula(v.Secao.B, "0.#")}×{Fmt.Virgula(v.Secao.H, "0.#")} cm, g = {Fmt.Virgula(v.G, "0.##")} kN/m, q = {Fmt.Virgula(v.Q, "0.##")} kN/m");
         foreach (var l in e.Ligacoes) Obj(l.Dono, l.Observacao);
+        foreach (var la in e.Lajes) Obj(la.Dono, $"h = {Fmt.Virgula(la.Espessura, "0.#")} cm, g = {Fmt.Virgula(la.G, "0.##")} kN/m², q = {Fmt.Virgula(la.Q, "0.##")} kN/m², malha {Fmt.Virgula(la.Sx, "0")} × {Fmt.Virgula(la.Sy, "0")} cm");
+
+        // lajes: malha (nós por i, j) e contorno no sistema da laje
+        var lajes = ValorJson.NovaLista(); raiz.Definir("lajes", lajes);
+        foreach (var la in e.Lajes)
+        {
+            var o = ValorJson.NovoObjeto();
+            o.Definir("chave", Chave(la.Dono)); o.Definir("nx", la.Nx); o.Definir("ny", la.Ny); o.Definir("sx", la.Sx); o.Definir("sy", la.Sy);
+            o.Definir("origem", Vet(la.Origem)); o.Definir("ex", Vet(la.Ex)); o.Definir("ey", Vet(la.Ey));
+            var nl = new List<double>();
+            for (int i = 0; i <= la.Nx; i++) for (int j = 0; j <= la.Ny; j++) nl.Add(la.Nos[i, j]);
+            o.Definir("nos", Lista(nl));
+            lajes.Adicionar(o);
+        }
 
         var barras = ValorJson.NovaLista(); raiz.Definir("barras", barras);
         foreach (var b in m.Barras)
@@ -138,10 +152,42 @@ public static class VisualizacaoAnalise
             for (int i = 0; i < r.Reacoes.Length; i++)
                 if (r.Reacoes[i] != null) { var x = ValorJson.NovoObjeto(); x.Definir("no", i); x.Definir("R", Lista(r.Reacoes[i])); re.Adicionar(x); }
             o.Definir("reacoes", re);
+            var rl = ValorJson.NovaLista();
+            foreach (var la in e.Lajes)
+            {
+                var (uz, mx, my, mt) = la.Resultados(r);
+                var x = ValorJson.NovoObjeto();
+                ValorJson Grade(double[,] g) { var l = ValorJson.NovaLista(); foreach (double v in g) l.Adicionar(double.IsNaN(v) ? ValorJson.Nulo : ValorJson.De(Math.Round(v, 5))); return l; }
+                x.Definir("uz", Grade(uz)); x.Definir("mx", Grade(mx)); x.Definir("my", Grade(my)); x.Definir("mxy", Grade(mt));
+                rl.Adicionar(x);
+            }
+            o.Definir("lajes", rl);
             res.Adicionar(o);
         }
         foreach (var c in m.Casos) Resultado(c.Nome, "caso", e.Casos[c.Nome], e.Estacoes(c.Nome));
         foreach (var def in e.DefinicaoCombinacoes) Resultado(def.Nome, def.Tipo, e.Combinacoes[def.Nome], e.Estacoes(def.Nome));
+
+        // dimensionamento por objeto (D46)
+        var dim = ValorJson.NovaLista(); raiz.Definir("dimensionamento", dim);
+        foreach (var rp in Dimensionamento.DimensionamentoObjetos.Verificar(e, cfg))
+        {
+            var o = ValorJson.NovoObjeto();
+            o.Definir("chave", rp.Chave); o.Definir("situacao", rp.Situacao.ToString());
+            var rs = ValorJson.NovaLista(); foreach (string t in rp.Resumo) rs.Adicionar(ValorJson.De(t)); o.Definir("resumo", rs);
+            var vs = ValorJson.NovaLista();
+            foreach (var v in rp.Verificacoes)
+            {
+                var x = ValorJson.NovoObjeto();
+                x.Definir("codigo", v.Codigo); x.Definir("descricao", v.Descricao); x.Definir("valor", v.Valor); x.Definir("limite", v.Limite);
+                x.Definir("situacao", v.Situacao.ToString()); x.Definir("referencia", v.Referencia); x.Definir("dica", v.Dica ?? "");
+                vs.Adicionar(x);
+            }
+            o.Definir("verificacoes", vs);
+            var mem = ValorJson.NovoObjeto(); mem.Definir("titulo", rp.Memoria.Titulo ?? "");
+            var ml = ValorJson.NovaLista(); foreach (string t in rp.Memoria.Linhas) ml.Adicionar(ValorJson.De(t)); mem.Definir("linhas", ml);
+            o.Definir("memoria", mem);
+            dim.Adicionar(o);
+        }
 
         var av = ValorJson.NovaLista(); foreach (string a in e.Avisos.Distinct()) av.Adicionar(ValorJson.De(a));
         raiz.Definir("avisos", av);

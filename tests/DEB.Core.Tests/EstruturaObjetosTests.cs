@@ -204,6 +204,13 @@ public class EstruturaObjetosTests
         Assert.True(e.Vigas[0].Barras.Count > 5);
         var (uz, mx, _, _) = laje.Resultados(q);
         Assert.True(mx[laje.Nx / 2, laje.Ny / 2] > 0);
+        string json = VisualizacaoAnalise.Json(e, "pórtico com laje");
+        Assert.Contains("\"lajes\"", json);
+        Assert.Contains("\"dimensionamento\"", json);
+        string pasta = Environment.GetEnvironmentVariable("PCEB_PREVIA");
+        if (!string.IsNullOrEmpty(pasta))
+            System.IO.File.WriteAllText(System.IO.Path.Combine(pasta, "previa_laje.html"),
+                VisualizacaoAnalise.Pagina().Replace("<script>", "<script>window.DADOS_DEMO = " + json + ";</script><script>"));
     }
 
     [Fact]

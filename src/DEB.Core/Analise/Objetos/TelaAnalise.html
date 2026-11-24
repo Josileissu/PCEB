@@ -7,6 +7,7 @@
 <style>
 /* Janela do modelo de análise do PCEB (D46): objetos | vista 3D | dados da seleção, na identidade mata e ipê. Sem rede. */
 :root{
+  --ok:#2f6b3f; --conf:#b07a12; --nao:#9b2c1f;
   --mata:#123a2c; --mata-claro:#e7efe9; --ipe:#e3a92b; --ocre:#8a5a00; --anil:#1d3f6e; --erro:#9b2c1f;
   --papel:#f2f1ec; --tinta:#13201a; --suave:#5d665f; --linha:#d9d7cf; --branco:#ffffff;
   --bg:var(--papel); --fg:var(--tinta); --card:var(--branco); --campo:#fbfaf7;
@@ -15,9 +16,9 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
-  --c-pilar:#7fc48f; --c-viga:#8fb3e8; --c-lig:#e3a92b; --c-vinc:#a3ada5; --c-def:#f08a7a; --c-diag:#8fb3e8; --c-carga:#f08a7a; color-scheme:dark}}
+  --c-pilar:#7fc48f; --c-viga:#8fb3e8; --c-lig:#e3a92b; --c-vinc:#a3ada5; --c-def:#f08a7a; --c-diag:#8fb3e8; --c-carga:#f08a7a; --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#0f1a15; --fg:#e8ece6; --card:#16241d; --campo:#1b2c23; --linha:#2c3d34; --suave:#a3ada5; --mata-claro:#1f3a2e;
-  --c-pilar:#7fc48f; --c-viga:#8fb3e8; --c-lig:#e3a92b; --c-vinc:#a3ada5; --c-def:#f08a7a; --c-diag:#8fb3e8; --c-carga:#f08a7a; color-scheme:dark}
+  --c-pilar:#7fc48f; --c-viga:#8fb3e8; --c-lig:#e3a92b; --c-vinc:#a3ada5; --c-def:#f08a7a; --c-diag:#8fb3e8; --c-carga:#f08a7a; --ok:#7fc48f; --conf:#e3a92b; --nao:#f08a7a; color-scheme:dark}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-texto);font-size:13.5px;line-height:1.45}
@@ -65,6 +66,15 @@ td{font-family:var(--f-dado)}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:.82rem}
 .kv b{font-weight:500;color:var(--suave)}
 .kv span{font-family:var(--f-dado)}
+.abas{position:absolute;left:12px;top:8px;z-index:2}
+#cv2{display:none;cursor:default}
+.vista.v2d #cv{display:none}.vista.v2d #cv2{display:block}
+.ponto{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:1px}
+.selo{display:inline-block;font-size:.72rem;padding:0 7px;border-radius:9px;color:#fff;white-space:nowrap}
+.verif td{font-family:var(--f-texto);white-space:normal;text-align:left;vertical-align:top}
+.verif td.v{font-family:var(--f-dado)}
+details{font-size:.8rem}details summary{cursor:pointer;color:var(--suave)}
+details p{margin:4px 0}
 @media (max-width:1000px){.corpo{grid-template-columns:190px minmax(0,1fr)}.lateral{display:none}}
 @media (max-width:640px){.corpo{grid-template-columns:1fr;grid-template-rows:auto minmax(320px,1fr)}.lista{border-right:0;border-bottom:1px solid var(--linha);max-height:150px}}
 </style>
@@ -82,10 +92,15 @@ td{font-family:var(--f-dado)}
       <button type="button" data-modo="deformada" aria-pressed="false">Deformada</button>
       <button type="button" data-modo="diagrama" aria-pressed="false">Diagrama</button>
       <button type="button" data-modo="mapa" aria-pressed="false">Mapa de cores</button>
+      <button type="button" data-modo="situacao" aria-pressed="false">Situação</button>
     </div>
     <select id="esforco" aria-label="Esforço">
       <option value="M" title="Momentos fletores My e Mz">Momentos (My, Mz)</option><option value="V">Cortantes (Vy, Vz)</option>
       <option value="N">Normal</option><option value="T">Torção</option>
+    </select>
+    <select id="grandezaLaje" aria-label="Grandeza da laje" hidden>
+      <option value="mx">mx · momento (kN·m/m)</option><option value="my">my · momento (kN·m/m)</option>
+      <option value="uz">uz · flecha (mm)</option><option value="mxy">mxy · torção (kN·m/m)</option>
     </select>
     <label class="filtro" id="rotEscala">escala <input type="range" id="escala" min="0.2" max="5" step="0.1" value="1"></label>
     <label class="filtro"><input type="checkbox" id="verCargas" checked> cargas</label>
@@ -100,7 +115,9 @@ td{font-family:var(--f-dado)}
   </div>
   <div class="corpo">
     <nav class="lista" id="lista" aria-label="Objetos"></nav>
-    <div class="vista"><canvas id="cv" aria-label="Vista 3D do modelo de análise"></canvas><div class="legenda" id="legenda"></div><div class="dica">arrastar: girar · Shift/botão direito: mover · roda: zoom · clique: selecionar</div></div>
+    <div class="vista" id="vista"><div class="seg abas" role="group" aria-label="Vista">
+        <button type="button" data-aba="3d" aria-pressed="true">3D</button><button type="button" data-aba="peca" aria-pressed="false">2D da peça</button><button type="button" data-aba="laje" aria-pressed="false">Laje · isovalores</button>
+      </div><canvas id="cv" aria-label="Vista 3D do modelo de análise"></canvas><canvas id="cv2" aria-label="Vista 2D"></canvas><div class="legenda" id="legenda"></div><div class="dica">arrastar: girar · Shift/botão direito: mover · roda: zoom · clique: selecionar</div></div>
     <aside class="lateral" id="lateral"><div><h4>Seleção</h4><div class="vazio">Clique numa barra ou num objeto da lista.</div></div></aside>
   </div>
 </div>
@@ -108,7 +125,11 @@ td{font-family:var(--f-dado)}
 "use strict";
 const host = window.chrome && window.chrome.webview;
 const $ = id => document.getElementById(id);
-let D = null, R = null, modo = "modelo", sel = null, selBarra = -1;
+let D = null, R = null, modo = "modelo", sel = null, selBarra = -1, aba = "3d";
+const cv2 = $("cv2"), ctx2 = cv2.getContext("2d");
+const corSit = t => t === "Ok" ? css("--ok") : t === "NaoAtende" ? css("--nao") : css("--conf");
+const nomeSit = t => t === "Ok" ? "OK" : t === "NaoAtende" ? "Não atende" : "Conferir";
+const dimDe = chave => (D.dimensionamento || []).find(x => x.chave === chave);
 const cam = { az: -0.95, el: 0.5, zoom: 1, alvo: [0, 0, 0], esc: 1 };
 const cv = $("cv"), ctx = cv.getContext("2d");
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -139,19 +160,21 @@ function iniciar() {
   R = D.resultados[+s.value];
   lista(); ajustar(); lateral(); desenhar();
   // #diagrama, #mapa, #deformada: abre no modo (prévia e autoteste)
-  const h = location.hash.slice(1); if (h) { const b = document.querySelector(`[data-modo="${h}"]`); if (b) b.click(); }
+  const h = location.hash.slice(1); if (h) { const b = document.querySelector(`[data-modo="${h}"]`) || document.querySelector(`[data-aba="${h}"]`); if (b) b.click(); }
 }
-const cor = t => t === "Pilar" ? css("--c-pilar") : t === "Viga" ? css("--c-viga") : t === "Ligacao" ? css("--c-lig") : css("--c-vinc");
+const cor = t => t === "Pilar" ? css("--c-pilar") : t === "Viga" ? css("--c-viga") : t === "Ligacao" ? css("--c-lig") : t === "Laje" ? "#7a8f86" : css("--c-vinc");
 
 function lista() {
   const l = $("lista"); l.textContent = "";
-  const grupos = [["Pilar", "Pilares"], ["Viga", "Vigas"], ["Ligacao", "Ligações"]];
+  const grupos = [["Pilar", "Pilares"], ["Viga", "Vigas"], ["Laje", "Lajes"], ["Ligacao", "Ligações"]];
   for (const [t, nome] of grupos) {
     const objs = D.objetos.filter(o => o.tipo === t);
     if (!objs.length) continue;
     const h = document.createElement("h4"); const i = document.createElement("i"); i.style.background = cor(t); h.append(i, `${nome} (${objs.length})`); l.append(h);
     for (const o of objs) {
-      const b = document.createElement("button"); b.className = "obj"; b.type = "button"; b.textContent = o.nome; b.title = o.resumo;
+      const b = document.createElement("button"); b.className = "obj"; b.type = "button"; b.title = o.resumo;
+      const dm = dimDe(o.chave); if (dm) { const pt = document.createElement("span"); pt.className = "ponto"; pt.style.background = corSit(dm.situacao); pt.title = nomeSit(dm.situacao); b.append(pt); }
+      b.append(o.nome);
       b.setAttribute("aria-current", sel === o.chave ? "true" : "false");
       b.addEventListener("click", () => { sel = sel === o.chave ? null : o.chave; selBarra = -1; lista(); lateral(); desenhar(); });
       b.addEventListener("dblclick", () => { sel = o.chave; focar(o.chave); });
@@ -216,6 +239,8 @@ function noDesl(i, f) { const u = R.desl[i]; const p = no(i); return [p[0] + f *
 
 function desenhar() {
   if (!D) return;
+  if (aba === "peca") return desenharPeca();
+  if (aba === "laje") return desenharLaje();
   E = eixosCam(); ctx.clearRect(0, 0, W, H);
   const k = $("esforco").value, escala = +$("escala").value;
   const selecionada = b => (sel && b.dono === sel) || (selBarra >= 0 && D.barras[selBarra] === b);
@@ -242,7 +267,8 @@ function desenhar() {
   });
   // barras
   D.barras.forEach((b, ib) => {
-    let c = cor(b.tipo), w = b.tipo === "Pilar" ? 3 : 2.5;
+    let c = cor(b.tipo), w = b.tipo === "Pilar" ? 3 : b.tipo === "Laje" ? 1 : 2.5;
+    if (modo === "situacao") { const dm = dimDe(b.dono); c = dm ? corSit(dm.situacao) : css("--c-vinc"); }
     if (modo === "mapa" && b.tipo !== "Ligacao") {
       // trecho a trecho pelas estações
       const est = R.estacoes[ib], pi = no(b.i), pt = s => P([0, 1, 2].map(q => pi[q] + b.ex[q] * s[0]));
@@ -346,9 +372,110 @@ function legenda(k, maxMapa) {
     const s = document.createElement("span"); s.append(`${ROTULO[k]}: 0`); const r = document.createElement("i"); r.className = "rampa"; s.append(r, valor(k === "M" || k === "T" ? 5 : 1, maxMapa)); l.append(s);
     return;
   }
-  item(css("--c-pilar"), "pilar"); item(css("--c-viga"), "viga"); item(css("--c-lig"), "aparelho (mola)"); item(css("--c-vinc"), "vínculo rígido", true);
+  if (modo === "situacao") { item(css("--ok"), "OK"); item(css("--conf"), "Conferir"); item(css("--nao"), "Não atende"); item(css("--c-vinc"), "sem verificação"); return; }
+  item(css("--c-pilar"), "pilar"); item(css("--c-viga"), "viga"); if (D.lajes && D.lajes.length) item("#7a8f86", "laje (grelha)"); item(css("--c-lig"), "aparelho (mola)"); item(css("--c-vinc"), "vínculo rígido", true);
   if (modo === "deformada") item(css("--c-def"), "deformada (escala ampliada)");
   if (modo === "diagrama") item(css("--c-diag"), ROTULO[k]);
+}
+
+// ---------------------------------------------------------------- 2D da peça: elevação com diagramas e envoltória ELU
+const resultadosELU = () => D.resultados.filter(r => r.tipo === "ELU");
+function medir2() { const r = cv2.getBoundingClientRect(), dpr = window.devicePixelRatio || 1; cv2.width = Math.round(r.width * dpr); cv2.height = Math.round(r.height * dpr); ctx2.setTransform(dpr, 0, 0, dpr, 0, 0); return [r.width, r.height]; }
+function texto2(x, y, t, cor, alin) { ctx2.fillStyle = cor || css("--fg"); ctx2.font = "11px " + css("--f-dado"); ctx2.textAlign = alin || "left"; ctx2.fillText(t, x, y); ctx2.textAlign = "left"; }
+function desenharPeca() {
+  const [w, h] = medir2(); ctx2.clearRect(0, 0, w, h);
+  let chave = sel; const tipoDe = c => (D.objetos.find(o => o.chave === c) || {}).tipo;
+  if (!chave || !["Viga", "Pilar"].includes(tipoDe(chave))) chave = (D.objetos.find(o => o.tipo === "Viga") || D.objetos.find(o => o.tipo === "Pilar") || {}).chave;
+  if (!chave) { texto2(20, 60, "Selecione uma viga ou um pilar."); return; }
+  const o = D.objetos.find(x => x.chave === chave), viga = o.tipo === "Viga";
+  const bs = D.barras.map((b, ib) => ({ b, ib })).filter(x => x.b.dono === chave);
+  // percurso: barras na ordem, com o comprimento acumulado
+  let acc = 0; const pts = [];
+  bs.forEach(({ b, ib }) => { R.estacoes[ib].forEach((s, k) => pts.push({ ib, k, s: acc + s[0] })); acc += b.L; });
+  const L = acc, mx0 = 70, mx1 = w - 30;
+  const X = s => mx0 + (mx1 - mx0) * s / L;
+  // séries: [rótulo, índice, sinal de desenho, unidade]
+  const series = viga ? [["M (kN·m) · positivo embaixo", [[5, -1, "M"]]], ["V (kN)", [[3, 1, "V"]]], ["N (kN) · tração +", [[1, 1, "N"]]]]
+                      : [["M (kN·m)", [[5, 1, "My"], [6, 1, "Mz"]]], ["V (kN)", [[3, 1, "Vz"], [2, 1, "Vy"]]], ["N (kN) · tração +", [[1, 1, "N"]]]];
+  const elu = resultadosELU();
+  const topo = 86, alt = (h - topo - 20) / series.length;
+  texto2(mx0, 62, `${o.nome} — ${R.nome}  ·  tracejado: envoltória ELU (${elu.length} combinações)  ·  ${viga ? "apoio I → apoio J" : "base → topo"}, L = ${fmt(L / 100, 2)} m`, css("--suave"));
+  series.forEach(([rot, comps], n) => {
+    const y0 = topo + alt * n + alt / 2;
+    const val = (res, ib, k, q, sg) => sg * res.estacoes[ib][k][q] / (q >= 4 ? 100 : 1);
+    let vmax = 1e-9;
+    comps.forEach(([q, sg]) => [R, ...elu].forEach(res => pts.forEach(p => vmax = Math.max(vmax, Math.abs(val(res, p.ib, p.k, q, sg))))));
+    const esc = (alt * 0.42) / vmax;
+    ctx2.strokeStyle = css("--linha"); ctx2.lineWidth = 1; ctx2.beginPath(); ctx2.moveTo(mx0, y0); ctx2.lineTo(mx1, y0); ctx2.stroke();
+    texto2(8, y0 - alt * 0.38, rot, css("--suave"));
+    // divisões entre barras
+    let a2 = 0; bs.forEach(({ b }) => { a2 += b.L; if (a2 < L - 1e-6) { ctx2.strokeStyle = css("--linha"); ctx2.setLineDash([2, 3]); ctx2.beginPath(); ctx2.moveTo(X(a2), y0 - alt * 0.45); ctx2.lineTo(X(a2), y0 + alt * 0.45); ctx2.stroke(); ctx2.setLineDash([]); } });
+    const cores = [css("--c-diag"), css("--c-lig")];
+    comps.forEach(([q, sg, nome], c) => {
+      // envoltória
+      ctx2.strokeStyle = cores[c]; ctx2.lineWidth = 1; ctx2.setLineDash([4, 3]);
+      for (const f of [Math.max, Math.min]) { ctx2.beginPath(); pts.forEach((p, i) => { const v = f(...elu.map(res => val(res, p.ib, p.k, q, sg))); const y = y0 + v * esc; i ? ctx2.lineTo(X(p.s), y) : ctx2.moveTo(X(p.s), y); }); ctx2.stroke(); }
+      ctx2.setLineDash([]);
+      // resultado escolhido (preenchido)
+      ctx2.fillStyle = cores[c] + "33"; ctx2.strokeStyle = cores[c]; ctx2.lineWidth = 1.6; ctx2.beginPath(); ctx2.moveTo(X(0), y0);
+      pts.forEach(p => ctx2.lineTo(X(p.s), y0 + val(R, p.ib, p.k, q, sg) * esc)); ctx2.lineTo(X(L), y0); ctx2.closePath(); ctx2.fill(); ctx2.stroke();
+      // máximo e mínimo
+      let iMax = 0, iMin = 0; pts.forEach((p, i) => { const v = val(R, p.ib, p.k, q, sg); if (v > val(R, pts[iMax].ib, pts[iMax].k, q, sg)) iMax = i; if (v < val(R, pts[iMin].ib, pts[iMin].k, q, sg)) iMin = i; });
+      for (const i of new Set([iMax, iMin])) { const p = pts[i], v = val(R, p.ib, p.k, q, sg); if (Math.abs(v) < 0.02 * vmax) continue; texto2(X(p.s) + 4, y0 + v * esc + (v > 0 ? 13 : -4), `${nome} ${fmt(v, 2)} (x = ${fmt(p.s / 100, 2)} m)`, cores[c]); }
+    });
+  });
+  $("legenda").textContent = "";
+}
+
+// ---------------------------------------------------------------- laje: isovalores em planta
+const RAMPA_DIV = ["#2c7bb6", "#abd9e9", "#f7f7f7", "#fdae61", "#d7191c"];
+function rampaDiv(t) {   // t em [−1, 1]
+  t = (Math.max(-1, Math.min(1, t)) + 1) / 2 * (RAMPA_DIV.length - 1); const i = Math.min(RAMPA_DIV.length - 2, Math.floor(t)), f = t - i;
+  const hx = s => [1, 3, 5].map(k => parseInt(s.substr(k, 2), 16)); const a = hx(RAMPA_DIV[i]), b = hx(RAMPA_DIV[i + 1]);
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",")})`;
+}
+function desenharLaje() {
+  const [w, h] = medir2(); ctx2.clearRect(0, 0, w, h);
+  if (!D.lajes || !D.lajes.length) { texto2(20, 70, "Não há lajes no modelo."); return; }
+  let il = D.lajes.findIndex(l => l.chave === sel); if (il < 0) il = 0;
+  const L = D.lajes[il], g = $("grandezaLaje").value, dados = R.lajes[il][g], ny1 = L.ny + 1;
+  const V = (i, j) => { const v = dados[i * ny1 + j]; return v === null ? null : g === "uz" ? v * 10 : v; };   // uz em mm
+  let vmin = Infinity, vmax = -Infinity; dados.forEach((v, k) => { if (v !== null) { const x = g === "uz" ? v * 10 : v; vmin = Math.min(vmin, x); vmax = Math.max(vmax, x); } });
+  const lx = L.nx * L.sx, ly = L.ny * L.sy, mg = 70, esc = Math.min((w - 2 * mg) / lx, (h - 2 * mg - 30) / ly);
+  const ox = (w - lx * esc) / 2, oy = (h + ly * esc) / 2;
+  const P2 = (x, y) => [ox + x * esc, oy - y * esc];
+  const amp = Math.max(Math.abs(vmin), Math.abs(vmax), 1e-9), divergente = vmin < -1e-9 && vmax > 1e-9;
+  const nb = 12, faixa = v => { const t = divergente ? v / amp : (v - vmin) / Math.max(1e-9, vmax - vmin) * 2 - 1; return Math.round((t + 1) / 2 * nb) / nb * 2 - 1; };
+  const sub = 6;
+  for (let i = 0; i < L.nx; i++) for (let j = 0; j < L.ny; j++) {
+    const a = V(i, j), b = V(i + 1, j), c = V(i, j + 1), d = V(i + 1, j + 1);
+    if (a === null || b === null || c === null || d === null) continue;
+    for (let p = 0; p < sub; p++) for (let q = 0; q < sub; q++) {
+      const u = (p + 0.5) / sub, v = (q + 0.5) / sub, val = a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
+      ctx2.fillStyle = rampaDiv(faixa(val));
+      const [x0, y0] = P2((i + p / sub) * L.sx, (j + (q + 1) / sub) * L.sy);
+      ctx2.fillRect(x0, y0, L.sx * esc / sub + 0.6, L.sy * esc / sub + 0.6);
+    }
+  }
+  // malha e contorno
+  ctx2.strokeStyle = css("--linha"); ctx2.lineWidth = 0.5;
+  for (let i = 0; i <= L.nx; i++) for (let j = 0; j <= L.ny; j++) {
+    if (L.nos[i * ny1 + j] < 0) continue;
+    const [x, y] = P2(i * L.sx, j * L.sy);
+    if (i < L.nx && L.nos[(i + 1) * ny1 + j] >= 0) { const [x2, y2] = P2((i + 1) * L.sx, j * L.sy); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x2, y2); ctx2.stroke(); }
+    if (j < L.ny && L.nos[i * ny1 + j + 1] >= 0) { const [x2, y2] = P2(i * L.sx, (j + 1) * L.sy); ctx2.beginPath(); ctx2.moveTo(x, y); ctx2.lineTo(x2, y2); ctx2.stroke(); }
+  }
+  // máximo e mínimo
+  let pMax = null, pMin = null;
+  for (let i = 0; i <= L.nx; i++) for (let j = 0; j <= L.ny; j++) { const v = V(i, j); if (v === null) continue; if (!pMax || v > pMax[2]) pMax = [i, j, v]; if (!pMin || v < pMin[2]) pMin = [i, j, v]; }
+  const un = g === "uz" ? "mm" : "kN·m/m";
+  for (const [i, j, v] of [pMax, pMin]) { const [x, y] = P2(i * L.sx, j * L.sy); ctx2.fillStyle = css("--fg"); ctx2.beginPath(); ctx2.arc(x, y, 3.5, 0, 7); ctx2.fill(); texto2(x + 6, y - 6, `${fmt(v, 2)} ${un}`); }
+  const o = D.objetos.find(x => x.chave === L.chave) || {};
+  texto2(16, 62, `${o.nome || "laje"} — ${R.nome} · ${$("grandezaLaje").selectedOptions[0].textContent} · ${fmt(lx / 100, 2)} × ${fmt(ly / 100, 2)} m (eixo x da malha →)`, css("--suave"));
+  // legenda em faixas
+  const lg = $("legenda"); lg.textContent = "";
+  const s0 = document.createElement("span"); s0.append(`${fmt(divergente ? -amp : vmin, 2)} `);
+  const r = document.createElement("i"); r.className = "rampa"; r.style.background = `linear-gradient(90deg,${RAMPA_DIV.join(",")})`; s0.append(r, ` ${fmt(divergente ? amp : vmax, 2)} ${un}`); lg.append(s0);
 }
 
 // ---------------------------------------------------------------- seleção e painel
@@ -361,6 +488,27 @@ function lateral() {
   if (!chave) { const v = document.createElement("div"); v.className = "vazio"; v.textContent = "Clique numa barra ou num objeto da lista."; sec("Seleção", v); resumoResultado(sec, kv); return; }
   const o = D.objetos.find(x => x.chave === chave) || { nome: chave, resumo: "" };
   sec(o.nome, kv([["tipo", o.tipo === "Ligacao" ? "ligação" : (o.tipo || "").toLowerCase()], ["", o.resumo]]));
+  const dm = dimDe(chave);
+  if (dm) {
+    const d = document.createElement("div");
+    const selo = document.createElement("span"); selo.className = "selo"; selo.style.background = corSit(dm.situacao); selo.textContent = nomeSit(dm.situacao); d.append(selo);
+    dm.resumo.forEach(t => { const p = document.createElement("div"); p.style.cssText = "font-size:.82rem;margin-top:4px"; p.textContent = t; d.append(p); });
+    const t = document.createElement("table"); t.className = "verif"; t.style.marginTop = "6px";
+    dm.verificacoes.forEach(v => {
+      const tr = document.createElement("tr");
+      const a = document.createElement("td"); const sl = document.createElement("span"); sl.className = "selo"; sl.style.background = corSit(v.situacao); sl.textContent = v.codigo; a.append(sl);
+      const b = document.createElement("td"); b.textContent = v.descricao; b.title = v.referencia + (v.dica ? " — " + v.dica : "");
+      const c = document.createElement("td"); c.className = "v"; c.textContent = v.valor + " " + v.limite;
+      tr.append(a, b, c); t.append(tr);
+    });
+    d.append(t);
+    if (dm.memoria && dm.memoria.linhas.length) {
+      const det = document.createElement("details"); const sm = document.createElement("summary"); sm.textContent = "Memória de cálculo"; det.append(sm);
+      dm.memoria.linhas.forEach(l => { const p = document.createElement("p"); p.textContent = l; det.append(p); });
+      d.append(det);
+    }
+    sec("Dimensionamento", d);
+  }
   // ligação: forças da mola (eixos: x' ao longo da viga, z' vertical)
   D.molas.forEach((m, im) => {
     if (m.dono !== chave) return;
@@ -436,6 +584,11 @@ document.querySelectorAll("[data-vista]").forEach(b => b.addEventListener("click
 $("resultado").addEventListener("change", () => { R = D.resultados[+$("resultado").value]; lateral(); desenhar(); });
 ["esforco", "escala", "verCargas", "verNomes"].forEach(id => $(id).addEventListener("input", desenhar));
 $("ajustar").addEventListener("click", ajustar);
+document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
+  aba = b.dataset.aba; document.querySelectorAll("[data-aba]").forEach(x => x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  $("vista").classList.toggle("v2d", aba !== "3d"); $("grandezaLaje").hidden = aba !== "laje"; desenhar();
+}));
+$("grandezaLaje").addEventListener("input", desenhar);
 $("fechar").addEventListener("click", () => enviar({ acao: "fechar" }));
 window.addEventListener("resize", () => { medir(); desenhar(); });
 $("esforco").disabled = true; $("rotEscala").style.visibility = "hidden";
