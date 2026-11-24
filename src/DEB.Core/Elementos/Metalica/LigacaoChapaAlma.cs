@@ -33,8 +33,19 @@ public static class ComponentesLigacao
 {
     public const double GamaW2 = 1.35;
 
-    /// <summary>Furo-padrão (6.3.6, Tab. 12): db + 1,5 mm até 24 mm; db + 3 mm acima.</summary>
-    public static double Furo(double db) => db <= 24 + 1e-9 ? db + 1.5 : db + 3;
+    /// <summary>
+    /// Furo-padrão (6.3.6, Tab. 14): parafusos em polegada db + 1/16" (até 1") ou db + 1/8"; métricos 16→18, 20→22, 22→24, 24→27,
+    /// 27→30, 30→33 e db + 3 a partir de 36 mm (outros: db + 2).
+    /// </summary>
+    public static double Furo(double db)
+    {
+        // parafusos em polegada: ½" a 1½" de ⅛" em ⅛"
+        foreach (double pol in new[] { 0.5, 0.625, 0.75, 0.875, 1.0, 1.125, 1.25, 1.375, 1.5 })
+            if (Math.Abs(db - pol * 25.4) < 0.1) return pol <= 1 + 1e-6 ? db + 25.4 / 16 : db + 25.4 / 8;
+        foreach (var (d, f) in new[] { (16.0, 18.0), (20, 22), (22, 24), (24, 27), (27, 30), (30, 33) })
+            if (Math.Abs(db - d) < 0.3) return f;
+        return db >= 36 ? db + 3 : db + 2;
+    }
 
     /// <summary>Cisalhamento por plano de corte (6.3.3.2): 0,45·Ab·fub/γa2 (rosca no plano ou parafuso comum) ou 0,56·Ab·fub/γa2.</summary>
     public static double CisalhamentoParafuso(double db, TipoParafuso p, bool roscaNoPlano, double gamaA2 = 1.35) =>

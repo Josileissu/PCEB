@@ -31,8 +31,10 @@ public class LigacoesAcoTests
     [Fact]
     public void Furo_padrao_e_rasgamento()
     {
-        Assert.Equal(17.5, ComponentesLigacao.Furo(16));
+        Assert.Equal(18, ComponentesLigacao.Furo(16));          // NBR 8800:2024 Tab. 14
         Assert.Equal(30, ComponentesLigacao.Furo(27));
+        Assert.Equal(19.05 + 1.5875, ComponentesLigacao.Furo(19.05), 6);   // ¾" → 13/16"
+        Assert.Equal(39, ComponentesLigacao.Furo(36));
         // rasgamento limitado pelo escoamento da área bruta ao cisalhamento
         double r = ComponentesLigacao.Rasgamento(1000, 900, 200, 250, 400, 1.0, 1.0);
         Assert.Equal(System.Math.Min(0.6 * 400 * 900 + 400 * 200, 0.6 * 250 * 1000 + 400 * 200) / 1000, r, 6);
@@ -134,5 +136,37 @@ public class LigacoesAcoTests
         Assert.Contains(v, x => x.Codigo == "PB1" && x.Situacao == SituacaoVerificacao.Ok);   // espessura "auto": a comercial que atende
         Assert.Contains(v, x => x.Codigo == "PB5" && x.Situacao == SituacaoVerificacao.Conferir);   // tração: precisa de dispositivo ao cortante
         Assert.Contains(mem.Linhas, l => l.Contains("chapa comercial"));
+    }
+
+    [Fact]
+    public void Chapa_de_topo_pelo_efeito_de_alavanca_da_NBR_8800()
+    {
+        var b = BibliotecaLigacoes.Carregar(null, "nao_existe.json");
+        var d = DadosChapaTopo.DoModelo(b.Buscar("PCEB-CT-22"), PerfilI.Buscar("W310X38.7"));
+        Assert.Equal(4, d.NTracionados);
+        Assert.Equal(6, d.NTotal);
+        var v = LigacaoChapaTopo.Verificar(d, new[] { ("ELU 1", 60.0, 50.0, 0.0) }, "Topo", out var mem);
+        // força por parafuso: M/(d − tf)/4 e a espessura rígida de 6.3.5.3 com b = pf = 45, p = mín(bp/2; 3,5·b)
+        double ft0 = 60e3 / (310 - 9.65) / 4, p = System.Math.Min((165 + 25) / 2.0, 3.5 * 45);
+        double tRig = System.Math.Sqrt(4 * (45 - 0.5 * 22.2) * ft0 * 1000 * 1.10 / (p * 400));
+        Assert.Contains(mem.Linhas, l => l.Contains(Fmt.Virgula(tRig, "0.0") + " mm"));
+        Assert.Equal(SituacaoVerificacao.Ok, v.Single(x => x.Codigo == "CT1").Situacao);
+        Assert.Equal(SituacaoVerificacao.Conferir, v.Single(x => x.Codigo == "CT8").Situacao);   // lado do pilar: ainda não
+        var forte = LigacaoChapaTopo.Verificar(d, new[] { ("ELU forte", 400.0, 50.0, 0.0) }, "Topo", out _);
+        Assert.Equal(SituacaoVerificacao.NaoAtende, forte.Single(x => x.Codigo == "CT3").Situacao);
+    }
+
+    [Fact]
+    public void Cantoneira_dupla_em_corte_duplo()
+    {
+        var b = BibliotecaLigacoes.Carregar(null, "nao_existe.json");
+        var d = DadosCantoneira.DoModelo(b.Buscar("PCEB-CD-76"), PerfilI.Buscar("W410X46.1"), AcoEstrutural.Buscar("A572"));
+        Assert.True(d.N >= 4);
+        var v = LigacaoCantoneira.Verificar(d, new[] { ("ELU 1", 100.0, 0.0) }, "Cantoneira", out _);
+        Assert.Equal(8, v.Count);
+        Assert.All(v, x => Assert.Equal(SituacaoVerificacao.Ok, x.Situacao));
+        d.SoldadaNoSuporte = true;
+        var vs = LigacaoCantoneira.Verificar(d, new[] { ("ELU 1", 100.0, 0.0) }, "Cantoneira", out var mem);
+        Assert.Contains(vs, x => x.Codigo == "CD2" && x.Descricao.Contains("Solda"));
     }
 }

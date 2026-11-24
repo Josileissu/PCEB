@@ -68,6 +68,8 @@ public static class VisualizacaoAnalise
         foreach (var l in e.LigacoesMetalicas)
             Obj(l.Dono, l.Placa != null
                 ? $"placa de base {Fmt.Virgula(l.Placa.LxEf, "0")} × {Fmt.Virgula(l.Placa.LyEf, "0")} mm, {l.Placa.Nb} chumbadores ø{Fmt.Virgula(l.Placa.Db, "0")} ({l.Modelo?.Id})"
+                : l.Topo != null ? $"chapa de topo, {l.Topo.NTotal} parafusos ø{Fmt.Virgula(l.Topo.Db, "0.#")} ({l.Modelo?.Id})"
+                : l.Cantoneira != null ? $"cantoneira dupla L {Fmt.Virgula(l.Cantoneira.Aba, "0")} × {Fmt.Virgula(l.Cantoneira.T, "0.#")}, {l.Cantoneira.N} parafusos ø{Fmt.Virgula(l.Cantoneira.Db, "0.#")} ({l.Modelo?.Id})"
                 : $"chapa de alma {Fmt.Virgula(l.Chapa.Tp, "0.#")} × {Fmt.Virgula(l.Chapa.AlturaChapa, "0")} mm, {l.Chapa.N} parafusos ø{Fmt.Virgula(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} ({l.Modelo?.Id})");
         foreach (var la in e.Lajes) Obj(la.Dono, $"h = {Fmt.Virgula(la.Espessura, "0.#")} cm, g = {Fmt.Virgula(la.G, "0.##")} kN/m², q = {Fmt.Virgula(la.Q, "0.##")} kN/m², malha {Fmt.Virgula(la.Sx, "0")} × {Fmt.Virgula(la.Sy, "0")} cm");
 

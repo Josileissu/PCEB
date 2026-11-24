@@ -636,6 +636,15 @@ public sealed class EstruturaObjetos
     public List<LigacaoMetalica> LigacoesMetalicas { get; } = new List<LigacaoMetalica>();
     /// <summary>Biblioteca de ligações (D49): a ligação flexível das vigas de aço é o primeiro modelo de chapa de alma em vigor.</summary>
     public DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes Biblioteca { get; set; }
+    /// <summary>Tipo das ligações flexíveis das vigas de aço (configuração: chapa de alma ou cantoneira dupla).</summary>
+    public DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao TipoFlexivel { get; set; } = DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaAlma;
+    private static string NomeCurtoTipo(DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao t) => t switch
+    {
+        DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaAlma => "chapa de alma",
+        DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.CantoneiraDupla => "cantoneira dupla",
+        DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaTopo => "chapa de topo",
+        _ => "placa de base",
+    };
     /// <summary>γc do concreto dos blocos sob as placas de base (da configuração).</summary>
     public double GamaCBases { get; set; } = 1.4;
     public ModeloBarras Modelo { get; private set; }
@@ -720,14 +729,24 @@ public sealed class EstruturaObjetos
                 t = Math.Max(0, Math.Min(L, t));
                 if (t > 1 && t < L - 1) alvo.PontosInternos.Add(t);
                 ligadas.Add((v, pontaI));
-                var modelo = (Biblioteca ??= DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes.Carregar()).Padrao(DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaAlma);
-                if ((pontaI ? v.LigacaoI : v.LigacaoJ) == LigacaoExtremidade.Flexivel)
-                    LigacoesMetalicas.Add(new LigacaoMetalica
+                var bib = Biblioteca ??= DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes.Carregar();
+                bool rigida = (pontaI ? v.LigacaoI : v.LigacaoJ) == LigacaoExtremidade.Rigida;
+                var tipo = rigida ? DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaTopo : TipoFlexivel;
+                if (rigida && !alvo.Pilar) Avisos.Add($"{v.Dono}: ligação rígida em outra viga — a chapa de topo da biblioteca é só viga–pilar; confira a ligação.");
+                else
+                {
+                    var modelo = bib.Padrao(tipo);
+                    var lig = new LigacaoMetalica
                     {
-                        Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{v.Dono.Id}-{(pontaI ? "I" : "J")}", Nome = $"chapa de alma {Curto(v.Dono)} ({(pontaI ? "I" : "J")}) → {Curto(alvo.Dono)}" },
-                        Viga = v, PontaI = pontaI, Suporte = alvo, Modelo = modelo,
-                        Chapa = DEB.Core.Elementos.Metalica.DadosChapaAlma.DoModelo(modelo, v.Perfil, v.Aco),
-                    });
+                        Dono = new Dono { Tipo = TipoDono.Ligacao, Id = $"{v.Dono.Id}-{(pontaI ? "I" : "J")}",
+                                          Nome = $"{NomeCurtoTipo(tipo)} {Curto(v.Dono)} ({(pontaI ? "I" : "J")}) → {Curto(alvo.Dono)}" },
+                        Tipo = tipo, Viga = v, PontaI = pontaI, Suporte = alvo, Modelo = modelo,
+                    };
+                    if (tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaAlma) lig.Chapa = DEB.Core.Elementos.Metalica.DadosChapaAlma.DoModelo(modelo, v.Perfil, v.Aco);
+                    else if (tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.CantoneiraDupla) lig.Cantoneira = DEB.Core.Elementos.Metalica.DadosCantoneira.DoModelo(modelo, v.Perfil, v.Aco);
+                    else lig.Topo = DEB.Core.Elementos.Metalica.DadosChapaTopo.DoModelo(modelo, v.Perfil);
+                    LigacoesMetalicas.Add(lig);
+                }
                 return alvo.PontoI + alvo.Direcao * t;
             }
             return p;

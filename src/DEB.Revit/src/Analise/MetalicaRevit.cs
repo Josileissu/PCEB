@@ -55,6 +55,8 @@ namespace DEB.Revit.Analise
         {
             var lidos = new HashSet<long>();
             e.Biblioteca = DEB.Core.Elementos.Metalica.Ligacoes.BibliotecaLigacoes.Carregar(notas);
+            e.TipoFlexivel = cfg.Texto("analise.tipoFlexivel").StartsWith("Cantoneira") ? DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.CantoneiraDupla : DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaAlma;
+            e.GamaCBases = cfg.Numero("normas.gamaC");
             var lig = cfg.Texto("analise.ligacaoMetalica").StartsWith("R") ? LigacaoExtremidade.Rigida : LigacaoExtremidade.Flexivel;
             var bas = cfg.Texto("analise.baseMetalica").StartsWith("R") ? BasePilarMetalico.Rotulada : BasePilarMetalico.Engastada;
             int semPerfil = 0, giradas = 0;

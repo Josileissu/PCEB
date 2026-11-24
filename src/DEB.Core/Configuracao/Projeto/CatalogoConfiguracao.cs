@@ -228,6 +228,8 @@ public static class CatalogoConfiguracao
           "Apoio da base quando o pilar não tem peça embaixo. Rotulada exige contraventamento para a estrutura ficar estável.");
         O("analise", "ligacaoMetalica", "Ligação viga–pilar metálica", new[] { "Flexível", "Rígida" }, "NBR 8800 6.1.2",
           "Flexível: a viga chega rotulada (cantoneiras, chapa de alma); rígida: transmite momento (chapa de topo estendida, soldada).");
+        O("analise", "tipoFlexivel", "Ligação flexível padrão", new[] { "Chapa de alma", "Cantoneira dupla" }, "D49",
+          "Tipo da biblioteca de ligações usado nas pontas flexíveis das vigas de aço (o primeiro modelo do tipo em vigor).");
         S("");
 
         // ---- dimensionamento

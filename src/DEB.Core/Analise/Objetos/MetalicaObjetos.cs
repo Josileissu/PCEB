@@ -30,6 +30,8 @@ public sealed class LigacaoMetalica
     /// <summary>Modelo da biblioteca de ligações (D49) usado nesta ligação.</summary>
     public DEB.Core.Elementos.Metalica.Ligacoes.ModeloLigacao Modelo { get; set; }
     public DadosChapaAlma Chapa { get; set; }
+    public DadosCantoneira Cantoneira { get; set; }
+    public DadosChapaTopo Topo { get; set; }
 }
 
 /// <summary>

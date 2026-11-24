@@ -184,20 +184,39 @@ public static class DimensionamentoObjetos
         var r = new ResultadoPeca { Dono = l.Dono, Chave = Chave(l.Dono) };
         var b = l.PontaI ? l.Viga.Barras[0] : l.Viga.Barras[l.Viga.Barras.Count - 1];
         var casos = new List<(string, double, double)>();
+        var casosM = new List<(string, double, double, double)>();
         foreach (var comb in e.DefinicaoCombinacoes.Where(x => x.Tipo == "ELU"))
         {
             var est = e.Estacoes(comb.Nome)[b.Id];
             var s = l.PontaI ? est[0] : est[est.Length - 1];
-            casos.Add((comb.Nome, Math.Sqrt(s[3] * s[3] + s[2] * s[2]), s[1]));
+            double vv = Math.Sqrt(s[3] * s[3] + s[2] * s[2]);
+            casos.Add((comb.Nome, vv, s[1]));
+            casosM.Add((comb.Nome, s[5] / 100, vv, s[1]));
         }
-        var v = LigacaoChapaAlma.Verificar(l.Chapa, casos, "Ligação — " + l.Dono, out var mem, cfg.Numero("normas.gamaA1"), cfg.Numero("normas.gamaA2"));
+        double ga1 = cfg.Numero("normas.gamaA1"), ga2 = cfg.Numero("normas.gamaA2");
+        ListaVerificacoes v; PassoMemoria mem; string resumo;
+        if (l.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaTopo)
+        {
+            v = LigacaoChapaTopo.Verificar(l.Topo, casosM, "Ligação — " + l.Dono, out mem, ga1, ga2);
+            resumo = $"{l.Modelo?.Id} · {l.Topo.NTotal} ø{N(l.Topo.Db, "0.#")} · Md {N(casosM.Max(c => Math.Abs(c.Item2)), "0.0")} kN·m";
+        }
+        else if (l.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.CantoneiraDupla)
+        {
+            v = LigacaoCantoneira.Verificar(l.Cantoneira, casos, "Ligação — " + l.Dono, out mem, ga1, ga2);
+            resumo = $"{l.Modelo?.Id} · 2 L {N(l.Cantoneira.Aba, "0")} × {N(l.Cantoneira.T, "0.#")} · {l.Cantoneira.N} ø{N(l.Cantoneira.Db, "0.#")} · Vd {N(casos.Max(c => c.Item2), "0")} kN";
+        }
+        else
+        {
+            v = LigacaoChapaAlma.Verificar(l.Chapa, casos, "Ligação — " + l.Dono, out mem, ga1, ga2);
+            resumo = $"{l.Modelo?.Id} · {l.Chapa.N} ø{N(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} · chapa {N(l.Chapa.Tp, "0.#")} × {N(l.Chapa.AlturaChapa, "0")} mm · Vd {N(casos.Max(c => c.Item2), "0")} kN";
+        }
         r.Memoria = mem;
         r.Memoria.Titulo = $"{l.Dono} — {mem.Titulo}";
         r.Memoria.Linhas.Insert(0, $"Viga {l.Viga.Dono} apoiada em {l.Suporte.Dono}; Vd,máx = {N(casos.Max(c => c.Item2), "0.0")} kN; " +
                                    $"Nd entre {N(casos.Min(c => c.Item3), "0.0")} e {N(casos.Max(c => c.Item3), "0.0")} kN (proposta do PCEB: confira e ajuste a ligação).");
         foreach (var x in v) r.Verificacoes.Add(x);
         r.Memoria.Linhas.Insert(1, $"Modelo da biblioteca: {l.Modelo?.Nome} ({l.Modelo?.Id}, {l.Modelo?.Origem}).");
-        r.Resumo.Add($"{l.Modelo?.Id} · {l.Chapa.N} ø{N(l.Chapa.Db, "0.#")} {l.Chapa.Parafuso.Nome} · chapa {N(l.Chapa.Tp, "0.#")} × {N(l.Chapa.AlturaChapa, "0")} mm · Vd {N(casos.Max(c => c.Item2), "0")} kN");
+        r.Resumo.Add(resumo);
         return r;
     }
 

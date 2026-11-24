@@ -110,4 +110,15 @@ public class EstruturaMetalicaTests
         var p = res.Single(r => r.Dono.Nome == "P1");
         Assert.Contains(p.Verificacoes, x => x.Codigo == "MT2" && x.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok);
     }
+
+    [Fact]
+    public void Portico_rigido_ganha_chapas_de_topo()
+    {
+        var e = Portico(LigacaoExtremidade.Rigida);
+        Assert.Equal(2, e.LigacoesMetalicas.Count(x => x.Tipo == DEB.Core.Elementos.Metalica.Ligacoes.TipoLigacao.ChapaTopo));
+        var res = DimensionamentoObjetos.Verificar(e, new ConfiguracaoProjeto());
+        var topo = res.First(r => r.Dono.Nome.StartsWith("chapa de topo"));
+        Assert.Contains(topo.Verificacoes, x => x.Codigo == "CT1");
+        Assert.Contains("PCEB-CT-22", topo.Resumo[0]);
+    }
 }
