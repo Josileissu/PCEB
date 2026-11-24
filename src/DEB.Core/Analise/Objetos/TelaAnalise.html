@@ -39,7 +39,9 @@ body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-texto);fo
 .btn{border:1px solid var(--linha);background:var(--card);color:var(--fg);font:inherit;font-size:.84rem;padding:5px 10px;border-radius:5px;cursor:pointer}
 .btn.prim{background:var(--mata);color:#fff;border-color:var(--mata)}
 button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--ipe);outline-offset:1px}
-.corpo{display:grid;grid-template-columns:230px minmax(0,1fr) 300px;min-height:0}
+.corpo{display:grid;grid-template-columns:var(--larg-lista,230px) minmax(0,1fr) var(--larg-lateral,300px);min-height:0;position:relative}
+.divisor{position:absolute;top:0;bottom:0;width:7px;margin-left:-3px;cursor:col-resize;z-index:5}
+.divisor:hover,.divisor.ativo{background:var(--linha)}
 .lista{border-right:1px solid var(--linha);background:var(--campo);overflow:auto;padding:8px}
 .lista h4{margin:10px 4px 4px;font-family:var(--f-titulo);font-weight:600;font-size:.86rem;color:var(--suave);display:flex;align-items:center;gap:6px}
 .lista h4 i{width:12px;height:4px;border-radius:2px;display:inline-block}
@@ -74,7 +76,7 @@ td{font-family:var(--f-dado)}
 .verif td{font-family:var(--f-texto);white-space:normal;text-align:left;vertical-align:top}
 .verif td.v{font-family:var(--f-dado)}
 details{font-size:.8rem}details summary{cursor:pointer;color:var(--suave)}
-.aj{display:grid;grid-template-columns:1fr 118px 34px 18px;gap:4px 6px;align-items:center;font-size:.8rem}
+.aj{display:grid;grid-template-columns:minmax(0,1fr) minmax(118px,38%) 34px 18px;gap:4px 6px;align-items:center;font-size:.8rem}
 .aj .g{grid-column:1/-1;font-size:.7rem;color:var(--suave);text-transform:uppercase;letter-spacing:.04em;margin-top:6px}
 .aj input,.aj select{width:100%;font:inherit;font-family:var(--f-dado);font-size:.78rem;padding:2px 4px;border:1px solid var(--linha);border-radius:4px;background:var(--card);color:var(--fg);text-align:right}
 .aj select{text-align:left;font-family:var(--f-texto)}
@@ -127,6 +129,7 @@ details p{margin:4px 0}
     <div class="vista" id="vista"><div class="seg abas" role="group" aria-label="Vista">
         <button type="button" data-aba="3d" aria-pressed="true">3D</button><button type="button" data-aba="peca" aria-pressed="false">2D da peça</button><button type="button" data-aba="laje" aria-pressed="false">Laje · isovalores</button>
       </div><canvas id="cv" aria-label="Vista 3D do modelo de análise"></canvas><canvas id="cv2" aria-label="Vista 2D"></canvas><div class="legenda" id="legenda"></div><div class="dica">arrastar: girar · Shift/botão direito: mover · roda: zoom · clique: selecionar</div></div>
+    <div class="divisor" id="divLista" title="Arraste para ajustar a largura da lista"></div><div class="divisor" id="divLateral" title="Arraste para ajustar a largura do painel (seleção, ajustes, cargas). Duplo clique volta ao padrão."></div>
     <aside class="lateral" id="lateral"><div><h4>Seleção</h4><div class="vazio">Clique numa barra ou num objeto da lista.</div></div></aside>
   </div>
 </div>
@@ -743,7 +746,36 @@ document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click",
 }));
 $("grandezaLaje").addEventListener("input", desenhar);
 $("fechar").addEventListener("click", () => enviar({ acao: "fechar" }));
-window.addEventListener("resize", () => { medir(); desenhar(); });
+window.addEventListener("resize", () => { medir(); desenhar(); posDivisores(); });
+// ---------------------------------------------------------------- larguras ajustáveis da lista e do painel lateral (lembradas neste computador)
+const corpoEl = document.querySelector(".corpo"), LARG = { lista: 230, lateral: 300 };
+function lerLarg(k) { try { const v = +localStorage.getItem("pceb.analise.larg." + k); return v > 0 ? v : LARG[k]; } catch { return LARG[k]; } }
+function porLarg(k, v, gravar) {
+  const w = corpoEl.getBoundingClientRect().width, min = k === "lista" ? 140 : 220, max = Math.max(min, w * (k === "lista" ? 0.35 : 0.6));
+  v = Math.round(Math.max(min, Math.min(max, v)));
+  corpoEl.style.setProperty(k === "lista" ? "--larg-lista" : "--larg-lateral", v + "px");
+  if (gravar) try { localStorage.setItem("pceb.analise.larg." + k, v); } catch { }
+}
+function posDivisores() {
+  const r = corpoEl.getBoundingClientRect(), lista = corpoEl.firstElementChild, lat = document.getElementById("lateral");
+  const visivel = getComputedStyle(lat).display !== "none";
+  document.getElementById("divLateral").style.display = visivel ? "" : "none";
+  document.getElementById("divLateral").style.left = (lat.getBoundingClientRect().left - r.left) + "px";
+  document.getElementById("divLista").style.left = (lista.getBoundingClientRect().right - r.left) + "px";
+}
+[["divLista", "lista", 1], ["divLateral", "lateral", -1]].forEach(([id, k, sinal]) => {
+  const d = document.getElementById(id);
+  d.addEventListener("pointerdown", ev => {
+    ev.preventDefault(); d.setPointerCapture(ev.pointerId); d.classList.add("ativo");
+    const x0 = ev.clientX, w0 = k === "lista" ? corpoEl.firstElementChild.getBoundingClientRect().width : document.getElementById("lateral").getBoundingClientRect().width;
+    const mover = e => { porLarg(k, w0 + sinal * (e.clientX - x0), false); posDivisores(); medir(); desenhar(); };
+    const soltar = e => { d.releasePointerCapture(ev.pointerId); d.classList.remove("ativo"); d.removeEventListener("pointermove", mover); d.removeEventListener("pointerup", soltar);
+      porLarg(k, w0 + sinal * (e.clientX - x0), true); posDivisores(); medir(); desenhar(); };
+    d.addEventListener("pointermove", mover); d.addEventListener("pointerup", soltar);
+  });
+  d.addEventListener("dblclick", () => { try { localStorage.removeItem("pceb.analise.larg." + k); } catch { } porLarg(k, LARG[k], false); posDivisores(); medir(); desenhar(); });
+});
+porLarg("lista", lerLarg("lista"), false); porLarg("lateral", lerLarg("lateral"), false); requestAnimationFrame(posDivisores);
 $("esforco").disabled = true; $("rotEscala").style.visibility = "hidden";
 medir();
 if (window.DADOS_DEMO) receber(window.DADOS_DEMO); else enviar({ acao: "pronto" });
