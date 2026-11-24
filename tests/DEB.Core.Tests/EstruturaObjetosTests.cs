@@ -271,4 +271,31 @@ public class EstruturaObjetosTests
         Assert.Equal(2, principal.Barras.Count);
         Assert.DoesNotContain(e.Avisos, a => a.Contains("VS: ponta I"));
     }
+
+    [Fact]
+    public void PilarComFlexoCompressaoOblicua()
+    {
+        var e = Portico(Elastomero, g: 40, q: 20);
+        e.Analisar();
+        var cfg = new DEB.Core.Configuracao.Projeto.ConfiguracaoProjeto();
+        // sem armadura: proposta que passa
+        var r = DimensionamentoObjetos.Pilar(e, e.Pilares[0], cfg);
+        var p3 = r.Verificacoes.First(v => v.Codigo == "P3");
+        Assert.Equal(DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok, p3.Situacao);
+        Assert.Contains(r.Resumo, t => t.Contains("(proposta)"));
+        // com armadura fraca (4ø10): não atende ou abaixo do mínimo
+        foreach (var b in DimensionamentoObjetos.BarrasNoContorno(e.Pilares[0].Secao, 4, 10, 4)) e.Pilares[0].Armadura.Add(b);
+        var r2 = DimensionamentoObjetos.Pilar(e, e.Pilares[0], cfg);
+        Assert.Contains(r2.Resumo, t => t.Contains("4 ø10 (detalhamento)"));
+        Assert.Contains(r2.Memoria.Linhas, l => l.Contains("2ª ordem local"));
+    }
+
+    [Fact]
+    public void BarrasNoContornoSimetricas()
+    {
+        var b = DimensionamentoObjetos.BarrasNoContorno(SecaoPoligonal.Retangulo(30, 60), 10, 16, 4);
+        Assert.Equal(10, b.Count);
+        Assert.Equal(15, b.Average(x => x.Y), 6);
+        Assert.Equal(30, b.Average(x => x.Z), 6);
+    }
 }

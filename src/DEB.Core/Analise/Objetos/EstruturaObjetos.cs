@@ -34,6 +34,8 @@ public sealed class PilarObjeto
     public List<double> Niveis { get; } = new List<double>();
     /// <summary>Fator de rigidez à flexão (NBR 6118 15.7.3: 0,8 na 2ª ordem global); 1 = elástica.</summary>
     public double FatorFlexao { get; set; } = 1;
+    /// <summary>Armadura longitudinal desenhada (cm, eixos da seção; ø em mm); vazia = o dimensionamento propõe uma.</summary>
+    public List<(double Y, double Z, double Phi)> Armadura { get; } = new List<(double, double, double)>();
 
     // gerado
     public List<(double Z, int No)> Nos { get; } = new List<(double, int)>();
