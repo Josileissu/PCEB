@@ -35,3 +35,4 @@ Situação: a fazer · em andamento · pausado · aguardando usuário · pronto 
 - Pasta privada no Drive para os arquivos do escritório: ainda não é necessária (decisão do usuário, 05/11).
 - Consolo inclinado na lateral da viga: adiado pelo usuário (11/11); proposta: consolo local da viga com o motor do consolo do pilar.
 - Consolos digitados nas faces 1/3 em modelos salvos antes da 0.1.37 trocam de lado (a face 1 passou a ser oeste).
+- D51 (25/11/2026): análise e detalhamento da viga no CAD (`ARMVIGAANALISE`) na main, releases v0.1.49 e revit-v0.4.1. Pendências: ressalto com ligação à capa da laje (b e barras da interface), estribos extras do consolo com alojamento a conferir.
