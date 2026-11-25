@@ -37,7 +37,7 @@ public sealed class TipoDente
     [DataMember(Order = 13)] public double CosturaBitola { get; set; } = 10;
     [DataMember(Order = 14)] public int CosturaQtd { get; set; } = 3;
     [DataMember(Order = 15)] public double CosturaPerna { get; set; } = 100;
-    /// <summary>Tirante: barras retas no topo do dente, com barra transversal soldada na ponta (NBR 9062 7.4).</summary>
+    /// <summary>Tirante: barras retas junto da face de baixo do dente (sobre o apoio), com barra transversal soldada na ponta (NBR 9062 7.4, Fig. 23).</summary>
     [DataMember(Order = 16)] public double TiranteBitola { get; set; } = 16;
     [DataMember(Order = 17)] public int TiranteQtd { get; set; } = 3;
     [DataMember(Order = 18)] public double TiranteComp { get; set; } = 200;

@@ -704,13 +704,14 @@ public static class CalculoViga
             // --- tirante: área pela relação a/d, mínimo ω ≥ 0,04, ø ≤ menor dimensão/6 e ≤ 25 mm, uma camada no topo
             (int N, double Phi, double D, double As) tir = (0, 0, 0, 0);
             double asTirNec = 0, adTir = 99;
-            foreach (double phi in BitolasLong.Where(f => f >= t0.TiranteBitola - 1e-6 && f <= Math.Min(25, bMin * 10 / 6) + 1e-6))
+            // bitolas pela menor área que atende (o usuário liberou ajustar o catálogo, 25/11/2026)
+            foreach (double phi in BitolasLong.Where(f => f >= 10 - 1e-6 && f <= Math.Min(25, bMin * 10 / 6) + 1e-6))
             {
-                double dd = hd - cobT - phiG - phi / 20;
+                double dd = hd - cobF - phiG - phi / 20;                       // do topo do dente ao tirante, junto da face de baixo
                 double ad = dd > 0 ? a / dd : 99;
                 double nec = (ad <= 0.5 ? 0.8 * vd / (fyd * 1.4) : (0.1 + Math.Min(ad, 1)) * vd / fyd) + Hd / fyd;
                 nec = Math.Max(nec, 0.04 * b * dd * fck / TabelasNbr.Fyk(acoL));
-                int n = Math.Max(Math.Max(2, t0.TiranteQtd), (int)Math.Ceiling(nec / A(phi) - 1e-9));
+                int n = Math.Max(2, (int)Math.Ceiling(nec / A(phi) - 1e-9));
                 double pc = phi / 10, ahP = Math.Max(ah, pc);
                 if (n > (int)Math.Floor((b - 2 * cobL - 2 * phiG + ahP) / (pc + ahP) + 1e-9)) continue;
                 if (tir.N == 0 || n * A(phi) < tir.As - 1e-9) { tir = (n, phi, dd, n * A(phi)); asTirNec = nec; adTir = ad; }
@@ -731,12 +732,12 @@ public static class CalculoViga
             double asSusp = vd / Math.Min(fywd, 43.5);
             double trecho = x.TrechoSuspensao > 0 ? x.TrechoSuspensao : cobP + dVig / 4;
             (int N, double Phi) sus = (0, 0);
-            foreach (double phi in BitolasEst.Concat(new[] { 16.0 }).Where(f => f >= t0.SuspBitola - 1e-6))
+            foreach (double phi in BitolasEst.Where(f => f >= 6.3 - 1e-6))   // estribos fechados: até 12,5 mm (dobra)
             {
-                int n = Math.Max(Math.Max(1, t0.SuspQtd > 0 ? 2 : 1), (int)Math.Ceiling(asSusp / (2 * A(phi)) - 1e-9));
+                int n = Math.Max(2, (int)Math.Ceiling(asSusp / (2 * A(phi)) - 1e-9));
                 double esp = (trecho - cobP - phi / 20) / n;                       // a regra de posições do template (D36)
                 if (esp < Math.Max(5, phi / 10 + 2) - 1e-9) continue;              // folga para o concreto passar
-                sus = (n, phi); break;
+                if (sus.N == 0 || n * A(phi) < sus.N * A(sus.Phi) - 1e-9) sus = (n, phi);
             }
             if (sus.N == 0)
             {
@@ -751,9 +752,9 @@ public static class CalculoViga
             double asCost = Math.Max(kCost * tir.As / dd0 * zCost, 0.0015 * b * zCost);
             int nivMin = Math.Max(1, (int)Math.Ceiling(zCost / Math.Min(10, Math.Max(a, 1)) - 1e-9));
             (int N, double Phi) cos = (0, 0);
-            foreach (double phi in BitolasEst.Where(f => f >= Math.Min(t0.CosturaBitola, bMin * 10 / 15) - 1e-6 && f <= bMin * 10 / 15 + 1e-6))
+            foreach (double phi in BitolasEst.Where(f => f >= 6.3 - 1e-6 && f <= bMin * 10 / 15 + 1e-6))
             {
-                int n = Math.Max(Math.Max(nivMin, t0.CosturaQtd), (int)Math.Ceiling(asCost / (2 * A(phi)) - 1e-9));
+                int n = Math.Max(nivMin, (int)Math.Ceiling(asCost / (2 * A(phi)) - 1e-9));
                 if (cos.N == 0 || n * A(phi) < cos.N * A(cos.Phi) - 1e-9) cos = (n, phi);
             }
             if (cos.N == 0) cos = (Math.Max(nivMin, t0.CosturaQtd), t0.CosturaBitola);
@@ -763,8 +764,17 @@ public static class CalculoViga
 
             // --- estribos verticais do dente: 0,15 % · b · h do dente (7.3.7.2), 2 ramos
             double asVert = 0.0015 * b * hd;
-            int nG = Math.Max(t0.EstGerberQtd, (int)Math.Ceiling(asVert / (2 * A(t0.EstGerberBitola)) - 1e-9));
-            t.EstGerberQtd = nG;
+            (int N, double Phi) ger = (0, 0);
+            int cabemG = Math.Max(2, (int)Math.Floor((t0.Comprimento - 2 * cobP) / 5 + 1e-9) + 1);   // no comprimento do dente, a ≥ 5 cm
+            foreach (double phi in BitolasEst.Where(f => f >= 6.3 - 1e-6))
+            {
+                int n = Math.Max(2, (int)Math.Ceiling(asVert / (2 * A(phi)) - 1e-9));
+                if (n > cabemG) continue;
+                if (ger.N == 0 || n * A(phi) < ger.N * A(ger.Phi) - 1e-9) ger = (n, phi);
+            }
+            if (ger.N == 0) ger = (t0.EstGerberQtd, t0.EstGerberBitola);
+            int nG = ger.N;
+            t.EstGerberQtd = ger.N; t.EstGerberBitola = ger.Phi;
 
             // --- grampo: U no fundo, no canto do recorte, traspassando a inferior (pernas = traspasse, boa aderência). A força que ele
             //     precisa ancorar fica para o engenheiro conferir (a inferior já chega com a barra soldada na face do recorte).
@@ -782,12 +792,12 @@ public static class CalculoViga
             m7.Linhas.Add($"Dente da {id}: Fd = Vd = {N(vd, "0.0")} kN; Hd = {N(fHd)}·Fd = {N(Hd, "0.0")} kN ({(neoprene ? "elastômero" : "argamassa")}, 7.3.9); a = {N(a, "0.0")} cm " +
                           $"(do eixo do apoio à face do recorte); d = {N(dd0, "0.0")} cm → a/d = {N(adTir, "0.00")} ({(adTir <= 0.5 ? "muito curto: μ = 1,4" : adTir <= 1 ? "curto" : "a/d > 1: viga — conferir")}).");
             m7.Linhas.Add($"Tirante: As = {(adTir <= 0.5 ? "0,8·Fd/(fyd·μ)" : "(0,1 + a/d)·Fd/fyd")} + Hd/fyd = {N(asTirNec)} cm² (ω ≥ 0,04 incluído) → {tir.N} ø{N(tir.Phi, "0.#")} = {N(tir.As)} cm² " +
-                          $"(ø ≤ {N(Math.Min(25, bMin * 10 / 6), "0.#")} mm, 7.3.3.7; no topo, 7.3.3.11). Comprimento: dente {N(t0.Comprimento, "0")} + (dvig − d) = {N(Math.Max(0, dVig - dd0), "0")} " +
+                          $"(ø ≤ {N(Math.Min(25, bMin * 10 / 6), "0.#")} mm, 7.3.3.7; junto da face de baixo do dente, sobre o apoio: 7.3.3.11 e Fig. 23). Comprimento: dente {N(t0.Comprimento, "0")} + (dvig − d) = {N(Math.Max(0, dVig - dd0), "0")} " +
                           $"+ lb,nec = {N(lbTirNec, "0")} cm (má aderência, 7.4.4.2) → C = {N(compTir, "0")} cm, ancorado na ponta pela barra transversal soldada (7.4.4.1).");
             m7.Linhas.Add($"Suspensão: As = Fd/fyd = {N(asSusp)} cm² em estribos fechados no trecho de {N(trecho, "0")} cm junto da face (≤ dvig/4, 7.4.6) → {sus.N} ø{N(sus.Phi, "0.#")} (2 ramos) = {N(sus.N * 2 * A(sus.Phi))} cm².");
-            m7.Linhas.Add($"Costura: (As/s) ≥ {N(kCost)}·As,tir/d em 2/3·d = {N(zCost, "0")} cm, mínimo 0,15 %·b → {N(asCost)} cm²; espaçamento ≤ 10 cm e ≤ a ({nivMin} níveis), ø ≤ {N(bMin * 10 / 15, "0.#")} mm → " +
+            m7.Linhas.Add($"Costura: (As/s) ≥ {N(kCost)}·As,tir/d numa faixa de 2/3·d = {N(zCost, "0")} cm acima do eixo do tirante (Fig. 23), mínimo 0,15 %·b → {N(asCost)} cm²; espaçamento ≤ 10 cm e ≤ a ({nivMin} níveis), ø ≤ {N(bMin * 10 / 15, "0.#")} mm → " +
                           $"{cos.N} U ø{N(cos.Phi, "0.#")} (2 ramos) = {N(cos.N * 2 * A(cos.Phi))} cm²; pernas = dente + 1,5·lb = {N(pernaCost, "0")} cm (7.4.5.1).");
-            m7.Linhas.Add($"Estribos verticais do dente: 0,15 %·b·h = {N(asVert)} cm² → {nG} ø{N(t0.EstGerberBitola, "0.#")} (7.3.7.2). Grampo no canto do recorte: pernas = traspasse com a inferior = {N(pernaGr, "0")} cm; " +
+            m7.Linhas.Add($"Estribos verticais do dente: 0,15 %·b·h = {N(asVert)} cm² → {nG} ø{N(ger.Phi, "0.#")} (7.3.7.2). Grampo no canto do recorte: pernas = traspasse com a inferior = {N(pernaGr, "0")} cm; " +
                           $"{t0.GrampoQtd} U ø{N(phiGr, "0.#")} = {N(asGr)} cm² (força a ancorar no canto: (aℓ/d)·Vd + Hd = {N(asApoio)} cm² de aço — conferir com a barra soldada da inferior).");
             var tem = proporDente ? t : t0;
             double asTirTem = tem.TiranteQtd * A(tem.TiranteBitola), asSusTem = tem.SuspQtd * 2 * A(tem.SuspBitola), asCosTem = tem.CosturaQtd * 2 * A(tem.CosturaBitola);

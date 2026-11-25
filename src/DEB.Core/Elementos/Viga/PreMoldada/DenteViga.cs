@@ -49,20 +49,23 @@ public sealed partial class TemplateVigaPreMoldada
         return esquerda ? xs : xs.Select(x => L - x).ToList();
     }
 
+    /// <summary>Altura do eixo do tirante acima do fundo do dente (cm): junto da face de baixo, sobre o apoio, dentro do estribo do
+    /// dente (NBR 9062 7.3.3.11 e Figura 23, apontada pelo usuário em 25/11/2026).</summary>
+    public static double AlturaTirante(TipoDente t, double cobF) =>
+        cobF + (t.EstGerberQtd > 0 ? t.EstGerberBitola / 10 : 0) + t.TiranteBitola / 20;
+
     /// <summary>
-    /// Profundidade (do topo, cm) de cada nível da costura do dente: em 2/3·d logo abaixo do tirante (NBR 9062 7.3.6, D51), por
-    /// igual; com um nível só, no meio desse trecho.
+    /// Altura (acima do fundo do dente, cm) de cada nível da costura: distribuídos por igual numa faixa de 2/3·d ACIMA do eixo do
+    /// tirante (NBR 9062 7.3.6 e Figura 23), o último no topo da faixa; d = do topo do dente ao eixo do tirante.
     /// </summary>
     public static List<double> NiveisCostura(TipoDente t, double cobT, double cobF)
     {
         int q = Math.Max(0, t.CosturaQtd);
         if (q == 0 || t.CosturaBitola <= 0) return new List<double>();
         double tg = t.EstGerberQtd > 0 ? t.EstGerberBitola / 10 : 0;
-        double dd = t.Altura - cobT - tg - t.TiranteBitola / 20;
-        double y0 = cobT + tg + t.TiranteBitola / 10 + Math.Max(2, t.CosturaBitola / 10) + t.CosturaBitola / 20;   // o 1º abaixo do tirante
-        double y1 = Math.Min(cobT + tg + 2.0 / 3.0 * dd, t.Altura - cobF - tg - t.CosturaBitola / 20);
-        if (y1 < y0) y1 = y0;
-        return q == 1 ? new List<double> { (y0 + y1) / 2 } : Enumerable.Range(0, q).Select(i => y0 + i * (y1 - y0) / (q - 1)).ToList();
+        double yt = AlturaTirante(t, cobF), dd = t.Altura - yt;
+        double topo = Math.Min(yt + 2.0 / 3.0 * dd, t.Altura - cobT - tg - t.CosturaBitola / 20);
+        return Enumerable.Range(1, q).Select(k => yt + k * (topo - yt) / q).ToList();
     }
 
     /// <summary>Fim da região do dente e da suspensão, medido da ponta (cm).</summary>
@@ -99,13 +102,13 @@ public sealed partial class TemplateVigaPreMoldada
         if (g.Count > 0) c.R.Faixas.Add(FaixaContada("gerber" + suf, X(0), X(x.CompDente), yF, g.Count, yF + 0.8 * hv, c.escV, cfg));
         var s = PosicoesSuspensao(t, cob, esquerda, L, x.TrechoSuspensao);
         foreach (var xx in s) c.Linha(xx, yB + cobF, xx, yT - cobT, "ARM-BARRA-DETALHE");
-        // barras horizontais do dente dentro da forma (pedido do usuário, 25/11/2026): tirante no topo, costura em 2/3·d abaixo dele
-        // (NBR 9062 7.3.6) e o grampo no fundo da viga, do canto do recorte para dentro (traspassa a inferior)
-        double tgE = t.EstGerberQtd > 0 ? t.EstGerberBitola / 10 : 0;
-        double yTir = yT - cobT - tgE - t.TiranteBitola / 20;
+        // barras horizontais do dente dentro da forma (pedido do usuário, 25/11/2026): tirante junto da face de baixo do dente, costura
+        // em 2/3·d acima dele (NBR 9062 7.3.6, Fig. 23) e o grampo no fundo da viga, do canto do recorte para dentro (traspassa a inferior)
+        double yFundoDente = yT - t.Altura;
+        double yTir = yFundoDente + AlturaTirante(t, cobF);
         if (t.TiranteQtd > 0) c.Linha(X(cob), yTir, X(cob + t.TiranteComp), yTir, "ARM-BARRA-DETALHE");
-        foreach (double yc in NiveisCostura(t, cobT, cobF))
-            c.Linha(X(cob), yT - yc, X(cob + t.CosturaPerna), yT - yc, "ARM-BARRA-DETALHE");
+        foreach (double hc0 in NiveisCostura(t, cobT, cobF))
+            c.Linha(X(cob), yFundoDente + hc0, X(cob + t.CosturaPerna), yFundoDente + hc0, "ARM-BARRA-DETALHE");
         if (t.GrampoQtd > 0 && t.GrampoBitola > 0)
         {
             double yg = yB + cobF + v.Numero("EstBitola") / 10 + t.GrampoBitola / 20;
@@ -222,8 +225,8 @@ public sealed partial class TemplateVigaPreMoldada
         return y;
     }
 
-    /// <summary>O dente na SEÇÃO X-X - ARMADURA: estribo Gerber, tirante no topo e as costuras em 2/3·d abaixo dele (as pernas, nos
-    /// lados). O grampo fica no fundo da viga, depois do recorte (D51): não aparece na seção do dente.</summary>
+    /// <summary>O dente na SEÇÃO X-X - ARMADURA: estribo Gerber, tirante junto da face de baixo e as costuras em 2/3·d acima dele (as
+    /// pernas, nos lados; NBR 9062 Fig. 23). O grampo fica no fundo da viga, depois do recorte (D51): não aparece na seção do dente.</summary>
     private static void DenteNaSecao(Ctx c, ValoresTemplate v, TipoDente t, bool esquerda, double b, double sx0, double sy0, double sy1)
     {
         double hc = c.hC, cobF = v.Numero("CobFundo"), cobT = v.Numero("CobTopo"), cobL = v.Numero("CobLateral");
@@ -244,11 +247,11 @@ public sealed partial class TemplateVigaPreMoldada
             foreach (var (px, py) in l) c.R.Circulos.Add(new CirculoTemplate { X = px, Y = py, Raio = phi / 20, Layer = "ARM-BARRA-SECAO" });
             c.R.Faixas.Add(new FaixaTemplate { Barra = nome + suf, Tipo = TipoFaixa.Indicacao, Referencias = l, Posicao = pos, Escala = c.escC });
         }
-        // tirante: uma camada no topo, dentro do estribo Gerber
-        double yTir = sy1 - cobT - tg - t.TiranteBitola / 20;
+        // tirante: uma camada junto da face de baixo do dente (sobre o apoio), dentro do estribo Gerber
+        double yTir = sy0 + AlturaTirante(t, cobF);
         int nt = Math.Max(0, t.TiranteQtd);
         Pontos("tirante", t.TiranteBitola, Enumerable.Range(0, nt).Select(i => (nt == 1 ? (xl + xr) / 2 : xl + t.TiranteBitola / 20 + i * (xr - xl - t.TiranteBitola / 10) / (nt - 1), yTir)),
-            (sx0 + b / 2, sy1 + 3 * hc));
+            (sx0 + b / 2, sy0 - 3 * hc));
         // grampos na metade de cima, costuras na de baixo (as duas pernas de cada U)
         double ya = sy0 + cobF + tg, ym = sy0 + (sy1 - sy0) / 2, yb = yTir - t.TiranteBitola / 20 - 1.5;
         IEnumerable<(double, double)> Pernas(int q, double phi, double y0, double y1) =>
@@ -258,8 +261,8 @@ public sealed partial class TemplateVigaPreMoldada
                 return new[] { (xl + phi / 20, yy), (xr - phi / 20, yy) };
             });
         var niv = NiveisCostura(t, cobT, cobF);
-        Pontos("costura", t.CosturaBitola, niv.SelectMany(yc => new[] { (xl + t.CosturaBitola / 20, sy1 - yc), (xr - t.CosturaBitola / 20, sy1 - yc) })
-            .Where(p => p.Item1 > sx0 + b / 2), (sx0 + b + 5 * hc, sy1 - (niv.Count > 0 ? niv.Average() : (sy1 - sy0) / 2)));
+        Pontos("costura", t.CosturaBitola, niv.SelectMany(yc => new[] { (xl + t.CosturaBitola / 20, sy0 + yc), (xr - t.CosturaBitola / 20, sy0 + yc) })
+            .Where(p => p.Item1 > sx0 + b / 2), (sx0 + b + 5 * hc, sy0 + (niv.Count > 0 ? niv.Average() : (sy1 - sy0) / 2)));
     }
 
     /// <summary>Formas dos estribos do dente (Gerber e suspensão) para a coluna das formas, com a descrição embaixo.</summary>
