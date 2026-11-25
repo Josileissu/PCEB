@@ -776,14 +776,24 @@ public static class CalculoViga
             int nG = ger.N;
             t.EstGerberQtd = ger.N; t.EstGerberBitola = ger.Phi;
 
-            // --- grampo: U no fundo, no canto do recorte, traspassando a inferior (pernas = traspasse, boa aderência). A força que ele
-            //     precisa ancorar fica para o engenheiro conferir (a inferior já chega com a barra soldada na face do recorte).
-            double phiGr = t0.GrampoBitola > 0 ? t0.GrampoBitola : 10;
+            // --- grampo: U no fundo, no canto do recorte, traspassando a inferior (pernas = traspasse, boa aderência). Opção
+            //     CONSERVADORA escolhida pelo usuário (25/11/2026): o grampo ancora sozinho a força do canto, (aℓ/d)·Vd + Hd
+            //     (NBR 6118 18.3.2.4; o nó de baixo da suspensão no modelo de bielas dá o mesmo), sem contar a barra soldada da inferior.
+            double alV = vd > r.Vc + 1e-9 ? Math.Min(dV, Math.Max(0.5 * dV, dV * vd / (2 * (vd - r.Vc)))) : dV;
+            double asApoio = alV / dV * vd / fyd + Hd / fyd;
+            (int N, double Phi) gr = (0, 0);
+            foreach (double phi in BitolasLong.Where(f => f >= 10 - 1e-6 && f <= 20 + 1e-6))
+            {
+                int n = Math.Max(2, (int)Math.Ceiling(asApoio / (2 * A(phi)) - 1e-9));
+                if (n > 4) continue;   // até 4 U: o grampo fica junto do fundo, onde está a inferior que ele ancora
+                if (gr.N == 0 || n * A(phi) < gr.N * A(gr.Phi) - 1e-9) gr = (n, phi);
+            }
+            if (gr.N == 0) { gr = (4, 20); r.Avisos.Add($"Dente da {id}: o grampo precisa de mais que 4 U ø20 — rever o arranjo do canto."); }
+            double phiGr = gr.Phi;
             double l0t = regraBoa.Comprimento(phiGr, acoL);
             double pernaGr = Math.Ceiling((l0t + cobP) / 5 - 1e-9) * 5;
-            t.GrampoPerna = pernaGr;
-            double alV = vd > r.Vc + 1e-9 ? Math.Min(dV, Math.Max(0.5 * dV, dV * vd / (2 * (vd - r.Vc)))) : dV;
-            double asApoio = alV / dV * vd / fyd + Hd / fyd, asGr = t0.GrampoQtd * 2 * A(phiGr);
+            t.GrampoQtd = gr.N; t.GrampoBitola = gr.Phi; t.GrampoPerna = pernaGr;
+            double asGr = gr.N * 2 * A(phiGr);
 
             t.Nome = $"{t0.Nome} – {nomeViga}";
             t.Descricao = $"Calculado para a {nomeViga} (ponta {lado}), a partir do {t0.Nome}.";
@@ -797,8 +807,9 @@ public static class CalculoViga
             m7.Linhas.Add($"Suspensão: As = Fd/fyd = {N(asSusp)} cm² em estribos fechados no trecho de {N(trecho, "0")} cm junto da face (≤ dvig/4, 7.4.6) → {sus.N} ø{N(sus.Phi, "0.#")} (2 ramos) = {N(sus.N * 2 * A(sus.Phi))} cm².");
             m7.Linhas.Add($"Costura: (As/s) ≥ {N(kCost)}·As,tir/d numa faixa de 2/3·d = {N(zCost, "0")} cm acima do eixo do tirante (Fig. 23), mínimo 0,15 %·b → {N(asCost)} cm²; espaçamento ≤ 10 cm e ≤ a ({nivMin} níveis), ø ≤ {N(bMin * 10 / 15, "0.#")} mm → " +
                           $"{cos.N} U ø{N(cos.Phi, "0.#")} (2 ramos) = {N(cos.N * 2 * A(cos.Phi))} cm²; pernas = dente + 1,5·lb = {N(pernaCost, "0")} cm (7.4.5.1).");
-            m7.Linhas.Add($"Estribos verticais do dente: 0,15 %·b·h = {N(asVert)} cm² → {nG} ø{N(ger.Phi, "0.#")} (7.3.7.2). Grampo no canto do recorte: pernas = traspasse com a inferior = {N(pernaGr, "0")} cm; " +
-                          $"{t0.GrampoQtd} U ø{N(phiGr, "0.#")} = {N(asGr)} cm² (força a ancorar no canto: (aℓ/d)·Vd + Hd = {N(asApoio)} cm² de aço — conferir com a barra soldada da inferior).");
+            m7.Linhas.Add($"Estribos verticais do dente: 0,15 %·b·h = {N(asVert)} cm² → {nG} ø{N(ger.Phi, "0.#")} (7.3.7.2). Grampo no canto do recorte (opção conservadora): As ≥ ((aℓ/d)·Vd + Hd)/fyd = " +
+                          $"({N(alV, "0")}/{N(dV, "0")}·{N(vd, "0.0")} + {N(Hd, "0.0")})/{N(fyd * 10, "0")} = {N(asApoio)} cm² (NBR 6118 18.3.2.4), sem contar a barra soldada da inferior → " +
+                          $"{gr.N} U ø{N(phiGr, "0.#")} (2 ramos) = {N(asGr)} cm²; pernas = traspasse com a inferior = {N(pernaGr, "0")} cm.");
             var tem = proporDente ? t : t0;
             double asTirTem = tem.TiranteQtd * A(tem.TiranteBitola), asSusTem = tem.SuspQtd * 2 * A(tem.SuspBitola), asCosTem = tem.CosturaQtd * 2 * A(tem.CosturaBitola);
             bool faltaTir = asTirTem < asTirNec - 1e-9;
@@ -811,8 +822,9 @@ public static class CalculoViga
             r.Verificacoes.Add(K("K11", "Dente " + id, $"Compressão da biela do dente da ponta {lado} (estimativa: VRd2 com o d do dente)", $"Vd = {N(vd, "0.0")} kN", $"≤ {N(vrd2d, "0.0")} kN",
                 true, "NBR 9062, 7.4.7", SituacaoVerificacao.Conferir, vd <= vrd2d ? "Atende a estimativa; confirme a biela pelo modelo do dente." : "Não atende a estimativa: aumente a altura do dente ou a largura."));
             r.Verificacoes.Add(K("K27", "Dente " + id, $"Costura do dente da ponta {lado}", $"{N(asCosTem)} cm²", $"≥ {N(asCost)} cm²", asCosTem < asCost - 1e-9, "NBR 9062, 7.3.6 e 7.4.5"));
-            r.Verificacoes.Add(K("K28", "Dente " + id, $"Grampo no canto do recorte (ponta {lado})", $"{N(asGr)} cm²", $"força do canto ≈ {N(asApoio)} cm²", true, "NBR 6118, 18.3.2.4",
-                SituacaoVerificacao.Conferir, "Confira quanto a barra soldada da inferior já ancora no canto; o grampo completa o resto."));
+            double asGrTem = tem.GrampoQtd * 2 * A(tem.GrampoBitola);
+            r.Verificacoes.Add(K("K28", "Dente " + id, $"Grampo no canto do recorte (ponta {lado}), ancorando sozinho a força do canto", $"{N(asGrTem)} cm²", $"≥ {N(asApoio)} cm²",
+                asGrTem < asApoio - 1e-9, "NBR 6118, 18.3.2.4", dica: "Aumente o grampo do dente (ARMDENTES)."));
             if (!neoprene)
                 r.Verificacoes.Add(K("K29", "Dente " + id, $"Força horizontal no apoio (ponta {lado})", $"Hd = {N(Hd, "0.0")} kN (0,5·Fd)", "estudo da ligação", true, "NBR 9062, 7.3.9 g",
                     SituacaoVerificacao.Conferir, "Ligação com solda ou graute: a norma pede o estudo detalhado da força horizontal."));
