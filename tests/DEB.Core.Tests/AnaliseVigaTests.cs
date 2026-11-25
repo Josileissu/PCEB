@@ -350,6 +350,11 @@ public class AnaliseVigaTests
         Assert.Contains(r.Memoria, m => m.Titulo.StartsWith("5d."));
         // a suspensão da carga indireta vai em estribos próprios (K31), sem adensar as zonas da viga toda
         Assert.Contains(r.Verificacoes, x => x.Codigo == "K31");
+        // os estribos extras vão para o template e são desenhados no trecho do consolo
+        Assert.True(r.ConsoloSuspQtd >= 2);
+        Assert.Equal(r.ConsoloSuspQtd, r.Proposta.Inteiro("ConsoloSuspQtd"));
+        var des = new TemplateVigaPreMoldada().Gerar(r.Proposta, new DEB.Core.Configuracao.ConfiguracaoArmadura());
+        Assert.Contains(des.Textos, t => t.Texto.Contains("SUSPENSÃO DO CONSOLO"));
         var semConsolo = Viga(x => { x["B"] = "30"; x["H"] = "70"; });
         var r0 = CalculoViga.Calcular(semConsolo, AnaliseViga.CargasParaCalculo(ent, semConsolo), null, null, AnaliseViga.Rodar(semConsolo, ent));
         Assert.Equal(r0.ZonaPonta, r.ZonaPonta, 6);

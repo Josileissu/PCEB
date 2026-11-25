@@ -345,7 +345,24 @@ public sealed partial class TemplateVigaPreMoldada
         bool faixaAba = AbaEstribosEmElevacao(c, v, cfg, aba, yB, yF - (zonas.Count > 1 ? 6.4 : 3.2) * hv);
         // ressalto: a faixa dele acima do topo, os estribos em traços e as faixas (estribos e ligação com a capa) abaixo das outras
         int faixasRess = RessaltoEmElevacaoArmaduras(c, v, cfg, ress, L, h, yT, yF - ((zonas.Count > 1 ? 6.4 : 3.2) + (faixaAba ? 3.2 : 0)) * hv);
-        y = yF - (zonas.Count > 1 ? 10 : 7) * hv - (faixaAba ? 3.2 * hv : 0) - faixasRess * 3.2 * hv;
+        // consolo lateral para outra viga: estribos de suspensão EXTRAS da alma no trecho do consolo (D51, NBR 9062 7.3.8), entre os
+        // da zona, numa faixa própria abaixo das outras (mesma barra "estribo": a relação do aço soma)
+        int nExtra = aba.Existe && aba.Consolo ? Math.Max(0, v.Inteiro("ConsoloSuspQtd")) : 0;
+        bool faixaConsolo = false;
+        if (nExtra > 0)
+        {
+            double cobPc = v.Numero("CobPontas"), x0c = aba.Ini + cobPc, x1c = aba.Fim - cobPc;
+            if (x1c > x0c)
+            {
+                var xs = nExtra == 1 ? new List<double> { (x0c + x1c) / 2 } : Enumerable.Range(0, nExtra).Select(i => x0c + i * (x1c - x0c) / (nExtra - 1)).ToList();
+                foreach (var xx in xs) c.Linha(xx, yB + cobF, xx, topoEst, "ARM-BARRA-DETALHE");
+                double yFc = yF - ((zonas.Count > 1 ? 6.4 : 3.2) + (faixaAba ? 3.2 : 0) + faixasRess * 3.2) * hv;
+                c.R.Faixas.Add(FaixaContada("estribo", x0c, x1c, yFc, nExtra, yFc + 0.8 * hv, c.escV, cfg));
+                c.Texto(string.Join(" / ", c.Linhas("SUSPENSÃO DO CONSOLO", "CORBEL HANGER")), (x0c + x1c) / 2, yFc - 1.6 * hv, 0.6 * hv, 1);
+                faixaConsolo = true;
+            }
+        }
+        y = yF - (zonas.Count > 1 ? 10 : 7) * hv - (faixaAba ? 3.2 * hv : 0) - faixasRess * 3.2 * hv - (faixaConsolo ? 3.2 * hv : 0);
         bool soldada = v.SimNao("InfSoldada");
         foreach (var l in baixo)
         {

@@ -98,6 +98,9 @@ public sealed partial class TemplateVigaPreMoldada
         P(G10, "AbaEstEsp", "Estribo da aba: espaçamento", "15", "cm", min: 2),
         P(G10, "AbaLongQtd", "Longitudinais na ponta de cada aba", "2", tipo: TipoParametro.Inteiro, min: 0, max: 6),
         P(G10, "AbaLongBitola", "Longitudinais da aba: bitola", "10", "mm", TipoParametro.Bitola, 5, 25),
+        P(G10, "ConsoloSuspQtd", "Consolo: estribos de suspensão extras na alma", "0", tipo: TipoParametro.Inteiro, min: 0, max: 20,
+          descricao: "Consolo lateral para outra viga (aba curta): estribos da alma a mais no trecho do consolo, com a bitola dos estribos, " +
+                     "para suspender a carga indireta (NBR 9062 7.3.8). O cálculo da análise (ARMVIGAANALISE) preenche."),
     };
 
     // ======================== leitura e cálculos (testáveis) ========================

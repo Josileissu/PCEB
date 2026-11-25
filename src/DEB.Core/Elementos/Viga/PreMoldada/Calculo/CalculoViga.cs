@@ -127,6 +127,8 @@ public sealed class ResultadoCalculoViga
     public double AdConsolo { get; set; }
     public double AsTirConsolo { get; set; }
     public double AsSuspConsolo { get; set; }
+    /// <summary>Estribos de suspensão extras da alma no trecho do consolo (template: ConsoloSuspQtd).</summary>
+    public int ConsoloSuspQtd { get; set; }
 
     // ELS
     public double FlechaImediata { get; set; }
@@ -671,11 +673,12 @@ public static class CalculoViga
             }
             else r.Avisos.Add("Consolo lateral: o tirante não cabe em estribos no comprimento do consolo — aumentar o consolo ou usar barras de tirante.");
             int nSusC = Math.Max(2, (int)Math.Ceiling(r.AsSuspConsolo / (2 * A(r.EstBitola > 0 ? r.EstBitola : 8)) - 1e-9));
+            r.ConsoloSuspQtd = nSusC;
             m5d.Linhas.Add($"Suspensão da carga indireta (7.3.8): As = Fd/fyd = {N(r.AsSuspConsolo)} cm² em estribos fechados PRÓPRIOS da alma, no trecho do consolo, " +
                            $"além dos de cortante → {nSusC} estribos ø{N(r.EstBitola > 0 ? r.EstBitola : 8, "0.#")} (2 ramos).");
             r.Verificacoes.Add(K("K31", "Consolo", "Estribos de suspensão próprios no trecho do consolo (além dos de cortante)", $"{nSusC} ø{N(r.EstBitola > 0 ? r.EstBitola : 8, "0.#")}",
                 $"≥ {N(r.AsSuspConsolo)} cm²", true, "NBR 9062, 7.3.8", SituacaoVerificacao.Conferir,
-                "O template ainda não desenha estes estribos extras: acrescente-os no trecho do consolo."));
+                "Desenhados no trecho do consolo (faixa \"SUSPENSÃO DO CONSOLO\"): confira o alojamento entre os estribos da zona."));
             r.Verificacoes.Add(K("K30", "Consolo", "Tirante do consolo lateral (estribos fechados)", arr.N > 0 ? $"{N(arr.N * A(arr.Phi))} cm²" : "não cabe", $"≥ {N(arr.Nec)} cm²",
                 arr.N == 0 || arr.Ad > 1, "NBR 9062, 7.3.5", arr.Ad > 1 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende));
             r.Verificacoes.Add(K("K32", "Consolo", "Torção pela reação fora do eixo da alma", $"T ≈ {N(r.FdConsolo * (eC + b / 2) / 100, "0.0")} kN·m", "conferir", true, "NBR 6118, 17.5",
@@ -1200,6 +1203,7 @@ public static class CalculoViga
             p["EstZonaPonta"] = Fmt.N(r.ZonaPonta);
         }
         if (r.AbaEstBitola > 0) { p["AbaEstBitola"] = Fmt.N(r.AbaEstBitola); p["AbaEstEsp"] = Fmt.N(r.AbaEstEsp); }
+        if (r.ConsoloSuspQtd > 0) p["ConsoloSuspQtd"] = r.ConsoloSuspQtd.ToString();
         if (r.DenteE != null) p["ExtE"] = r.DenteE;
         if (r.DenteD != null) p["ExtD"] = r.DenteD;
         if (r.Contraflecha > 0) p["Contraflecha"] = Fmt.N(r.Contraflecha);
