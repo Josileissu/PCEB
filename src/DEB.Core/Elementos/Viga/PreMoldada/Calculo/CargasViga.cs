@@ -36,6 +36,9 @@ public sealed class CargasViga
     public double QAba { get; set; }
     /// <summary>Distância do eixo da alma à linha da carga na aba (cm); 0 = automática (meio do balanço da aba).</summary>
     public double ExcAba { get; set; }
+    /// <summary>Torção de equilíbrio pela carga na aba (D51: o engenheiro liga e desliga); desligada, a aba e a suspensão continuam
+    /// dimensionadas, só a torção não.</summary>
+    public bool Torcao { get; set; } = true;
 
     /// <summary>Distância da ponta ao eixo do apoio (cm); 0 = automática (furo do pino, meio do dente ou 10 cm).</summary>
     public double ApoioE { get; set; }

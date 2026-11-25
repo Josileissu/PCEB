@@ -173,8 +173,9 @@ public static class AnaliseViga
     }
 
     /// <summary>
-    /// Cargas do dimensionamento (CalculoViga) pela entrada da análise: CP e SC da viga no eixo; a laje na ABA quando a torção está
-    /// ligada e a viga tem aba (por lado: o total dividido pelos lados), senão no eixo; as pontuais iguais. O PP da viga é do cálculo.
+    /// Cargas do dimensionamento (CalculoViga) pela entrada da análise: CP e SC da viga no eixo; a laje na ABA quando a viga tem aba
+    /// de laje (é onde ela apoia; por lado: o total dividido pelos lados), senão no eixo; as pontuais iguais. A opção de torção só liga
+    /// e desliga a torção (a aba e a suspensão são dimensionadas sempre). O PP da viga é do cálculo.
     /// </summary>
     public static CargasViga CargasParaCalculo(EntradaAnaliseViga ent, ValoresTemplate v, IReadOnlyList<TipoDente> catalogo = null)
     {
@@ -184,8 +185,8 @@ public static class AnaliseViga
         var aba = TemplateVigaPreMoldada.LerAba(v, h, L, TemplateVigaPreMoldada.LerExtremidade(v, true, catalogo, av),
             TemplateVigaPreMoldada.LerExtremidade(v, false, catalogo, av), av);
         double gLaje = ent.LajePP.Linear + ent.LajeCP.Linear, qLaje = ent.LajeSC.Linear;
-        var c = new CargasViga { G = ent.VigaCP, Q = ent.VigaSC, Concentradas = ent.Pontuais.ToList() };
-        if (ent.Torcao && aba.Existe) { c.GAba = gLaje / aba.Lados; c.QAba = qLaje / aba.Lados; }
+        var c = new CargasViga { G = ent.VigaCP, Q = ent.VigaSC, Concentradas = ent.Pontuais.ToList(), Torcao = ent.Torcao };
+        if (aba.Existe && !aba.Consolo) { c.GAba = gLaje / aba.Lados; c.QAba = qLaje / aba.Lados; }
         else { c.G += gLaje; c.Q += qLaje; }
         return c;
     }

@@ -292,4 +292,40 @@ public class AnaliseVigaTests
         Assert.True(pn.Min(p => p.X) > ps.Min(p => p.X) + 1e-6 && pn.Max(p => p.X) < ps.Max(p => p.X) - 1e-6);
         Assert.Empty(ps.Select(p => Math.Round(p.X, 3)).Intersect(pn.Select(p => Math.Round(p.X, 3))));
     }
+    // ---------------- etapa 4, parte 2: aba de laje (consolo corrido) e suspensão na alma ----------------
+
+    [Fact]
+    public void AbaDeLajeComoConsoloCorridoESuspensaoNaAlma()
+    {
+        var (v, cat) = V101();
+        var ent = CargasV101();
+        var an = AnaliseViga.Rodar(v, ent, null, cat);
+        var c = AnaliseViga.CargasParaCalculo(ent, v, cat);
+        Assert.Equal(35, c.GAba, 6);   // (5 + 2) kN/m² × 5 m, uma aba
+        Assert.Equal(30, c.QAba, 6);
+        var r = CalculoViga.Calcular(v, c, null, cat, an);
+        // Fd = 1,4·(35 + peso da aba) + 1,4·30; tirante e estribo da aba proposto
+        double pesoAba = 20 * (23.5 + 15) / 2 / 1e4 * 25;
+        Assert.Equal(1.4 * (35 + pesoAba) + 1.4 * 30, r.FdAba, 6);
+        Assert.True(r.AsTirAba > 0 && r.AbaEstBitola >= 8 && r.AbaEstEsp > 0);
+        Assert.True(Math.PI * r.AbaEstBitola * r.AbaEstBitola / 400 / r.AbaEstEsp * 100 >= r.AsTirAba - 1e-9);
+        Assert.Contains(r.Verificacoes, x => x.Codigo == "K24" && x.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok);
+        Assert.Equal(r.FdAba / 43.478, r.AsSuspAba, 1);
+        Assert.Equal(r.AbaEstEsp, r.Proposta.Numero("AbaEstEsp"), 6);
+    }
+
+    [Fact]
+    public void TorcaoDesligadaMantemAAbaESuspensao()
+    {
+        var (v, cat) = V101();
+        var lig = CargasV101();
+        var des = CargasV101(); des.Torcao = false;
+        var rl = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(lig, v, cat), null, cat, AnaliseViga.Rodar(v, lig, null, cat));
+        var rd = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(des, v, cat), null, cat, AnaliseViga.Rodar(v, des, null, cat));
+        Assert.True(rl.TdMax > 0);
+        Assert.Equal(0, rd.TdMax);
+        Assert.True(rd.FdAba > 0 && rd.AsSuspAba > 0);
+        // sem a torção os estribos da ponta pedem menos (ou o mesmo, pelo padrão)
+        Assert.True(rd.EspPonta >= rl.EspPonta - 1e-9);
+    }
 }

@@ -101,6 +101,15 @@ public sealed class ResultadoCalculoViga
     /// <summary>Diagrama do momento de torção de cálculo: x (cm), Td (kN·m).</summary>
     public List<(double X, double Td)> DiagramaTorcao { get; set; } = new List<(double, double)>();
 
+    // aba de laje como consolo corrido (D51, parte 2)
+    /// <summary>Força de cálculo na aba por metro (kN/m, por lado), a/d, tirante (cm²/m), estribo da aba proposto e suspensão na alma (cm²/m).</summary>
+    public double FdAba { get; set; }
+    public double AdAba { get; set; }
+    public double AsTirAba { get; set; }
+    public double AbaEstBitola { get; set; }
+    public double AbaEstEsp { get; set; }
+    public double AsSuspAba { get; set; }
+
     // ELS
     public double FlechaImediata { get; set; }
     public double FlechaTotal { get; set; }
@@ -125,6 +134,7 @@ public sealed class ResultadoCalculoViga
         if (EstBitola > 0)
             l.Add(ZonaPonta > 0 ? $"Estribos: ø{Nm(EstBitola)} c/{Nm(EspPonta)} nas pontas ({Nm(ZonaPonta, "0")} cm) e c/{Nm(EspVao)} no vão"
                                 : $"Estribos: ø{Nm(EstBitola)} c/{Nm(EspVao)}");
+        if (AbaEstBitola > 0) l.Add($"Estribo da aba: ø{Nm(AbaEstBitola)} c/{Nm(AbaEstEsp)}");
         if (Contraflecha > 0) l.Add($"Contraflecha: {Nm(Contraflecha)} cm");
         return l;
     }
@@ -428,7 +438,7 @@ public static class CalculoViga
         SecaoTorcao st = null;
         double eAba = 0, ePP = 0, gAbaPP = 0, mtG = 0, mtQ = 0;
         bool torcaoNaMontagem = false;
-        if (aba.Existe && (cargas.GAba > 0 || cargas.QAba > 0))
+        if (aba.Existe && cargas.Torcao && (cargas.GAba > 0 || cargas.QAba > 0))
         {
             eAba = cargas.ExcAba > 0 ? cargas.ExcAba : b / 2 + aba.Largura / 2;
             double h0 = aba.Altura, h1 = aba.AltPonta, w = aba.Largura;
@@ -471,7 +481,17 @@ public static class CalculoViga
         double aswMin = rhoMin * b;               // cm²/cm
         double AswS(double vd) => Math.Max(aswMin, Math.Max(0, vd - r.Vc) / (0.9 * dV * fywd));
         // cortante + torção (17.7.2.2): soma por ramo — os 2 ramos do cortante + 2 × o ramo da torção (um em cada parede)
-        double AswTot(double vd, double x) => Math.Max(aswMin, Math.Max(0, vd - r.Vc) / (0.9 * dV * fywd) + 2 * As90Em(x));
+        // aba de laje (consolo corrido): a carga da laje sobe pelos estribos da alma no trecho da aba (suspensão, NBR 6118 18.3.6)
+        double fdAbaPorCm = 0;   // kN/cm, todos os lados
+        if (aba.Existe && !aba.Consolo && (cargas.GAba > 0 || cargas.QAba > 0))
+        {
+            double gAbaProprio = aba.Largura * (aba.Altura + aba.AltPonta) / 2 / 1e4 * gc;   // kN/m por lado
+            r.FdAba = k.GamaG * (cargas.GAba + gAbaProprio) + k.GamaQ * cargas.QAba;       // kN/m por lado
+            fdAbaPorCm = ladosAba * r.FdAba / 100;
+            r.AsSuspAba = fdAbaPorCm / fywd * 100;                                           // cm²/m
+        }
+        double SuspEm(double x) => fdAbaPorCm > 0 && aba.Em(x) ? fdAbaPorCm / fywd : 0;
+        double AswTot(double vd, double x) => Math.Max(aswMin, Math.Max(0, vd - r.Vc) / (0.9 * dV * fywd) + 2 * As90Em(x)) + SuspEm(x);
         double aswPonta = Math.Max(AswTot(r.VdE, xa + 1e-6), AswTot(r.VdD, xb - 1e-6));
         bool rigoroso = vdMax > 0.67 * r.VRd2;
         double sMax = rigoroso ? Math.Min(0.3 * dV, 20) : Math.Min(0.6 * dV, 30);
@@ -506,7 +526,10 @@ public static class CalculoViga
         m5.Linhas.Add($"d = {N(dV, "0.0")} cm; αv2 = 1 − fck/250 = {N(av2, "0.000")}; VRd2 = 0,27·αv2·fcd·b·d = {N(r.VRd2, "0.0")} kN; Vd,máx = {N(vdMax, "0.0")} kN (Vd/VRd2 = {N(r.VdSobreVRd2, "0.00")}).");
         m5.Linhas.Add($"Vc = Vc0 = 0,6·fctd·b·d = 0,6·{N(fctd * 10, "0.000")}·{N(b, "0.#")}·{N(dV, "0.0")}/10 = {N(r.Vc, "0.0")} kN (flexão simples, 17.4.2.2 b).");
         m5.Linhas.Add($"Asw/s = (Vsd − Vc)/(0,9·d·fywd), fywd = {N(fywd * 10, "0")} MPa; mínimo ρsw = 0,2·fctm/fywk = {N(rhoMin * 100, "0.000")} % → {N(aswMin * 100, "0.00")} cm²/m.");
-        m5.Linhas.Add($"Na ponta: Asw/s = {N(aswPonta * 100, "0.00")} cm²/m" + (st != null ? $" (cortante {N(AswS(vdMax) * 100, "0.00")} + torção 2 × {N(As90Em(xa + 1e-6) * 100, "0.00")}, passo 10)" : "") +
+        if (fdAbaPorCm > 0)
+            m5.Linhas.Add($"Suspensão da carga da aba no trecho dela (18.3.6): Fd = {N(fdAbaPorCm * 100, "0.0")} kN/m ÷ fywd = {N(r.AsSuspAba, "0.00")} cm²/m, somada aos estribos da alma (a favor da segurança: sem contar o ramo do estribo da aba na face oposta).");
+        m5.Linhas.Add($"Na ponta: Asw/s = {N(aswPonta * 100, "0.00")} cm²/m" + (st != null || fdAbaPorCm > 0 ? $" (cortante {N(AswS(vdMax) * 100, "0.00")}" + (st != null ? $" + torção 2 × {N(As90Em(xa + 1e-6) * 100, "0.00")}, passo 10" : "") +
+                       (SuspEm(xa + 1e-6) > 0 ? $" + suspensão da aba {N(SuspEm(xa + 1e-6) * 100, "0.00")}" : "") + ")" : "") +
                       $" → ø{N(phiEst, "0.#")} c/{N(sP, "0.#")} (2 ramos = {N(2 * A(phiEst) / sP * 100, "0.00")} cm²/m).");
         m5.Linhas.Add($"No vão: ø{N(phiEst, "0.#")} c/{N(sV, "0.#")}; s,máx = {(rigoroso ? "0,3d ≤ 20 cm" : "0,6d ≤ 30 cm")} = {N(sMax, "0.#")} cm (18.3.3.2)" +
                       (zona > 0 ? $"; zona das pontas: {N(zona, "0")} cm a partir da face do dente (ou da ponta)." : "."));
@@ -588,6 +611,41 @@ public static class CalculoViga
         }
         else if (r.DiagramaNegativo.Count > 0 && capa > 0)
             r.Avisos.Add("Momento negativo nas pontas com 2º estágio: a negativa vai no detalhe do capeamento da laje (não entra na peça).");
+
+        // ---------------- 5c. aba de laje como consolo corrido (D51, parte 2) ----------------
+        if (r.FdAba > 0)
+        {
+            var m5c = new PassoMemoria { Titulo = "5c. Aba de laje — consolo corrido (NBR 9062, 7.3) e suspensão na alma (NBR 6118, 18.3.6)" };
+            double phiA0 = v.Numero("AbaEstBitola") > 0 ? v.Numero("AbaEstBitola") : 8, espA0 = v.Numero("AbaEstEsp") > 0 ? v.Numero("AbaEstEsp") : 15;
+            double eLaje = cargas.ExcAba > 0 ? cargas.ExcAba - b / 2 : aba.Largura / 2;            // da face da alma à linha da carga
+            bool neoAba = v.Numero("Neoprene") > 0;
+            double hdAba = (neoAba ? 0.16 : 0.5) * r.FdAba;                                           // kN/m
+            double phiA = phiA0, sA = espA0, asTir = 0, dA = 0, ad = 0;
+            foreach (double phi in BitolasEst.Where(x => x >= phiA0 - 1e-6).DefaultIfEmpty(phiA0))
+            {
+                dA = aba.Altura - cobT - phi / 20;                                                     // na face da alma
+                ad = dA > 0 ? eLaje / dA : 99;
+                asTir = (ad <= 0.5 ? 0.8 * r.FdAba / (fyd * 1.4) : (0.1 + Math.Min(ad, 1)) * r.FdAba / fyd) + hdAba / fyd;   // cm²/m
+                phiA = phi;
+                sA = Math.Min(espA0, Math.Floor(A(phi) / (asTir / 100) / 2.5 + 1e-9) * 2.5);
+                if (sA >= 7.5 - 1e-9) break;
+            }
+            r.AdAba = ad; r.AsTirAba = asTir; r.AbaEstBitola = phiA; r.AbaEstEsp = sA;
+            m5c.Linhas.Add($"Carga na aba (por lado): Fd = γg·(g,laje + peso da aba) + γq·q,laje = {N(r.FdAba, "0.0")} kN/m, a {N(eLaje, "0.0")} cm da face da alma; " +
+                           $"Hd = {N(neoAba ? 0.16 : 0.5)}·Fd = {N(hdAba, "0.0")} kN/m ({(neoAba ? "elastômero" : "argamassa")}).");
+            m5c.Linhas.Add($"d da aba na face da alma = {N(dA, "0.0")} cm; a/d = {N(ad, "0.00")} ({(ad <= 0.5 ? "consolo muito curto: atrito-cisalhamento, μ = 1,4" : ad <= 1 ? "consolo curto" : "a/d > 1: balanço — conferir")}).");
+            m5c.Linhas.Add($"Tirante (ramo de cima do estribo da aba): As = {(ad <= 0.5 ? "0,8·Fd/(fyd·μ)" : "(0,1 + a/d)·Fd/fyd")} + Hd/fyd = {N(asTir)} cm²/m → ø{N(phiA, "0.#")} c/{N(sA, "0.#")} " +
+                           $"= {N(A(phiA) / sA * 100)} cm²/m (padrão do escritório: ø{N(phiA0, "0.#")} c/{N(espA0, "0.#")}, o mínimo).");
+            r.Verificacoes.Add(K("K24", "Aba", "Tirante da aba de laje (estribo da aba, por metro)", $"{N(A(phiA) / sA * 100)} cm²/m", $"≥ {N(asTir)} cm²/m",
+                A(phiA) / sA * 100 < asTir - 1e-9 || ad > 1, "NBR 9062, 7.3", ad > 1 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende,
+                "Aumente a altura da aba ou a bitola do estribo dela."));
+            double vrd2Aba = 0.27 * av2 * fcd * 100 * dA;                                              // kN por metro de aba
+            r.Verificacoes.Add(K("K25", "Aba", "Biela da aba (estimativa: VRd2 por metro com o d da aba)", $"Fd = {N(r.FdAba, "0.0")} kN/m", $"≤ {N(vrd2Aba, "0.0")} kN/m",
+                r.FdAba > vrd2Aba, "NBR 9062, 7.3", SituacaoVerificacao.Conferir, "Aumente a altura da aba."));
+            r.Verificacoes.Add(K("K26", "Aba", "Suspensão da carga da aba pelos estribos da alma (somada ao cortante)", $"{N(r.AsSuspAba)} cm²/m", "nos estribos da alma (passo 5)",
+                false, "NBR 6118, 18.3.6"));
+            r.Memoria.Add(m5c);
+        }
 
         // ---------------- 6. ancoragem no apoio (pontas retas) ----------------
         if (r.Inferior != null)
@@ -866,6 +924,7 @@ public static class CalculoViga
             p["EstEspVao"] = Fmt.N(r.EspVao);
             p["EstZonaPonta"] = Fmt.N(r.ZonaPonta);
         }
+        if (r.AbaEstBitola > 0) { p["AbaEstBitola"] = Fmt.N(r.AbaEstBitola); p["AbaEstEsp"] = Fmt.N(r.AbaEstEsp); }
         if (r.Contraflecha > 0) p["Contraflecha"] = Fmt.N(r.Contraflecha);
         p[ChaveVdVRd2] = Fmt.N(r.VdSobreVRd2, "0.####");
         p[ChaveVdE] = Fmt.N(r.VdE, "0.##");
