@@ -172,6 +172,24 @@ public static class AnaliseViga
         return (A, zg, I, nome);
     }
 
+    /// <summary>
+    /// Cargas do dimensionamento (CalculoViga) pela entrada da análise: CP e SC da viga no eixo; a laje na ABA quando a torção está
+    /// ligada e a viga tem aba (por lado: o total dividido pelos lados), senão no eixo; as pontuais iguais. O PP da viga é do cálculo.
+    /// </summary>
+    public static CargasViga CargasParaCalculo(EntradaAnaliseViga ent, ValoresTemplate v, IReadOnlyList<TipoDente> catalogo = null)
+    {
+        catalogo ??= TemplateVigaPreMoldada.CatalogoDentes;
+        double h = v.Numero("H"), L = v.Numero("L");
+        var av = new List<string>();
+        var aba = TemplateVigaPreMoldada.LerAba(v, h, L, TemplateVigaPreMoldada.LerExtremidade(v, true, catalogo, av),
+            TemplateVigaPreMoldada.LerExtremidade(v, false, catalogo, av), av);
+        double gLaje = ent.LajePP.Linear + ent.LajeCP.Linear, qLaje = ent.LajeSC.Linear;
+        var c = new CargasViga { G = ent.VigaCP, Q = ent.VigaSC, Concentradas = ent.Pontuais.ToList() };
+        if (ent.Torcao && aba.Existe) { c.GAba = gLaje / aba.Lados; c.QAba = qLaje / aba.Lados; }
+        else { c.G += gLaje; c.Q += qLaje; }
+        return c;
+    }
+
     /// <summary>Contorno da seção em x (y horizontal, z do fundo da viga), alma + aba, para o desenho das seções do modelo.</summary>
     public static List<(double Y, double Z)> ContornoSecao(double x, double b, double h, double L, ExtremidadeViga e, ExtremidadeViga d, AbaViga aba)
     {

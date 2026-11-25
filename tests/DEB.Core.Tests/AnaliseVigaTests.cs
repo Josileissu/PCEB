@@ -210,4 +210,86 @@ public class AnaliseVigaTests
         Assert.Equal(0.10, e.AlfaRE, 6);   // 10 % → 0,10
         Assert.Contains(erros, x => x.Contains("abc"));
     }
+    // ---------------- etapa 4, parte 1: longitudinais pela envoltória (positiva, negativa, pele) ----------------
+
+    private static (ValoresTemplate V, TipoDente[] Cat) V101()
+    {
+        var v = new ValoresTemplate(new TemplateVigaPreMoldada().Parametros);
+        v["Nome"] = "V101"; v["B"] = "19"; v["H"] = "150"; v["L"] = "602"; v["Fck"] = "30"; v["ExtE"] = "DG 75x25"; v["ExtD"] = "DG 75x25";
+        v["Aba"] = TemplateVigaPreMoldada.AbaEsq; v["AbaLargura"] = "20"; v["AbaAltura"] = "23.5"; v["AbaAlturaPonta"] = "15"; v["AbaBase"] = "106.5";
+        return (v, new[] { new TipoDente { Nome = "DG 75x25", Altura = 75, Comprimento = 25 } });
+    }
+
+    private static EntradaAnaliseViga CargasV101(double alfa = 0.2) => new EntradaAnaliseViga
+    {
+        AlfaRE = alfa, AlfaRD = alfa, VigaCP = 9.9,
+        LajePP = { Valor = 5, VaoInfluencia = 5 }, LajeCP = { Valor = 2, VaoInfluencia = 5 }, LajeSC = { Valor = 6, VaoInfluencia = 5 },
+    };
+
+    [Fact]
+    public void CalculoComAnaliseArmaNegativasNasPontas()
+    {
+        var (v, cat) = V101();
+        var ent = CargasV101();
+        var an = AnaliseViga.Rodar(v, ent, null, cat);
+        var r = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(ent, v, cat), null, cat, an);
+        // esforços da envoltória
+        Assert.Equal(an.MdMax, r.MdMax, 6);
+        Assert.Equal(an.MdMin, r.MdMin, 6);
+        Assert.True(r.MdMin < -10);
+        Assert.Equal(an.VdMax, Math.Max(r.VdE, r.VdD), 6);
+        // uma negativa em cada ponta, com área ≥ a necessária e comprimento além do fim do negativo + aℓ
+        Assert.Equal(2, r.Negativas.Count);
+        foreach (var ng in r.Negativas)
+        {
+            Assert.True(ng.N >= 2);
+            Assert.True(ng.N * Math.PI * ng.Bitola * ng.Bitola / 400 >= ng.AsNec - 1e-9);
+            var lado = r.DiagramaNegativo.Where(p => ng.Lado == "esquerda" ? p.X <= 301 : p.X > 301).ToList();
+            double fimNeg = ng.Lado == "esquerda" ? lado.Max(p => p.X) : 602 - lado.Min(p => p.X);
+            Assert.True(ng.Fim - ng.Ini >= fimNeg + r.Al - 2.5);
+        }
+        Assert.Contains(r.Verificacoes, x => x.Codigo == "K22");
+        Assert.Contains(r.Memoria, m => m.Titulo.StartsWith("5b."));
+        // a proposta leva as negativas, e o template as desenha como ARMADURA NEGATIVA
+        var linhas = r.Proposta.Tabela("Longitudinais");
+        Assert.Equal(2, linhas.Count(l => l[0] == TemplateVigaPreMoldada.FNegativa));
+        var catAntes = TemplateVigaPreMoldada.CatalogoDentes;
+        try
+        {
+            TemplateVigaPreMoldada.CatalogoDentes = cat.ToList();
+            var des = new TemplateVigaPreMoldada().Gerar(r.Proposta, new DEB.Core.Configuracao.ConfiguracaoArmadura());
+            Assert.Contains(des.Textos, t => t.Texto.Contains("ARMADURA NEGATIVA"));
+        }
+        finally { TemplateVigaPreMoldada.CatalogoDentes = catAntes; }
+    }
+
+    [Fact]
+    public void SoRotuladoNaoTemNegativaENemSomaComASuperior()
+    {
+        var (v, cat) = V101();
+        var ent = CargasV101();
+        ent.Semirrigido = false;
+        var an = AnaliseViga.Rodar(v, ent, null, cat);
+        var r = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(ent, v, cat), null, cat, an);
+        Assert.Empty(r.Negativas);
+        Assert.DoesNotContain(r.Proposta.Tabela("Longitudinais"), l => l[0] == TemplateVigaPreMoldada.FNegativa);
+        // com o semirrígido, a superior do template continua a mesma (a negativa não é reforço dela)
+        var ent2 = CargasV101();
+        var r2 = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(ent2, v, cat), null, cat, AnaliseViga.Rodar(v, ent2, null, cat));
+        string Sup(ResultadoCalculoViga x) => string.Join(";", x.Proposta.Tabela("Longitudinais").Where(l => l[0] == TemplateVigaPreMoldada.FSuperior).Select(l => l[1] + "x" + l[2]));
+        Assert.Equal(Sup(r), Sup(r2));
+    }
+
+    [Fact]
+    public void NaSecaoSuperioresNosCantosENegativasEntreElas()
+    {
+        var sup = new LinhaLongViga { Linha = 1, Funcao = TemplateVigaPreMoldada.FSuperior, Quantidade = 2, Bitola = 10 };
+        var neg = new LinhaLongViga { Linha = 2, Funcao = TemplateVigaPreMoldada.FNegativa, Quantidade = 3, Bitola = 16 };
+        var todas = new[] { sup, neg };
+        var ps = TemplateVigaPreMoldada.PontosNaSecao(sup, 30, 70, 3, 3, 3, 6.3, todas);
+        var pn = TemplateVigaPreMoldada.PontosNaSecao(neg, 30, 70, 3, 3, 3, 6.3, todas);
+        Assert.Equal(2, ps.Count); Assert.Equal(3, pn.Count);
+        Assert.True(pn.Min(p => p.X) > ps.Min(p => p.X) + 1e-6 && pn.Max(p => p.X) < ps.Max(p => p.X) - 1e-6);
+        Assert.Empty(ps.Select(p => Math.Round(p.X, 3)).Intersect(pn.Select(p => Math.Round(p.X, 3))));
+    }
 }

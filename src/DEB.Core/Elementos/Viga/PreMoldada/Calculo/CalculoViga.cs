@@ -41,6 +41,14 @@ public sealed class ResultadoCalculoViga
     // esforços de cálculo
     public double MdMax { get; set; }        // kN·m
     public double XMdMax { get; set; }       // cm
+    /// <summary>Momento negativo de cálculo (kN·m, negativo; 0 = sem negativo) da envoltória da análise (ligação semirrígida, D51).</summary>
+    public double MdMin { get; set; }
+    /// <summary>Envoltória do momento negativo: x (cm), Md− (kN·m).</summary>
+    public List<(double X, double Md)> DiagramaNegativo { get; set; } = new List<(double, double)>();
+    /// <summary>Armadura negativa proposta em cada ponta (D51): barras, bitola, trecho (cm da ponta esquerda) e área necessária (cm²).</summary>
+    public List<(string Lado, int N, double Bitola, double Ini, double Fim, double AsNec, int Camada)> Negativas { get; } = new List<(string, int, double, double, double, double, int)>();
+    /// <summary>Esforços da análise da viga (modelos rotulado/semirrígido e envoltória) no lugar da biapoiada; null = biapoiada.</summary>
+    public string ModelosAnalise { get; set; }
     public double VdE { get; set; }          // kN (junto ao apoio)
     public double VdD { get; set; }
     public double RkE_G { get; set; }        // reações características (kN)
@@ -112,6 +120,7 @@ public sealed class ResultadoCalculoViga
         var l = new List<string>();
         if (Inferior != null) l.Add($"Inferior: {Inferior.Texto} ({Nm(Inferior.Area, "0.00")} cm² ≥ {Nm(Math.Max(AsNec, AsMin), "0.00")} cm²)");
         if (Superior.N > 0 && Capa <= 0) l.Add($"Superior: {Superior.N} ø{Nm(Superior.Bitola)}");
+        foreach (var ng in Negativas) l.Add($"Negativa ({ng.Lado}): {ng.N} ø{Nm(ng.Bitola)}, de {Nm(ng.Ini, "0")} a {Nm(ng.Fim, "0")} cm");
         if (Pele.NPorFace > 0) l.Add($"Pele: {Pele.NPorFace} ø{Nm(Pele.Bitola)} por face");
         if (EstBitola > 0)
             l.Add(ZonaPonta > 0 ? $"Estribos: ø{Nm(EstBitola)} c/{Nm(EspPonta)} nas pontas ({Nm(ZonaPonta, "0")} cm) e c/{Nm(EspVao)} no vão"
@@ -178,7 +187,10 @@ public static class CalculoViga
     public static double ApoioAutomatico(ExtremidadeViga x) =>
         x.Furos > 0 && x.DistFuro > 0 ? x.DistFuro : x.TemDente ? x.CompDente / 2 : 10;
 
-    public static ResultadoCalculoViga Calcular(ValoresTemplate v, CargasViga cargas, CoeficientesViga k = null, IReadOnlyList<TipoDente> catalogo = null)
+    /// <param name="analise">Análise da viga (D51, CAD): a envoltória dos modelos rotulado e semirrígido dá Md (positivo e negativo), Vd e
+    /// as reações; os apoios são os dela. Null = biapoiada pelas cargas (o cálculo do Revit, D40).</param>
+    public static ResultadoCalculoViga Calcular(ValoresTemplate v, CargasViga cargas, CoeficientesViga k = null, IReadOnlyList<TipoDente> catalogo = null,
+        ResultadoAnaliseViga analise = null)
     {
         k ??= new CoeficientesViga();
         cargas ??= new CargasViga();
@@ -204,8 +216,8 @@ public static class CalculoViga
         double phiT0 = v.Numero("EstBitola") > 0 ? v.Numero("EstBitola") : 6.3;
 
         // ---------------- 1. geometria, apoios e cargas ----------------
-        r.ApoioE = cargas.ApoioE > 0 ? cargas.ApoioE : ApoioAutomatico(e);
-        r.ApoioD = cargas.ApoioD > 0 ? cargas.ApoioD : ApoioAutomatico(d);
+        r.ApoioE = analise != null ? analise.ApoioE : cargas.ApoioE > 0 ? cargas.ApoioE : ApoioAutomatico(e);
+        r.ApoioD = analise != null ? analise.ApoioD : cargas.ApoioD > 0 ? cargas.ApoioD : ApoioAutomatico(d);
         double vol = TemplateVigaPreMoldada.Volume(b, h, L, e, d) + aba.VolumeCm3 / 1e6 + ress.VolumeCm3(L) / 1e6;   // m³
         r.G1 = vol * gc / (L / 100);
         r.GCapa = capa > 0 ? b * capa / 1e4 * gc : 0;
@@ -223,6 +235,15 @@ public static class CalculoViga
         var eq = new EstaticaViga(L, xa, xb, qTot / 100, pq);
         var eg1 = new EstaticaViga(L, xa, xb, gTot / 100, pg);   // 1º estágio (peça sozinha): todas as permanentes
         r.RkE_G = eg.Ra; r.RkD_G = eg.Rb; r.RkE_Q = eq.Ra; r.RkD_Q = eq.Rb;
+        if (analise != null)
+        {
+            // reações da análise: o maior dos modelos, G = PP + CP e Q = SC
+            r.RkE_G = analise.Modelos.Max(m => m.Reacoes[CasoViga.PP].E + m.Reacoes[CasoViga.CP].E);
+            r.RkD_G = analise.Modelos.Max(m => m.Reacoes[CasoViga.PP].D + m.Reacoes[CasoViga.CP].D);
+            r.RkE_Q = analise.Modelos.Max(m => m.Reacoes[CasoViga.SC].E);
+            r.RkD_Q = analise.Modelos.Max(m => m.Reacoes[CasoViga.SC].D);
+            r.ModelosAnalise = string.Join(" + ", analise.Modelos.Select(m => m.Nome));
+        }
 
         var m1 = new PassoMemoria { Titulo = "1. Geometria, apoios e cargas (valores característicos)" };
         m1.Linhas.Add($"Seção {N(b, "0.#")} × {N(h, "0.#")} cm" + (capa > 0 ? $" + capa de {N(capa, "0.#")} cm (2º estágio)" : "") +
@@ -247,16 +268,30 @@ public static class CalculoViga
         // ---------------- 2. esforços de cálculo (ELU, combinação normal) ----------------
         double Md(double x) => (k.GamaG * eg.M(x) + k.GamaQ * eq.M(x)) / 100;          // kN·m
         double Vd(double x) => k.GamaG * eg.V(x) + k.GamaQ * eq.V(x);                   // kN
-        foreach (double x in eg.Pontos().Concat(eq.Pontos()).Distinct().OrderBy(x => x))
-            r.Diagrama.Add((x, Md(x), Vd(x)));
+        if (analise == null)
+        {
+            foreach (double x in eg.Pontos().Concat(eq.Pontos()).Distinct().OrderBy(x => x))
+                r.Diagrama.Add((x, Md(x), Vd(x)));
+        }
+        else
+        {
+            // envoltória da análise (D51): o maior Md positivo e o Vd de maior módulo em cada x; o negativo à parte
+            foreach (var p in analise.Envoltoria.Where(p => p.X >= xa - 1e-6 && p.X <= xb + 1e-6))
+                r.Diagrama.Add((p.X, p.MMax, Math.Abs(p.VMax) >= Math.Abs(p.VMin) ? p.VMax : p.VMin));
+            foreach (var p in analise.Envoltoria.Where(p => p.MMin < -1e-6)) r.DiagramaNegativo.Add((p.X, p.MMin));
+            r.MdMin = r.DiagramaNegativo.Count > 0 ? r.DiagramaNegativo.Min(p => p.Md) : 0;
+        }
         var max = r.Diagrama.OrderByDescending(p => p.Md).First();
         r.MdMax = max.Md; r.XMdMax = max.X;
-        r.VdE = Math.Abs(Vd(xa + 1e-6)); r.VdD = Math.Abs(Vd(xb - 1e-6));
+        r.VdE = analise == null ? Math.Abs(Vd(xa + 1e-6)) : r.Diagrama.Where(p => p.X <= (xa + xb) / 2).Max(p => Math.Abs(p.Vd));
+        r.VdD = analise == null ? Math.Abs(Vd(xb - 1e-6)) : r.Diagrama.Where(p => p.X >= (xa + xb) / 2).Max(p => Math.Abs(p.Vd));
         double MdG1 = k.GamaG * r.Diagrama.Max(p => eg1.M(p.X)) / 100;   // 1º estágio
         var m2 = new PassoMemoria { Titulo = "2. Esforços de cálculo (ELU, combinação normal: Fd = γg·G + γq·Q)" };
         m2.Linhas.Add($"γg = {N(k.GamaG)}; γq = {N(k.GamaQ)} (NBR 6118, Tabela 11.1).");
+        if (analise != null)
+            m2.Linhas.Add($"Esforços da análise da viga (envoltória de: {r.ModelosAnalise}); Md,mín = {N(r.MdMin, "0.0")} kN·m (negativo das ligações).");
         m2.Linhas.Add($"Md,máx = {N(r.MdMax, "0.0")} kN·m em x = {N(r.XMdMax, "0")} cm" +
-                      (cargas.Concentradas.Count == 0 ? $" (= (γg·g + γq·q)·ℓ²/8 = ({N(k.GamaG * gTot, "0.00")} + {N(k.GamaQ * qTot, "0.00")})·{N(r.Vao / 100, "0.00")}²/8)" : "") + ".");
+                      (cargas.Concentradas.Count == 0 && analise == null ? $" (= (γg·g + γq·q)·ℓ²/8 = ({N(k.GamaG * gTot, "0.00")} + {N(k.GamaQ * qTot, "0.00")})·{N(r.Vao / 100, "0.00")}²/8)" : "") + ".");
         m2.Linhas.Add($"Vd junto aos apoios: esquerdo {N(r.VdE, "0.0")} kN; direito {N(r.VdD, "0.0")} kN (no eixo do apoio, sem a redução de 17.4.1.2.1, a favor da segurança).");
         if (capa > 0) m2.Linhas.Add($"1º estágio (peça sozinha, todas as permanentes): Md,1 = {N(MdG1, "0.0")} kN·m.");
         r.Memoria.Add(m2);
@@ -489,6 +524,70 @@ public static class CalculoViga
             $"≥ {N(aswPonta * 100, "0.00")} cm²/m", 2 * A(phiEst) / sP < aswPonta - 1e-12, st != null ? "NBR 6118, 17.4.2.2 e 17.7.2.2" : "NBR 6118, 17.4.2.2"));
         r.Verificacoes.Add(K("K7", "Cisalhamento", "Espaçamento máximo dos estribos com o Vd", $"{N(Math.Max(sP, sV), "0.#")} cm",
             $"≤ {N(sMax, "0.#")} cm ({(rigoroso ? "Vd > 0,67·VRd2" : "Vd ≤ 0,67·VRd2")})", Math.Max(sP, sV) > sMax + 1e-9, "NBR 6118, 18.3.3.2"));
+
+        // ---------------- 5b. armadura negativa nas pontas (ligação semirrígida, D51) ----------------
+        if (r.DiagramaNegativo.Count > 0 && capa <= 0)
+        {
+            var m5b = new PassoMemoria { Titulo = "5b. Armadura negativa nas pontas — momento da ligação semirrígida (NBR 6118, 17.2, 17.4.2.2 c e 9.4)" };
+            var regra = new Normas.RegrasTraspasse { Fck = fck, Aderencia = Normas.SituacaoAderencia.Ma };
+            double phiSupCanto = padrao.Where(l => l.Funcao == TemplateVigaPreMoldada.FSuperior).Select(l => l.Bitola).DefaultIfEmpty(10).Max();
+            int nSupCanto = padrao.Where(l => l.Funcao == TemplateVigaPreMoldada.FSuperior).Sum(l => l.Quantidade);
+            double wUtilT = b - 2 * cobL - 2 * phiTcm;
+            foreach (var (lado, noLado) in new (string, Func<double, bool>)[] { ("esquerda", x => x <= L / 2), ("direita", x => x > L / 2) })
+            {
+                var pts = r.DiagramaNegativo.Where(p => noLado(p.X)).ToList();
+                if (pts.Count == 0) continue;
+                // As necessária ponto a ponto, com a altura da seção em x (no dente, a do dente); na 2ª camada, d menor
+                double AsEm(double x, double md, double phiMm, int camada)
+                {
+                    double hx = e.TemDente && x < e.CompDente ? e.Dente.Altura : d.TemDente && x > L - d.CompDente ? d.Dente.Altura : h;
+                    double dx = hx - cobT - phiTcm - phiMm / 20;
+                    if (camada == 2) dx -= phiSupCanto / 20 + Math.Max(2, Math.Max(phiSupCanto, phiMm) / 10) + phiMm / 20;
+                    return dx > 0 ? mat.Armadura(Math.Abs(md) * 100, b, dx, cobF + phiTcm + 0.8).As : double.MaxValue;
+                }
+                // arranjo: na 1ª camada entre as superiores dos cantos; se não couber, na 2ª camada (a largura toda); menor área,
+                // bitola não menor que 10 mm; espaçamento livre ≥ 2 cm, ø e 1,2·dmáx (18.3.2.2)
+                (int N, double Phi, double Nec, int Camada) arr = (0, 0, 0, 0);
+                foreach (int camada in new[] { 1, 2 })
+                {
+                    foreach (double phi in BitolasLong.Where(f => f >= 10 - 1e-6))
+                    {
+                        double nec = Math.Max(pts.Max(p => AsEm(p.X, p.Md, phi, camada)), 0);
+                        int n = Math.Max(2, (int)Math.Ceiling(nec / A(phi) - 1e-9));
+                        double pc = phi / 10, ahP = Math.Max(ah, pc);
+                        int cabem = (int)Math.Floor((wUtilT + ahP) / (pc + ahP) + 1e-9) - (camada == 1 ? nSupCanto : 0);
+                        if (n > cabem) continue;
+                        if (arr.N == 0 || n * A(phi) < arr.N * A(arr.Phi) - 1e-9) arr = (n, phi, nec, camada);
+                    }
+                    if (arr.N > 0) break;
+                }
+                double xPico = pts.OrderBy(p => p.Md).First().X, mdPico = pts.Min(p => p.Md);
+                if (arr.N == 0)
+                {
+                    r.Avisos.Add($"Negativa da ponta {lado}: não cabe numa camada (nem entre as superiores, nem na 2ª camada) — aumentar a largura ou reduzir o αR.");
+                    r.Verificacoes.Add(K("K22", "Negativa", $"Armadura negativa da ponta {lado}", $"Md− = {N(mdPico, "0.0")} kN·m", "numa camada", true, "NBR 6118, 17.2.2"));
+                    continue;
+                }
+                // comprimento: da ponta (a cobrimento) até onde o negativo acaba, mais a decalagem aℓ e o comprimento de ancoragem lb,nec
+                double xZero = lado == "esquerda" ? pts.Max(p => p.X) : pts.Min(p => p.X);
+                double lb = regra.Lb(arr.Phi, acoL), lbNec = Math.Max(lb * arr.Nec / (arr.N * A(arr.Phi)), Math.Max(0.3 * lb, Math.Max(10 * arr.Phi / 10, 10)));
+                double compr = Math.Ceiling(((lado == "esquerda" ? xZero : L - xZero) + r.Al + lbNec - cobP) / 5 - 1e-9) * 5;
+                double ini = lado == "esquerda" ? cobP : Math.Max(cobP, L - cobP - compr), fim = lado == "esquerda" ? Math.Min(L - cobP, cobP + compr) : L - cobP;
+                r.Negativas.Add((lado, arr.N, arr.Phi, ini, fim, arr.Nec, arr.Camada));
+                m5b.Linhas.Add($"Ponta {lado}: Md− = {N(mdPico, "0.0")} kN·m em x = {N(xPico, "0")} cm (envoltória: {r.ModelosAnalise}); As,nec = {N(arr.Nec)} cm² " +
+                               $"(d da seção em cada x; no dente, a altura do dente) → {arr.N} ø{N(arr.Phi, "0.#")} = {N(arr.N * A(arr.Phi))} cm², " +
+                               (arr.Camada == 1 ? "na 1ª camada, entre as superiores." : "na 2ª camada de cima (entre as superiores não cabe)."));
+                m5b.Linhas.Add($"Comprimento: o negativo acaba em x = {N(xZero, "0")} cm; + aℓ = {N(r.Al, "0.0")} cm; + lb,nec = lb·As,nec/As,ef = {N(lb, "0")}·{N(arr.Nec)}/{N(arr.N * A(arr.Phi))} = {N(lbNec, "0")} cm " +
+                               $"(má aderência, 9.3.1; mín. 0,3·lb, 10ø e 10 cm) → barra de {N(ini, "0")} a {N(fim, "0")} cm ({N(fim - ini, "0")} cm). Não soma com a superior (decisão do usuário).");
+                r.Verificacoes.Add(K("K22", "Negativa", $"Armadura negativa da ponta {lado}", $"{arr.N} ø{N(arr.Phi, "0.#")} = {N(arr.N * A(arr.Phi))} cm²", $"≥ {N(arr.Nec)} cm²",
+                    false, "NBR 6118, 17.2.2"));
+                r.Verificacoes.Add(K("K23", "Negativa", $"Ancoragem da negativa na ligação (ponta {lado})", "barra até a ponta", "dimensionar a ligação", true, "NBR 9062, 7",
+                    SituacaoVerificacao.Conferir, "Na ponta a negativa entrega o momento à ligação (solda, chumbador, graute): confira a ancoragem nela."));
+            }
+            if (m5b.Linhas.Count > 0) r.Memoria.Add(m5b);
+        }
+        else if (r.DiagramaNegativo.Count > 0 && capa > 0)
+            r.Avisos.Add("Momento negativo nas pontas com 2º estágio: a negativa vai no detalhe do capeamento da laje (não entra na peça).");
 
         // ---------------- 6. ancoragem no apoio (pontas retas) ----------------
         if (r.Inferior != null)
@@ -739,6 +838,8 @@ public static class CalculoViga
         {
             string f = ValoresTemplate.Celula(l, 0);
             if (f.Equals(TemplateVigaPreMoldada.FInferior, StringComparison.OrdinalIgnoreCase) || f.Equals(TemplateVigaPreMoldada.FPele, StringComparison.OrdinalIgnoreCase)) continue;
+            // com a análise, as negativas são as calculadas (as do template saem)
+            if (r.ModelosAnalise != null && f.Equals(TemplateVigaPreMoldada.FNegativa, StringComparison.OrdinalIgnoreCase)) continue;
             if (f.Equals(TemplateVigaPreMoldada.FSuperior, StringComparison.OrdinalIgnoreCase) && r.Superior.N > 0 && !supTrocada)
             {
                 double asPad = ValoresTemplate.NumeroCelula(l, 1) * A(ValoresTemplate.NumeroCelula(l, 2));
@@ -754,6 +855,8 @@ public static class CalculoViga
             }
             linhas.Add(l);
         }
+        foreach (var ng in r.Negativas)
+            linhas.Add(new[] { TemplateVigaPreMoldada.FNegativa, ng.N.ToString(), Fmt.N(ng.Bitola), ng.Camada.ToString(), "0", "0", Fmt.N(ng.Ini), Fmt.N(ng.Fim) });
         if (r.Pele.NPorFace > 0) linhas.Add(new[] { TemplateVigaPreMoldada.FPele, r.Pele.NPorFace.ToString(), Fmt.N(r.Pele.Bitola), "1", "0", "0", "", "" });
         p["Longitudinais"] = ValoresTemplate.JuntarTabela(linhas);
         if (r.EstBitola > 0)

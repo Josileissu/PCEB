@@ -74,8 +74,10 @@ public sealed class ZonaEstriboViga
 /// </summary>
 public sealed partial class TemplateVigaPreMoldada
 {
-    public const string FInferior = "Inferior", FSuperior = "Superior", FPele = "Pele", FConstrutiva = "Construtiva";
-    public static readonly string[] FuncoesLong = { FInferior, FSuperior, FPele, FConstrutiva };
+    /// <summary>Negativa (D51, 25/11/2026): armadura de cima nas pontas, calculada pelo momento negativo da ligação semirrígida;
+    /// não soma com a superior (decisão do usuário). Na seção, as superiores vão nos cantos e as negativas entre elas.</summary>
+    public const string FInferior = "Inferior", FSuperior = "Superior", FPele = "Pele", FConstrutiva = "Construtiva", FNegativa = "Negativa";
+    public static readonly string[] FuncoesLong = { FInferior, FSuperior, FPele, FConstrutiva, FNegativa };
     public const string EstFechado = "Fechado", EstAberto = "Aberto (U) com saliência para a capa";
     private const string G7 = "07. Armadura longitudinal", G8 = "08. Estribos";
     private static readonly string[] BitolasLongViga = { "8", "10", "12.5", "16", "20", "22", "25", "32" };
@@ -87,7 +89,7 @@ public sealed partial class TemplateVigaPreMoldada
         {
             Grupo = G7, Nome = "Longitudinais", Rotulo = "Barras longitudinais", Tipo = TipoParametro.Tabela, NomeItem = "linha",
             Padrao = "Inferior|3|16|1|0|0||;Superior|2|10|1|0|0||;Pele|2|10|1|0|0||",
-            Descricao = "Clique em … para a lista: função (inferior, superior, pele, construtiva), quantidade (pele: por face), bitola, " +
+            Descricao = "Clique em … para a lista: função (inferior, superior, pele, construtiva, negativa), quantidade (pele: por face), bitola, " +
                         "camada (2 = segunda camada), dobras nas pontas (0 = reta) e início/fim (cm da ponta esquerda; vazio = a viga toda; " +
                         "a inferior para antes dos dentes).",
             Colunas =
@@ -155,7 +157,7 @@ public sealed partial class TemplateVigaPreMoldada
             double ini = Math.Max(i0, ValoresTemplate.NumeroCelula(l, 6, i0)), fim = Math.Min(f0, ValoresTemplate.NumeroCelula(l, 7, f0));
             if (fim - ini < 10) { avisos.Add($"Longitudinal {k} ({f}): trecho de {Num(ini, "0.#")} a {Num(fim, "0.#")} cm curto demais."); continue; }
             // 2º estágio (decisão do usuário, 2026-11-11): a superior vai no detalhe do capeamento da laje, não na peça
-            if (f == FSuperior && Capa(v) > 0) { avisos.Add($"Longitudinal {k} (Superior): viga com 2º estágio — a armadura superior vai no detalhe do capeamento da laje e não entra na peça."); continue; }
+            if ((f == FSuperior || f == FNegativa) && Capa(v) > 0) { avisos.Add($"Longitudinal {k} ({f}): viga com 2º estágio — a armadura de cima vai no detalhe do capeamento da laje e não entra na peça."); continue; }
             r.Add(new LinhaLongViga
             {
                 Linha = k, Funcao = f, Quantidade = q, Bitola = phi,
@@ -242,11 +244,11 @@ public sealed partial class TemplateVigaPreMoldada
     {
         string pt = l.Funcao switch
         {
-            FInferior => "ARMADURA INFERIOR", FSuperior => "ARMADURA SUPERIOR", FPele => "(PELE)", _ => "ARMADURA CONSTRUTIVA",
+            FInferior => "ARMADURA INFERIOR", FSuperior => "ARMADURA SUPERIOR", FPele => "(PELE)", FNegativa => "ARMADURA NEGATIVA", _ => "ARMADURA CONSTRUTIVA",
         };
         string en = l.Funcao switch
         {
-            FInferior => "BOTTOM REINFORCEMENT", FSuperior => "TOP REINFORCEMENT", FPele => "SKIN", _ => "CONSTRUCTION REINFORCEMENT",
+            FInferior => "BOTTOM REINFORCEMENT", FSuperior => "TOP REINFORCEMENT", FPele => "SKIN", FNegativa => "NEGATIVE REINFORCEMENT", _ => "CONSTRUCTION REINFORCEMENT",
         };
         if (l.Camada == 2) { pt += " - 2ª CAMADA"; en += " - 2ND LAYER"; }
         return string.Join(" / ", c.Linhas(pt, en));
@@ -387,6 +389,24 @@ public sealed partial class TemplateVigaPreMoldada
         double r1 = l.Camada == 2 ? phi1 / 20 : rr;              // a 2ª camada parte do centro da 1ª
         double yc = inf ? cobF + t + r1 : hSec - cobT - t - r1;
         if (l.Camada == 2) yc += (inf ? 1 : -1) * (phi1 / 20 + Folga(Math.Max(phi1, l.Bitola)) + rr);
+        // 1ª camada de cima com negativas (D51): uma grade só para superiores e negativas — as superiores nos cantos (a posição delas
+        // é a mesma em toda a viga) e as negativas entre elas; as negativas de cada ponta ocupam os mesmos lugares
+        if (!inf && l.Camada == 1)
+        {
+            var sup = mesmo.Where(o => o.Camada == 1 && o.Funcao != FNegativa).GroupBy(o => o.Linha).Select(g => g.First()).ToList();
+            var neg = mesmo.Where(o => o.Camada == 1 && o.Funcao == FNegativa).ToList();
+            if (neg.Count > 0)
+            {
+                int nSup = sup.Sum(o => o.Quantidade), nNeg = neg.Max(o => o.Quantidade);
+                var grade = Dividir(xl, xr, Math.Max(1, nSup + nNeg)).ToList();
+                int ladoE = (nSup + 1) / 2;
+                var cantos = grade.Take(ladoE).Concat(grade.Skip(ladoE + nNeg)).ToList();
+                var meio = grade.Skip(ladoE).Take(nNeg).ToList();
+                if (l.Funcao == FNegativa) return meio.Take(l.Quantidade).Select(xx => (xx, yc)).ToList();
+                int antes = sup.TakeWhile(o => o.Linha != l.Linha).Sum(o => o.Quantidade);
+                return cantos.Skip(antes).Take(l.Quantidade).Select(xx => (xx, yc)).ToList();
+            }
+        }
         return Dividir(xl, xr, l.Quantidade).Select(xx => (xx, yc)).ToList();
     }
 

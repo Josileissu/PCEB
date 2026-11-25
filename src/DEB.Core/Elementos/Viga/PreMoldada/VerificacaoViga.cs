@@ -16,7 +16,7 @@ namespace DEB.Core.Elementos.Viga.PreMoldada;
 public sealed partial class TemplateVigaPreMoldada
 {
     private static FuncaoBarraViga Funcao(LinhaLongViga l) =>
-        l.Inferior ? FuncaoBarraViga.Inferior : l.Pele ? FuncaoBarraViga.Pele : l.Funcao == FSuperior ? FuncaoBarraViga.Superior : FuncaoBarraViga.Construtiva;
+        l.Inferior ? FuncaoBarraViga.Inferior : l.Pele ? FuncaoBarraViga.Pele : l.Funcao == FSuperior || l.Funcao == FNegativa ? FuncaoBarraViga.Superior : FuncaoBarraViga.Construtiva;
 
     /// <summary>Barras longitudinais na seção em x (as mesmas posições da SEÇÃO X-X - ARMADURA do vão).</summary>
     public static List<BarraSecaoViga> BarrasNaSecao(ValoresTemplate v, List<LinhaLongViga> longs, double b, double h, double x) =>
