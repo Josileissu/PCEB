@@ -305,6 +305,12 @@ public sealed partial class TemplateVigaPreMoldada
         double topoEst = capa > 0 ? yT + capa - cobT : yT - cobT + sal + (sal > 0 ? cobT : 0);
         foreach (var x in zonas.SelectMany(z => z.Posicoes))
             c.Linha(x, yB + cobF, x, topoEst, "ARM-BARRA-DETALHE");
+        // longitudinais também dentro da forma (pedido do usuário, 25/11/2026): cada linha na altura dela na seção (a mesma das
+        // SEÇÕES - ARMADURA), de onde começa até onde termina
+        double cobLat = v.Numero("CobLateral"), phiEstL = v.Numero("EstBitola");
+        foreach (var l in longs)
+            foreach (double z in PontosNaSecao(l, b, h, cobF, cobT, cobLat, phiEstL, longs).Select(p => Math.Round(p.Y, 3)).Distinct())
+                c.Linha(l.Ini, yB + z, l.Fim, yB + z, "ARM-BARRA-DETALHE");
         if (capa > 0) c.R.Contornos.Add(new ContornoTemplate { Vertices = { (0.0, yT), (0.0, yT + capa), (L, yT + capa), (L, yT) }, Layer = "ARM-FURO-OCULTO" });
         AbaEmElevacao(c, aba, L, yB, cotar: false);
         AberturasEmElevacaoArmaduras(c, v, cfg, abs, h, L, yB);
