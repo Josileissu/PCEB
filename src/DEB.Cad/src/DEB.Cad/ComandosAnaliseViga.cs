@@ -86,7 +86,15 @@ public sealed class ComandosAnaliseViga
         ResultadoAnaliseViga r;
         try { r = AnaliseViga.Rodar(v, ent); }
         catch (ArgumentException ex) { ed?.WriteMessage("\nAnálise: " + ex.Message); return new List<ObjectId>(); }
-        var des = DesenhoAnaliseViga.Gerar(r, ent, v, UnidadesAnalise.DoCad(cfg), null, escala, cfg.AlturaTextoMm);
+        // o dimensionamento sai da mesma análise: a memória (no espaço reservado) e a viga armada vêm do mesmo resultado (D26)
+        ResultadoCalculoViga calc = null;
+        try
+        {
+            var cat = TemplateVigaPreMoldada.CatalogoDentes;
+            calc = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(ent, v, cat), null, cat, r);
+        }
+        catch (Exception ex) { Log.Erro("ARMVIGAANALISE cálculo", ex); ed?.WriteMessage("\nDimensionamento: " + ex.Message); }
+        var des = DesenhoAnaliseViga.Gerar(r, ent, v, UnidadesAnalise.DoCad(cfg), null, escala, cfg.AlturaTextoMm, calc);
         List<ObjectId> ids;
         using (var tr = db.TransactionManager.StartTransaction())
         {
@@ -108,7 +116,7 @@ public sealed class ComandosAnaliseViga
             double minY = des.Contornos.SelectMany(c => c.Vertices).Select(q => q.Y).Concat(des.Textos.Select(t => t.Y)).DefaultIfEmpty(0).Min();
             double cpu = Desenho.CmPorUnidade(db, cfg);
             var pt = new Point3d(origem.X, origem.Y + (minY - 4 * escala) / cpu, origem.Z);
-            ArmarViga(ed, db, cfg, id, v, ent, r, pt);
+            if (calc != null) ArmarViga(ed, db, cfg, id, v, calc, pt);
         }
         catch (Exception ex)
         {
@@ -130,11 +138,9 @@ public sealed class ComandosAnaliseViga
     /// substitui) e desenha o detalhamento da proposta em <paramref name="pt"/>; o bloco do detalhamento leva a id da análise. O de
     /// um desenho anterior da mesma análise já foi apagado com as outras entidades dela (e a definição do bloco sem inserções sai).
     /// </summary>
-    internal static ResultadoCalculoViga ArmarViga(Editor ed, Database db, ConfiguracaoArmadura cfg, string id, ValoresTemplate v, EntradaAnaliseViga ent,
-        ResultadoAnaliseViga r, Point3d pt)
+    internal static ResultadoCalculoViga ArmarViga(Editor ed, Database db, ConfiguracaoArmadura cfg, string id, ValoresTemplate v, ResultadoCalculoViga calc, Point3d pt)
     {
         var cat = TemplateVigaPreMoldada.CatalogoDentes;
-        var calc = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(ent, v, cat), null, cat, r);
         if (calc.DentesPropostos.Count > 0)
         {
             // o catálogo do usuário + os tipos que a viga usa (se faltarem) + os calculados

@@ -384,4 +384,27 @@ public class AnaliseVigaTests
         var lida = TabelasAnaliseViga.Ler(d.Tabelas.Select(t => (t.Titulo, t.Linhas)));
         Assert.Equal(25, lida.FckCapa, 6);
     }
+    // ---------------- etapa 5: memória de cálculo no espaço reservado ----------------
+
+    [Fact]
+    public void MemoriaDeCalculoNoDesenho()
+    {
+        var (v, cat) = V101();
+        var ent = CargasV101();
+        var an = AnaliseViga.Rodar(v, ent, null, cat);
+        var calc = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(ent, v, cat), null, cat, an);
+        var linhas = MemoriaAnaliseViga.Linhas(an, ent, calc, "V101");
+        // passos da análise (A1 a A5), do dimensionamento (inclusive negativas, aba, dente) e o quadro de verificações
+        foreach (var t in new[] { "A1.", "A2.", "A3.", "A4.", "A5.", "2.", "5b.", "5c.", "7.", "Verificações" })
+            Assert.Contains(linhas, l => l.Titulo && l.Texto.StartsWith(t));
+        Assert.Contains(linhas, l => l.Texto.Contains("K9 [OK]"));
+        Assert.All(linhas, l => Assert.True(l.Texto.Length <= 172));
+        // no desenho, abaixo dos diagramas, na camada PCEB_MEMORIA, nas unidades da configuração (tf no padrão do escritório)
+        var d = DesenhoAnaliseViga.Gerar(an, ent, v, null, cat, 50, 2.0, calc);
+        var mem = d.Textos.Where(t => t.Layer == DesenhoAnaliseViga.LMemoria).ToList();
+        Assert.True(mem.Count > 40);
+        double fundoDiagramas = d.Contornos.Where(c => c.Layer == DesenhoAnaliseViga.LDeslocada).Min(c => c.Vertices.Min(p => p.Y));
+        Assert.True(mem.Max(t => t.Y) < fundoDiagramas);
+        Assert.Contains(mem, t => t.Texto.Contains(" tf"));
+    }
 }

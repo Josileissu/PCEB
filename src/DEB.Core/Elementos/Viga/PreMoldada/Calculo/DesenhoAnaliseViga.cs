@@ -17,13 +17,13 @@ public static class DesenhoAnaliseViga
 {
     public const string LTextos = "PCEB_TEXTOS", LBarra = "PCEB_Barra", LNo = "PCEB_NÓ", LSuporte = "PCEB_SUPORTE", LSemi = "PCEB_SEMI_RÍGIDO",
         LCargas = "PCEB_CARGAS", LSecao = "PCEB_SEÇÃO", LCortante = "PCEB_DIAGRAMA_CORTANTE", LFletor = "PCEB_DIAGRAMA_FLETOR",
-        LDeslocada = "PCEB_DESLOCADA", LDeslocadaTotal = "PCEB_DESLOCADA_TOTAL", LTabela = "PCEB_TABELA";
+        LDeslocada = "PCEB_DESLOCADA", LDeslocadaTotal = "PCEB_DESLOCADA_TOTAL", LTabela = "PCEB_TABELA", LMemoria = "PCEB_MEMORIA";
 
     /// <summary>Distâncias verticais entre os blocos do desenho (cm na escala 1:50; multiplicadas por escala/50).</summary>
     private const double Folga = 60, AlturaDiagrama = 45;
 
     public static ResultadoTemplate Gerar(ResultadoAnaliseViga r, EntradaAnaliseViga ent, ValoresTemplate v, UnidadesAnalise u = null,
-        IReadOnlyList<TipoDente> catalogo = null, double escala = 50, double alturaTextoMm = 2.0)
+        IReadOnlyList<TipoDente> catalogo = null, double escala = 50, double alturaTextoMm = 2.0, ResultadoCalculoViga calc = null)
     {
         u ??= new UnidadesAnalise(null);
         catalogo ??= TemplateVigaPreMoldada.CatalogoDentes;
@@ -184,6 +184,17 @@ public static class DesenhoAnaliseViga
                 var mT = total.OrderByDescending(p => p.Item2).First();
                 Valor(LDeslocadaTotal, mT.X, yD - mT.Item2 * esc - ht - k, mT.Item2 * 10, 1);
                 Txt($"com fissuração e fluência (αf = {N(r.AlfaF)}); limite ℓ/250 = {N(r.Vao / 250 * 10, "0.0")}", L + 4 * k, yD - mT.Item2 * esc, ht, 0, LDeslocadaTotal);
+            }
+        }
+
+        // ------------------------------------------------ memória de cálculo no espaço reservado, abaixo dos diagramas (etapa 5)
+        {
+            double yMem = yD - AlturaDiagrama * k - Folga * k - 2 * hTit;
+            foreach (var (texto, titulo) in MemoriaAnaliseViga.Linhas(r, ent, calc, v["Nome"], u))
+            {
+                if (titulo) yMem -= 0.8 * ht;
+                Txt(texto, 0, yMem, titulo ? 1.25 * ht : ht, 0, LMemoria);
+                yMem -= (titulo ? 2.0 : 1.6) * ht;
             }
         }
 
