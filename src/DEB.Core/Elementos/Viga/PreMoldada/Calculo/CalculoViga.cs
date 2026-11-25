@@ -76,6 +76,23 @@ public sealed class ResultadoCalculoViga
     public double XZonaE { get; set; }
     public double XZonaD { get; set; }
 
+    // torção (NBR 6118, 17.5.1 e 17.7.2; θ = 45°, o mesmo do modelo I do cortante)
+    /// <summary>Momento de torção de cálculo junto aos apoios (kN·m); 0 = sem torção (sem carga na aba).</summary>
+    public double TdE { get; set; }
+    public double TdD { get; set; }
+    public double TdMax => Math.Max(TdE, TdD);
+    /// <summary>Seção vazada equivalente da alma: espessura he, área Ae e perímetro ue (cm, cm², cm).</summary>
+    public double He { get; set; }
+    public double Ae { get; set; }
+    public double Ue { get; set; }
+    /// <summary>Torção máxima resistida pelas bielas (kN·m).</summary>
+    public double TRd2 { get; set; }
+    /// <summary>Estribo de torção por ramo (cm²/m) e armadura longitudinal de torção por metro de perímetro (cm²/m), no apoio.</summary>
+    public double As90 { get; set; }
+    public double AslPorM { get; set; }
+    /// <summary>Diagrama do momento de torção de cálculo: x (cm), Td (kN·m).</summary>
+    public List<(double X, double Td)> DiagramaTorcao { get; set; } = new List<(double, double)>();
+
     // ELS
     public double FlechaImediata { get; set; }
     public double FlechaTotal { get; set; }
@@ -112,7 +129,10 @@ public sealed class ResultadoCalculoViga
         D("Cargas (características)", $"g1 = {Nm(G1)} kN/m (peso próprio)" + (GCapa > 0 ? $"; capa {Nm(GCapa)} kN/m" : "") +
                                       $"; g2 = {Nm(Cargas.G)} kN/m; q = {Nm(Cargas.Q)} kN/m" +
                                       (Cargas.Concentradas.Count > 0 ? $"; concentradas: {CargasViga.TextoConcentradas(Cargas.Concentradas)}" : ""));
-        D("Esforços de cálculo", $"Md,máx = {Nm(MdMax, "0.0")} kN·m; Vd = {Nm(VdE, "0.0")} / {Nm(VdD, "0.0")} kN (apoios esquerdo / direito)");
+        if (Cargas.GAba > 0 || Cargas.QAba > 0)
+            D("Cargas na aba (por lado)", $"g = {Nm(Cargas.GAba)} kN/m; q = {Nm(Cargas.QAba)} kN/m");
+        D("Esforços de cálculo", $"Md,máx = {Nm(MdMax, "0.0")} kN·m; Vd = {Nm(VdE, "0.0")} / {Nm(VdD, "0.0")} kN (apoios esquerdo / direito)" +
+                                 (TdMax > 0 ? $"; Td = {Nm(TdE, "0.0")} / {Nm(TdD, "0.0")} kN·m" : ""));
         D("Reações características", $"esquerda G {Nm(RkE_G, "0.0")} + Q {Nm(RkE_Q, "0.0")} kN; direita G {Nm(RkD_G, "0.0")} + Q {Nm(RkD_Q, "0.0")} kN");
         D("Armadura proposta", string.Join("; ", ResumoProposta()));
         g.Verificacoes.Juntar(Verificacoes);
@@ -128,6 +148,12 @@ public sealed class ResultadoCalculoViga
             Titulo = "Força cortante de cálculo Vd (kN)", Unidade = "kN",
             Pontos = vao.Select(p => (p.X, p.Vd)).ToList(), Apoios = { ApoioE, L - ApoioD },
         });
+        if (TdMax > 0)
+            g.Diagramas.Add(new DiagramaRelatorio
+            {
+                Titulo = "Momento de torção de cálculo Td (kN·m)", Unidade = "kN·m",
+                Pontos = DiagramaTorcao.ToList(), Apoios = { ApoioE, L - ApoioD },
+            });
     }
 }
 
@@ -183,13 +209,19 @@ public static class CalculoViga
         double vol = TemplateVigaPreMoldada.Volume(b, h, L, e, d) + aba.VolumeCm3 / 1e6 + ress.VolumeCm3(L) / 1e6;   // m³
         r.G1 = vol * gc / (L / 100);
         r.GCapa = capa > 0 ? b * capa / 1e4 * gc : 0;
-        double gTot = r.G1 + r.GCapa + cargas.G, qTot = cargas.Q;   // kN/m
+        // carga da laje na aba (por lado): entra nas verticais como distribuída no comprimento todo (a favor da segurança quando a
+        // aba é parcial) e gera a torção do passo 10
+        int ladosAba = aba.Existe ? aba.Lados : 0;
+        if (!aba.Existe && (cargas.GAba > 0 || cargas.QAba > 0))
+            r.Avisos.Add("Há carga na aba, mas a viga não tem aba no template: a carga entrou como vertical no eixo, sem torção — conferir.");
+        double nAba = aba.Existe ? ladosAba : 1;
+        double gTot = r.G1 + r.GCapa + cargas.G + nAba * cargas.GAba, qTot = cargas.Q + nAba * cargas.QAba;   // kN/m
         var pg = cargas.Concentradas.Select(p => (p.X, p.G)).ToList();
         var pq = cargas.Concentradas.Select(p => (p.X, p.Q)).ToList();
         double xa = r.ApoioE, xb = L - r.ApoioD;
         var eg = new EstaticaViga(L, xa, xb, gTot / 100, pg);
         var eq = new EstaticaViga(L, xa, xb, qTot / 100, pq);
-        var eg1 = new EstaticaViga(L, xa, xb, (r.G1 + r.GCapa + cargas.G) / 100, pg);   // 1º estágio (peça sozinha): todas as permanentes
+        var eg1 = new EstaticaViga(L, xa, xb, gTot / 100, pg);   // 1º estágio (peça sozinha): todas as permanentes
         r.RkE_G = eg.Ra; r.RkD_G = eg.Rb; r.RkE_Q = eq.Ra; r.RkD_Q = eq.Rb;
 
         var m1 = new PassoMemoria { Titulo = "1. Geometria, apoios e cargas (valores característicos)" };
@@ -201,6 +233,9 @@ public static class CalculoViga
         m1.Linhas.Add($"Peso próprio: volume {N(vol, "0.000")} m³ × {N(gc, "0.#")} kN/m³ / {N(L / 100, "0.00")} m = g1 = {N(r.G1, "0.00")} kN/m.");
         if (capa > 0) m1.Linhas.Add($"Capa sobre a viga: {N(b / 100, "0.00")} × {N(capa / 100, "0.00")} m × {N(gc, "0.#")} kN/m³ = {N(r.GCapa, "0.00")} kN/m.");
         m1.Linhas.Add($"Permanente adicional (digitada): g2 = {N(cargas.G, "0.00")} kN/m; variável: q = {N(cargas.Q, "0.00")} kN/m.");
+        if (cargas.GAba > 0 || cargas.QAba > 0)
+            m1.Linhas.Add($"Na aba (por lado{(ladosAba == 2 ? ", dois lados" : "")}): g = {N(cargas.GAba, "0.00")} kN/m, q = {N(cargas.QAba, "0.00")} kN/m → " +
+                          $"somadas às verticais: g = {N(nAba * cargas.GAba, "0.00")} e q = {N(nAba * cargas.QAba, "0.00")} kN/m.");
         foreach (var p in cargas.Concentradas)
             m1.Linhas.Add($"Concentrada em x = {N(p.X, "0.#")} cm: G = {N(p.G, "0.##")} kN, Q = {N(p.Q, "0.##")} kN.");
         m1.Linhas.Add($"Reações características: esquerda G = {N(eg.Ra, "0.0")} kN, Q = {N(eq.Ra, "0.0")} kN; direita G = {N(eg.Rb, "0.0")} kN, Q = {N(eq.Rb, "0.0")} kN.");
@@ -352,6 +387,45 @@ public static class CalculoViga
         }
         r.Memoria.Add(m4);
 
+        // ---------------- torção: torque da carga na aba e seção vazada equivalente (verificações no passo 10) ----------------
+        // Só com carga digitada na aba: a laje fora do eixo da alma é torção de EQUILÍBRIO (17.5.1.2), presa nos dois apoios.
+        Func<double, double> tdEm = _ => 0;   // kN·cm, em módulo
+        SecaoTorcao st = null;
+        double eAba = 0, ePP = 0, gAbaPP = 0, mtG = 0, mtQ = 0;
+        bool torcaoNaMontagem = false;
+        if (aba.Existe && (cargas.GAba > 0 || cargas.QAba > 0))
+        {
+            eAba = cargas.ExcAba > 0 ? cargas.ExcAba : b / 2 + aba.Largura / 2;
+            double h0 = aba.Altura, h1 = aba.AltPonta, w = aba.Largura;
+            gAbaPP = w * (h0 + h1) / 2 / 1e4 * gc;                       // peso da aba (kN/m), por lado
+            ePP = b / 2 + w * (h0 + 2 * h1) / (3 * (h0 + h1));          // CG do trapézio da aba até o eixo da alma (cm)
+            // torque por metro (kN·cm/m): seção L = a aba toda de um lado; T invertido = equilibrado, salvo a montagem
+            // (laje de um lado só, sem sobrecarga) e a sobrecarga de um lado só — vale o pior dos dois
+            mtG = ladosAba == 1 ? cargas.GAba * eAba + gAbaPP * ePP : cargas.GAba * eAba;
+            mtQ = cargas.QAba * eAba;
+            double mtd;
+            if (ladosAba == 1) mtd = (k.GamaG * mtG + k.GamaQ * mtQ) / 100;
+            else
+            {
+                double mont = k.GamaG * mtG, serv = k.GamaQ * mtQ;
+                torcaoNaMontagem = mont >= serv;
+                mtd = Math.Max(mont, serv) / 100;                         // kN·cm/cm
+            }
+            if (mtd > 1e-9)
+            {
+                var f = TorcaoViga.Diagrama(mtd, aba.Ini, aba.Fim, xa, xb, out double ta, out double tb);
+                tdEm = x => Math.Abs(f(x));
+                r.TdE = ta / 100; r.TdD = tb / 100;                       // kN·m
+                double phiL = r.Inferior?.Bitola ?? 12.5;
+                st = TorcaoViga.Secao(b, h, cobL + phiT0 / 10 + phiL / 20);
+                r.He = st.He; r.Ae = st.Ae; r.Ue = st.Ue;
+                r.TRd2 = TorcaoViga.TRd2(st, fck, fcd) / 100;
+                foreach (var p in r.Diagrama) r.DiagramaTorcao.Add((p.X, f(p.X) / 100));
+            }
+        }
+        // estribo de torção por ramo (cm²/cm) na seção x
+        double As90Em(double x) => st == null ? 0 : TorcaoViga.As90PorCm(st, tdEm(x), fywd);
+
         // ---------------- 5. cisalhamento: estribos (modelo I) ----------------
         double dV = (r.Inferior?.D ?? h - cobF - phiTcm - 1) + (capa > 0 ? 0 : 0);   // a peça resiste sozinha à cortante do 1º estágio: d da peça
         double av2 = 1 - fck / 250;
@@ -361,6 +435,9 @@ public static class CalculoViga
         double rhoMin = 0.2 * fctm * 10 / fywk;   // ρsw,mín
         double aswMin = rhoMin * b;               // cm²/cm
         double AswS(double vd) => Math.Max(aswMin, Math.Max(0, vd - r.Vc) / (0.9 * dV * fywd));
+        // cortante + torção (17.7.2.2): soma por ramo — os 2 ramos do cortante + 2 × o ramo da torção (um em cada parede)
+        double AswTot(double vd, double x) => Math.Max(aswMin, Math.Max(0, vd - r.Vc) / (0.9 * dV * fywd) + 2 * As90Em(x));
+        double aswPonta = Math.Max(AswTot(r.VdE, xa + 1e-6), AswTot(r.VdD, xb - 1e-6));
         bool rigoroso = vdMax > 0.67 * r.VRd2;
         double sMax = rigoroso ? Math.Min(0.3 * dV, 20) : Math.Min(0.6 * dV, 30);
         double espPadP = v.Numero("EstEspPonta") > 0 ? v.Numero("EstEspPonta") : 10, espPadV = v.Numero("EstEspVao") > 0 ? v.Numero("EstEspVao") : 15;
@@ -369,7 +446,7 @@ public static class CalculoViga
         foreach (double p in BitolasEst.Where(x => x >= phiT0 - 1e-6).DefaultIfEmpty(phiT0))
         {
             phiEst = p;
-            sP = Math.Min(Math.Min(Arred(2 * A(p) / AswS(vdMax)), sMax), espPadP);
+            sP = Math.Min(Math.Min(Arred(2 * A(p) / aswPonta), sMax), espPadP);
             if (sP >= 7.5 - 1e-9) break;
         }
         if (sP < 5) { r.Avisos.Add($"Estribos: com ø{N(phiEst, "0.#")} o espaçamento nas pontas fica {N(sP, "0.#")} cm — usar 4 ramos ou aumentar a seção."); sP = Math.Max(sP, 2.5); }
@@ -380,7 +457,7 @@ public static class CalculoViga
         double xFimE = xa, xIniD = xb;
         foreach (var p in r.Diagrama)
         {
-            if (AswS(Math.Abs(p.Vd)) <= capV + 1e-12) continue;
+            if (AswTot(Math.Abs(p.Vd), p.X) <= capV + 1e-12) continue;
             if (p.X <= (xa + xb) / 2) xFimE = Math.Max(xFimE, p.X); else xIniD = Math.Min(xIniD, p.X);
         }
         double x0E = (e.TemDente ? e.CompDente : 0) + cobP, x0D = (d.TemDente ? d.CompDente : 0) + cobP;
@@ -394,7 +471,8 @@ public static class CalculoViga
         m5.Linhas.Add($"d = {N(dV, "0.0")} cm; αv2 = 1 − fck/250 = {N(av2, "0.000")}; VRd2 = 0,27·αv2·fcd·b·d = {N(r.VRd2, "0.0")} kN; Vd,máx = {N(vdMax, "0.0")} kN (Vd/VRd2 = {N(r.VdSobreVRd2, "0.00")}).");
         m5.Linhas.Add($"Vc = Vc0 = 0,6·fctd·b·d = 0,6·{N(fctd * 10, "0.000")}·{N(b, "0.#")}·{N(dV, "0.0")}/10 = {N(r.Vc, "0.0")} kN (flexão simples, 17.4.2.2 b).");
         m5.Linhas.Add($"Asw/s = (Vsd − Vc)/(0,9·d·fywd), fywd = {N(fywd * 10, "0")} MPa; mínimo ρsw = 0,2·fctm/fywk = {N(rhoMin * 100, "0.000")} % → {N(aswMin * 100, "0.00")} cm²/m.");
-        m5.Linhas.Add($"Na ponta: Asw/s = {N(AswS(vdMax) * 100, "0.00")} cm²/m → ø{N(phiEst, "0.#")} c/{N(sP, "0.#")} (2 ramos = {N(2 * A(phiEst) / sP * 100, "0.00")} cm²/m).");
+        m5.Linhas.Add($"Na ponta: Asw/s = {N(aswPonta * 100, "0.00")} cm²/m" + (st != null ? $" (cortante {N(AswS(vdMax) * 100, "0.00")} + torção 2 × {N(As90Em(xa + 1e-6) * 100, "0.00")}, passo 10)" : "") +
+                      $" → ø{N(phiEst, "0.#")} c/{N(sP, "0.#")} (2 ramos = {N(2 * A(phiEst) / sP * 100, "0.00")} cm²/m).");
         m5.Linhas.Add($"No vão: ø{N(phiEst, "0.#")} c/{N(sV, "0.#")}; s,máx = {(rigoroso ? "0,3d ≤ 20 cm" : "0,6d ≤ 30 cm")} = {N(sMax, "0.#")} cm (18.3.3.2)" +
                       (zona > 0 ? $"; zona das pontas: {N(zona, "0")} cm a partir da face do dente (ou da ponta)." : "."));
         m5.Linhas.Add($"O padrão do escritório é o mínimo: espaçamentos até {N(espPadP, "0.#")} (pontas) e {N(espPadV, "0.#")} cm (vão), bitola a partir de ø{N(phiT0, "0.#")}.");
@@ -407,8 +485,8 @@ public static class CalculoViga
         m5.Linhas.Add($"VRd3 = Vc + Vsw: pontas {N(r.VRd3Ponta, "0.0")} kN, vão {N(r.VRd3Vao, "0.0")} kN. Decalagem do diagrama de Md: aℓ = {N(r.Al, "0.0")} cm (17.4.2.2 c).");
         r.Verificacoes.Add(K("K5", "Cisalhamento", "Compressão das bielas (VRd2)", $"Vd = {N(vdMax, "0.0")} kN", $"≤ VRd2 = {N(r.VRd2, "0.0")} kN", vdMax > r.VRd2, "NBR 6118, 17.4.2.2",
             dica: "Aumente a largura (b) ou a altura da viga."));
-        r.Verificacoes.Add(K("K6", "Cisalhamento", "Estribos nas pontas (Asw/s)", $"{N(2 * A(phiEst) / sP * 100, "0.00")} cm²/m",
-            $"≥ {N(AswS(vdMax) * 100, "0.00")} cm²/m", 2 * A(phiEst) / sP < AswS(vdMax) - 1e-12, "NBR 6118, 17.4.2.2"));
+        r.Verificacoes.Add(K("K6", "Cisalhamento", st != null ? "Estribos nas pontas (Asw/s, cortante + torção)" : "Estribos nas pontas (Asw/s)", $"{N(2 * A(phiEst) / sP * 100, "0.00")} cm²/m",
+            $"≥ {N(aswPonta * 100, "0.00")} cm²/m", 2 * A(phiEst) / sP < aswPonta - 1e-12, st != null ? "NBR 6118, 17.4.2.2 e 17.7.2.2" : "NBR 6118, 17.4.2.2"));
         r.Verificacoes.Add(K("K7", "Cisalhamento", "Espaçamento máximo dos estribos com o Vd", $"{N(Math.Max(sP, sV), "0.#")} cm",
             $"≤ {N(sMax, "0.#")} cm ({(rigoroso ? "Vd > 0,67·VRd2" : "Vd ≤ 0,67·VRd2")})", Math.Max(sP, sV) > sMax + 1e-9, "NBR 6118, 18.3.3.2"));
 
@@ -547,6 +625,94 @@ public static class CalculoViga
             r.Verificacoes.Add(K("K13", "Serviço", "Abertura de fissuras (combinação frequente)", $"wk = {N(r.Wk, "0.00")} mm", $"≤ {N(wLim, "0.0")} mm (Tabela 13.4)",
                 r.Wk > wLim + 1e-9, "NBR 6118, 17.3.3.2", dica: "Use mais barras de bitola menor na armadura inferior."));
             r.Memoria.Add(m9);
+        }
+
+        // ---------------- 10. torção de equilíbrio (carga na aba) ----------------
+        if (st != null)
+        {
+            var m10 = new PassoMemoria { Titulo = "10. Torção de equilíbrio — laje apoiada na aba (NBR 6118, 17.5.1, 17.7.2 e 18.3.4)" };
+            double xCrit = r.TdE >= r.TdD ? xa + 1e-6 : xb - 1e-6, vdCrit = r.TdE >= r.TdD ? r.VdE : r.VdD;
+            double tdMax = r.TdMax * 100;   // kN·cm
+            m10.Linhas.Add($"Excentricidade da carga da aba: e = {N(eAba, "0.0")} cm do eixo da alma" + (cargas.ExcAba > 0 ? " (digitada)" : " (b/2 + meio do balanço da aba)") +
+                           (ladosAba == 1 ? $"; peso da aba {N(gAbaPP, "0.00")} kN/m com o CG a {N(ePP, "0.0")} cm." : "."));
+            m10.Linhas.Add(ladosAba == 1
+                ? $"Seção L: mt = γg·(g·e + g,aba·e,aba) + γq·q·e = {N(k.GamaG)}·{N(mtG / 100, "0.00")} + {N(k.GamaQ)}·{N(mtQ / 100, "0.00")} = {N((k.GamaG * mtG + k.GamaQ * mtQ) / 100, "0.00")} kN·m/m."
+                : $"T invertido: as abas se equilibram em serviço; vale o pior entre a montagem com laje de um lado só (γg·g·e = {N(k.GamaG * mtG / 100, "0.00")} kN·m/m) " +
+                  $"e a sobrecarga de um lado só (γq·q·e = {N(k.GamaQ * mtQ / 100, "0.00")} kN·m/m) → {(torcaoNaMontagem ? "montagem" : "sobrecarga")}.");
+            m10.Linhas.Add($"Torção presa nos dois apoios (a ligação resiste a ela): Td = {N(r.TdE, "0.00")} kN·m no apoio esquerdo e {N(r.TdD, "0.00")} kN·m no direito, " +
+                           $"diminuindo até o meio do trecho com aba.");
+            double au = b * h / (2 * (b + h));
+            m10.Linhas.Add($"Seção vazada equivalente da alma (17.5.1.4.1): A/u = {N(b, "0.#")}·{N(h, "0.#")}/(2·({N(b, "0.#")} + {N(h, "0.#")})) = {N(au, "0.0")} cm; 2c1 = {N(2 * st.C1, "0.0")} cm" +
+                           (st.PelosCantos ? $" > A/u: he = A/u = {N(st.He, "0.0")} cm e Ae pelos eixos das barras dos cantos" : $": he = A/u = {N(st.He, "0.0")} cm") +
+                           $" → Ae = {N(st.LadoB, "0.0")} × {N(st.LadoH, "0.0")} = {N(st.Ae, "0.0")} cm²; ue = {N(st.Ue, "0.0")} cm.");
+            m10.Linhas.Add($"Bielas (θ = 45°, o mesmo do modelo I): TRd,2 = 0,5·αv2·fcd·Ae·he = {N(r.TRd2, "0.00")} kN·m (17.5.1.5).");
+            double inter = vdCrit / r.VRd2 + tdMax / (r.TRd2 * 100);
+            m10.Linhas.Add($"Cortante com torção (17.7.2.2): Vd/VRd2 + Td/TRd2 = {N(vdCrit, "0.0")}/{N(r.VRd2, "0.0")} + {N(r.TdMax, "0.00")}/{N(r.TRd2, "0.00")} = {N(inter, "0.00")} ≤ 1.");
+            r.Verificacoes.Add(K("K14", "Torção", "Bielas com cortante e torção (Vd/VRd2 + Td/TRd2)", N(inter, "0.00"), "≤ 1", inter > 1 + 1e-9, "NBR 6118, 17.7.2.2",
+                dica: "Aumente a largura da alma — na torção é o mais eficiente; aumentar a altura ajuda pouco."));
+
+            // estribos: por ramo, cortante + torção
+            r.As90 = TorcaoViga.As90PorCm(st, tdMax, fywd) * 100;
+            double ramoNec = Math.Max(aswMin, Math.Max(0, vdCrit - r.Vc) / (0.9 * dV * fywd) + 2 * TorcaoViga.As90PorCm(st, tdMax, fywd)) / 2, ramoTem = A(phiEst) / sP;
+            m10.Linhas.Add($"Estribos (17.5.1.6): A90/s = Td/(2·Ae·fywd) = {N(r.As90, "0.00")} cm²/m por ramo; somado ao cortante (17.7.2.2): " +
+                           $"{N(ramoNec * 100, "0.00")} cm²/m por ramo; ø{N(phiEst, "0.#")} c/{N(sP, "0.#")} = {N(ramoTem * 100, "0.00")} cm²/m por ramo.");
+            r.Verificacoes.Add(K("K15", "Torção", "Estribo por ramo nas pontas (cortante + torção)", $"{N(ramoTem * 100, "0.00")} cm²/m", $"≥ {N(ramoNec * 100, "0.00")} cm²/m",
+                ramoTem < ramoNec - 1e-12, "NBR 6118, 17.5.1.6 e 17.7.2.2", dica: "Aumente a bitola do estribo ou use 4 ramos."));
+
+            // longitudinal: Asℓ/ue no perímetro de Ae, somada à flexão em cada face (17.7.1.2), conferida no apoio (Td máximo)
+            double asl = Math.Max(TorcaoViga.AslPorCm(st, tdMax, fyd), TorcaoViga.AslMinPorCm(st, fctm, fywk));
+            r.AslPorM = asl * 100;
+            double faceB = asl * st.LadoB, faceH = asl * st.LadoH;
+            m10.Linhas.Add($"Longitudinal (17.5.1.6): Asℓ/ue = Td/(2·Ae·fyd) = {N(TorcaoViga.AslPorCm(st, tdMax, fyd) * 100, "0.00")} cm²/m; mínima 0,2·fctm/fywk·he = " +
+                           $"{N(TorcaoViga.AslMinPorCm(st, fctm, fywk) * 100, "0.00")} cm²/m → por face: topo e fundo {N(faceB)} cm², laterais {N(faceH)} cm² cada; total {N(asl * st.Ue)} cm².");
+            // fundo: a ancoragem no apoio (18.3.2.4) + a parcela da torção
+            double alE = vdCrit > r.Vc + 1e-9 ? Math.Min(dV, Math.Max(0.5 * dV, dV * vdCrit / (2 * (vdCrit - r.Vc)))) : dV;
+            double fundoNec = alE / dV * vdCrit / fyd + faceB, fundoTem = r.Inferior?.Area ?? 0;
+            r.Verificacoes.Add(K("K16", "Torção", "Longitudinal do fundo no apoio (ancoragem + torção)", $"{N(fundoTem)} cm²", $"≥ {N(fundoNec)} cm²",
+                fundoTem < fundoNec - 1e-9, "NBR 6118, 17.7.1.2", dica: "Leve mais barras inferiores até os apoios."));
+            // no meio do trecho: flexão + o que sobra da torção
+            double tdMeio = tdEm(r.XMdMax);
+            if (tdMeio > 1e-6 && r.Inferior != null)
+            {
+                double meioNec = Math.Max(r.AsNec, r.AsMin) + Math.Max(TorcaoViga.AslPorCm(st, tdMeio, fyd), TorcaoViga.AslMinPorCm(st, fctm, fywk)) * st.LadoB;
+                r.Verificacoes.Add(K("K21", "Torção", "Longitudinal do fundo no Md máximo (flexão + torção)", $"{N(r.Inferior.Area)} cm²", $"≥ {N(meioNec)} cm²",
+                    r.Inferior.Area < meioNec - 1e-9, "NBR 6118, 17.7.1.2", dica: "Aumente a armadura inferior."));
+            }
+            // topo
+            double topoTem = capa > 0 ? Math.Max(0, v.Inteiro("PortaEstriboQtd")) * A(v.Numero("PortaEstriboBitola")) : Math.Max(asSupPadrao, r.Superior.N * A(r.Superior.Bitola));
+            if (capa <= 0 && topoTem < faceB - 1e-9)
+            {
+                var opc = BitolasLong.SelectMany(p => new[] { 2, 3 }.Select(n => (n, p))).Where(o => o.n * A(o.p) >= faceB)
+                    .OrderBy(o => o.n * A(o.p)).ThenBy(o => o.n).FirstOrDefault();
+                if (opc.n > 0) { r.Superior = opc; topoTem = opc.n * A(opc.p); }
+            }
+            r.Verificacoes.Add(K("K17", "Torção", capa > 0 ? "Longitudinal do topo no apoio (porta-estribo da peça)" : "Longitudinal do topo no apoio (torção)",
+                $"{N(topoTem)} cm²", $"≥ {N(faceB)} cm²", topoTem < faceB - 1e-9, "NBR 6118, 17.5.1.6", capa > 0 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende,
+                capa > 0 ? "Na montagem a capa ainda não existe: aumente o porta-estribo da peça." : ""));
+            // laterais: barras de pele por face, espaçadas até 35 cm (18.3.4)
+            int nEspTor = Math.Max(0, (int)Math.Ceiling(st.LadoH / 35 - 1e-9) - 1);
+            (int N, double P) peleTor = (0, 0);
+            if (faceH > 1e-9)
+                foreach (double p in BitolasPele)
+                {
+                    int n = Math.Max(Math.Max(nEspTor, 1), (int)Math.Ceiling(faceH / A(p) - 1e-9));
+                    if (peleTor.N == 0 || n * A(p) < peleTor.N * A(peleTor.P) - 1e-9) peleTor = (n, p);
+                }
+            double peleTem = r.Pele.NPorFace * A(r.Pele.Bitola);
+            if (peleTor.N > 0 && (peleTem < faceH - 1e-9 || r.Pele.NPorFace < Math.Max(nEspTor, 1)))
+            {
+                r.Pele = (Math.Max(peleTor.N, r.Pele.NPorFace), Math.Max(peleTor.P, r.Pele.Bitola));
+                peleTem = r.Pele.NPorFace * A(r.Pele.Bitola);
+                m10.Linhas.Add($"Faces laterais: {r.Pele.NPorFace} ø{N(r.Pele.Bitola, "0.#")} por face = {N(peleTem)} cm² ≥ {N(faceH)} cm² (barras a até 35 cm, 18.3.4; entram como pele).");
+            }
+            r.Verificacoes.Add(K("K18", "Torção", "Longitudinal das faces laterais (por face)", $"{N(peleTem)} cm²", $"≥ {N(faceH)} cm²", peleTem < faceH - 1e-9, "NBR 6118, 17.5.1.6 e 18.3.4"));
+            // ligação e detalhe: sempre para o engenheiro conferir
+            r.Verificacoes.Add(K("K19", "Torção", "Ligação no apoio resiste à torção (pino, chumbador, consolo)", $"Td = {N(r.TdMax, "0.00")} kN·m", "dimensionar a ligação",
+                true, "NBR 9062, 7", SituacaoVerificacao.Conferir, "A torção de equilíbrio precisa de vínculo no apoio: confira a ligação e a estabilidade na montagem."));
+            r.Verificacoes.Add(K("K20", "Torção", "Estribos fechados com ganchos a 45° (135°) e uma barra em cada canto", "detalhe da armação", "18.3.4",
+                true, "NBR 6118, 18.3.4", SituacaoVerificacao.Conferir, "Confira o gancho dos estribos no desenho (o template ainda não troca o gancho sozinho)."));
+            m10.Linhas.Add($"No meio do Md máximo a torção vale {N(tdMeio / 100, "0.00")} kN·m. A ligação no apoio deve resistir a Td = {N(r.TdMax, "0.00")} kN·m (NBR 9062).");
+            r.Memoria.Add(m10);
         }
 
         // ---------------- proposta nos valores do template ----------------

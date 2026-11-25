@@ -32,7 +32,8 @@ namespace DEB.Revit.Vigas
         private readonly VigaPreview _previa = new VigaPreview();
         private readonly TextBox _fck = new TextBox(), _cob = new TextBox();
         private readonly ComboBox _classe = new ComboBox { ItemsSource = Classes };
-        private readonly TextBox _g = new TextBox(), _q = new TextBox(), _conc = new TextBox(), _apE = new TextBox(), _apD = new TextBox();
+        private readonly TextBox _g = new TextBox(), _q = new TextBox(), _conc = new TextBox(), _apE = new TextBox(), _apD = new TextBox(),
+            _gAba = new TextBox(), _qAba = new TextBox(), _eAba = new TextBox();
         private readonly StackPanel _resultado = new StackPanel();
         private readonly TextBlock _titulo = new TextBlock { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center };
         private readonly TextBlock _subtitulo = new TextBlock { Foreground = UI.Estilo.B(UI.Estilo.Suave), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 2, 0, 0) };
@@ -148,7 +149,10 @@ namespace DEB.Revit.Vigas
             cg.Children.Add(UI.Estilo.Campo("Concentradas", _conc, "x: G+Q", 130));
             cg.Children.Add(UI.Estilo.Campo("Apoio esquerdo", _apE, "cm", 130));
             cg.Children.Add(UI.Estilo.Campo("Apoio direito", _apD, "cm", 130));
-            cg.Children.Add(new TextBlock { Text = "Apoio 0 = automático (furo do pino, meio do dente ou 10 cm).", Foreground = UI.Estilo.B(UI.Estilo.Concreto), FontSize = 10.5, Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
+            cg.Children.Add(UI.Estilo.Campo("Na aba: g (por lado)", _gAba, "kN/m", 130));
+            cg.Children.Add(UI.Estilo.Campo("Na aba: q (por lado)", _qAba, "kN/m", 130));
+            cg.Children.Add(UI.Estilo.Campo("Excentricidade na aba", _eAba, "cm", 130));
+            cg.Children.Add(new TextBlock { Text = "Apoio 0 = automático (furo do pino, meio do dente ou 10 cm). Carga na aba = laje apoiada nela, fora das cargas g e q acima: gera torção. Excentricidade 0 = meio do balanço da aba.", Foreground = UI.Estilo.B(UI.Estilo.Concreto), FontSize = 10.5, Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
             var bts = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             bts.Children.Add(UI.Estilo.Primario("Calcular este grupo", () => { LerCargas(); Recalcular(Atual); Carregar(); }));
             bts.Children.Add(UI.Estilo.Botao("Copiar para todos", CopiarCargas, new Thickness(6, 0, 0, 0)));
@@ -206,6 +210,7 @@ namespace DEB.Revit.Vigas
             _carregando = true;
             _g.Text = Fmt(g.Cargas.G); _q.Text = Fmt(g.Cargas.Q); _conc.Text = CargasViga.TextoConcentradas(g.Cargas.Concentradas);
             _apE.Text = Fmt(g.Cargas.ApoioE); _apD.Text = Fmt(g.Cargas.ApoioD);
+            _gAba.Text = Fmt(g.Cargas.GAba); _qAba.Text = Fmt(g.Cargas.QAba); _eAba.Text = Fmt(g.Cargas.ExcAba);
             _carregando = false;
             _titulo.Text = $"{g.Marca} — {g.Quantidade} peça(s)";
             _subtitulo.Text = $"{g.Secao} cm · L = {Fmt(g.Peca?.L ?? 0)} cm · pontas {g.Pontas}";
@@ -234,6 +239,7 @@ namespace DEB.Revit.Vigas
                 ("Vão de cálculo", $"{Fmt(c.Vao, "0.#")} cm"),
                 ("Md,máx", $"{Fmt(c.MdMax, "0.0")} kN·m  (MRd = {Fmt(c.MRd, "0.0")})"),
                 ("Vd (E / D)", $"{Fmt(c.VdE, "0.0")} / {Fmt(c.VdD, "0.0")} kN"),
+                ("Td (E / D)", c.TdMax > 0 ? $"{Fmt(c.TdE, "0.00")} / {Fmt(c.TdD, "0.00")} kN·m  (TRd2 = {Fmt(c.TRd2, "0.00")})" : "sem torção"),
                 ("Flecha total", $"{Fmt(c.FlechaTotal, "0.00")} cm" + (c.Contraflecha > 0 ? $"  (contraflecha {Fmt(c.Contraflecha, "0.0")})" : "")),
                 ("Verificações", UI.Estilo.Contagem(c.Verificacoes)),
             }, 100));
@@ -361,6 +367,7 @@ namespace DEB.Revit.Vigas
             var c = new CargasViga
             {
                 G = Num(_g.Text), Q = Num(_q.Text), ApoioE = Num(_apE.Text), ApoioD = Num(_apD.Text),
+                GAba = Num(_gAba.Text), QAba = Num(_qAba.Text), ExcAba = Num(_eAba.Text),
                 Concentradas = CargasViga.LerConcentradas(_conc.Text, erros),
             };
             if (erros.Count > 0) MessageBox.Show(this, string.Join("\n", erros), Title);

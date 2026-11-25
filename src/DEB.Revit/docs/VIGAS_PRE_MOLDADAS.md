@@ -11,7 +11,9 @@ Botão **Pré-moldados → Vigas pré-moldadas** (`Commands/PrecastBeamsCommand.
    - `PCEB_Carga permanente (kN/m)` — laje, capa fora da viga, revestimento, alvenaria;
    - `PCEB_Carga variável (kN/m)`;
    - `PCEB_Cargas concentradas` — texto `x: G + Q; x: G + Q` (cm da ponta esquerda; kN), ex. `250: 30 + 12`;
-   - `PCEB_Apoio esquerdo (cm)` / `PCEB_Apoio direito (cm)` — eixo do apoio; 0 = furo do pino, meio do dente ou 10 cm.
+   - `PCEB_Apoio esquerdo (cm)` / `PCEB_Apoio direito (cm)` — eixo do apoio; 0 = furo do pino, meio do dente ou 10 cm;
+   - `PCEB_Carga permanente na aba (kN/m)` / `PCEB_Carga variável na aba (kN/m)` — laje apoiada na aba, POR LADO, fora das
+     cargas acima; gera torção. `PCEB_Excentricidade da carga na aba (cm)` — do eixo da alma; 0 = meio do balanço da aba.
    Peças do mesmo grupo com cargas diferentes: calcula a envoltória.
 3. **Janela** (prévia, D26): grupos com selo (OK / CONFERIR / NÃO ATENDE), elevação com as barras, seção no meio do vão,
    diagramas Md e Vd, a armadura proposta, as verificações e o relatório HTML. Materiais (fck, classe, cobrimento) valem
@@ -36,9 +38,15 @@ Viga biapoiada de concreto armado, com balanços nas pontas até os apoios:
   neoprene, 0,5·Vd sem) e suspensão = Vd/fywd, comparados ao catálogo; biela como estimativa ("Conferir");
 - pele (17.3.5.2.3) para h > 60 cm;
 - ELS: flecha (Branson, ψ2 = 0,3, fluência com carga aos 30 dias, limite ℓ/250; contraflecha até ℓ/350 vai para a nota) e
-  abertura de fissuras (combinação frequente, ψ1 = 0,4, Tabela 13.4).
+  abertura de fissuras (combinação frequente, ψ1 = 0,4, Tabela 13.4);
+- torção de equilíbrio da carga na aba (17.5.1, 17.7.2, 18.3.4; θ = 45° como o modelo I): seção L = carga e peso da aba
+  fora do eixo; T invertido = pior entre a montagem com laje de um lado só e a sobrecarga de um lado só. Torção presa nos
+  dois apoios; seção vazada equivalente da alma (he = A/u; Ae pelos cantos quando A/u < 2c1); bielas Vd/VRd2 + Td/TRd2 ≤ 1;
+  estribo por ramo cortante + torção (entra na proposta); longitudinal Asℓ/ue somada à flexão no fundo, no topo e nas faces
+  laterais (barras de pele a até 35 cm). A ligação no apoio e o gancho de 135° dos estribos ficam "Conferir". Conferido com os
+  exemplos 2 e 3 de BASTOS, Torção em Vigas de Concreto Armado (UNESP, 2024) — `VigaTorcaoTests`.
 
-Códigos K no relatório: K1–K3 flexão, K4 içamento, K5–K7 cortante, K8 ancoragem, K9–K11 dente, K12 flecha, K13 fissuras.
+Códigos K no relatório: K1–K3 flexão, K4 içamento, K5–K7 cortante, K8 ancoragem, K9–K11 dente, K12 flecha, K13 fissuras, K14–K21 torção.
 Com o cálculo, V6/V7 (estribos) e D7 (suspensão) deixam de ser "Conferir".
 
 Aba e ressalto (23/11): armados com as mesmas funções da seção do CAD — grampo ou estribo fechado da aba e as longitudinais da ponta;
