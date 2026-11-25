@@ -13,7 +13,9 @@ using DEB.Core.Motor;
 namespace DEB.Cad;
 
 /// <summary>
-/// ARMVIGAANALISE (D51, 25/11/2026: análise e detalhamento da viga pré-moldada nativos no CAD). Sem seleção (Enter / "Nova"):
+/// ARMVIGAANALISE (D51, 25/11/2026: análise e detalhamento da viga pré-moldada nativos no CAD). Desenha a análise e, abaixo dela,
+/// a VIGA ARMADA pelo cálculo (etapa 4: longitudinais, negativas, estribos, aba, dente calculado — o tipo novo do dente vai para o
+/// catálogo do ARMDENTES); a cada recálculo os dois são refeitos no mesmo lugar. Sem seleção (Enter / "Nova"):
 /// escolhe a viga na janela dos templates (modelo salvo ou valores digitados) e desenha a análise — modelo, seções, tabelas de
 /// carga e de parâmetros, envoltória de Vd e Md, flechas — no ponto dado. Selecionando uma tabela de uma análise já desenhada:
 /// lê as tabelas (o engenheiro digita as cargas e os parâmetros direto nelas), recalcula e redesenha no mesmo lugar.
@@ -100,6 +102,19 @@ public sealed class ComandosAnaliseViga
             GravarRegistro(db, tr, id, v, origem, escala);
             tr.Commit();
         }
+        // ---- a viga armada pelo cálculo, abaixo da análise (D51, etapa 4: "a viga vai ser atualizada/desenhada/detalhada/corrigida")
+        try
+        {
+            double minY = des.Contornos.SelectMany(c => c.Vertices).Select(q => q.Y).Concat(des.Textos.Select(t => t.Y)).DefaultIfEmpty(0).Min();
+            double cpu = Desenho.CmPorUnidade(db, cfg);
+            var pt = new Point3d(origem.X, origem.Y + (minY - 4 * escala) / cpu, origem.Z);
+            ArmarViga(ed, db, cfg, id, v, ent, r, pt);
+        }
+        catch (Exception ex)
+        {
+            Log.Erro("ARMVIGAANALISE detalhamento", ex);
+            ed?.WriteMessage("\nNão foi possível desenhar a viga armada: " + ex.Message);
+        }
         if (ed != null)
         {
             var u = UnidadesAnalise.DoCad(cfg);
@@ -108,6 +123,61 @@ public sealed class ComandosAnaliseViga
             foreach (var a in des.Avisos) ed.WriteMessage("\nAviso: " + a);
         }
         return ids;
+    }
+
+    /// <summary>
+    /// Calcula a viga com a envoltória da análise, grava os dentes calculados no catálogo do usuário (ARMDENTES; mesmo nome =
+    /// substitui) e desenha o detalhamento da proposta em <paramref name="pt"/>; o bloco do detalhamento leva a id da análise. O de
+    /// um desenho anterior da mesma análise já foi apagado com as outras entidades dela (e a definição do bloco sem inserções sai).
+    /// </summary>
+    internal static ResultadoCalculoViga ArmarViga(Editor ed, Database db, ConfiguracaoArmadura cfg, string id, ValoresTemplate v, EntradaAnaliseViga ent,
+        ResultadoAnaliseViga r, Point3d pt)
+    {
+        var cat = TemplateVigaPreMoldada.CatalogoDentes;
+        var calc = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(ent, v, cat), null, cat, r);
+        if (calc.DentesPropostos.Count > 0)
+        {
+            // o catálogo do usuário + os tipos que a viga usa (se faltarem) + os calculados
+            var baseCat = Plugin.Config.Dentes.Concat(cat.Where(t => Plugin.Config.Dentes.All(u => u.Nome != t.Nome))).ToList();
+            var novo = calc.CatalogoComPropostos(baseCat);
+            Plugin.Config.Dentes = novo;
+            TemplateVigaPreMoldada.CatalogoDentes = novo;
+            Plugin.SalvarConfig();
+            ed?.WriteMessage($"\nCatálogo de dentes (ARMDENTES): {string.Join(", ", calc.DentesPropostos.Select(t => t.Nome))} gravado(s).");
+        }
+        var res = new TemplateVigaPreMoldada().Gerar(calc.Proposta, cfg);
+        res.PosicaoRA = null;   // a relação do aço das tabelas que já existem é atualizada; nenhuma tabela nova por recálculo
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            ComandosTemplate.Desenhar(tr, db, cfg, res, pt, atualizarRA: true);
+            tr.Commit();
+        }
+        // a referência nova do bloco só aparece em GetBlockReferenceIds depois do commit (armadilha do AGENTS.md): marca noutra transação
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            GarantirRegApp(db, tr);
+            if (!string.IsNullOrEmpty(res.Detalhamento))
+            {
+                var bt = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+                if (bt.Has(res.Detalhamento))
+                {
+                    var def = (BlockTableRecord)tr.GetObject(bt[res.Detalhamento], OpenMode.ForRead);
+                    foreach (ObjectId rid in def.GetBlockReferenceIds(true, false))
+                    {
+                        if (rid.IsErased) continue;
+                        var br = (Entity)tr.GetObject(rid, OpenMode.ForWrite);
+                        using var rb = new ResultBuffer(new TypedValue((int)DxfCode.ExtendedDataRegAppName, App), new TypedValue((int)DxfCode.ExtendedDataAsciiString, id));
+                        br.XData = rb;
+                    }
+                }
+            }
+            tr.Commit();
+        }
+        ed?.WriteMessage($"\nViga armada: {string.Join("; ", calc.ResumoProposta())}.");
+        foreach (var a in calc.Avisos.Concat(res.Avisos).Distinct()) ed?.WriteMessage("\nAviso: " + a);
+        int conferir = calc.Verificacoes.Count(x => x.Situacao != Core.Normas.Verificacao.SituacaoVerificacao.Ok);
+        if (conferir > 0) ed?.WriteMessage($"\n{conferir} verificação(ões) para conferir ou que não atendem (relatório da viga).");
+        return calc;
     }
 
     // ------------------------------------------------------------------ marcação e registro no desenho
@@ -145,7 +215,24 @@ public sealed class ComandosAnaliseViga
     private static void Apagar(Database db, IEnumerable<ObjectId> ids)
     {
         using var tr = db.TransactionManager.StartTransaction();
-        foreach (var oid in ids) if (!oid.IsErased) tr.GetObject(oid, OpenMode.ForWrite).Erase();
+        var defs = new List<ObjectId>();
+        foreach (var oid in ids)
+        {
+            if (oid.IsErased) continue;
+            var o = tr.GetObject(oid, OpenMode.ForWrite);
+            if (o is BlockReference br) defs.Add(br.BlockTableRecord);
+            o.Erase();
+        }
+        // o detalhamento refeito volta com o mesmo nome: a definição antiga sai se ninguém mais a usa
+        foreach (var d in defs.Distinct())
+        {
+            if (d.IsNull || d.IsErased) continue;
+            var btr = (BlockTableRecord)tr.GetObject(d, OpenMode.ForRead, true);
+            if (btr.IsLayout || btr.IsErased) continue;
+            // inserções que restam (as desta análise já foram apagadas acima)
+            bool usada = btr.GetBlockReferenceIds(true, false).Cast<ObjectId>().Any(rid => !rid.IsErased);
+            if (!usada) { btr.UpgradeOpen(); btr.Erase(); }
+        }
         tr.Commit();
     }
 

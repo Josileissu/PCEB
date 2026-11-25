@@ -2564,6 +2564,7 @@ public sealed class AutoTeste
         Rel.Clear(); _ok = _falhas = 0;
         var t = new Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada();
         var catAntes = Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes;
+        var dentesUsuario = Plugin.Config.Dentes.ToList();   // o ARMVIGAANALISE grava o dente calculado no catálogo: devolver no fim
         try
         {
             var cat = catAntes.ToList();
@@ -2581,7 +2582,20 @@ public sealed class AutoTeste
             var origem = new Point3d(12000, -5000, 0);
             var ids = ComandosAnaliseViga.Desenhar(ed, db, cfg, id, v, ent, origem, 50);
             Checar(ids.Count > 50, $"análise desenhada: {ids.Count} entidades");
-            Checar(ComandosAnaliseViga.Entidades(db, id).Count == ids.Count, "todas as entidades marcadas com a id da análise (PCEB_ANALISE)");
+            int marcadas = ComandosAnaliseViga.Entidades(db, id).Count;
+            Checar(marcadas == ids.Count + 1, $"todas as entidades marcadas com a id da análise (PCEB_ANALISE), mais o bloco da viga armada: {marcadas} = {ids.Count} + 1");
+            int BlocosV101()
+            {
+                using var trb = db.TransactionManager.StartTransaction();
+                var bt = (BlockTable)trb.GetObject(db.BlockTableId, OpenMode.ForRead);
+                int n = 0;
+                foreach (ObjectId bid in bt) { var b = (BlockTableRecord)trb.GetObject(bid, OpenMode.ForRead); if (b.Name.StartsWith("V101")) n++; }
+                trb.Commit();
+                return n;
+            }
+            Checar(BlocosV101() == 1, "viga armada desenhada como detalhamento \"V101\"");
+            Checar(Plugin.Config.Dentes.Any(d => d.Nome.StartsWith("DG 75x25 – V101")), "dente calculado gravado no catálogo (ARMDENTES): " +
+                string.Join(", ", Plugin.Config.Dentes.Where(d => d.Nome.Contains("V101")).Select(d => d.Nome)));
             var reg = ComandosAnaliseViga.LerRegistro(db, id);
             Checar(reg != null && reg.Value.Valores["Nome"] == "V101" && reg.Value.Valores["AbaBase"] == "106.5" && reg.Value.Origem.DistanceTo(origem) < 1e-6,
                 "registro da viga no desenho (valores do template e origem)");
@@ -2631,13 +2645,18 @@ public sealed class AutoTeste
             Checar(!string.IsNullOrEmpty(rsec), $"tabela dos modelos refeita (Rsec do semirrígido = {rsec})");
             var reg2 = ComandosAnaliseViga.LerRegistro(db, id);
             Checar(reg2 != null && reg2.Value.Origem.DistanceTo(origem) < 1e-6, "redesenhada no mesmo lugar (origem do registro)");
+            Checar(BlocosV101() == 1, "viga armada refeita com o mesmo nome (a definição antiga saiu, sem \"V101 (2)\")");
             string N(double x) => x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
             // sem extensão válida (nada desenhado) o ZOOM _W ficaria esperando: vai para a extensão do desenho
-            doc.SendStringToExecute(yMin > -1e6 && yMin < origem.Y
-                ? $"_.ZOOM _W {N(origem.X - 60)},{N(yMin - 20)} {N(origem.X + 1800)},{N(origem.Y + 260)}\n" : "_.ZOOM _E\n", true, false, true);
+            doc.SendStringToExecute("_.ZOOM _E\n", true, false, true);
         }
         catch (Exception ex) { Checar(false, "exceção: " + ex); }
-        finally { Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = catAntes; }
+        finally
+        {
+            Plugin.Config.Dentes = dentesUsuario;
+            Plugin.SalvarConfig();
+            Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = catAntes;
+        }
         Gravar();
         Log.Info($"autoteste: ARMTESTEANALISEVIGA fim ({_ok} ok, {_falhas} falha(s))");
         var saida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
