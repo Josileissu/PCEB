@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DEB.Core.Analise.Barras;
 using DEB.Core.Motor;
+using DEB.Core.Normas.Verificacao;
 using DEB.Core.Pecas;
 
 namespace DEB.Core.Elementos.Viga.PreMoldada.Calculo;
@@ -36,7 +37,7 @@ public sealed class EntradaAnaliseViga
     public double VigaSC { get; set; }
     /// <summary>Cargas pontuais (x em cm da ponta esquerda): G vai para o caso CP, Q para o SC.</summary>
     public List<CargaConcentrada> Pontuais { get; set; } = new List<CargaConcentrada>();
-    /// <summary>Distância da ponta ao eixo do apoio (cm); 0 = automática (furo do pino, meio do dente ou 10 cm).</summary>
+    /// <summary>Distância da ponta ao eixo do apoio (cm); 0 = na ponta da viga (o desenho do modelo; a favor da segurança).</summary>
     public double ApoioE { get; set; }
     public double ApoioD { get; set; }
     /// <summary>Modelo rotulado (αR = 0) na envoltória.</summary>
@@ -45,6 +46,11 @@ public sealed class EntradaAnaliseViga
     public bool Semirrigido { get; set; } = true;
     public double AlfaRE { get; set; } = 0.10;
     public double AlfaRD { get; set; } = 0.10;
+    /// <summary>
+    /// Rigidez secante da viga, (EI)sec = fator·Eci·Ic (NBR 6118, 15.7.3: 0,4 nas vigas com As' ≠ As; 0,5 com As' = As). É a do
+    /// αR da NBR 9062 e a das barras no modelo dos esforços.
+    /// </summary>
+    public double FatorRigidezSecante { get; set; } = 0.4;
     /// <summary>
     /// Torção de equilíbrio pela laje apoiada na aba (NBR 6118, 17.5.1): ligada, a carga da laje vai para a aba (fora do eixo da
     /// alma) no dimensionamento; desligada, entra no eixo. Não muda a flexão da análise.
@@ -77,8 +83,13 @@ public sealed class ModeloAnaliseViga
     public Dictionary<CasoViga, (double E, double D)> Reacoes { get; } = new Dictionary<CasoViga, (double, double)>();
     /// <summary>ELU, combinação normal: γg·(PP + CP) + γq·SC.</summary>
     public List<PontoDiagrama> Elu { get; } = new List<PontoDiagrama>();
-    /// <summary>ELS quase permanente: PP + CP + ψ2·SC (flecha elástica imediata, seção bruta).</summary>
+    /// <summary>ELS quase permanente: PP + CP + ψ2·SC (flecha elástica imediata: Ecs·Ic, a mesma rigidez das ligações).</summary>
     public List<PontoDiagrama> Els { get; } = new List<PontoDiagrama>();
+    /// <summary>Flecha com fissuração (Branson) e fluência (αf), quase permanente: x (cm), δ (cm, para baixo +). Vazia sem armadura inferior.</summary>
+    public List<(double X, double Flecha)> FlechaTotal { get; } = new List<(double, double)>();
+    /// <summary>Momento do ELS quase permanente (kN·m) e a inércia equivalente de Branson (cm⁴).</summary>
+    public double Ma { get; set; }
+    public double Ie { get; set; }
 }
 
 /// <summary>Envoltória dos modelos no ELU: em cada x, o maior e o menor momento e cortante.</summary>
@@ -104,7 +115,17 @@ public sealed class ResultadoAnaliseViga
     public Dictionary<CasoViga, double> Linear { get; } = new Dictionary<CasoViga, double>();
     /// <summary>Trechos de seção do modelo: x inicial, x final e a descrição (dente, vão, com aba…).</summary>
     public List<(double X0, double X1, string Secao, double A, double I)> Trechos { get; } = new List<(double, double, string, double, double)>();
-    public double E { get; set; }
+    /// <summary>Módulos (kN/cm²): Eci, Ecs; (EI)sec da seção do vão (kN·cm²) e o fator usado.</summary>
+    public double Eci { get; set; }
+    public double Ecs { get; set; }
+    public double EIsec { get; set; }
+    public double FatorRigidezSecante { get; set; }
+    /// <summary>ELS: inércia bruta do vão (cm⁴), momento de fissuração (kN·m), armaduras do template (cm²) e αf.</summary>
+    public double Ic { get; set; }
+    public double Mr { get; set; }
+    public double As { get; set; }
+    public double AsLinha { get; set; }
+    public double AlfaF { get; set; }
     public List<ModeloAnaliseViga> Modelos { get; } = new List<ModeloAnaliseViga>();
     public List<PontoEnvoltoria> Envoltoria { get; } = new List<PontoEnvoltoria>();
     public List<string> Avisos { get; } = new List<string>();
@@ -163,11 +184,15 @@ public static class AnaliseViga
         var aba = TemplateVigaPreMoldada.LerAba(v, h, L, e, d, avisos);
         var ress = TemplateVigaPreMoldada.LerRessalto(v, b, h, avisos);
         double gc = v.Numero("PesoEspecifico") > 0 ? v.Numero("PesoEspecifico") / 100 : 25;   // kN/m³
-        var mat = MaterialBarra.Concreto(v.Numero("Fck"), k.AlfaE, gc);
+        double fck = v.Numero("Fck");
+        var matEls = MaterialBarra.Concreto(fck, k.AlfaE, gc);   // Ecs: flecha
+        double eci = (fck <= 50 ? k.AlfaE * 5600 * Math.Sqrt(fck) : 21500 * k.AlfaE * Math.Pow(fck / 10 + 1.25, 1.0 / 3)) / 10;   // kN/cm²
+        double fator = ent.FatorRigidezSecante > 0 ? ent.FatorRigidezSecante : 0.4;
+        var matSec = new MaterialBarra { E = fator * eci, G = fator * eci / 2.4, Peso = matEls.Peso, Descricao = $"(EI)sec = {fator:0.##}·Eci·Ic" };
 
-        var r = new ResultadoAnaliseViga { L = L, E = mat.E };
-        r.ApoioE = ent.ApoioE > 0 ? ent.ApoioE : CalculoViga.ApoioAutomatico(e);
-        r.ApoioD = ent.ApoioD > 0 ? ent.ApoioD : CalculoViga.ApoioAutomatico(d);
+        var r = new ResultadoAnaliseViga { L = L, Eci = eci, Ecs = matEls.E, FatorRigidezSecante = fator };
+        r.ApoioE = Math.Max(0, ent.ApoioE);
+        r.ApoioD = Math.Max(0, ent.ApoioD);
         double xa = r.ApoioE, xb = L - r.ApoioD;
         if (xb - xa < 1) throw new ArgumentException("Vão de cálculo nulo: confira os apoios.");
         double vol = TemplateVigaPreMoldada.Volume(b, h, L, e, d) + aba.VolumeCm3 / 1e6 + ress.VolumeCm3(L) / 1e6;   // m³
@@ -205,7 +230,23 @@ public static class AnaliseViga
             { var t = r.Trechos[r.Trechos.Count - 1]; r.Trechos[r.Trechos.Count - 1] = (t.X0, xs[i + 1], t.Secao, t.A, t.I); }
             else r.Trechos.Add((xs[i], xs[i + 1], s.Nome, s.A, s.I));
         }
-        double EIvao = mat.E * Secao((xa + xb) / 2, b, h, L, e, d, aba).I;
+        var sVao = Secao((xa + xb) / 2, b, h, L, e, d, aba);
+        r.Ic = sVao.I;
+        r.EIsec = matSec.E * sVao.I;
+
+        // ELS: armadura atual do template (inferior e superior), Mr (17.3.1) e fluência (17.3.2.1.2)
+        var longs = TemplateVigaPreMoldada.LerLongitudinais(v, L, v.Numero("CobPontas"), e, d, new List<string>());
+        r.As = longs.Where(l => l.Inferior).Sum(l => l.Quantidade * Math.PI * l.Bitola * l.Bitola / 400);
+        r.AsLinha = longs.Where(l => l.Funcao == TemplateVigaPreMoldada.FSuperior || l.Funcao == TemplateVigaPreMoldada.FConstrutiva)
+                         .Sum(l => l.Quantidade * Math.PI * l.Bitola * l.Bitola / 400);
+        double phiInf = longs.Where(l => l.Inferior).Select(l => l.Bitola).DefaultIfEmpty(0).Max() / 10;
+        double phiEst = (v.Numero("EstBitola") > 0 ? v.Numero("EstBitola") : 6.3) / 10;
+        double dUtil = h - v.Numero("CobFundo") - phiEst - phiInf / 2;
+        double fctm = TabelasNbr.Fctm(fck) / 10;   // kN/cm²
+        r.Mr = 1.5 * fctm * sVao.I / sVao.Zg / 100;   // kN·m
+        double Xi(double t) => t > 70 ? 2 : 0.68 * Math.Pow(0.996, t) * Math.Pow(t, 0.32);
+        r.AlfaF = (2 - Xi(k.IdadeCarregamentoMeses)) / (1 + 50 * (dUtil > 0 ? r.AsLinha / (b * dUtil) : 0));
+        if (r.As <= 0) r.Avisos.Add("Sem armadura inferior no template: a flecha com fissuração e fluência não foi calculada.");
 
         // ---- modelos de ligação
         var modelos = new List<ModeloAnaliseViga>();
@@ -219,9 +260,14 @@ public static class AnaliseViga
             });
         foreach (var mod in modelos)
         {
-            double kE = RsecPorAlfaR(mod.AlfaRE, EIvao, xb - xa), kD = RsecPorAlfaR(mod.AlfaRD, EIvao, xb - xa);
+            double kE = RsecPorAlfaR(mod.AlfaRE, r.EIsec, xb - xa), kD = RsecPorAlfaR(mod.AlfaRD, r.EIsec, xb - xa);
             mod.RsecE = kE / 100; mod.RsecD = kD / 100;   // kN·cm/rad → kN·m/rad
-            Resolver(mod, est, xa, xb, kE, kD, mat, r, pontuais, (x) => Secao(x, b, h, L, e, d, aba));
+            // esforços com a rigidez secante (a do αR); flecha com Ecs·Ic e a MESMA rigidez das ligações
+            Func<double, (double A, double Zg, double I, string Nome)> sec = x => Secao(x, b, h, L, e, d, aba);
+            var esf = Resolver(mod, est, xa, xb, kE, kD, matSec, r, pontuais, sec);
+            var fl = Resolver(null, est, xa, xb, kE, kD, matEls, r, pontuais, sec);
+            foreach (var c in esf.Keys)
+                mod.Casos[c] = esf[c].Select((p, i) => new PontoDiagrama(p.X, p.M, p.V, fl[c][i].Flecha)).ToList();
             for (int i = 0; i < mod.Casos[CasoViga.PP].Count; i++)
             {
                 PontoDiagrama P(CasoViga c) => mod.Casos[c][i];
@@ -229,6 +275,17 @@ public static class AnaliseViga
                 mod.Elu.Add(new PontoDiagrama(pp.X, k.GamaG * (pp.M + cp.M) + k.GamaQ * sc.M, k.GamaG * (pp.V + cp.V) + k.GamaQ * sc.V,
                                               k.GamaG * (pp.Flecha + cp.Flecha) + k.GamaQ * sc.Flecha));
                 mod.Els.Add(new PontoDiagrama(pp.X, pp.M + cp.M + k.Psi2 * sc.M, pp.V + cp.V + k.Psi2 * sc.V, pp.Flecha + cp.Flecha + k.Psi2 * sc.Flecha));
+            }
+            // flecha com fissuração e fluência: a elástica × Ic/Ie (Branson; estádio II na seção retangular da alma) × (1 + αf)
+            if (r.As > 0 && dUtil > 0)
+            {
+                double ma = mod.Els.Max(p => p.M) * 100, mr = r.Mr * 100, ae = 21000 / r.Ecs, aa = ae * r.As;   // kN·cm
+                double x2 = (-aa + Math.Sqrt(aa * aa + 2 * b * aa * dUtil)) / b, i2 = b * x2 * x2 * x2 / 3 + aa * (dUtil - x2) * (dUtil - x2);
+                double rel = ma > 0 ? Math.Min(1, Math.Pow(mr / ma, 3)) : 1;
+                mod.Ma = ma / 100;
+                mod.Ie = Math.Min(r.Ic, rel * r.Ic + (1 - rel) * i2);
+                double f = r.Ic / mod.Ie * (1 + r.AlfaF);
+                foreach (var p in mod.Els) mod.FlechaTotal.Add((p.X, p.Flecha * f));
             }
             r.Modelos.Add(mod);
         }
@@ -243,7 +300,7 @@ public static class AnaliseViga
 
     // Uma barra por intervalo de estações, ao longo de X (Z para cima); apoio esquerdo fixo, direito móvel; mola de rotação (Ry) nos
     // apoios; os graus fora do plano travados nos apoios. Cargas pontuais nos nós (as estações incluem as posições delas).
-    private static void Resolver(ModeloAnaliseViga mod, List<double> est, double xa, double xb, double kE, double kD, MaterialBarra mat,
+    private static Dictionary<CasoViga, List<PontoDiagrama>> Resolver(ModeloAnaliseViga mod, List<double> est, double xa, double xb, double kE, double kD, MaterialBarra mat,
         ResultadoAnaliseViga r, List<CargaConcentrada> pontuais, Func<double, (double A, double Zg, double I, string Nome)> secao)
     {
         var m = new ModeloBarras();
@@ -277,6 +334,7 @@ public static class AnaliseViga
         }
         var solver = new SolverBarras(m);
         var res = solver.Resolver();
+        var saida = new Dictionary<CasoViga, List<PontoDiagrama>>();
         foreach (var caso in m.Casos)
         {
             var rc = res[caso.Nome];
@@ -293,9 +351,10 @@ public static class AnaliseViga
                 l.Add(new PontoDiagrama(est[i], -ef.My / 100, -ef.Vz, fl));
             }
             // cortante logo à direita de cada estação (o diagrama fica com os dois valores nas descontinuidades)
-            mod.Casos[c] = ComDescontinuidades(l, est, m, solver, rc, caso);
-            mod.Reacoes[c] = (rc.Reacoes[na][2], rc.Reacoes[nb][2]);
+            saida[c] = ComDescontinuidades(l, est, m, solver, rc, caso);
+            if (mod != null) mod.Reacoes[c] = (rc.Reacoes[na][2], rc.Reacoes[nb][2]);
         }
+        return saida;
     }
 
     // Acrescenta, em cada nó interno, o ponto logo à direita (x + 1e-3) com os esforços da barra seguinte: nos apoios (cortante e,

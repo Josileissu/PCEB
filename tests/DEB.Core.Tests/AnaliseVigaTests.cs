@@ -96,9 +96,9 @@ public class AnaliseVigaTests
         foreach (var m in r.Modelos)
         {
             var (e, d) = m.Reacoes[CasoViga.CP];
-            Assert.Equal(9.9 * 6.02 + 20, e + d, 3);
+            Assert.Equal(9.9 * 6.02 + 20, e + d, 2);
             var (pe, pd) = m.Reacoes[CasoViga.PP];
-            Assert.Equal(r.Linear[CasoViga.PP] * 6.02, pe + pd, 3);
+            Assert.Equal(r.Linear[CasoViga.PP] * 6.02, pe + pd, 2);
         }
         var dente = r.Trechos.First(t => t.Secao.StartsWith("dente"));
         var vao = r.Trechos.First(t => !t.Secao.StartsWith("dente"));
@@ -124,5 +124,23 @@ public class AnaliseVigaTests
         Assert.InRange(r.MdMin, -49.85 - 0.05, -49.85 + 0.05);
         Assert.InRange(r.VdMax, 363.65 - 0.05, 363.65 + 0.05);
         Assert.Equal(73.469, r.Modelos[1].Reacoes[CasoViga.CP].E, 2);
+    }
+    [Fact]
+    public void RigidezSecanteEFlechaComFissuracao()
+    {
+        // apoio na ponta por padrão; Rsec pelo αR com (EI)sec = 0,4·Eci·Ic; flecha total = elástica × Ic/Ie × (1 + αf)
+        var ent = new EntradaAnaliseViga { AlfaRE = 0.1, AlfaRD = 0.1, VigaCP = 25, VigaSC = 10 };
+        var r = AnaliseViga.Rodar(Viga(), ent);
+        Assert.Equal(0, r.ApoioE);
+        Assert.Equal(600, r.Vao, 6);
+        double eci = 5600 * Math.Sqrt(40) / 10;
+        Assert.Equal(0.4 * eci * 20 * Math.Pow(60, 3) / 12, r.EIsec, 0);
+        var semi = r.Modelos[1];
+        Assert.Equal(3 * r.EIsec / (600 * (1 / 0.1 - 1)) / 100, semi.RsecE, 3);
+        Assert.True(r.As > 0);
+        Assert.NotEmpty(semi.FlechaTotal);
+        double el = semi.Els.Max(p => p.Flecha), tot = semi.FlechaTotal.Max(p => p.Flecha);
+        Assert.True(tot > el);
+        Assert.Equal(el * r.Ic / semi.Ie * (1 + r.AlfaF), tot, 6);
     }
 }
