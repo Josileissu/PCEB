@@ -207,3 +207,17 @@ internal sealed class OrdemDeclaradaConverter : ExpandableObjectConverter
         return new PropertyDescriptorCollection(ordenadas, readOnly: true);
     }
 }
+
+/// <summary>Unidades aceitas para uma grandeza (lista fechada; vazio = padrão do escritório).</summary>
+internal abstract class UnidadeConverter : StringConverter
+{
+    protected abstract Core.Configuracao.Projeto.Grandeza Grandeza { get; }
+    public override bool GetStandardValuesSupported(ITypeDescriptorContext c) => true;
+    public override bool GetStandardValuesExclusive(ITypeDescriptorContext c) => true;
+    public override StandardValuesCollection GetStandardValues(ITypeDescriptorContext c) =>
+        new StandardValuesCollection(new[] { "" }.Concat(Core.Configuracao.Projeto.Unidades.Opcoes(Grandeza)).ToArray());
+}
+internal sealed class UnidadeForcaConverter : UnidadeConverter { protected override Core.Configuracao.Projeto.Grandeza Grandeza => Core.Configuracao.Projeto.Grandeza.Forca; }
+internal sealed class UnidadeMomentoConverter : UnidadeConverter { protected override Core.Configuracao.Projeto.Grandeza Grandeza => Core.Configuracao.Projeto.Grandeza.Momento; }
+internal sealed class UnidadeCargaLinearConverter : UnidadeConverter { protected override Core.Configuracao.Projeto.Grandeza Grandeza => Core.Configuracao.Projeto.Grandeza.CargaLinear; }
+internal sealed class UnidadeCargaSuperficieConverter : UnidadeConverter { protected override Core.Configuracao.Projeto.Grandeza Grandeza => Core.Configuracao.Projeto.Grandeza.CargaSuperficie; }

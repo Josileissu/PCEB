@@ -2554,6 +2554,108 @@ public sealed class AutoTeste
     }, suspender: false);
 
     /// <summary>
+    /// Análise da viga no CAD (D51, 25/11/2026): desenha a análise da V101 (19 × 150, dentes 75 × 25, aba de laje), edita células das
+    /// tabelas como o engenheiro faria (CP da viga e αR esquerdo), recalcula pelo ARMVIGAANALISE e confere a leitura, o redesenho no
+    /// mesmo lugar e o registro da viga no desenho. Uso: tools\autoteste_autocad.ps1 -Comando ARMTESTEANALISEVIGA.
+    /// </summary>
+    [Rt.CommandMethod("ARMTESTEANALISEVIGA")]
+    public void AnaliseViga() => Comandos.Executar("ARMTESTEANALISEVIGA", (doc, ed, db, cfg) =>
+    {
+        Rel.Clear(); _ok = _falhas = 0;
+        var t = new Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada();
+        var catAntes = Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes;
+        try
+        {
+            var cat = catAntes.ToList();
+            if (!cat.Any(d => d.Nome == "DG 75x25")) cat.Add(new Core.Elementos.Viga.PreMoldada.TipoDente { Nome = "DG 75x25", Altura = 75, Comprimento = 25 });
+            Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = cat;
+            var v = new Core.Motor.ValoresTemplate(t.Parametros);
+            foreach (var (k, val) in new[] { ("Nome", "V101"), ("B", "19"), ("H", "150"), ("L", "602"), ("Fck", "30"), ("ExtE", "DG 75x25"), ("ExtD", "DG 75x25"),
+                         ("Aba", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.AbaEsq), ("AbaLargura", "20"), ("AbaAltura", "23.5"), ("AbaAlturaPonta", "15"), ("AbaBase", "106.5") })
+                v[k] = val;
+            var ent = new Core.Elementos.Viga.PreMoldada.Calculo.EntradaAnaliseViga
+            {
+                VigaCP = 9.9, LajePP = { Valor = 5, VaoInfluencia = 5 }, LajeCP = { Valor = 2, VaoInfluencia = 5 }, LajeSC = { Valor = 6, VaoInfluencia = 5 },
+            };
+            string id = "teste" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            var origem = new Point3d(12000, -5000, 0);
+            var ids = ComandosAnaliseViga.Desenhar(ed, db, cfg, id, v, ent, origem, 50);
+            Checar(ids.Count > 50, $"análise desenhada: {ids.Count} entidades");
+            Checar(ComandosAnaliseViga.Entidades(db, id).Count == ids.Count, "todas as entidades marcadas com a id da análise (PCEB_ANALISE)");
+            var reg = ComandosAnaliseViga.LerRegistro(db, id);
+            Checar(reg != null && reg.Value.Valores["Nome"] == "V101" && reg.Value.Valores["AbaBase"] == "106.5" && reg.Value.Origem.DistanceTo(origem) < 1e-6,
+                "registro da viga no desenho (valores do template e origem)");
+
+            // edita as tabelas como o engenheiro: CP,viga = 1500 (na unidade escrita na tabela) e αR esquerdo = 20 (%)
+            string unCp = null;
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                foreach (var oid in ids)
+                    if (tr.GetObject(oid, OpenMode.ForWrite) is Table tab)
+                    {
+                        string tit = tab.Cells[0, 0].TextString;
+                        for (int l = 1; l < tab.Rows.Count; l++)
+                        {
+                            string k = tab.Cells[l, 0].TextString;
+                            if (tit == "CARGA DA VIGA" && k == "CP,viga") { tab.Cells[l, 1].TextString = "1500"; unCp = tab.Cells[l, 2].TextString; }
+                            if (tit == "PARÂMETROS DA ANÁLISE" && k == Core.Elementos.Viga.PreMoldada.Calculo.TabelasAnaliseViga.PAlfaE) tab.Cells[l, 1].TextString = "20";
+                        }
+                    }
+                tr.Commit();
+            }
+            Checar(unCp != null, $"tabela CARGA DA VIGA com a linha CP,viga (unidade \"{unCp}\")");
+            ComandosAnaliseViga.Recalcular(ed, db, cfg, id);
+            var novos = ComandosAnaliseViga.Entidades(db, id);
+            Checar(novos.Count > 50 && !novos.Intersect(ids).Any(), $"recalculada: desenho refeito ({novos.Count} entidades novas, as antigas apagadas)");
+            string cpLido = null, alfaLido = null, rsec = null;
+            double yMin = double.MaxValue;
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                foreach (var oid in novos)
+                {
+                    var e = (Entity)tr.GetObject(oid, OpenMode.ForRead);
+                    try { yMin = Math.Min(yMin, e.GeometricExtents.MinPoint.Y); } catch (Exception) { }
+                    if (e is Table tab)
+                        for (int l = 1; l < tab.Rows.Count; l++)
+                        {
+                            string tit = tab.Cells[0, 0].TextString, k = tab.Cells[l, 0].TextString;
+                            if (tit == "CARGA DA VIGA" && k == "CP,viga") cpLido = tab.Cells[l, 1].TextString;
+                            if (tit == "PARÂMETROS DA ANÁLISE" && k == Core.Elementos.Viga.PreMoldada.Calculo.TabelasAnaliseViga.PAlfaE) alfaLido = tab.Cells[l, 1].TextString;
+                            if (tit == "MODELOS (ENVOLTÓRIA)" && k.StartsWith("Semirr")) rsec = tab.Cells[l, 3].TextString;
+                        }
+                }
+                tr.Commit();
+            }
+            Checar(cpLido == "1500", $"CP,viga lido da tabela e reescrito: {cpLido}");
+            Checar(alfaLido == "0,2", $"αR esquerdo digitado em % (20) virou 0,2: {alfaLido}");
+            Checar(!string.IsNullOrEmpty(rsec), $"tabela dos modelos refeita (Rsec do semirrígido = {rsec})");
+            var reg2 = ComandosAnaliseViga.LerRegistro(db, id);
+            Checar(reg2 != null && reg2.Value.Origem.DistanceTo(origem) < 1e-6, "redesenhada no mesmo lugar (origem do registro)");
+            string N(double x) => x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+            // sem extensão válida (nada desenhado) o ZOOM _W ficaria esperando: vai para a extensão do desenho
+            doc.SendStringToExecute(yMin > -1e6 && yMin < origem.Y
+                ? $"_.ZOOM _W {N(origem.X - 60)},{N(yMin - 20)} {N(origem.X + 1800)},{N(origem.Y + 260)}\n" : "_.ZOOM _E\n", true, false, true);
+        }
+        catch (Exception ex) { Checar(false, "exceção: " + ex); }
+        finally { Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.CatalogoDentes = catAntes; }
+        Gravar();
+        Log.Info($"autoteste: ARMTESTEANALISEVIGA fim ({_ok} ok, {_falhas} falha(s))");
+        var saida = Environment.GetEnvironmentVariable("ARM_AUTOTESTE_SAIDA");
+        if (!string.IsNullOrEmpty(saida))
+        {
+            try { db.SaveAs(Path.Combine(Path.GetDirectoryName(saida), "autoteste_analise_viga.dwg"), DwgVersion.Current); }
+            catch (Exception ex) { Log.Erro("ARMTESTEANALISEVIGA salvar", ex); }
+            _filedia = CadApp.GetSystemVariable("FILEDIA");
+            CadApp.SetSystemVariable("FILEDIA", 0);
+            string png = Path.Combine(Path.GetDirectoryName(saida), "autoteste_analise_viga.png");
+            try { File.Delete(png); } catch (Exception ex) { Log.Erro("ARMTESTEANALISEVIGA png", ex); }
+            doc.SendStringToExecute($"_.PNGOUT {png}\n\n", true, false, true);
+            doc.SendStringToExecute($"FILEDIA {Convert.ToInt32(_filedia ?? 1)}\n", true, false, true);
+            doc.SendStringToExecute("ARMTESTEFIM\n", true, false, true);
+        }
+    }, suspender: false);
+
+    /// <summary>
     /// Peças do Revit (2026-11-09): importa um levantamento (ARM_PECAS_ENTRADA = .json exportado pelo DEB.Revit; sem ele, pilares e vigas de
     /// exemplo) e confere um detalhamento por grupo, lado a lado, com as repetições = peças do grupo.
     /// Uso: script NETLOAD + ARMTESTEPECAS numa instância nova, com ARM_AUTOTESTE_SAIDA.

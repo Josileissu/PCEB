@@ -161,12 +161,53 @@ public class AnaliseVigaTests
                                   DesenhoAnaliseViga.LCortante, DesenhoAnaliseViga.LFletor, DesenhoAnaliseViga.LDeslocada, DesenhoAnaliseViga.LDeslocadaTotal })
             Assert.Contains(l, layers);
         Assert.Equal(semirrigido, layers.Contains(DesenhoAnaliseViga.LSemi));
-        Assert.Equal(new[] { "CARGA DA LAJE", "CARGA DA VIGA", "CARGAS PONTUAIS", "MODELOS (ENVOLTÓRIA)" }, d.Tabelas.Select(t => t.Titulo));
-        Assert.Equal(semirrigido ? 3 : 2, d.Tabelas[3].Linhas.Count);
+        Assert.Equal(new[] { "CARGA DA LAJE", "CARGA DA VIGA", "CARGAS PONTUAIS", "PARÂMETROS DA ANÁLISE", "MODELOS (ENVOLTÓRIA)" }, d.Tabelas.Select(t => t.Titulo));
+        Assert.Equal(semirrigido ? 3 : 2, d.Tabelas[4].Linhas.Count);
         // os diagramas ficam abaixo das seções (nada do Vd sobe até elas)
         double fundoSecoes = d.Contornos.Where(c => c.Layer == DesenhoAnaliseViga.LSecao).Min(c => c.Vertices.Min(p => p.Y));
         double topoVd = d.Contornos.Where(c => c.Layer == DesenhoAnaliseViga.LCortante).Max(c => c.Vertices.Max(p => p.Y));
         Assert.True(topoVd < fundoSecoes);
         Assert.DoesNotContain(d.Textos, t => t.Texto == "-0");
+    }
+    [Fact]
+    public void TabelasDoDesenhoVoltamComoEntrada()
+    {
+        // o que o desenho escreve (em tf/kgf, as unidades do escritório) é lido de volta igual — é por elas que o engenheiro digita
+        var ent = new EntradaAnaliseViga
+        {
+            ApoioE = 5, ApoioD = 7.5, AlfaRE = 0.15, AlfaRD = 0.2, Rotulado = true, Semirrigido = true, FatorRigidezSecante = 0.5, Torcao = false,
+            VigaCP = 9.9, VigaSC = 1.5, LajePP = { Valor = 5, VaoInfluencia = 5 }, LajeCP = { Valor = 2, VaoInfluencia = 4.5 }, LajeSC = { Valor = 6, VaoInfluencia = 5 },
+            Pontuais = { new CargaConcentrada { X = 200, G = 20, Q = 10 }, new CargaConcentrada { X = 410, G = 7 } },
+        };
+        var v = Viga();
+        var d = DesenhoAnaliseViga.Gerar(AnaliseViga.Rodar(v, ent), ent, v);
+        var erros = new System.Collections.Generic.List<string>();
+        var lida = TabelasAnaliseViga.Ler(d.Tabelas.Select(t => (t.Titulo, t.Linhas)), erros);
+        Assert.Empty(erros);
+        Assert.Equal(5, lida.ApoioE, 6); Assert.Equal(7.5, lida.ApoioD, 6);
+        Assert.Equal(0.15, lida.AlfaRE, 6); Assert.Equal(0.2, lida.AlfaRD, 6);
+        Assert.Equal(0.5, lida.FatorRigidezSecante, 6);
+        Assert.False(lida.Torcao);
+        Assert.Equal(9.9, lida.VigaCP, 2); Assert.Equal(1.5, lida.VigaSC, 2);
+        Assert.Equal(5, lida.LajePP.Valor, 2); Assert.Equal(4.5, lida.LajeCP.VaoInfluencia, 6); Assert.Equal(6, lida.LajeSC.Valor, 2);
+        Assert.Equal(2, lida.Pontuais.Count);
+        Assert.Equal(20, lida.Pontuais[0].G, 2); Assert.Equal(10, lida.Pontuais[0].Q, 2); Assert.Equal(410, lida.Pontuais[1].X, 6);
+    }
+
+    [Fact]
+    public void TabelasDigitadasEmOutraUnidadeEComErros()
+    {
+        var tabs = new[]
+        {
+            ("CARGA DA LAJE", new System.Collections.Generic.List<string[]> { new[] { "TIPO" }, new[] { "PP,laje", "500", "kgf/m²", "5", "m" }, new[] { "SC,laje", "3", "kN/m²", "4", "m" } }),
+            ("CARGA DA VIGA", new System.Collections.Generic.List<string[]> { new[] { "TIPO" }, new[] { "CP,viga", "abc", "kN/m" } }),
+            ("PARÂMETROS DA ANÁLISE", new System.Collections.Generic.List<string[]> { new[] { "P" }, new[] { TabelasAnaliseViga.PAlfaE, "10", "" } }),
+        };
+        var erros = new System.Collections.Generic.List<string>();
+        var e = TabelasAnaliseViga.Ler(tabs, erros);
+        Assert.Equal(500 * 0.00980665, e.LajePP.Valor, 4);
+        Assert.Equal(12, e.LajeSC.Linear, 6);
+        Assert.Equal(0.10, e.AlfaRE, 6);   // 10 % → 0,10
+        Assert.Contains(erros, x => x.Contains("abc"));
     }
 }

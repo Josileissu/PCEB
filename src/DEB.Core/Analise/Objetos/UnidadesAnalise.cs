@@ -14,6 +14,26 @@ public sealed class UnidadesAnalise
     private readonly ConfiguracaoProjeto _cfg;
     public UnidadesAnalise(ConfiguracaoProjeto cfg) { _cfg = cfg ?? new ConfiguracaoProjeto(); }
 
+    /// <summary>
+    /// Unidades escolhidas fora da configuração de projeto (configuração do CAD, D51): grandeza → símbolo; vazio ou símbolo que não
+    /// vale para a grandeza = o padrão do escritório.
+    /// </summary>
+    public static UnidadesAnalise Escolhidas(IEnumerable<(Grandeza G, string Simbolo)> escolhas)
+    {
+        var cfg = new ConfiguracaoProjeto();
+        foreach (var (g, s) in escolhas)
+            if (!string.IsNullOrWhiteSpace(s) && Unidades.Aceita(g, s.Trim()))
+                cfg.Definir(NivelConfiguracao.Projeto, CatalogoConfiguracao.IdUnidade(g), s.Trim());
+        return new UnidadesAnalise(cfg);
+    }
+
+    /// <summary>As unidades da análise pela configuração do CAD (força, momento, carga linear e de superfície).</summary>
+    public static UnidadesAnalise DoCad(Configuracao.ConfiguracaoArmadura c) => Escolhidas(new[]
+    {
+        (Grandeza.Forca, c?.UnidadeForca), (Grandeza.Momento, c?.UnidadeMomento),
+        (Grandeza.CargaLinear, c?.UnidadeCargaLinear), (Grandeza.CargaSuperficie, c?.UnidadeCargaSuperficie),
+    });
+
     /// <summary>Unidades internas que a janela converte: símbolo interno → (grandeza, símbolo interno na tabela de unidades).</summary>
     private static readonly Dictionary<string, (Grandeza G, string Sim)> Internas = new Dictionary<string, (Grandeza, string)>
     {

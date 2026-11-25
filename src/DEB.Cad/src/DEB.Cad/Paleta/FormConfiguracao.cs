@@ -70,7 +70,7 @@ internal sealed class FormConfiguracao : Form
 internal sealed class ConfiguracaoEditavel
 {
     private const string GNum = "1. Numeração e descrição", GComp = "2. Comprimentos", GRA = "3. Relação do aço",
-        GDes = "4. Desenho", GFx = "5. Faixas e cortes", GDob = "6. Dobramento (NBR 6118)";
+        GDes = "4. Desenho", GFx = "5. Faixas e cortes", GDob = "6. Dobramento (NBR 6118)", GUni = "7. Unidades da análise (vigas)";
     private readonly ConfiguracaoArmadura _c;
 
     public ConfiguracaoEditavel(ConfiguracaoArmadura c) { _c = c; Dobramento = new DobramentoEditavel(c.Dobramento); }
@@ -227,6 +227,22 @@ internal sealed class ConfiguracaoEditavel
     // 6. Dobramento
     [Category(GDob), DisplayName("Pinos e ganchos"), Description("Múltiplos de φ (NBR 6118, tabelas 9.1 e 9.2) e pontas retas dos ganchos.")]
     public DobramentoEditavel Dobramento { get; }
+
+    // 7. Unidades da análise da viga (D51): tabelas, diagramas e memória; vazio = padrão do escritório
+    private static string Uni(string s, Core.Configuracao.Projeto.Grandeza g) =>
+        string.IsNullOrWhiteSpace(s) || !Core.Configuracao.Projeto.Unidades.Aceita(g, s.Trim()) ? "" : s.Trim();
+
+    [Category(GUni), DisplayName("Força"), TypeConverter(typeof(UnidadeForcaConverter)), Description("Cargas pontuais, reações e cortante (ARMVIGAANALISE).")]
+    public string UnidadeForca { get => _c.UnidadeForca; set => _c.UnidadeForca = Uni(value, Core.Configuracao.Projeto.Grandeza.Forca); }
+
+    [Category(GUni), DisplayName("Momento"), TypeConverter(typeof(UnidadeMomentoConverter)), Description("Momento fletor e rigidez das ligações.")]
+    public string UnidadeMomento { get => _c.UnidadeMomento; set => _c.UnidadeMomento = Uni(value, Core.Configuracao.Projeto.Grandeza.Momento); }
+
+    [Category(GUni), DisplayName("Carga linear"), TypeConverter(typeof(UnidadeCargaLinearConverter)), Description("Cargas distribuídas na viga.")]
+    public string UnidadeCargaLinear { get => _c.UnidadeCargaLinear; set => _c.UnidadeCargaLinear = Uni(value, Core.Configuracao.Projeto.Grandeza.CargaLinear); }
+
+    [Category(GUni), DisplayName("Carga de superfície"), TypeConverter(typeof(UnidadeCargaSuperficieConverter)), Description("Cargas da laje (por m²).")]
+    public string UnidadeCargaSuperficie { get => _c.UnidadeCargaSuperficie; set => _c.UnidadeCargaSuperficie = Uni(value, Core.Configuracao.Projeto.Grandeza.CargaSuperficie); }
 }
 
 [TypeConverter(typeof(OrdemDeclaradaConverter))]

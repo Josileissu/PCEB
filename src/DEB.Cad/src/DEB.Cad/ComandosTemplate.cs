@@ -260,8 +260,9 @@ public sealed class ComandosTemplate
     /// </summary>
     /// <param name="atualizarRA">false = a tabela entra vazia e NINGUÉM é renumerado agora (importação de muitas peças: o chamador
     /// faz uma <see cref="Relacao.ServicoRA.Atualizar"/> só no fim — antes, cada peça renumerava e reescrevia o desenho inteiro).</param>
+    /// <param name="entidades">Recebe TODAS as entidades desenhadas (contornos, textos, cotas, tabelas…); o retorno são só as barras.</param>
     internal static List<ObjectId> Desenhar(Transaction tr, Database db, ConfiguracaoArmadura cfg, ResultadoTemplate r, Point3d origem,
-        bool atualizarRA = true)
+        bool atualizarRA = true, List<ObjectId> entidades = null)
     {
         double cpu = Desenho.CmPorUnidade(db, cfg);
         var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
@@ -440,7 +441,7 @@ public sealed class ComandosTemplate
             ServicoFaixa.Criar(tr, (Polyline)tr.GetObject(bid, OpenMode.ForWrite), dados, P3(f.Posicao.X, f.Posicao.Y), cfg);
         }
 
-        if (string.IsNullOrWhiteSpace(r.Detalhamento)) return ids;
+        if (string.IsNullOrWhiteSpace(r.Detalhamento)) { entidades?.AddRange(todos.Concat(ids).Distinct()); return ids; }
 
         // ---- detalhamento (bloco) com tudo, e a relação do aço parcial dele ----
         foreach (var id in ids) todos.AddRange(PartesDaBarra(tr, db, (Polyline)tr.GetObject(id, OpenMode.ForRead)));
@@ -462,6 +463,7 @@ public sealed class ComandosTemplate
             Relacao.ServicoRA.Inserir(db, tr, P3(r.PosicaoRA.Value.X, r.PosicaoRA.Value.Y), cfg, op, atualizarRA);
         }
         else if (atualizarRA) Relacao.ServicoRA.Atualizar(db, tr, cfg);
+        entidades?.AddRange(todos.Concat(ids).Distinct().Where(i => !i.IsErased));
         return ids;
     }
 

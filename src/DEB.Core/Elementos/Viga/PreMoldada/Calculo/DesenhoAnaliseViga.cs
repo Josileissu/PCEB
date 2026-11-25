@@ -23,13 +23,15 @@ public static class DesenhoAnaliseViga
     private const double Folga = 60, AlturaDiagrama = 45;
 
     public static ResultadoTemplate Gerar(ResultadoAnaliseViga r, EntradaAnaliseViga ent, ValoresTemplate v, UnidadesAnalise u = null,
-        IReadOnlyList<TipoDente> catalogo = null, double escala = 50)
+        IReadOnlyList<TipoDente> catalogo = null, double escala = 50, double alturaTextoMm = 2.0)
     {
         u ??= new UnidadesAnalise(null);
         catalogo ??= TemplateVigaPreMoldada.CatalogoDentes;
         var o = new ResultadoTemplate { Escala = escala };
-        double k = escala / 50, ht = 0.15 * escala, hTit = 0.25 * escala, L = r.L;
-        string N(double x, string f = "0.##") { string t = Fmt.Virgula(x, f); return t.StartsWith("-") && t.Trim('-', '0', ',').Length == 0 ? t.Substring(1) : t; }
+        double k = escala / 50, L = r.L;
+        // altura dos textos = a das tabelas do CAD (AlturaTextoMm da configuração × escala): o espaçamento das tabelas depende dela
+        double ht = (alturaTextoMm > 0 ? alturaTextoMm : 2.0) / 10 * escala, hTit = 1.6 * ht;
+        string N(double x, string f = "0.###") { string t = Fmt.Virgula(x, f); return t.StartsWith("-") && t.Trim('-', '0', ',').Length == 0 ? t.Substring(1) : t; }
         (double V, string S) T(string un, double x) => u.ParaTela(un, x);
         void Txt(string s, double x, double y, double h, int al = 0, string layer = LTextos) =>
             o.Textos.Add(new TextoTemplate { Texto = s, X = x, Y = y, Altura = h, Alinhamento = al, Layer = layer });
@@ -188,13 +190,13 @@ public static class DesenhoAnaliseViga
         // ------------------------------------------------ tabelas à direita do modelo
         double xt = L + 40 * k, yt0 = yCargas + 3 * 25 * k + 2 * hTit;
         string Un(string interna) => T(interna, 1).S;
-        var tl = new TabelaTemplate { Titulo = "CARGA DA LAJE", X = xt, Y = yt0, Escala = escala };
+        var tl = new TabelaTemplate { Titulo = TabelasAnaliseViga.TLaje, X = xt, Y = yt0, Escala = escala };
         tl.Larguras.AddRange(new double[] { 7, 7, 6, 7, 3, 8, 6 });
         tl.Linhas.Add(new[] { "TIPO", "VALOR", "UN.", "VÃO INF.", "UN.", "CARGA LINEAR", "UN." });
         foreach (var (nome, c) in new[] { ("PP,laje", ent.LajePP), ("CP,laje", ent.LajeCP), ("SC,laje", ent.LajeSC) })
             tl.Linhas.Add(new[] { nome, N(T("kN/m²", c.Valor).V), Un("kN/m²"), N(c.VaoInfluencia), "m", N(T("kN/m", c.Linear).V), Un("kN/m") });
         o.Tabelas.Add(tl);
-        var tv = new TabelaTemplate { Titulo = "CARGA DA VIGA", X = xt, Y = yt0 - (tl.AlturaEmTextos() + 3) * ht, Escala = escala };
+        var tv = new TabelaTemplate { Titulo = TabelasAnaliseViga.TViga, X = xt, Y = yt0 - (tl.AlturaEmTextos() + 4) * ht, Escala = escala };
         tv.Larguras.AddRange(new double[] { 7, 8, 6 });
         tv.Linhas.Add(new[] { "TIPO", "CARGA LINEAR", "UN." });
         tv.Linhas.Add(new[] { "PP,laje", N(T("kN/m", ent.LajePP.Linear).V), Un("kN/m") });
@@ -204,17 +206,22 @@ public static class DesenhoAnaliseViga
         tv.Linhas.Add(new[] { "CP,viga", N(T("kN/m", ent.VigaCP).V), Un("kN/m") });
         tv.Linhas.Add(new[] { "SC,viga", N(T("kN/m", ent.VigaSC).V), Un("kN/m") });
         o.Tabelas.Add(tv);
-        double yProx = tv.Y - (tv.AlturaEmTextos() + 3) * ht;
-        if (ent.Pontuais.Count > 0)
+        double yProx = tv.Y - (tv.AlturaEmTextos() + 4) * ht;
         {
-            var tp = new TabelaTemplate { Titulo = "CARGAS PONTUAIS", X = xt, Y = yProx, Escala = escala };
+            var tp = new TabelaTemplate { Titulo = TabelasAnaliseViga.TPontuais, X = xt, Y = yProx, Escala = escala };
             tp.Larguras.AddRange(new double[] { 7, 7, 7, 6 });
             tp.Linhas.Add(new[] { "X (cm)", "G", "Q", "UN." });
             foreach (var p in ent.Pontuais) tp.Linhas.Add(new[] { N(p.X, "0.#"), N(T("kN", p.G).V), N(T("kN", p.Q).V), Un("kN") });
+            for (int i = 0; i < 2; i++) tp.Linhas.Add(new[] { "", "", "", Un("kN") });   // linhas livres para novas cargas
             o.Tabelas.Add(tp);
-            yProx = tp.Y - (tp.AlturaEmTextos() + 3) * ht;
+            yProx = tp.Y - (tp.AlturaEmTextos() + 4) * ht;
         }
-        var tm = new TabelaTemplate { Titulo = "MODELOS (ENVOLTÓRIA)", X = xt, Y = yProx, Escala = escala };
+        var tpar = new TabelaTemplate { Titulo = TabelasAnaliseViga.TParametros, X = xt, Y = yProx, Escala = escala };
+        tpar.Larguras.AddRange(new double[] { 16, 7, 4 });
+        tpar.Linhas.AddRange(TabelasAnaliseViga.LinhasParametros(ent));
+        o.Tabelas.Add(tpar);
+        yProx = tpar.Y - (tpar.AlturaEmTextos() + 4) * ht;
+        var tm = new TabelaTemplate { Titulo = TabelasAnaliseViga.TModelos, X = xt, Y = yProx, Escala = escala };
         tm.Larguras.AddRange(new double[] { 14, 6, 6, 10, 9, 9 });
         tm.Linhas.Add(new[] { "MODELO", "αR,E", "αR,D", $"Rsec ({Un("kN·m")}/rad)", $"Md,máx ({Un("kN·m")})", $"Md,mín ({Un("kN·m")})" });
         foreach (var m in r.Modelos)

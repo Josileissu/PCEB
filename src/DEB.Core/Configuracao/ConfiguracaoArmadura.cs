@@ -154,6 +154,13 @@ public sealed class ConfiguracaoArmadura
     /// <summary>Unidade em que as medidas das barras são escritas (padrão dos desenhos sem unidade própria; ver ARMUNIDADES).</summary>
     [DataMember(Order = 73)] public UnidadeApresentacao UnidadeApresentacao { get; set; } = UnidadeApresentacao.Centimetro;
 
+    // Unidades da análise da viga no CAD (D51, 25/11/2026: "as unidades podem vir de alguma janela de configuração, junto com a
+    // armadura"); vazio = a do padrão do escritório (a da configuração de projeto do PCEB).
+    [DataMember(Order = 75)] public string UnidadeForca { get; set; } = "";
+    [DataMember(Order = 76)] public string UnidadeMomento { get; set; } = "";
+    [DataMember(Order = 77)] public string UnidadeCargaLinear { get; set; } = "";
+    [DataMember(Order = 78)] public string UnidadeCargaSuperficie { get; set; } = "";
+
     [DataMember(Order = 100)] public int VersaoConfig { get; set; } = VersaoAtual;
     public const int VersaoAtual = 4;
 
