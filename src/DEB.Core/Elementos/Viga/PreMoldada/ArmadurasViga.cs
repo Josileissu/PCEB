@@ -231,6 +231,22 @@ public sealed partial class TemplateVigaPreMoldada
             r.Add(new ZonaEstriboViga { Nome = "ponta", X1 = x0, X2 = x1, Esp = espP });
         else
         {
+            // divisas exatas (D51, 25/11/2026, "respeitar os espaçamentos"): as zonas das pontas em múltiplos do espaçamento delas
+            // (para cima; os estribos são os mesmos contados de qualquer lado e caem nas duas divisas) e, se a sobra do vão junto da
+            // ponta direita deixar dois estribos colados (< 5 cm), a ponta ganha um estribo e o vão perde o último — nenhum
+            // intervalo passa do espaçamento da zona. Zona digitada já múltipla (100 c/10) não muda.
+            if (lzE > 0 && lzD > 0 && espP > 0 && espV > 0)
+            {
+                double l0 = x1 - x0, folga = Math.Min(5, espP);
+                double lE = Math.Ceiling(lzE / espP - 1e-9) * espP, lD = Math.Ceiling(lzD / espP - 1e-9) * espP;
+                for (int k = 0; k < 4 && lE + lD < l0 - (espV + espP); k++)
+                {
+                    double lv = l0 - lE - lD, sobra = lv - Math.Floor(lv / espV + 1e-9) * espV;
+                    if (sobra < 1e-6 || sobra >= folga) break;
+                    lD += espP;
+                }
+                if (lE + lD < l0 - (espV + espP)) { lzE = lE; lzD = lD; }
+            }
             if (lzE > 0) r.Add(new ZonaEstriboViga { Nome = "ponta E", X1 = x0, X2 = x0 + lzE, Esp = espP });
             r.Add(new ZonaEstriboViga { Nome = "vão", X1 = x0 + Math.Max(0, lzE), X2 = x1 - Math.Max(0, lzD), Esp = espV });
             if (lzD > 0) r.Add(new ZonaEstriboViga { Nome = "ponta D", X1 = x1 - lzD, X2 = x1, Esp = espP });

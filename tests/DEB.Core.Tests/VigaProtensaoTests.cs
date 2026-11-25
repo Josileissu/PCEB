@@ -129,8 +129,11 @@ public class VigaProtensaoTests
         });
         var zonas = TemplateVigaPreMoldada.ZonasEstribos(v, new ConfiguracaoArmadura(), 800,
             new ExtremidadeViga(), new ExtremidadeViga(), lt, lt);
-        Assert.Equal(lt, zonas[0].X2, 6);
-        Assert.Equal(800 - lt, zonas[2].X1, 6);
+        // a zona da ponta cobre o comprimento de transferência; desde 25/11/2026 (D51) vai até o múltiplo seguinte do espaçamento
+        // dela (divisas exatas, sem estribos colados), então passa de lt em menos de um espaçamento
+        double espP = v.Numero("EstEspPonta");
+        Assert.InRange(zonas[0].X2, lt - 1e-6, lt + espP);
+        Assert.InRange(zonas[2].X1, 800 - lt - espP, 800 - lt + 1e-6);
         Assert.Contains(r.Textos, t => t.Texto.Contains("FRETAGEM"));
         // taxas no quadro
         var linhas = r.Tabelas.SelectMany(t => t.Linhas).ToList();
