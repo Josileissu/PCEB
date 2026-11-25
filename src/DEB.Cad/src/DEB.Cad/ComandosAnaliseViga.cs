@@ -116,7 +116,21 @@ public sealed class ComandosAnaliseViga
             double minY = des.Contornos.SelectMany(c => c.Vertices).Select(q => q.Y).Concat(des.Textos.Select(t => t.Y)).DefaultIfEmpty(0).Min();
             double cpu = Desenho.CmPorUnidade(db, cfg);
             var pt = new Point3d(origem.X, origem.Y + (minY - 4 * escala) / cpu, origem.Z);
-            if (calc != null) ArmarViga(ed, db, cfg, id, v, calc, pt);
+            double fundo = calc != null ? ArmarViga(ed, db, cfg, id, v, calc, pt) : pt.Y;
+            // memória de cálculo ABAIXO da viga armada (pedido do usuário, 25/11/2026), marcada com a id da análise
+            var mem = DesenhoAnaliseViga.Memoria(r, ent, calc, v, UnidadesAnalise.DoCad(cfg), escala, cfg.AlturaTextoMm);
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                var idsMem = new List<ObjectId>();
+                ComandosTemplate.Desenhar(tr, db, cfg, mem, new Point3d(origem.X, fundo - 6 * escala / cpu, origem.Z), atualizarRA: false, entidades: idsMem);
+                foreach (var oid in idsMem)
+                {
+                    var e = (Entity)tr.GetObject(oid, OpenMode.ForWrite);
+                    using var rb = new ResultBuffer(new TypedValue((int)DxfCode.ExtendedDataRegAppName, App), new TypedValue((int)DxfCode.ExtendedDataAsciiString, id));
+                    e.XData = rb;
+                }
+                tr.Commit();
+            }
         }
         catch (Exception ex)
         {
@@ -138,8 +152,10 @@ public sealed class ComandosAnaliseViga
     /// substitui) e desenha o detalhamento da proposta em <paramref name="pt"/>; o bloco do detalhamento leva a id da análise. O de
     /// um desenho anterior da mesma análise já foi apagado com as outras entidades dela (e a definição do bloco sem inserções sai).
     /// </summary>
-    internal static ResultadoCalculoViga ArmarViga(Editor ed, Database db, ConfiguracaoArmadura cfg, string id, ValoresTemplate v, ResultadoCalculoViga calc, Point3d pt)
+    /// <returns>O y (unidades do desenho) do fundo da viga armada desenhada, para a memória ir abaixo dela.</returns>
+    internal static double ArmarViga(Editor ed, Database db, ConfiguracaoArmadura cfg, string id, ValoresTemplate v, ResultadoCalculoViga calc, Point3d pt)
     {
+        double fundo = pt.Y;
         var cat = TemplateVigaPreMoldada.CatalogoDentes;
         if (calc.DentesPropostos.Count > 0)
         {
@@ -172,6 +188,7 @@ public sealed class ComandosAnaliseViga
                     {
                         if (rid.IsErased) continue;
                         var br = (Entity)tr.GetObject(rid, OpenMode.ForWrite);
+                        try { fundo = Math.Min(fundo, br.GeometricExtents.MinPoint.Y); } catch (Exception) { }
                         using var rb = new ResultBuffer(new TypedValue((int)DxfCode.ExtendedDataRegAppName, App), new TypedValue((int)DxfCode.ExtendedDataAsciiString, id));
                         br.XData = rb;
                     }
@@ -182,8 +199,8 @@ public sealed class ComandosAnaliseViga
         ed?.WriteMessage($"\nViga armada: {string.Join("; ", calc.ResumoProposta())}.");
         foreach (var a in calc.Avisos.Concat(res.Avisos).Distinct()) ed?.WriteMessage("\nAviso: " + a);
         int conferir = calc.Verificacoes.Count(x => x.Situacao != Core.Normas.Verificacao.SituacaoVerificacao.Ok);
-        if (conferir > 0) ed?.WriteMessage($"\n{conferir} verificação(ões) para conferir ou que não atendem (relatório da viga).");
-        return calc;
+        if (conferir > 0) ed?.WriteMessage($"\n{conferir} verificação(ões) para conferir ou que não atendem (memória de cálculo, abaixo da viga).");
+        return fundo;
     }
 
     // ------------------------------------------------------------------ marcação e registro no desenho

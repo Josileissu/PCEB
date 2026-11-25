@@ -399,12 +399,13 @@ public class AnaliseVigaTests
             Assert.Contains(linhas, l => l.Titulo && l.Texto.StartsWith(t));
         Assert.Contains(linhas, l => l.Texto.Contains("K9 [OK]"));
         Assert.All(linhas, l => Assert.True(l.Texto.Length <= 172));
-        // no desenho, abaixo dos diagramas, na camada PCEB_MEMORIA, nas unidades da configuração (tf no padrão do escritório)
-        var d = DesenhoAnaliseViga.Gerar(an, ent, v, null, cat, 50, 2.0, calc);
-        var mem = d.Textos.Where(t => t.Layer == DesenhoAnaliseViga.LMemoria).ToList();
+        // desenho próprio (o CAD põe abaixo da viga armada), do topo para baixo, na camada PCEB_MEMORIA, nas unidades da configuração
+        var mem = DesenhoAnaliseViga.Memoria(an, ent, calc, v).Textos;
         Assert.True(mem.Count > 40);
-        double fundoDiagramas = d.Contornos.Where(c => c.Layer == DesenhoAnaliseViga.LDeslocada).Min(c => c.Vertices.Min(p => p.Y));
-        Assert.True(mem.Max(t => t.Y) < fundoDiagramas);
+        Assert.All(mem, t => Assert.Equal(DesenhoAnaliseViga.LMemoria, t.Layer));
+        Assert.True(mem.Max(t => t.Y) <= 0);
         Assert.Contains(mem, t => t.Texto.Contains(" tf"));
+        // o desenho da análise não leva mais a memória
+        Assert.DoesNotContain(DesenhoAnaliseViga.Gerar(an, ent, v, null, cat, 50, 2.0, calc).Textos, t => t.Layer == DesenhoAnaliseViga.LMemoria);
     }
 }

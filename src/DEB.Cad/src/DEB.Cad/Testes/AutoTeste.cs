@@ -2583,7 +2583,7 @@ public sealed class AutoTeste
             var ids = ComandosAnaliseViga.Desenhar(ed, db, cfg, id, v, ent, origem, 50);
             Checar(ids.Count > 50, $"análise desenhada: {ids.Count} entidades");
             int marcadas = ComandosAnaliseViga.Entidades(db, id).Count;
-            Checar(marcadas == ids.Count + 1, $"todas as entidades marcadas com a id da análise (PCEB_ANALISE), mais o bloco da viga armada: {marcadas} = {ids.Count} + 1");
+            Checar(marcadas > ids.Count + 1, $"todas as entidades marcadas com a id da análise (PCEB_ANALISE), mais o bloco da viga armada e a memória: {marcadas} > {ids.Count} + 1");
             int BlocosV101()
             {
                 using var trb = db.TransactionManager.StartTransaction();
@@ -2594,6 +2594,23 @@ public sealed class AutoTeste
                 return n;
             }
             Checar(BlocosV101() == 1, "viga armada desenhada como detalhamento \"V101\"");
+            // memória de cálculo abaixo da viga armada (pedido do usuário, 25/11/2026)
+            double topoMem = double.MinValue, fundoViga = double.MaxValue;
+            using (var trm = db.TransactionManager.StartTransaction())
+            {
+                foreach (var oid in ComandosAnaliseViga.Entidades(db, id))
+                {
+                    var e = (Entity)trm.GetObject(oid, OpenMode.ForRead);
+                    try
+                    {
+                        if (e.Layer == "PCEB_MEMORIA") topoMem = Math.Max(topoMem, e.GeometricExtents.MaxPoint.Y);
+                        else if (e is BlockReference) fundoViga = Math.Min(fundoViga, e.GeometricExtents.MinPoint.Y);
+                    }
+                    catch (Exception) { }
+                }
+                trm.Commit();
+            }
+            Checar(topoMem > double.MinValue && topoMem < fundoViga, $"memória de cálculo abaixo da viga armada (topo da memória {topoMem:0} < fundo da viga {fundoViga:0})");
             Checar(Plugin.Config.Dentes.Any(d => d.Nome.StartsWith("DG 75x25 – V101")), "dente calculado gravado no catálogo (ARMDENTES): " +
                 string.Join(", ", Plugin.Config.Dentes.Where(d => d.Nome.Contains("V101")).Select(d => d.Nome)));
             var reg = ComandosAnaliseViga.LerRegistro(db, id);
