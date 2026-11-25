@@ -118,6 +118,11 @@ public sealed class ResultadoCalculoViga
     public double AbaEstBitola { get; set; }
     public double AbaEstEsp { get; set; }
     public double AsSuspAba { get; set; }
+    /// <summary>Consolo lateral para outra viga (aba curta, D51 parte 4): Fd (kN), a/d, tirante (cm²) e suspensão na alma (cm²).</summary>
+    public double FdConsolo { get; set; }
+    public double AdConsolo { get; set; }
+    public double AsTirConsolo { get; set; }
+    public double AsSuspConsolo { get; set; }
 
     // ELS
     public double FlechaImediata { get; set; }
@@ -502,6 +507,14 @@ public static class CalculoViga
             fdAbaPorCm = ladosAba * r.FdAba / 100;
             r.AsSuspAba = fdAbaPorCm / fywd * 100;                                           // cm²/m
         }
+        // consolo lateral para outra viga (aba curta, NBR 9062 7.3): a reação da viga apoiada é carga INDIRETA — estribos de suspensão
+        // PRÓPRIOS no trecho do consolo (7.3.8), além dos de cortante (passo 5d); não entram nas zonas (não adensam a viga toda)
+        var noConsolo = aba.Existe && aba.Consolo ? cargas.Concentradas.Where(c => aba.Em(c.X)).ToList() : new List<CargaConcentrada>();
+        if (noConsolo.Count > 0)
+        {
+            r.FdConsolo = noConsolo.Sum(c => k.GamaG * c.G + k.GamaQ * c.Q);
+            r.AsSuspConsolo = r.FdConsolo / Math.Min(fywd, 43.5);
+        }
         double SuspEm(double x) => fdAbaPorCm > 0 && aba.Em(x) ? fdAbaPorCm / fywd : 0;
         double AswTot(double vd, double x) => Math.Max(aswMin, Math.Max(0, vd - r.Vc) / (0.9 * dV * fywd) + 2 * As90Em(x)) + SuspEm(x);
         double aswPonta = Math.Max(AswTot(r.VdE, xa + 1e-6), AswTot(r.VdD, xb - 1e-6));
@@ -623,6 +636,48 @@ public static class CalculoViga
         }
         else if (r.DiagramaNegativo.Count > 0 && capa > 0)
             r.Avisos.Add("Momento negativo nas pontas com 2º estágio: a negativa vai no detalhe do capeamento da laje (não entra na peça).");
+
+        // ---------------- 5d. consolo lateral para outra viga (D51, parte 4) ----------------
+        if (r.FdConsolo > 0)
+        {
+            var m5d = new PassoMemoria { Titulo = "5d. Consolo lateral para outra viga (NBR 9062, 7.3; carga indireta, 7.3.8)" };
+            double phiC0 = v.Numero("AbaEstBitola") > 0 ? v.Numero("AbaEstBitola") : 8;
+            double eC = cargas.ExcAba > 0 ? cargas.ExcAba - b / 2 : aba.Largura / 2;                      // da face da alma à reação
+            double hdC = (v.Numero("Neoprene") > 0 ? 0.16 : 0.5) * r.FdConsolo;
+            double lc = aba.Comprimento;
+            (int N, double Phi, double S, double Nec, double D, double Ad) arr = (0, 0, 0, 0, 0, 99);
+            foreach (double phi in BitolasEst.Where(f => f >= 6.3 - 1e-6))
+            {
+                double dC = aba.Altura - cobT - phi / 20, ad = dC > 0 ? eC / dC : 99;
+                double nec = (ad <= 0.5 ? 0.8 * r.FdConsolo / (fyd * 1.4) : (0.1 + Math.Min(ad, 1)) * r.FdConsolo / fyd) + hdC / fyd;
+                nec = Math.Max(nec, 0.04 * lc * dC * fck / TabelasNbr.Fyk(acoL));                              // ω ≥ 0,04 (7.3.5.2)
+                // estribos fechados do consolo (o ramo de cima é o tirante) no comprimento dele, a cobrimento das pontas
+                int n = Math.Max(2, (int)Math.Ceiling(nec / A(phi) - 1e-9));
+                double sp = n > 1 ? (lc - 2 * cobP) / (n - 1) : lc;
+                if (sp < Math.Max(5, phi / 10 + 2) - 1e-9) continue;
+                if (arr.N == 0 || n * A(phi) < arr.N * A(arr.Phi) - 1e-9) arr = (n, phi, Math.Floor(Math.Min(sp, 20) / 2.5 + 1e-9) * 2.5, nec, dC, ad);
+            }
+            r.AdConsolo = arr.Ad; r.AsTirConsolo = arr.Nec;
+            m5d.Linhas.Add($"Reação da viga apoiada: Fd = Σ(γg·G + γq·Q) = {N(r.FdConsolo, "0.0")} kN, a {N(eC, "0.0")} cm da face da alma; Hd = {N(hdC, "0.0")} kN; consolo de {N(lc, "0")} cm.");
+            if (arr.N > 0)
+            {
+                m5d.Linhas.Add($"d = {N(arr.D, "0.0")} cm; a/d = {N(arr.Ad, "0.00")}; tirante: As = {(arr.Ad <= 0.5 ? "0,8·Fd/(fyd·μ)" : "(0,1 + a/d)·Fd/fyd")} + Hd/fyd ≥ ω mín = {N(arr.Nec)} cm² → " +
+                               $"{arr.N} estribos fechados ø{N(arr.Phi, "0.#")} (ramo de cima) = {N(arr.N * A(arr.Phi))} cm², c/{N(arr.S, "0.#")} no comprimento do consolo.");
+                r.AbaEstBitola = arr.Phi; r.AbaEstEsp = arr.S;
+            }
+            else r.Avisos.Add("Consolo lateral: o tirante não cabe em estribos no comprimento do consolo — aumentar o consolo ou usar barras de tirante.");
+            int nSusC = Math.Max(2, (int)Math.Ceiling(r.AsSuspConsolo / (2 * A(r.EstBitola > 0 ? r.EstBitola : 8)) - 1e-9));
+            m5d.Linhas.Add($"Suspensão da carga indireta (7.3.8): As = Fd/fyd = {N(r.AsSuspConsolo)} cm² em estribos fechados PRÓPRIOS da alma, no trecho do consolo, " +
+                           $"além dos de cortante → {nSusC} estribos ø{N(r.EstBitola > 0 ? r.EstBitola : 8, "0.#")} (2 ramos).");
+            r.Verificacoes.Add(K("K31", "Consolo", "Estribos de suspensão próprios no trecho do consolo (além dos de cortante)", $"{nSusC} ø{N(r.EstBitola > 0 ? r.EstBitola : 8, "0.#")}",
+                $"≥ {N(r.AsSuspConsolo)} cm²", true, "NBR 9062, 7.3.8", SituacaoVerificacao.Conferir,
+                "O template ainda não desenha estes estribos extras: acrescente-os no trecho do consolo."));
+            r.Verificacoes.Add(K("K30", "Consolo", "Tirante do consolo lateral (estribos fechados)", arr.N > 0 ? $"{N(arr.N * A(arr.Phi))} cm²" : "não cabe", $"≥ {N(arr.Nec)} cm²",
+                arr.N == 0 || arr.Ad > 1, "NBR 9062, 7.3.5", arr.Ad > 1 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende));
+            r.Verificacoes.Add(K("K32", "Consolo", "Torção pela reação fora do eixo da alma", $"T ≈ {N(r.FdConsolo * (eC + b / 2) / 100, "0.0")} kN·m", "conferir", true, "NBR 6118, 17.5",
+                SituacaoVerificacao.Conferir, "A reação no consolo de um lado só torce a viga: confira a torção e a ligação nos apoios."));
+            r.Memoria.Add(m5d);
+        }
 
         // ---------------- 5c. aba de laje como consolo corrido (D51, parte 2) ----------------
         if (r.FdAba > 0)

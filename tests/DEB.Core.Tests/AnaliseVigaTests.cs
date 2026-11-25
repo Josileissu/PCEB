@@ -328,4 +328,30 @@ public class AnaliseVigaTests
         // sem a torção os estribos da ponta pedem menos (ou o mesmo, pelo padrão)
         Assert.True(rd.EspPonta >= rl.EspPonta - 1e-9);
     }
+    // ---------------- etapa 4, parte 4: consolo lateral para outra viga ----------------
+
+    [Fact]
+    public void ConsoloLateralParaOutraViga()
+    {
+        // viga 30 × 70 com uma aba curta (consolo de 40 cm) no meio, recebendo outra viga: 120 + 40 kN
+        var v = Viga(x =>
+        {
+            x["B"] = "30"; x["H"] = "70"; x["Aba"] = TemplateVigaPreMoldada.AbaDir; x["AbaLargura"] = "25"; x["AbaAltura"] = "40"; x["AbaBase"] = "30";
+            x["AbaIni"] = "280"; x["AbaFim"] = "320";
+        });
+        var ent = new EntradaAnaliseViga { ApoioE = 15, ApoioD = 15, Pontuais = { new CargaConcentrada { X = 300, G = 120, Q = 40 } } };
+        var an = AnaliseViga.Rodar(v, ent);
+        var c = AnaliseViga.CargasParaCalculo(ent, v);
+        var r = CalculoViga.Calcular(v, c, null, null, an);
+        Assert.Equal(1.4 * 120 + 1.4 * 40, r.FdConsolo, 6);
+        Assert.Equal(r.FdConsolo / 43.478, r.AsSuspConsolo, 1);
+        Assert.True(r.AsTirConsolo > 0 && r.AbaEstBitola > 0);
+        Assert.Contains(r.Verificacoes, x => x.Codigo == "K30");
+        Assert.Contains(r.Memoria, m => m.Titulo.StartsWith("5d."));
+        // a suspensão da carga indireta vai em estribos próprios (K31), sem adensar as zonas da viga toda
+        Assert.Contains(r.Verificacoes, x => x.Codigo == "K31");
+        var semConsolo = Viga(x => { x["B"] = "30"; x["H"] = "70"; });
+        var r0 = CalculoViga.Calcular(semConsolo, AnaliseViga.CargasParaCalculo(ent, semConsolo), null, null, AnaliseViga.Rodar(semConsolo, ent));
+        Assert.Equal(r0.ZonaPonta, r.ZonaPonta, 6);
+    }
 }
