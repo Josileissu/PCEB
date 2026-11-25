@@ -112,4 +112,13 @@ AutoRun `analitico` (sem gravar): grava `janela_<vista>.png` de seis vistas e o 
   cantoneira no suporte; arruela e porca nos chumbadores; a viga para a 12 mm da face do suporte (`START/END_EXTENSION` com a união
   da ponta desligada — a extensão só fica editável depois de `Regenerate`).
 - Insert (chapa embutida com pinos com cabeça, `LigacaoChapaEmbutida`): EN 1992-4 (aço, cone, arrancamento, pry-out, borda e
-  interações) na biblioteca, com desenho. Ainda não é criado pela análise nem modelado no Revit.
+  interações) na biblioteca, com desenho.
+- Viga de aço chegando em pilar de concreto (sem pilar de aço perto): a análise dá ao pilar um nó na altura da ponta e cria a ligação
+  articulada por insert — na face (Vd = cortante nos pinos, tração da viga arranca a chapa) ou no topo (reação comprime a chapa, a normal
+  da viga vira cortante). No Revit: chapa embutida rente à face/topo, pinos com cabeça (família `PCEB Pino ø… H…`), chapa de alma
+  soldada e parafusada na alma, viga recortada a 12 mm da face. O AutoRun `analitico` com `SD_ACO=1` põe uma viga W310 entre os dois
+  pilares de concreto mais próximos e grava `ligacoes_3d_insert*.png`.
+- Parafusos das ligações: família `PCEB Parafuso ø… L… P…` (fuste redondo, cabeça e porca sextavadas, arruela), uma por diâmetro,
+  comprimento e pega; baseada em plano com o eixo pela normal.
+- Janela de análise: a ligação de aço aparece num 3D sombreado no estilo do IDEA StatiCa (setas ← → ↑ ↓ giram), com os esforços da
+  peça no nó e a tabela N, Vy, Vz, Mx, My, Mz; o consolo mostra as forças no nó A (ponto do aparelho).

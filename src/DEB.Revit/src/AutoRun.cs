@@ -829,11 +829,25 @@ namespace DEB.Revit
                 doc.Create.NewFamilyInstance(Line.CreateBound(T(cantos[1]), T(cantos[3])), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
                 XYZ meioA = (T(cantos[0]) + T(cantos[1])) / 2, meioB = (T(cantos[2]) + T(cantos[3])) / 2;
                 var ult = doc.Create.NewFamilyInstance(Line.CreateBound(meioA, meioB), sec, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                // viga de aço W310X38.7 entre os dois pilares de concreto mais próximos, 1,5 m abaixo do topo do mais baixo (insert na face)
+                var conc = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType().Cast<FamilyInstance>()
+                    .Where(fi => fi.StructuralMaterialType == Autodesk.Revit.DB.Structure.StructuralMaterialType.Concrete || fi.StructuralMaterialType == Autodesk.Revit.DB.Structure.StructuralMaterialType.PrecastConcrete)
+                    .Select(fi => (fi, bb: fi.get_BoundingBox(null))).Where(x => x.bb != null).ToList();
+                string viaConc = "";
+                if (conc.Count >= 2)
+                {
+                    XYZ Cen((FamilyInstance fi, BoundingBoxXYZ bb) x) => (x.bb.Min + x.bb.Max) / 2;
+                    var par = conc.SelectMany((a, i) => conc.Skip(i + 1).Select(b => (a, b))).OrderBy(q => Cen(q.a).DistanceTo(Cen(q.b)) is double dd && dd > 2 * m ? dd : 1e9).First();
+                    double zv = Math.Min(par.a.bb.Max.Z, par.b.bb.Max.Z) - 1.5 * m;
+                    XYZ pa0 = new XYZ(Cen(par.a).X, Cen(par.a).Y, zv), pb0 = new XYZ(Cen(par.b).X, Cen(par.b).Y, zv);
+                    doc.Create.NewFamilyInstance(Line.CreateBound(pa0, pb0), vig, nivel, Autodesk.Revit.DB.Structure.StructuralType.Beam);
+                    viaConc = $" Viga de aço entre os pilares de concreto {par.a.fi.Id} e {par.b.fi.Id} a z = {zv * 30.48:0} cm.";
+                }
                 var tipoMat = ult.StructuralMaterialType;
                 var mat = doc.GetElement(ult.StructuralMaterialId) as Material;
                 t.Commit();
                 return string.Join(Environment.NewLine, falhas.Select(f => "FALHA: " + f)) + (falhas.Count > 0 ? Environment.NewLine : "") + $"Pórtico de aço de teste criado (4 pilares W250X32.7, 4 vigas W310X38.7, secundária W200X15); material {tipoMat} \"{mat?.Name}\"; " +
-                       $"perfil lido: {DEB.Revit.Analise.MetalicaRevit.Perfil(sec)?.Nome ?? "nenhum"} (tipo \"{sec.Name}\", família \"{sec.FamilyName}\").";
+                       $"perfil lido: {DEB.Revit.Analise.MetalicaRevit.Perfil(sec)?.Nome ?? "nenhum"} (tipo \"{sec.Name}\", família \"{sec.FamilyName}\")." + viaConc;
             }
         }
 

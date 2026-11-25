@@ -48,10 +48,11 @@ namespace DEB.Revit.Analise
                             case TipoLigacao.CantoneiraDupla: Cantoneira(doc, l, chapa, parafuso, ids); break;
                             case TipoLigacao.ChapaTopo: ChapaTopo(doc, l, chapa, parafuso, ids); break;
                             case TipoLigacao.PlacaBase: PlacaBase(doc, l, chapa, parafuso, ids); break;
+                            case TipoLigacao.ChapaEmbutida when l.PilarConcreto != null: Insert(doc, l, chapa, parafuso, ids, log); break;
                             default: log.AppendLine($"{l.Dono}: tipo {l.Tipo} ainda sem modelagem no Revit."); continue;
                         }
                         foreach (var id in ids) doc.GetElement(id).LookupParameter(FamiliasLigacoes.PLigacao)?.Set(l.Dono.Id);
-                        if (l.Viga != null && l.Suporte != null) AjustarPontaDaViga(doc, l, log);
+                        if (l.Viga != null && (l.Suporte != null || (l.PilarConcreto != null && l.NaFace))) AjustarPontaDaViga(doc, l, log);
                         if (ids.Count > 1)
                         {
                             Group g = doc.Create.NewGroup(ids);
@@ -99,11 +100,13 @@ namespace DEB.Revit.Analise
             var arq = System.IO.Directory.GetFiles(System.IO.Path.GetDirectoryName(png), System.IO.Path.GetFileNameWithoutExtension(png) + "*.png").FirstOrDefault();
             string r = "Imagem 3D: " + (arq ?? "não gravada");
             // aproximação: a primeira chapa de alma e a primeira placa de base
-            foreach (string prefixo in new[] { "chapa de alma", "placa de base" })
+            foreach (string prefixo in new[] { "chapa de alma", "placa de base", "insert" })
             {
                 var membros = new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).Cast<FamilyInstance>()
                     .Where(fi => fi.Symbol.FamilyName.StartsWith("PCEB")).GroupBy(fi => fi.LookupParameter(FamiliasLigacoes.PLigacao)?.AsString() ?? "")
-                    .FirstOrDefault(g => g.Key != "" && (prefixo == "placa de base" ? g.Key.EndsWith("-base") : !g.Key.EndsWith("-base")));
+                    .FirstOrDefault(g => g.Key != "" && (prefixo == "placa de base" ? g.Key.EndsWith("-base")
+                                         : prefixo == "insert" ? g.Any(x => x.Symbol.FamilyName.StartsWith("PCEB Pino"))
+                                         : !g.Key.EndsWith("-base") && !g.Any(x => x.Symbol.FamilyName.StartsWith("PCEB Pino"))));
                 if (membros == null) continue;
                 var bbs = membros.Select(x => x.get_BoundingBox(null)).Where(b => b != null).ToList();
                 var mn = new XYZ(bbs.Min(b => b.Min.X), bbs.Min(b => b.Min.Y), bbs.Min(b => b.Min.Z)) - new XYZ(1.2, 1.2, 1.2);
@@ -112,6 +115,25 @@ namespace DEB.Revit.Analise
                 {
                     t.Start();
                     v.SetSectionBox(new BoundingBoxXYZ { Min = mn, Max = mx });
+                    if (prefixo == "insert")
+                    {
+                        // o pilar de concreto esconde a chapa e os pinos: transparente nesta vista de teste
+                        // câmera do lado da viga: dos pinos (dentro do pilar) para a chapa de alma (fora)
+                        var pinos = membros.Where(x => x.Symbol.FamilyName.StartsWith("PCEB Pino")).Select(x => x.get_BoundingBox(null)).Where(b => b != null).ToList();
+                        var outros = membros.Where(x => !x.Symbol.FamilyName.StartsWith("PCEB Pino")).Select(x => x.get_BoundingBox(null)).Where(b => b != null).ToList();
+                        XYZ Cen(List<BoundingBoxXYZ> l) => l.Aggregate(XYZ.Zero, (q, b) => q + (b.Min + b.Max) / 2) / l.Count;
+                        if (pinos.Count > 0 && outros.Count > 0)
+                        {
+                            XYZ d = Cen(outros) - Cen(pinos); d = new XYZ(d.X, d.Y, 0);
+                            if (d.GetLength() > 1e-6)
+                            {
+                                d = d.Normalize(); XYZ lat = d.CrossProduct(XYZ.BasisZ);
+                                XYZ fwd = (-d * 1.0 + lat * 0.8 - XYZ.BasisZ * 0.6).Normalize();
+                                XYZ up = fwd.CrossProduct(XYZ.BasisZ).CrossProduct(fwd).Normalize();
+                                v.SetOrientation(new ViewOrientation3D((mn + mx) / 2 - fwd * 20, up, fwd));
+                            }
+                        }
+                    }
                     t.Commit();
                 }
                 string nome = System.IO.Path.GetFileNameWithoutExtension(png) + "_" + prefixo.Replace(' ', '_');
@@ -233,7 +255,7 @@ namespace DEB.Revit.Analise
             if (!long.TryParse(l.Viga.Dono.Id, out long idv) || !(doc.GetElement(new ElementId(idv)) is FamilyInstance fv)) return;
             var (p, dir, _, af) = Ponta(l);
             // distância horizontal da ponta da linha de locação ao eixo do suporte, ao longo da viga
-            XYZ eixoSup = P(l.Suporte.PontoI);
+            XYZ eixoSup = l.PilarConcreto != null ? P(l.PilarConcreto.Base) : P(l.Suporte.PontoI);
             double off = new XYZ(p.X - eixoSup.X, p.Y - eixoSup.Y, 0).DotProduct(new XYZ(dir.X, dir.Y, 0)) * 304.8;   // mm
             double face = af - 2;   // da linha de eixo do suporte à face (Ponta já soma 2 mm)
             double ext = off - face - FolgaMontagem;   // mm (negativo = recua)
@@ -280,9 +302,83 @@ namespace DEB.Revit.Analise
             XYZ p = P((l.PontaI ? v.PontoI : v.PontoJ) + v.DeslocamentoFisico);
             XYZ dir = D(v.Direcao); if (!l.PontaI) dir = -dir;
             XYZ lat = dir.CrossProduct(XYZ.BasisZ).Normalize();
+            if (l.PilarConcreto != null) return (p, dir, lat, MeiaSecao(l.PilarConcreto, dir) + 2);
             var s = l.Suporte;
             double afast = s.Pilar ? (Math.Abs(D(s.DirAlma).DotProduct(dir)) > 0.7 ? s.Perfil.D / 2 : s.Perfil.Tw / 2) : s.Perfil.Tw / 2;
             return (p, dir, lat, afast + 2);   // 2 mm de folga de montagem
+        }
+
+        /// <summary>Distância (mm) do eixo do pilar de concreto à face voltada para <paramref name="dir"/> (seção retangular B × H).</summary>
+        private static double MeiaSecao(PilarObjeto pc, XYZ dir)
+        {
+            XYZ y = D(pc.DirY), z = D(pc.DirZ);
+            return 10 * (Math.Abs(dir.DotProduct(y)) * pc.Secao.B / 2 + Math.Abs(dir.DotProduct(z)) * pc.Secao.H / 2);
+        }
+
+        /// <summary>
+        /// Insert da viga de aço no pilar de concreto (D50). Na face: chapa embutida rente à face do pilar, pinos com cabeça para dentro do
+        /// concreto, chapa de alma soldada na chapa embutida e parafusada na alma da viga. No topo: chapa embutida rente ao topo do pilar,
+        /// pinos para baixo; a viga apoia na chapa.
+        /// </summary>
+        private static void Insert(Document doc, LigacaoMetalica l, FamilySymbol ch, FamilySymbol pa, List<ElementId> ids, StringBuilder log)
+        {
+            var d = l.Embutida;
+            var pc = l.PilarConcreto;
+            double dh = d.DCabeca > 0 ? d.DCabeca : 1.6 * d.Db;
+            FamilySymbol pino = null;
+            try { pino = FamiliasChumbadores.GarantirPino(doc, d.Db, dh, d.Hef, log); } catch { }
+            void Pino(XYZ inicio, XYZ eixo)
+            {
+                eixo = eixo.Normalize();
+                var (a, b) = Plano(eixo);
+                if (pino == null) { Caixa(doc, pa, inicio + eixo * Mm(d.Hef / 2), a, b, d.Db, d.Db, d.Hef, ids); return; }
+                ReferencePlane rp = doc.Create.NewReferencePlane2(inicio - a * 3, inicio + a * 3, inicio + b * 3, Vista3D(doc));
+                if (rp.Normal.DotProduct(eixo) < 0) rp.Flip();
+                ids.Add(doc.Create.NewFamilyInstance(rp.GetReference(), inicio, a, pino).Id);
+            }
+            var (p, dir, lat, af) = Ponta(l);
+            if (l.NaFace)
+            {
+                // face do pilar voltada para a viga, na altura do eixo da viga
+                double meia = af - 2;
+                XYZ face = P(pc.Base) + (p - P(pc.Base)).DotProduct(XYZ.BasisZ) * XYZ.BasisZ + dir * Mm(meia);
+                face = new XYZ(face.X, face.Y, p.Z);
+                Caixa(doc, ch, face - dir * Mm(d.Tp), XYZ.BasisZ, lat, d.Hp, d.Bp, d.Tp, ids);   // normal Z × lat = dir: espessura até a face
+                for (int i = 0; i < d.Nx; i++)
+                    for (int j = 0; j < d.Ny; j++)
+                    {
+                        double y = (i - (d.Nx - 1) / 2.0) * d.Sx, z = (j - (d.Ny - 1) / 2.0) * d.Sy;
+                        Pino(face - dir * Mm(d.Tp) + lat * Mm(y) + XYZ.BasisZ * Mm(z), -dir);
+                    }
+                // chapa de alma soldada na chapa embutida, ao lado da alma (+lat), e os parafusos na alma
+                var vg = l.Viga.Perfil;
+                double tp = 10, larg = 110, hp = Math.Min(d.Hp - 40, vg.D - 2 * vg.Tf - 20);
+                double folga = FolgaMontagem;
+                XYZ faceAlma = face + lat * Mm(vg.Tw / 2);
+                Caixa(doc, ch, faceAlma + dir * Mm(larg / 2), XYZ.BasisZ, -dir, hp, larg, tp, ids);
+                int nb = Math.Max(2, (int)Math.Floor((hp - 70) / 75) + 1);
+                for (int k = 0; k < nb; k++)
+                {
+                    double z = (k - (nb - 1) / 2.0) * 75;
+                    XYZ cabeca = face + dir * Mm(Math.Max(folga + 35, 70)) + XYZ.BasisZ * Mm(z) - lat * Mm(vg.Tw / 2);
+                    Fixador(doc, ch, pa, cabeca, lat, 19.05, vg.Tw + tp, ids);
+                }
+                if (Diag != null) Diag.AppendLine($"  insert: eixo do pilar {P(pc.Base) * 30.48}, face {face * 30.48}, ponta da viga {p * 30.48}, dir {dir}, meia seção {meia:0} mm");
+                log.AppendLine($"  {l.Dono}: insert na face — chapa {d.Bp:0} × {d.Hp:0} × {d.Tp:0.#} mm, {d.N} pinos ø{d.Db:0} × {d.Hef:0}, chapa de alma {tp:0} × {hp:0} mm com {nb} parafusos.");
+            }
+            else
+            {
+                // topo do pilar: chapa horizontal rente ao topo, pinos para baixo
+                XYZ topo = P(pc.Ponto(pc.Comprimento));
+                Caixa(doc, ch, topo, dir, lat, d.Bp, d.Hp, d.Tp, ids);   // normal dir × lat = −Z: espessura para baixo
+                for (int i = 0; i < d.Nx; i++)
+                    for (int j = 0; j < d.Ny; j++)
+                    {
+                        double x = (i - (d.Nx - 1) / 2.0) * d.Sx, y = (j - (d.Ny - 1) / 2.0) * d.Sy;
+                        Pino(topo - XYZ.BasisZ * Mm(d.Tp) + dir * Mm(x) + lat * Mm(y), -XYZ.BasisZ);
+                    }
+                log.AppendLine($"  {l.Dono}: insert no topo — chapa {d.Bp:0} × {d.Hp:0} × {d.Tp:0.#} mm, {d.N} pinos ø{d.Db:0} × {d.Hef:0}.");
+            }
         }
 
         /// <summary>Espessura do que recebe a ligação no suporte: a mesa do pilar (viga chegando na mesa) ou a alma (pilar pela alma, viga de apoio).</summary>

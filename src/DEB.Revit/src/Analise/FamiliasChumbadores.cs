@@ -79,6 +79,48 @@ namespace DEB.Revit.Analise
             return sym;
         }
 
+        /// <summary>
+        /// Pino com cabeça do insert (D50, ISO 13918): fuste redondo de z = 0 (face da chapa embutida) a z = hef e cabeça redonda de
+        /// diâmetro dh. Baseada em plano: o eixo do pino é a normal do plano.
+        /// </summary>
+        public static FamilySymbol GarantirPino(Document doc, double db, double dh, double hef, StringBuilder log)
+        {
+            double kc = Math.Max(8, 0.5 * db);
+            string nome = $"PCEB Pino ø{DEB.Core.Fmt.Virgula(db, "0.#")} H{Math.Round(hef):0}";
+            FamilySymbol Achar() => new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().FirstOrDefault(s => s.FamilyName == nome);
+            var sym = Achar();
+            if (sym != null) return sym;
+            string modelo = Modelo(doc.Application);
+            if (modelo == null) return null;
+            Directory.CreateDirectory(Pasta);
+            string arq = Path.Combine(Pasta, nome + ".rfa");
+            Document fd = doc.Application.NewFamilyDocument(modelo);
+            try
+            {
+                using (var t = new Transaction(fd, "PCEB: " + nome))
+                {
+                    t.Start();
+                    try { fd.OwnerFamily.FamilyCategory = fd.Settings.Categories.get_Item(BuiltInCategory.OST_StructConnections); } catch { }
+                    fd.OwnerFamily.get_Parameter(BuiltInParameter.FAMILY_WORK_PLANE_BASED)?.Set(1);
+                    var vert = fd.OwnerFamily.get_Parameter(BuiltInParameter.FAMILY_ALWAYS_VERTICAL); if (vert != null && !vert.IsReadOnly) vert.Set(0);
+                    var fm = fd.FamilyManager;
+                    if (fm.CurrentType == null) fm.NewType("Padrão");
+                    fm.AddParameter(FamiliasLigacoes.PLigacao, GroupTypeId.IdentityData, SpecTypeId.String.Text, true);
+                    var c = new Construtor(fd) { Aco = MaterialDe(fd, "PCEB Pino", new Color(225, 190, 40)) };
+                    c.Cilindro(0, 0, 0, hef - kc, db / 2);          // fuste (hef medido até a face de apoio da cabeça)
+                    c.Cilindro(0, 0, hef - kc, hef, dh / 2);        // cabeça
+                    t.Commit();
+                }
+                fd.SaveAs(arq, new SaveAsOptions { OverwriteExistingFile = true });
+            }
+            catch (Exception ex) { log.AppendLine($"{nome}: não foi possível criar ({ex.Message})."); return null; }
+            finally { fd.Close(false); }
+            doc.LoadFamily(arq, out Family _);
+            sym = Achar();
+            if (sym != null && !sym.IsActive) sym.Activate();
+            return sym;
+        }
+
         private static string Modelo(Autodesk.Revit.ApplicationServices.Application app)
         {
             string raiz = app.FamilyTemplatePath;
