@@ -118,6 +118,10 @@ public sealed class ResultadoCalculoViga
     public double AbaEstBitola { get; set; }
     public double AbaEstEsp { get; set; }
     public double AsSuspAba { get; set; }
+    /// <summary>Ligação viga–capa (2º estágio, NBR 9062 6.3): tensão de cálculo e resistente na interface (kN/cm²) e As/s que a atravessa (cm²/m).</summary>
+    public double TauSd { get; set; }
+    public double TauRd { get; set; }
+    public double AsInterface { get; set; }
     /// <summary>Consolo lateral para outra viga (aba curta, D51 parte 4): Fd (kN), a/d, tirante (cm²) e suspensão na alma (cm²).</summary>
     public double FdConsolo { get; set; }
     public double AdConsolo { get; set; }
@@ -1074,6 +1078,74 @@ public static class CalculoViga
             m10.Linhas.Add($"No meio do Md máximo a torção vale {N(tdMeio / 100, "0.00")} kN·m. A ligação no apoio deve resistir a Td = {N(r.TdMax, "0.00")} kN·m (NBR 9062).");
             r.Memoria.Add(m10);
         }
+
+        // ---------------- 11. ligação viga–capa: cisalhamento na interface (NBR 9062 6.3, D51 parte 4) ----------------
+        // Pedido do usuário (25/11/2026): "pode calcular pelo cisalhamento na interface"; cargas do 2º estágio = CP + SC.
+        if (capa > 0)
+        {
+            var m11 = new PassoMemoria { Titulo = "11. Ligação viga–capa: cisalhamento na interface (NBR 9062, 6.3.3 a 6.3.5)" };
+            // Md do 2º estágio (γg·CP + γq·SC): da análise (casos CP e SC do modelo que dá o maior) ou da biapoiada pelas cargas
+            double md2 = 0, xMd2 = (xa + xb) / 2;
+            if (analise != null)
+                foreach (var mod in analise.Modelos)
+                    for (int i = 0; i < mod.Casos[CasoViga.CP].Count; i++)
+                    {
+                        double m = k.GamaG * mod.Casos[CasoViga.CP][i].M + k.GamaQ * mod.Casos[CasoViga.SC][i].M;
+                        if (m > md2) { md2 = m; xMd2 = mod.Casos[CasoViga.CP][i].X; }
+                    }
+            else
+            {
+                var e2g = new EstaticaViga(L, xa, xb, (cargas.G + nAba * cargas.GAba) / 100, pg);
+                foreach (double x in e2g.Pontos()) { double m = (k.GamaG * e2g.M(x) + k.GamaQ * eq.M(x)) / 100; if (m > md2) { md2 = m; xMd2 = x; } }
+            }
+            double dCapa = (r.Inferior?.D ?? h - cobF - phiTcm - 1) + capa, z = 0.9 * dCapa;
+            double fmd = md2 * 100 / z;                                                     // kN: compressão na capa no Md máximo
+            double av = Math.Max(1, Math.Min(xMd2 - xa, xb - xMd2));                       // do momento nulo ao máximo (o lado mais curto)
+            double bInt = b;
+            r.TauSd = fmd / (av * bInt);                                                    // kN/cm²
+            double fckMin = Math.Min(fck, cargas.FckCapa > 0 ? cargas.FckCapa : 25);
+            double fctdInt = 0.7 * TabelasNbr.Fctm(fckMin) / 10 / k.GamaC;                 // kN/cm²
+            (double Bs, double Bc) Beta(double rhoPct) =>
+                rhoPct <= 0.2 ? (0, 0.3) : rhoPct >= 0.5 ? (0.9, 0.6) : (0.9 * (rhoPct - 0.2) / 0.3, 0.3 + 0.3 * (rhoPct - 0.2) / 0.3);
+            // os estribos sobem na capa: os 2 ramos atravessam a interface
+            double phiI = r.EstBitola > 0 ? r.EstBitola : phiT0;
+            double TauRd(double s) { double rho = 2 * A(phiI) / (bInt * s) * 100; var (bs, bc) = Beta(rho); return bs * 2 * A(phiI) * fyd / (bInt * s) + bc * fctdInt; }
+            double sAtual = r.EspVao > 0 ? r.EspVao : espPadV;
+            double sUsado = sAtual;
+            while (TauRd(sUsado) < r.TauSd - 1e-12 && sUsado > 5 + 1e-9) sUsado -= 2.5;
+            r.TauRd = TauRd(sUsado);
+            r.AsInterface = 2 * A(phiI) / sUsado * 100;
+            double limite = 0.25 * fcd;
+            m11.Linhas.Add($"Md do 2º estágio (γg·CP + γq·SC) = {N(md2, "0.0")} kN·m em x = {N(xMd2, "0")} cm; z = 0,9·d = 0,9·{N(dCapa, "0.0")} = {N(z, "0.0")} cm → " +
+                           $"Fmd = Md/z = {N(fmd, "0.0")} kN (compressão na capa).");
+            m11.Linhas.Add($"av = {N(av, "0")} cm (do momento nulo ao máximo); b = {N(bInt, "0.#")} cm → τsd = Fmd/(av·b) = {N(r.TauSd * 10, "0.000")} MPa.");
+            m11.Linhas.Add($"Interface áspera (rugosidade ≥ 0,5 cm em 3 cm, 6.3.4); fctd do concreto mais fraco (C{N(fckMin, "0")}) = {N(fctdInt * 10, "0.000")} MPa; " +
+                           $"estribos ø{N(phiI, "0.#")} c/{N(sUsado, "0.#")} atravessando (2 ramos, As/(b·s) = {N(2 * A(phiI) / (bInt * sUsado) * 100, "0.00")} %, βs e βc da Tabela 10) → " +
+                           $"τRd = βs·As·fyd/(b·s) + βc·fctd = {N(r.TauRd * 10, "0.000")} MPa; limite 0,25·fcd = {N(limite * 10, "0.00")} MPa.");
+            if (sUsado < sAtual - 1e-9)
+            {
+                m11.Linhas.Add($"Para atender a interface, o espaçamento dos estribos do vão passa de {N(sAtual, "0.#")} para {N(sUsado, "0.#")} cm.");
+                r.EspVao = sUsado; if (r.EspPonta > sUsado) r.EspPonta = sUsado;
+            }
+            r.Verificacoes.Add(K("K33", "Capa", "Cisalhamento na interface viga–capa", $"τsd = {N(r.TauSd * 10, "0.000")} MPa", $"≤ τRd = {N(r.TauRd * 10, "0.000")} MPa",
+                r.TauSd > r.TauRd + 1e-12, "NBR 9062, 6.3.3", dica: "Reduza o espaçamento dos estribos que sobem na capa ou acrescente barras de ligação."));
+            r.Verificacoes.Add(K("K34", "Capa", "Limite da tensão na interface", $"τsd = {N(r.TauSd * 10, "0.000")} MPa", $"< 0,25·fcd = {N(limite * 10, "0.00")} MPa",
+                r.TauSd >= limite, "NBR 9062, 6.3.3", dica: "Aumente a largura da interface ou a altura da viga."));
+            r.Verificacoes.Add(K("K35", "Capa", "Superfície da interface intencionalmente áspera (≥ 0,5 cm em 3 cm), limpa e saturada", "nota no desenho", "6.3.4 e 6.3.5 e)",
+                true, "NBR 9062, 6.3.4", SituacaoVerificacao.Conferir, "Os coeficientes βs e βc da Tabela 10 valem para a superfície áspera: confirme a nota na prancha."));
+            r.Memoria.Add(m11);
+        }
+        // ressalto: só fôrma e apoio de alvenaria (decisão do usuário, 25/11/2026) — a alvenaria entra no CP da viga
+        if (ress.Existe)
+            r.Memoria.Add(new PassoMemoria
+            {
+                Titulo = "12. Ressalto",
+                Linhas =
+                {
+                    $"Ressalto de {N(ress.Largura, "0.#")} × {N(ress.Altura, "0.#")} cm: só fôrma e apoio de alvenaria (decisão do usuário); a carga da alvenaria entra no CP da viga " +
+                    "(tabela CARGA DA VIGA) e a armadura do ressalto é a construtiva do template.",
+                },
+            });
 
         // ---------------- proposta nos valores do template ----------------
         r.Proposta = Aplicar(v, r, padrao);

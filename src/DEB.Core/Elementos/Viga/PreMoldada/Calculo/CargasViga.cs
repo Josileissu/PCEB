@@ -39,6 +39,8 @@ public sealed class CargasViga
     /// <summary>Torção de equilíbrio pela carga na aba (D51: o engenheiro liga e desliga); desligada, a aba e a suspensão continuam
     /// dimensionadas, só a torção não.</summary>
     public bool Torcao { get; set; } = true;
+    /// <summary>fck do concreto da capa (2º estágio, MPa): o fctd da interface é o do concreto mais fraco do contato (NBR 9062 6.3.3).</summary>
+    public double FckCapa { get; set; } = 25;
 
     /// <summary>Distância da ponta ao eixo do apoio (cm); 0 = automática (furo do pino, meio do dente ou 10 cm).</summary>
     public double ApoioE { get; set; }

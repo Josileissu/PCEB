@@ -56,6 +56,8 @@ public sealed class EntradaAnaliseViga
     /// alma) no dimensionamento; desligada, entra no eixo. Não muda a flexão da análise.
     /// </summary>
     public bool Torcao { get; set; } = true;
+    /// <summary>fck do concreto da capa (2º estágio, MPa), para a ligação viga–capa (NBR 9062 6.3).</summary>
+    public double FckCapa { get; set; } = 25;
 }
 
 /// <summary>Ponto dos diagramas: x (cm), momento fletor (kN·m, positivo = tração embaixo), cortante (kN, forças à esquerda, para
@@ -185,7 +187,7 @@ public static class AnaliseViga
         var aba = TemplateVigaPreMoldada.LerAba(v, h, L, TemplateVigaPreMoldada.LerExtremidade(v, true, catalogo, av),
             TemplateVigaPreMoldada.LerExtremidade(v, false, catalogo, av), av);
         double gLaje = ent.LajePP.Linear + ent.LajeCP.Linear, qLaje = ent.LajeSC.Linear;
-        var c = new CargasViga { G = ent.VigaCP, Q = ent.VigaSC, Concentradas = ent.Pontuais.ToList(), Torcao = ent.Torcao };
+        var c = new CargasViga { G = ent.VigaCP, Q = ent.VigaSC, Concentradas = ent.Pontuais.ToList(), Torcao = ent.Torcao, FckCapa = ent.FckCapa };
         if (aba.Existe && !aba.Consolo) { c.GAba = gLaje / aba.Lados; c.QAba = qLaje / aba.Lados; }
         else { c.G += gLaje; c.Q += qLaje; }
         return c;

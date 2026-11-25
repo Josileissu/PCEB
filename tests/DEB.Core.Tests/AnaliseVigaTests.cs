@@ -354,4 +354,29 @@ public class AnaliseVigaTests
         var r0 = CalculoViga.Calcular(semConsolo, AnaliseViga.CargasParaCalculo(ent, semConsolo), null, null, AnaliseViga.Rodar(semConsolo, ent));
         Assert.Equal(r0.ZonaPonta, r.ZonaPonta, 6);
     }
+    // ---------------- etapa 4, parte 4: ligação viga–capa (cisalhamento na interface) ----------------
+
+    [Fact]
+    public void LigacaoComACapaPeloCisalhamentoNaInterface()
+    {
+        // caso montado (pedido do usuário): 20 × 60, L = 600, capa de 10 cm (2º estágio), apoios nas pontas; 2º estágio = CP + SC
+        var v = Viga(x => { x["SegEstagio"] = "Sim"; x["SegEstagioCapa"] = "10"; });
+        var ent = new EntradaAnaliseViga
+        {
+            Semirrigido = false, VigaCP = 2, LajeCP = { Valor = 2, VaoInfluencia = 5 }, LajeSC = { Valor = 3, VaoInfluencia = 5 }, FckCapa = 25,
+        };
+        var an = AnaliseViga.Rodar(v, ent);
+        var r = CalculoViga.Calcular(v, AnaliseViga.CargasParaCalculo(ent, v), null, null, an);
+        // à mão: Md2 = 1,4·(2 + 10)·6²/8 + 1,4·15·6²/8 = 170,1 kN·m no meio; Fmd = Md2/(0,9·(d + capa)); τsd = Fmd/(av·b), av = 300, b = 20
+        double md2 = 1.4 * 12 * 36 / 8 + 1.4 * 15 * 36 / 8;
+        double fmd = md2 * 100 / (0.9 * (r.Inferior.D + 10));
+        Assert.Equal(fmd / (300 * 20), r.TauSd, 4);
+        Assert.Contains(r.Memoria, m => m.Titulo.StartsWith("11."));
+        Assert.Contains(r.Verificacoes, x => x.Codigo == "K33" && x.Situacao == DEB.Core.Normas.Verificacao.SituacaoVerificacao.Ok);
+        Assert.True(r.TauRd >= r.TauSd);
+        // o fck da capa vai e volta pela tabela de parâmetros
+        var d = DesenhoAnaliseViga.Gerar(an, ent, v);
+        var lida = TabelasAnaliseViga.Ler(d.Tabelas.Select(t => (t.Titulo, t.Linhas)));
+        Assert.Equal(25, lida.FckCapa, 6);
+    }
 }

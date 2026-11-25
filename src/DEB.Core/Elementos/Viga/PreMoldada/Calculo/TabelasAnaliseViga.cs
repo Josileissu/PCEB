@@ -18,7 +18,7 @@ public static class TabelasAnaliseViga
 
     public const string PApoioE = "Apoio esquerdo (da ponta)", PApoioD = "Apoio direito (da ponta)", PRotulado = "Modelo rotulado",
         PSemi = "Modelo semirrígido", PAlfaE = "αR esquerdo", PAlfaD = "αR direito", PFator = "Rigidez secante (× Eci·Ic)",
-        PTorcao = "Torção (laje na aba)";
+        PTorcao = "Torção (laje na aba)", PFckCapa = "fck da capa (2º estágio)";
 
     /// <summary>Linhas da tabela de parâmetros (PARÂMETRO, VALOR, UN.).</summary>
     public static List<string[]> LinhasParametros(EntradaAnaliseViga e)
@@ -36,6 +36,7 @@ public static class TabelasAnaliseViga
             new[] { PAlfaD, N(e.AlfaRD), "" },
             new[] { PFator, N(e.FatorRigidezSecante), "" },
             new[] { PTorcao, S(e.Torcao), "" },
+            new[] { PFckCapa, N(e.FckCapa), "MPa" },
         };
     }
 
@@ -110,6 +111,7 @@ public static class TabelasAnaliseViga
                 else if (k == PAlfaD) e.AlfaRD = Faixa(Num(v, k), k);
                 else if (k == PFator) e.FatorRigidezSecante = Num(v, k);
                 else if (k == PTorcao) e.Torcao = Sim();
+                else if (k == PFckCapa) e.FckCapa = Num(v, k) > 0 ? Num(v, k) : 25;
             }
         if (!e.Rotulado && !e.Semirrigido) { erros.Add("Nenhum modelo ligado: a análise usa o rotulado."); e.Rotulado = true; }
         return e;
