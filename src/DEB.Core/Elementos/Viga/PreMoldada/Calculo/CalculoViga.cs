@@ -47,6 +47,15 @@ public sealed class ResultadoCalculoViga
     public List<(double X, double Md)> DiagramaNegativo { get; set; } = new List<(double, double)>();
     /// <summary>Armadura negativa proposta em cada ponta (D51): barras, bitola, trecho (cm da ponta esquerda) e área necessária (cm²).</summary>
     public List<(string Lado, int N, double Bitola, double Ini, double Fim, double AsNec, int Camada)> Negativas { get; } = new List<(string, int, double, double, double, double, int)>();
+    /// <summary>Dentes calculados (D51, parte 3): tipos NOVOS para o catálogo ("DG 75x25 – V101") e o tipo de cada ponta na proposta.</summary>
+    public List<TipoDente> DentesPropostos { get; } = new List<TipoDente>();
+    public string DenteE { get; set; }
+    public string DenteD { get; set; }
+
+    /// <summary>Catálogo com os dentes calculados acrescentados (o template acha o tipo da proposta pelo nome); o original não muda.</summary>
+    public List<TipoDente> CatalogoComPropostos(IEnumerable<TipoDente> catalogo) =>
+        catalogo.Where(t => DentesPropostos.All(n => n.Nome != t.Nome)).Concat(DentesPropostos).ToList();
+
     /// <summary>Esforços da análise da viga (modelos rotulado/semirrígido e envoltória) no lugar da biapoiada; null = biapoiada.</summary>
     public string ModelosAnalise { get; set; }
     public double VdE { get; set; }          // kN (junto ao apoio)
@@ -135,6 +144,9 @@ public sealed class ResultadoCalculoViga
             l.Add(ZonaPonta > 0 ? $"Estribos: ø{Nm(EstBitola)} c/{Nm(EspPonta)} nas pontas ({Nm(ZonaPonta, "0")} cm) e c/{Nm(EspVao)} no vão"
                                 : $"Estribos: ø{Nm(EstBitola)} c/{Nm(EspVao)}");
         if (AbaEstBitola > 0) l.Add($"Estribo da aba: ø{Nm(AbaEstBitola)} c/{Nm(AbaEstEsp)}");
+        foreach (var t in DentesPropostos)
+            l.Add($"Dente {t.Nome}: tirante {t.TiranteQtd} ø{Nm(t.TiranteBitola)} C={Nm(t.TiranteComp, "0")}; suspensão {t.SuspQtd} ø{Nm(t.SuspBitola)}; " +
+                  $"costura {t.CosturaQtd} ø{Nm(t.CosturaBitola)} (pernas {Nm(t.CosturaPerna, "0")}); estribos do dente {t.EstGerberQtd} ø{Nm(t.EstGerberBitola)}; grampo {t.GrampoQtd} ø{Nm(t.GrampoBitola)} (pernas {Nm(t.GrampoPerna, "0")})");
         if (Contraflecha > 0) l.Add($"Contraflecha: {Nm(Contraflecha)} cm");
         return l;
     }
@@ -663,33 +675,147 @@ public static class CalculoViga
             r.Memoria.Add(m6);
         }
 
-        // ---------------- 7. dentes Gerber ----------------
-        var m7 = new PassoMemoria { Titulo = "7. Dentes Gerber (NBR 9062, 7.4: tirante como consolo, 7.3; suspensão)" };
+        // ---------------- 7. dentes Gerber (D51, parte 3: armadura calculada pela NBR 9062, 7.3 e 7.4) ----------------
+        // O dente é um consolo (7.4.2): tirante no topo (7.3.5), costura em 2/3 d junto dele (7.3.6, 7.4.5.1), estribos verticais
+        // (7.3.7.2), suspensão concentrada junto da face (7.4.6) e o grampo no fundo, no canto do recorte, completando a ancoragem da
+        // inferior (pedido do usuário, 25/11/2026). O resultado vira um TIPO NOVO no catálogo, por viga ("DG 75x25 – V101"): depois de
+        // conferidos, os dentes são padronizados (decisão do usuário). O padrão do catálogo é o mínimo (bitolas e quantidades).
+        var m7 = new PassoMemoria { Titulo = "7. Dentes Gerber (NBR 9062, 7.4: consolo, 7.3; suspensão, 7.4.6)" };
         bool neoprene = v.Numero("Neoprene") > 0;
         double fHd = neoprene ? 0.16 : 0.5;
-        foreach (var (x, vd, lado, apoio) in new[] { (e, r.VdE, "esquerda", r.ApoioE), (d, r.VdD, "direita", r.ApoioD) })
+        var regraMa = new Normas.RegrasTraspasse { Fck = fck, Aderencia = Normas.SituacaoAderencia.Ma };
+        var regraBoa = new Normas.RegrasTraspasse { Fck = fck, Aderencia = Normas.SituacaoAderencia.Boa, PercentualEmendado = 100 };
+        double dVig = TemplateVigaPreMoldada.AlturaUtil(v);
+        string nomeViga = string.IsNullOrWhiteSpace(v["Nome"]) ? "calculado" : v["Nome"].Trim();
+        var propostosPorLado = new Dictionary<bool, TipoDente>();
+        // só a análise do CAD (D51) propõe tipos novos de dente; no cálculo do Revit (D40) o dente é o do catálogo, conferido
+        bool proporDente = analise != null;
+        foreach (var (x, vd, lado, apoio, esq) in new[] { (e, r.VdE, "esquerda", r.ApoioE, true), (d, r.VdD, "direita", r.ApoioD, false) })
         {
             if (!x.TemDente) continue;
-            var t = x.Dente;
-            double dd = t.Altura - cobT - (t.EstGerberQtd > 0 ? t.EstGerberBitola / 10 : 0) - t.TiranteBitola / 20;
-            double a = Math.Max(0, t.Comprimento - apoio + cobP);   // do eixo do apoio até a suspensão (junto da face do recorte)
-            double ad = dd > 0 ? a / dd : 99, hd = fHd * vd;
-            double asTir = ad <= 0.5 ? 0.8 * vd / (fyd * 1.4) + hd / fyd : (0.1 + ad) * vd / fyd + hd / fyd;
-            double asTirTem = t.TiranteQtd * A(t.TiranteBitola);
-            double asSusp = vd / fywd, asSuspTem = t.SuspQtd * 2 * A(t.SuspBitola);
-            string id = $"ponta {lado}, {t.Nome}";
-            m7.Linhas.Add($"Dente da {id}: d = {N(dd, "0.0")} cm, a = {N(a, "0.0")} cm (a/d = {N(ad, "0.00")}, {(ad <= 0.5 ? "consolo muito curto: atrito-cisalhamento, μ = 1,4" : ad <= 1 ? "consolo curto" : "a/d > 1: viga em balanço — conferir")}); Vd = {N(vd, "0.0")} kN; Hd = {N(fHd)}·Vd = {N(hd, "0.0")} kN ({(neoprene ? "elastômero" : "argamassa")}).");
-            m7.Linhas.Add($"Tirante: As = {(ad <= 0.5 ? "0,8·Vd/(fyd·μ)" : "(0,1 + a/d)·Vd/fyd")} + Hd/fyd = {N(asTir)} cm²; catálogo: {t.TiranteQtd} ø{N(t.TiranteBitola, "0.#")} = {N(asTirTem)} cm².");
-            m7.Linhas.Add($"Suspensão: As,susp = Vd/fywd = {N(asSusp)} cm²; catálogo: {t.SuspQtd} estribos ø{N(t.SuspBitola, "0.#")} (2 ramos) = {N(asSuspTem)} cm².");
-            r.Verificacoes.Add(K("K9", "Dente " + id, $"Tirante do dente da ponta {lado}", $"{N(asTirTem)} cm²", $"≥ {N(asTir)} cm²", asTirTem < asTir - 1e-9 || ad > 1, "NBR 9062, 7.4 e 7.3",
-                ad > 1 ? SituacaoVerificacao.Conferir : SituacaoVerificacao.NaoAtende, "Troque o dente no catálogo (ARMDENTES) por um com mais tirante."));
-            r.Verificacoes.Add(K("K10", "Dente " + id, $"Armadura de suspensão do dente da ponta {lado}", $"{N(asSuspTem)} cm²", $"≥ {N(asSusp)} cm²", asSuspTem < asSusp - 1e-9, "NBR 9062, 7.4.6",
-                dica: "Troque o dente no catálogo (ARMDENTES) por um com mais suspensão."));
-            double vrd2d = 0.27 * av2 * fcd * b * dd;
+            var t0 = x.Dente;
+            var t = t0.Clonar();
+            string id = $"ponta {lado}, {t0.Nome}";
+            double hd = t0.Altura, bMin = Math.Min(b, hd);
+            double phiG = t0.EstGerberQtd > 0 ? t0.EstGerberBitola / 10 : 0;
+            double a = Math.Max(0, t0.Comprimento - apoio + cobP);            // do eixo do apoio até a suspensão (face do recorte)
+            double Hd = fHd * vd;
+
+            // --- tirante: área pela relação a/d, mínimo ω ≥ 0,04, ø ≤ menor dimensão/6 e ≤ 25 mm, uma camada no topo
+            (int N, double Phi, double D, double As) tir = (0, 0, 0, 0);
+            double asTirNec = 0, adTir = 99;
+            foreach (double phi in BitolasLong.Where(f => f >= t0.TiranteBitola - 1e-6 && f <= Math.Min(25, bMin * 10 / 6) + 1e-6))
+            {
+                double dd = hd - cobT - phiG - phi / 20;
+                double ad = dd > 0 ? a / dd : 99;
+                double nec = (ad <= 0.5 ? 0.8 * vd / (fyd * 1.4) : (0.1 + Math.Min(ad, 1)) * vd / fyd) + Hd / fyd;
+                nec = Math.Max(nec, 0.04 * b * dd * fck / TabelasNbr.Fyk(acoL));
+                int n = Math.Max(Math.Max(2, t0.TiranteQtd), (int)Math.Ceiling(nec / A(phi) - 1e-9));
+                double pc = phi / 10, ahP = Math.Max(ah, pc);
+                if (n > (int)Math.Floor((b - 2 * cobL - 2 * phiG + ahP) / (pc + ahP) + 1e-9)) continue;
+                if (tir.N == 0 || n * A(phi) < tir.As - 1e-9) { tir = (n, phi, dd, n * A(phi)); asTirNec = nec; adTir = ad; }
+            }
+            if (tir.N == 0)
+            {
+                r.Avisos.Add($"Dente da {id}: o tirante não cabe numa camada (ø ≤ {N(Math.Min(25, bMin * 10 / 6), "0.#")} mm) — aumentar a largura ou a altura do dente.");
+                r.Verificacoes.Add(K("K9", "Dente " + id, $"Tirante do dente da ponta {lado}", "não cabe", "uma camada no topo", true, "NBR 9062, 7.3.3.7"));
+                continue;
+            }
+            double dd0 = tir.D;
+            // comprimento: a ancoragem começa a (dvig − d) do primeiro estribo de suspensão (7.4.4.2), com má aderência
+            double lbTir = regraMa.Lb(tir.Phi, acoL), lbTirNec = Math.Max(lbTir * asTirNec / tir.As, Math.Max(0.3 * lbTir, Math.Max(tir.Phi, 10)));
+            double compTir = Math.Ceiling((t0.Comprimento + cobP + Math.Max(0, dVig - dd0) + lbTirNec - cobP) / 5 - 1e-9) * 5;
+            t.TiranteQtd = tir.N; t.TiranteBitola = tir.Phi; t.TiranteComp = compTir;
+
+            // --- suspensão: toda a Fd em estribos fechados (2 ramos), concentrados no trecho da face (≤ dvig/4, 7.4.6.2)
+            double asSusp = vd / Math.Min(fywd, 43.5);
+            double trecho = x.TrechoSuspensao > 0 ? x.TrechoSuspensao : cobP + dVig / 4;
+            (int N, double Phi) sus = (0, 0);
+            foreach (double phi in BitolasEst.Concat(new[] { 16.0 }).Where(f => f >= t0.SuspBitola - 1e-6))
+            {
+                int n = Math.Max(Math.Max(1, t0.SuspQtd > 0 ? 2 : 1), (int)Math.Ceiling(asSusp / (2 * A(phi)) - 1e-9));
+                double esp = (trecho - cobP - phi / 20) / n;                       // a regra de posições do template (D36)
+                if (esp < Math.Max(5, phi / 10 + 2) - 1e-9) continue;              // folga para o concreto passar
+                sus = (n, phi); break;
+            }
+            if (sus.N == 0)
+            {
+                r.Avisos.Add($"Dente da {id}: a suspensão ({N(asSusp)} cm²) não cabe no trecho de {N(trecho, "0")} cm junto da face — usar 4 ramos ou aumentar a altura da viga.");
+                sus = (t0.SuspQtd, t0.SuspBitola);
+            }
+            t.SuspQtd = sus.N; t.SuspBitola = sus.Phi;
+
+            // --- costura: em 2/3 d junto do tirante, (As/s) ≥ 0,5 (a/d ≤ 0,5) ou 0,4 · As,tir/d, mínimo 0,15 % b; ø ≤ menor/15,
+            //     espaçamento vertical ≤ 10 cm e ≤ a; U horizontal (2 ramos) com as pernas 1,5·lb dentro da viga (7.4.5.1)
+            double kCost = adTir <= 0.5 ? 0.5 : 0.4, zCost = 2.0 / 3.0 * dd0;
+            double asCost = Math.Max(kCost * tir.As / dd0 * zCost, 0.0015 * b * zCost);
+            int nivMin = Math.Max(1, (int)Math.Ceiling(zCost / Math.Min(10, Math.Max(a, 1)) - 1e-9));
+            (int N, double Phi) cos = (0, 0);
+            foreach (double phi in BitolasEst.Where(f => f >= Math.Min(t0.CosturaBitola, bMin * 10 / 15) - 1e-6 && f <= bMin * 10 / 15 + 1e-6))
+            {
+                int n = Math.Max(Math.Max(nivMin, t0.CosturaQtd), (int)Math.Ceiling(asCost / (2 * A(phi)) - 1e-9));
+                if (cos.N == 0 || n * A(phi) < cos.N * A(cos.Phi) - 1e-9) cos = (n, phi);
+            }
+            if (cos.N == 0) cos = (Math.Max(nivMin, t0.CosturaQtd), t0.CosturaBitola);
+            double lbCost = regraMa.Lb(cos.Phi, acoT);
+            double pernaCost = Math.Ceiling((t0.Comprimento - cobP + 1.5 * lbCost) / 5 - 1e-9) * 5;
+            t.CosturaQtd = cos.N; t.CosturaBitola = cos.Phi; t.CosturaPerna = pernaCost;
+
+            // --- estribos verticais do dente: 0,15 % · b · h do dente (7.3.7.2), 2 ramos
+            double asVert = 0.0015 * b * hd;
+            int nG = Math.Max(t0.EstGerberQtd, (int)Math.Ceiling(asVert / (2 * A(t0.EstGerberBitola)) - 1e-9));
+            t.EstGerberQtd = nG;
+
+            // --- grampo: U no fundo, no canto do recorte, traspassando a inferior (pernas = traspasse, boa aderência). A força que ele
+            //     precisa ancorar fica para o engenheiro conferir (a inferior já chega com a barra soldada na face do recorte).
+            double phiGr = t0.GrampoBitola > 0 ? t0.GrampoBitola : 10;
+            double l0t = regraBoa.Comprimento(phiGr, acoL);
+            double pernaGr = Math.Ceiling((l0t + cobP) / 5 - 1e-9) * 5;
+            t.GrampoPerna = pernaGr;
+            double alV = vd > r.Vc + 1e-9 ? Math.Min(dV, Math.Max(0.5 * dV, dV * vd / (2 * (vd - r.Vc)))) : dV;
+            double asApoio = alV / dV * vd / fyd + Hd / fyd, asGr = t0.GrampoQtd * 2 * A(phiGr);
+
+            t.Nome = $"{t0.Nome} – {nomeViga}";
+            t.Descricao = $"Calculado para a {nomeViga} (ponta {lado}), a partir do {t0.Nome}.";
+            if (proporDente) propostosPorLado[esq] = t;
+
+            m7.Linhas.Add($"Dente da {id}: Fd = Vd = {N(vd, "0.0")} kN; Hd = {N(fHd)}·Fd = {N(Hd, "0.0")} kN ({(neoprene ? "elastômero" : "argamassa")}, 7.3.9); a = {N(a, "0.0")} cm " +
+                          $"(do eixo do apoio à face do recorte); d = {N(dd0, "0.0")} cm → a/d = {N(adTir, "0.00")} ({(adTir <= 0.5 ? "muito curto: μ = 1,4" : adTir <= 1 ? "curto" : "a/d > 1: viga — conferir")}).");
+            m7.Linhas.Add($"Tirante: As = {(adTir <= 0.5 ? "0,8·Fd/(fyd·μ)" : "(0,1 + a/d)·Fd/fyd")} + Hd/fyd = {N(asTirNec)} cm² (ω ≥ 0,04 incluído) → {tir.N} ø{N(tir.Phi, "0.#")} = {N(tir.As)} cm² " +
+                          $"(ø ≤ {N(Math.Min(25, bMin * 10 / 6), "0.#")} mm, 7.3.3.7; no topo, 7.3.3.11). Comprimento: dente {N(t0.Comprimento, "0")} + (dvig − d) = {N(Math.Max(0, dVig - dd0), "0")} " +
+                          $"+ lb,nec = {N(lbTirNec, "0")} cm (má aderência, 7.4.4.2) → C = {N(compTir, "0")} cm, ancorado na ponta pela barra transversal soldada (7.4.4.1).");
+            m7.Linhas.Add($"Suspensão: As = Fd/fyd = {N(asSusp)} cm² em estribos fechados no trecho de {N(trecho, "0")} cm junto da face (≤ dvig/4, 7.4.6) → {sus.N} ø{N(sus.Phi, "0.#")} (2 ramos) = {N(sus.N * 2 * A(sus.Phi))} cm².");
+            m7.Linhas.Add($"Costura: (As/s) ≥ {N(kCost)}·As,tir/d em 2/3·d = {N(zCost, "0")} cm, mínimo 0,15 %·b → {N(asCost)} cm²; espaçamento ≤ 10 cm e ≤ a ({nivMin} níveis), ø ≤ {N(bMin * 10 / 15, "0.#")} mm → " +
+                          $"{cos.N} U ø{N(cos.Phi, "0.#")} (2 ramos) = {N(cos.N * 2 * A(cos.Phi))} cm²; pernas = dente + 1,5·lb = {N(pernaCost, "0")} cm (7.4.5.1).");
+            m7.Linhas.Add($"Estribos verticais do dente: 0,15 %·b·h = {N(asVert)} cm² → {nG} ø{N(t0.EstGerberBitola, "0.#")} (7.3.7.2). Grampo no canto do recorte: pernas = traspasse com a inferior = {N(pernaGr, "0")} cm; " +
+                          $"{t0.GrampoQtd} U ø{N(phiGr, "0.#")} = {N(asGr)} cm² (força a ancorar no canto: (aℓ/d)·Vd + Hd = {N(asApoio)} cm² de aço — conferir com a barra soldada da inferior).");
+            var tem = proporDente ? t : t0;
+            double asTirTem = tem.TiranteQtd * A(tem.TiranteBitola), asSusTem = tem.SuspQtd * 2 * A(tem.SuspBitola), asCosTem = tem.CosturaQtd * 2 * A(tem.CosturaBitola);
+            bool faltaTir = asTirTem < asTirNec - 1e-9;
+            r.Verificacoes.Add(K("K9", "Dente " + id, $"Tirante do dente da ponta {lado}", $"{tem.TiranteQtd} ø{N(tem.TiranteBitola, "0.#")} = {N(asTirTem)} cm²", $"≥ {N(asTirNec)} cm²",
+                faltaTir || adTir > 1, "NBR 9062, 7.3.5 e 7.4.4", faltaTir ? SituacaoVerificacao.NaoAtende : SituacaoVerificacao.Conferir,
+                faltaTir ? "Troque o dente no catálogo (ARMDENTES) por um com mais tirante." : adTir > 1 ? "a/d > 1: calcular o dente como viga (7.3.7.1)." : ""));
+            r.Verificacoes.Add(K("K10", "Dente " + id, $"Armadura de suspensão do dente da ponta {lado}", $"{N(asSusTem)} cm²", $"≥ {N(asSusp)} cm²",
+                asSusTem < asSusp - 1e-9, "NBR 9062, 7.4.6", dica: proporDente ? "Use 4 ramos ou aumente a altura da viga." : "Troque o dente no catálogo (ARMDENTES) por um com mais suspensão."));
+            double vrd2d = 0.27 * av2 * fcd * b * dd0;
             r.Verificacoes.Add(K("K11", "Dente " + id, $"Compressão da biela do dente da ponta {lado} (estimativa: VRd2 com o d do dente)", $"Vd = {N(vd, "0.0")} kN", $"≤ {N(vrd2d, "0.0")} kN",
-                true, "NBR 9062, 7.4", SituacaoVerificacao.Conferir, vd <= vrd2d ? "Atende a estimativa; confirme a biela pelo modelo do dente." : "Não atende a estimativa: aumente a altura do dente ou a largura."));
+                true, "NBR 9062, 7.4.7", SituacaoVerificacao.Conferir, vd <= vrd2d ? "Atende a estimativa; confirme a biela pelo modelo do dente." : "Não atende a estimativa: aumente a altura do dente ou a largura."));
+            r.Verificacoes.Add(K("K27", "Dente " + id, $"Costura do dente da ponta {lado}", $"{N(asCosTem)} cm²", $"≥ {N(asCost)} cm²", asCosTem < asCost - 1e-9, "NBR 9062, 7.3.6 e 7.4.5"));
+            r.Verificacoes.Add(K("K28", "Dente " + id, $"Grampo no canto do recorte (ponta {lado})", $"{N(asGr)} cm²", $"força do canto ≈ {N(asApoio)} cm²", true, "NBR 6118, 18.3.2.4",
+                SituacaoVerificacao.Conferir, "Confira quanto a barra soldada da inferior já ancora no canto; o grampo completa o resto."));
+            if (!neoprene)
+                r.Verificacoes.Add(K("K29", "Dente " + id, $"Força horizontal no apoio (ponta {lado})", $"Hd = {N(Hd, "0.0")} kN (0,5·Fd)", "estudo da ligação", true, "NBR 9062, 7.3.9 g",
+                    SituacaoVerificacao.Conferir, "Ligação com solda ou graute: a norma pede o estudo detalhado da força horizontal."));
         }
         if (m7.Linhas.Count > 0) r.Memoria.Add(m7);
+        if (propostosPorLado.TryGetValue(true, out var pe) && propostosPorLado.TryGetValue(false, out var pd) && pe.Nome == pd.Nome)
+        {
+            string Assinatura(TipoDente t) => $"{t.TiranteQtd}|{t.TiranteBitola}|{t.TiranteComp}|{t.SuspQtd}|{t.SuspBitola}|{t.CosturaQtd}|{t.CosturaBitola}|{t.CosturaPerna}|{t.EstGerberQtd}|{t.GrampoPerna}";
+            if (Assinatura(pe) != Assinatura(pd)) { pe.Nome += " E"; pd.Nome += " D"; }
+        }
+        foreach (var t in propostosPorLado.Values.GroupBy(t => t.Nome).Select(g => g.First())) r.DentesPropostos.Add(t);
+        r.DenteE = propostosPorLado.TryGetValue(true, out var tE) ? tE.Nome : null;
+        r.DenteD = propostosPorLado.TryGetValue(false, out var tD) ? tD.Nome : null;
 
         // ---------------- 8. pele ----------------
         r.Pele = (0, 0);
@@ -925,6 +1051,8 @@ public static class CalculoViga
             p["EstZonaPonta"] = Fmt.N(r.ZonaPonta);
         }
         if (r.AbaEstBitola > 0) { p["AbaEstBitola"] = Fmt.N(r.AbaEstBitola); p["AbaEstEsp"] = Fmt.N(r.AbaEstEsp); }
+        if (r.DenteE != null) p["ExtE"] = r.DenteE;
+        if (r.DenteD != null) p["ExtD"] = r.DenteD;
         if (r.Contraflecha > 0) p["Contraflecha"] = Fmt.N(r.Contraflecha);
         p[ChaveVdVRd2] = Fmt.N(r.VdSobreVRd2, "0.####");
         p[ChaveVdE] = Fmt.N(r.VdE, "0.##");

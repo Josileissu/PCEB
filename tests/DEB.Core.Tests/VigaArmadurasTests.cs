@@ -93,9 +93,9 @@ public class VigaArmadurasTests
         });
         Assert.Contains(r.Textos, t => t.Texto == "SEÇÃO B-B - ARMADURA");
         // no vão: 4 + 2 inferiores e 2 superiores; nos dentes: só as superiores (as inferiores param antes dos dentes)
-        // + em cada dente: 3 tirantes, 4 grampos e 3 costuras (a perna de um lado) = 10
-        Assert.Equal(2 * 2 + 8 + 2 * 10, r.Circulos.Count(k => k.Layer == "ARM-BARRA-SECAO"));
-        Assert.Equal(3 + 2 + 2 * 4, r.Faixas.Count(f => f.Tipo == TipoFaixa.Indicacao));   // + dente: Gerber, tirante, grampo, costura na seção (na elevação, Gerber e suspensão em faixa com cota)
+        // + em cada dente: 3 tirantes e 3 costuras (a perna de um lado) = 6; o grampo fica no fundo da viga, depois do recorte (D51)
+        Assert.Equal(2 * 2 + 8 + 2 * 6, r.Circulos.Count(k => k.Layer == "ARM-BARRA-SECAO"));
+        Assert.Equal(3 + 2 + 2 * 3, r.Faixas.Count(f => f.Tipo == TipoFaixa.Indicacao));   // + dente: Gerber, tirante, costura na seção (na elevação, Gerber e suspensão em faixa com cota)
         // 2ª camada acima da 1ª, com folga de pelo menos 2 cm entre as faces
         var pts = TemplateVigaPreMoldada.PontosNaSecao(
             new LinhaLongViga { Funcao = TemplateVigaPreMoldada.FInferior, Quantidade = 2, Bitola = 20, Camada = 2 }, 40, 50, 2.5, 2.5, 2.5, 6.3,
