@@ -143,4 +143,30 @@ public class AnaliseVigaTests
         Assert.True(tot > el);
         Assert.Equal(el * r.Ic / semi.Ie * (1 + r.AlfaF), tot, 6);
     }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DesenhoDaAnaliseTemModeloTabelasEDiagramas(bool semirrigido)
+    {
+        var ent = new EntradaAnaliseViga
+        {
+            Semirrigido = semirrigido, VigaCP = 9.9, LajeSC = { Valor = 6, VaoInfluencia = 5 },
+            Pontuais = { new CargaConcentrada { X = 200, G = 20, Q = 10 } },
+        };
+        var v = Viga();
+        var r = AnaliseViga.Rodar(v, ent);
+        var d = DesenhoAnaliseViga.Gerar(r, ent, v);
+        var layers = d.Contornos.Select(c => c.Layer).ToHashSet();
+        foreach (var l in new[] { DesenhoAnaliseViga.LBarra, DesenhoAnaliseViga.LSuporte, DesenhoAnaliseViga.LCargas, DesenhoAnaliseViga.LSecao,
+                                  DesenhoAnaliseViga.LCortante, DesenhoAnaliseViga.LFletor, DesenhoAnaliseViga.LDeslocada, DesenhoAnaliseViga.LDeslocadaTotal })
+            Assert.Contains(l, layers);
+        Assert.Equal(semirrigido, layers.Contains(DesenhoAnaliseViga.LSemi));
+        Assert.Equal(new[] { "CARGA DA LAJE", "CARGA DA VIGA", "CARGAS PONTUAIS", "MODELOS (ENVOLTÓRIA)" }, d.Tabelas.Select(t => t.Titulo));
+        Assert.Equal(semirrigido ? 3 : 2, d.Tabelas[3].Linhas.Count);
+        // os diagramas ficam abaixo das seções (nada do Vd sobe até elas)
+        double fundoSecoes = d.Contornos.Where(c => c.Layer == DesenhoAnaliseViga.LSecao).Min(c => c.Vertices.Min(p => p.Y));
+        double topoVd = d.Contornos.Where(c => c.Layer == DesenhoAnaliseViga.LCortante).Max(c => c.Vertices.Max(p => p.Y));
+        Assert.True(topoVd < fundoSecoes);
+        Assert.DoesNotContain(d.Textos, t => t.Texto == "-0");
+    }
 }

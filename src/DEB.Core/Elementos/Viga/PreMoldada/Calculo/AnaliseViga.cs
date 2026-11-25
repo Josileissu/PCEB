@@ -172,6 +172,21 @@ public static class AnaliseViga
         return (A, zg, I, nome);
     }
 
+    /// <summary>Contorno da seção em x (y horizontal, z do fundo da viga), alma + aba, para o desenho das seções do modelo.</summary>
+    public static List<(double Y, double Z)> ContornoSecao(double x, double b, double h, double L, ExtremidadeViga e, ExtremidadeViga d, AbaViga aba)
+    {
+        bool denteE = e.TemDente && x < e.CompDente - 1e-6, denteD = d.TemDente && x > L - d.CompDente + 1e-6;
+        double rc = denteE ? e.Recorte(h) : denteD ? d.Recorte(h) : 0;
+        bool comAba = aba.Em(x) && aba.Base + aba.Altura > rc + 1e-6;
+        double z1 = aba.Base + aba.Altura, zc0 = Math.Max(aba.Base, rc), zcp = Math.Max(z1 - aba.AltPonta, rc);
+        var c = new List<(double, double)> { (0, rc), (b, rc) };
+        if (comAba && aba.Direita) c.AddRange(new[] { (b, zc0), (b + aba.Largura, zcp), (b + aba.Largura, z1), (b, z1) });
+        c.Add((b, h)); c.Add((0, h));
+        if (comAba && aba.Esquerda) c.AddRange(new[] { (0, z1), (-aba.Largura, z1), (-aba.Largura, zcp), (0, zc0) });
+        // sem pontos repetidos (aba rente ao recorte)
+        return c.Where((p, i) => i == 0 || Math.Abs(p.Item1 - c[i - 1].Item1) > 1e-6 || Math.Abs(p.Item2 - c[i - 1].Item2) > 1e-6).ToList();
+    }
+
     public static ResultadoAnaliseViga Rodar(ValoresTemplate v, EntradaAnaliseViga ent, CoeficientesViga k = null, IReadOnlyList<TipoDente> catalogo = null)
     {
         k ??= new CoeficientesViga();
