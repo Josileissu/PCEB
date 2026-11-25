@@ -30,14 +30,25 @@ public sealed class ComandosAnaliseViga
     [Rt.CommandMethod("ARMVIGAANALISE", Rt.CommandFlags.UsePickSet)]
     public void ArmVigaAnalise() => Comandos.Executar("ARMVIGAANALISE", (doc, ed, db, cfg) =>
     {
-        var op = new PromptEntityOptions("\nSelecione uma tabela da análise para recalcular ou [Nova] <Nova>: ") { AllowNone = true };
+        var op = new PromptEntityOptions("\nSelecione o detalhamento da viga ou uma tabela da análise, ou [Nova] <Nova>: ") { AllowNone = true };
         op.Keywords.Add("Nova");
         var sel = ed.GetEntity(op);
         if (sel.Status == PromptStatus.OK)
         {
             string id = IdDe(db, sel.ObjectId);
-            if (id == null) { ed.WriteMessage("\nO objeto não é de uma análise de viga (ARMVIGAANALISE)."); return; }
-            Recalcular(ed, db, cfg, id);
+            if (id != null) { Recalcular(ed, db, cfg, id); return; }
+            // um detalhamento de viga (bloco): a análise parte dos valores guardados nele (ou do modelo salvo com o nome dele)
+            var v0 = ValoresDoDetalhamento(db, sel.ObjectId, out string nomeBloco);
+            if (v0 == null)
+            {
+                ed.WriteMessage(nomeBloco == null ? "\nO objeto não é um detalhamento de viga nem uma análise (ARMVIGAANALISE)."
+                    : $"\nO detalhamento \"{nomeBloco}\" não guarda os valores da viga e não há modelo salvo com esse nome: use Nova e escolha os valores.");
+                return;
+            }
+            var ptA = ed.GetPoint("\nPonto de inserção da análise (ponta esquerda do modelo; a viga armada é refeita abaixo dela):");
+            if (ptA.Status != PromptStatus.OK) return;
+            AnalisarDetalhamento(ed, db, cfg, sel.ObjectId, v0, ptA.Value.TransformBy(ed.CurrentUserCoordinateSystem));
+            ed.WriteMessage("\nDigite as cargas nas tabelas e rode ARMVIGAANALISE de novo; os parâmetros da viga ficam na paleta Armadura, aba \"Viga\".");
             return;
         }
         if (sel.Status != PromptStatus.None && sel.Status != PromptStatus.Keyword) return;
@@ -171,7 +182,7 @@ public sealed class ComandosAnaliseViga
         res.PosicaoRA = null;   // a relação do aço das tabelas que já existem é atualizada; nenhuma tabela nova por recálculo
         using (var tr = db.TransactionManager.StartTransaction())
         {
-            ComandosTemplate.Desenhar(tr, db, cfg, res, pt, atualizarRA: true);
+            ComandosTemplate.Desenhar(tr, db, cfg, res, pt, atualizarRA: true, template: new TemplateVigaPreMoldada(), valores: calc.Proposta);
             tr.Commit();
         }
         // a referência nova do bloco só aparece em GetBlockReferenceIds depois do commit (armadilha do AGENTS.md): marca noutra transação
@@ -202,6 +213,98 @@ public sealed class ComandosAnaliseViga
         if (conferir > 0) ed?.WriteMessage($"\n{conferir} verificação(ões) para conferir ou que não atendem (memória de cálculo, abaixo da viga).");
         return fundo;
     }
+
+    /// <summary>
+    /// Valores de viga pré-moldada de um detalhamento selecionado: os guardados no bloco (ARMTEMPLATE, importação e ARMVIGAANALISE a
+    /// partir da 0.1.50) ou, nos antigos, o modelo salvo com o nome do bloco. Null se não é viga ou não há valores.
+    /// </summary>
+    internal static ValoresTemplate ValoresDoDetalhamento(Database db, ObjectId oid, out string nomeBloco)
+    {
+        nomeBloco = null;
+        using var tr = db.TransactionManager.StartTransaction();
+        try
+        {
+            if (!(tr.GetObject(oid, OpenMode.ForRead) is BlockReference br)) return null;
+            var btr = (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead);
+            nomeBloco = btr.Name;
+            var g = ValoresNoBloco.Ler(tr, btr);
+            var t = new TemplateVigaPreMoldada();
+            if (g != null) return g.Value.TemplateId == t.Id ? g.Value.Valores : null;
+            var arq = ModelosTemplates.Obter(t);
+            return arq.Obter(btr.Name) != null ? arq.Valores(t, btr.Name) : null;
+        }
+        finally { tr.Commit(); }
+    }
+
+    /// <summary>A análise a partir de um detalhamento: o bloco sai (a viga armada é refeita abaixo da análise) e a análise entra em <paramref name="pt"/>.</summary>
+    internal static string AnalisarDetalhamento(Editor ed, Database db, ConfiguracaoArmadura cfg, ObjectId bloco, ValoresTemplate v, Point3d pt)
+    {
+        string id = Guid.NewGuid().ToString("N");
+        Apagar(db, new[] { bloco });
+        Desenhar(ed, db, cfg, id, v, new EntradaAnaliseViga(), pt, EscalaPadrao);
+        return id;
+    }
+
+    /// <summary>A viga do objeto selecionado para a paleta: (id da análise ou bloco do detalhamento, valores); null se não é viga.</summary>
+    internal static (string Analise, ObjectId Bloco, ValoresTemplate Valores)? VigaDoObjeto(Database db, ObjectId oid)
+    {
+        string id = IdDe(db, oid);
+        if (id != null) { var reg = LerRegistro(db, id); return reg == null ? ((string, ObjectId, ValoresTemplate)?)null : (id, ObjectId.Null, reg.Value.Valores); }
+        var v = ValoresDoDetalhamento(db, oid, out _);
+        return v == null ? ((string, ObjectId, ValoresTemplate)?)null : (null, oid, v);
+    }
+
+    /// <summary>
+    /// Atualiza a viga com valores novos (paleta "Viga"): numa análise, grava os valores e recalcula tudo no lugar (análise, viga
+    /// armada, memória); num detalhamento solto, redesenha o detalhamento no lugar dele (a origem acompanha o bloco, se foi movido).
+    /// </summary>
+    internal static void AtualizarViga(Editor ed, Database db, ConfiguracaoArmadura cfg, string analise, ObjectId bloco, ValoresTemplate v)
+    {
+        var erros = CatalogoTemplates.Validar(new TemplateVigaPreMoldada(), v);
+        if (erros.Count > 0) { ed?.WriteMessage("\nValores inválidos: " + string.Join(" ", erros)); return; }
+        if (analise != null)
+        {
+            var reg = LerRegistro(db, analise);
+            if (reg == null) { ed?.WriteMessage("\nA análise não está mais no desenho."); return; }
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                GravarRegistro(db, tr, analise, v, reg.Value.Origem, reg.Value.Escala);
+                tr.Commit();
+            }
+            Recalcular(ed, db, cfg, analise);
+            return;
+        }
+        if (bloco.IsNull || bloco.IsErased) { ed?.WriteMessage("\nO detalhamento não está mais no desenho."); return; }
+        Point3d origem;
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            var br = (BlockReference)tr.GetObject(bloco, OpenMode.ForRead);
+            var g = ValoresNoBloco.Ler(tr, (BlockTableRecord)tr.GetObject(br.BlockTableRecord, OpenMode.ForRead));
+            origem = br.Position - (g?.Deslocamento ?? new Vector3d());
+            tr.Commit();
+        }
+        Apagar(db, new[] { bloco });
+        var t = new TemplateVigaPreMoldada();
+        var res = t.Gerar(v, cfg);
+        res.PosicaoRA = null;
+        using (var tr = db.TransactionManager.StartTransaction())
+        {
+            ComandosTemplate.Desenhar(tr, db, cfg, res, origem, atualizarRA: true, template: t, valores: v);
+            tr.Commit();
+        }
+        ed?.WriteMessage($"\nDetalhamento \"{res.Detalhamento}\" atualizado.");
+        foreach (var a in res.Avisos) ed?.WriteMessage("\nAviso: " + a);
+    }
+
+    /// <summary>ARMVIGAATUALIZAR: aplica os valores editados na paleta "Viga" (o botão "Atualizar viga" chama este comando).</summary>
+    [Rt.CommandMethod("ARMVIGAATUALIZAR")]
+    public void ArmVigaAtualizar() => Comandos.Executar("ARMVIGAATUALIZAR", (doc, ed, db, cfg) =>
+    {
+        var p = Paleta.PaletaViga.Pendente;
+        Paleta.PaletaViga.Pendente = null;
+        if (p == null) { ed.WriteMessage("\nNada para atualizar: edite os parâmetros na paleta Armadura, aba \"Viga\"."); return; }
+        AtualizarViga(ed, db, cfg, p.Value.Analise, p.Value.Bloco, p.Value.Valores);
+    });
 
     // ------------------------------------------------------------------ marcação e registro no desenho
 
@@ -270,19 +373,14 @@ public sealed class ComandosAnaliseViga
     }
 
     // Xrecord da análise: 10 = origem, 40 = escala; depois, para cada parâmetro do template, 1 = nome e 3 = valor em pedaços de 200
-    private static void GravarRegistro(Database db, Transaction tr, string id, ValoresTemplate v, Point3d origem, double escala)
+    internal static void GravarRegistro(Database db, Transaction tr, string id, ValoresTemplate v, Point3d origem, double escala)
     {
         var nod = (DBDictionary)tr.GetObject(db.NamedObjectsDictionaryId, OpenMode.ForWrite);
         DBDictionary dic;
         if (nod.Contains(Dicionario)) dic = (DBDictionary)tr.GetObject(nod.GetAt(Dicionario), OpenMode.ForWrite);
         else { dic = new DBDictionary(); nod.SetAt(Dicionario, dic); tr.AddNewlyCreatedDBObject(dic, true); }
         var tvs = new List<TypedValue> { new TypedValue((int)DxfCode.XCoordinate, origem), new TypedValue((int)DxfCode.Real, escala) };
-        foreach (var kv in v.Todos)
-        {
-            tvs.Add(new TypedValue((int)DxfCode.Text, kv.Key));
-            string s = kv.Value ?? "";
-            for (int i = 0; i < s.Length; i += 200) tvs.Add(new TypedValue(3, s.Substring(i, Math.Min(200, s.Length - i))));
-        }
+        tvs.AddRange(ValoresNoBloco.Parametros(v));
         using var rb = new ResultBuffer(tvs.ToArray());
         if (dic.Contains(id)) ((Xrecord)tr.GetObject(dic.GetAt(id), OpenMode.ForWrite)).Data = rb;
         else { var xr = new Xrecord { Data = rb }; dic.SetAt(id, xr); tr.AddNewlyCreatedDBObject(xr, true); }
@@ -299,20 +397,10 @@ public sealed class ComandosAnaliseViga
             if (!dic.Contains(id)) return null;
             var xr = (Xrecord)tr.GetObject(dic.GetAt(id), OpenMode.ForRead);
             using var rb = xr.Data;
-            var v = new ValoresTemplate(new TemplateVigaPreMoldada().Parametros);
-            Point3d origem = Point3d.Origin;
-            double escala = EscalaPadrao;
-            string nome = null;
-            var valor = new System.Text.StringBuilder();
-            void Fechar() { if (nome != null) v[nome] = valor.ToString(); valor.Clear(); }
-            foreach (var tv in rb.AsArray())
-            {
-                if (tv.TypeCode == (short)DxfCode.XCoordinate) origem = (Point3d)tv.Value;
-                else if (tv.TypeCode == (short)DxfCode.Real) escala = Convert.ToDouble(tv.Value);
-                else if (tv.TypeCode == (short)DxfCode.Text) { Fechar(); nome = tv.Value as string; }
-                else if (tv.TypeCode == 3) valor.Append(tv.Value as string);
-            }
-            Fechar();
+            var arr = rb.AsArray();
+            var v = ValoresNoBloco.LerParametros(arr, new TemplateVigaPreMoldada().Parametros);
+            Point3d origem = arr.Where(t => t.TypeCode == (short)DxfCode.XCoordinate).Select(t => (Point3d)t.Value).FirstOrDefault();
+            double escala = arr.Where(t => t.TypeCode == (short)DxfCode.Real).Select(t => Convert.ToDouble(t.Value)).DefaultIfEmpty(EscalaPadrao).First();
             return (v, origem, escala);
         }
         finally { tr.Commit(); }

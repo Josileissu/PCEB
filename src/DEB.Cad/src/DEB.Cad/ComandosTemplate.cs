@@ -42,7 +42,7 @@ public sealed class ComandosTemplate
         var resultado = f.Escolhido.Gerar(f.Valores, cfg);
         using (var tr = db.TransactionManager.StartTransaction())
         {
-            var ids = Desenhar(tr, db, cfg, resultado, r.Value.TransformBy(ed.CurrentUserCoordinateSystem));
+            var ids = Desenhar(tr, db, cfg, resultado, r.Value.TransformBy(ed.CurrentUserCoordinateSystem), template: f.Escolhido, valores: f.Valores);
             tr.Commit();
             ed.WriteMessage($"\n{f.Escolhido.Nome}: {ids.Count} armadura(s) desenhada(s)" +
                             (resultado.Detalhamento.Length > 0 ? $" no detalhamento \"{resultado.Detalhamento}\"." : "."));
@@ -261,8 +261,10 @@ public sealed class ComandosTemplate
     /// <param name="atualizarRA">false = a tabela entra vazia e NINGUÉM é renumerado agora (importação de muitas peças: o chamador
     /// faz uma <see cref="Relacao.ServicoRA.Atualizar"/> só no fim — antes, cada peça renumerava e reescrevia o desenho inteiro).</param>
     /// <param name="entidades">Recebe TODAS as entidades desenhadas (contornos, textos, cotas, tabelas…); o retorno são só as barras.</param>
+    /// <param name="template">Com <paramref name="valores"/>: os valores ficam guardados no bloco do detalhamento (D51), para a
+    /// análise e a edição a partir dele (ARMVIGAANALISE, paleta "Viga").</param>
     internal static List<ObjectId> Desenhar(Transaction tr, Database db, ConfiguracaoArmadura cfg, ResultadoTemplate r, Point3d origem,
-        bool atualizarRA = true, List<ObjectId> entidades = null)
+        bool atualizarRA = true, List<ObjectId> entidades = null, ITemplateArmadura template = null, ValoresTemplate valores = null)
     {
         double cpu = Desenho.CmPorUnidade(db, cfg);
         var esp = (BlockTableRecord)tr.GetObject(db.CurrentSpaceId, OpenMode.ForWrite);
@@ -452,7 +454,13 @@ public sealed class ComandosTemplate
         var dadosDet = r.DadosDetalhamento ?? new DadosDetalhamento();
         if (string.IsNullOrWhiteSpace(dadosDet.Grupo)) dadosDet.Grupo = Relacao.ServicoDetalhamento.GrupoSugerido(nome);
         if (string.IsNullOrWhiteSpace(dadosDet.Comentarios)) dadosDet.Comentarios = "Gerado pelo template.";
-        Relacao.ServicoDetalhamento.Criar(db, tr, todos.Distinct().Where(i => !i.IsErased).ToArray(), nome, dadosDet);
+        var brDet = Relacao.ServicoDetalhamento.Criar(db, tr, todos.Distinct().Where(i => !i.IsErased).ToArray(), nome, dadosDet);
+        if (template != null && valores != null)
+        {
+            var brD = (BlockReference)tr.GetObject(brDet, OpenMode.ForRead);
+            var btrD = (BlockTableRecord)tr.GetObject(brD.BlockTableRecord, OpenMode.ForWrite);
+            ValoresNoBloco.Gravar(tr, btrD, template.Id, valores, brD.Position - origem);
+        }
         r.Detalhamento = nome;
         if (r.PosicaoRA.HasValue)
         {

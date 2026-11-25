@@ -2663,6 +2663,57 @@ public sealed class AutoTeste
             var reg2 = ComandosAnaliseViga.LerRegistro(db, id);
             Checar(reg2 != null && reg2.Value.Origem.DistanceTo(origem) < 1e-6, "redesenhada no mesmo lugar (origem do registro)");
             Checar(BlocosV101() == 1, "viga armada refeita com o mesmo nome (a definição antiga saiu, sem \"V101 (2)\")");
+
+            // ---- edição pela paleta "Viga" numa análise: H de 150 para 160 → tudo recalculado no lugar
+            var vEd = ComandosAnaliseViga.LerRegistro(db, id).Value.Valores;
+            vEd["H"] = "160";
+            ComandosAnaliseViga.AtualizarViga(ed, db, cfg, id, ObjectId.Null, vEd);
+            Checar(ComandosAnaliseViga.LerRegistro(db, id)?.Valores["H"] == "160", "paleta Viga: H = 160 gravado na análise");
+            Checar(BlocosV101() == 1, "paleta Viga: viga armada refeita no lugar, sem bloco duplicado");
+
+            // ---- detalhamento desenhado como pelo ARMTEMPLATE (valores guardados no bloco) → análise a partir dele
+            var vT = new Core.Motor.ValoresTemplate(t.Parametros);
+            foreach (var (k, val) in new[] { ("Nome", "V202"), ("B", "20"), ("H", "60"), ("L", "500"), ("ExtE", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.Reta), ("ExtD", Core.Elementos.Viga.PreMoldada.TemplateVigaPreMoldada.Reta) })
+                vT[k] = val;
+            var resT = t.Gerar(vT, cfg);
+            resT.PosicaoRA = null;
+            using (var trT = db.TransactionManager.StartTransaction())
+            {
+                ComandosTemplate.Desenhar(trT, db, cfg, resT, new Point3d(12000, -15000, 0), atualizarRA: false, template: t, valores: vT);
+                trT.Commit();
+            }
+            ObjectId brT = ObjectId.Null;
+            using (var trT = db.TransactionManager.StartTransaction())
+            {
+                var bt = (BlockTable)trT.GetObject(db.BlockTableId, OpenMode.ForRead);
+                if (bt.Has(resT.Detalhamento))
+                    brT = ((BlockTableRecord)trT.GetObject(bt[resT.Detalhamento], OpenMode.ForRead)).GetBlockReferenceIds(true, false).Cast<ObjectId>().FirstOrDefault(i => !i.IsErased);
+                trT.Commit();
+            }
+            var lidos = brT.IsNull ? null : ComandosAnaliseViga.ValoresDoDetalhamento(db, brT, out _);
+            Checar(lidos != null && lidos["Nome"] == "V202" && lidos["H"] == "60", "valores da viga guardados no bloco do detalhamento e lidos de volta");
+            // edição de um detalhamento solto (sem análise): redesenhado no lugar com a seção nova
+            if (lidos != null)
+            {
+                lidos["H"] = "65";
+                ComandosAnaliseViga.AtualizarViga(ed, db, cfg, null, brT, lidos);
+                ObjectId brT2 = ObjectId.Null;
+                using (var trT = db.TransactionManager.StartTransaction())
+                {
+                    var bt = (BlockTable)trT.GetObject(db.BlockTableId, OpenMode.ForRead);
+                    if (bt.Has("V202")) brT2 = ((BlockTableRecord)trT.GetObject(bt["V202"], OpenMode.ForRead)).GetBlockReferenceIds(true, false).Cast<ObjectId>().FirstOrDefault(i => !i.IsErased);
+                    trT.Commit();
+                }
+                var lidos2 = brT2.IsNull ? null : ComandosAnaliseViga.ValoresDoDetalhamento(db, brT2, out _);
+                Checar(lidos2 != null && lidos2["H"] == "65", "paleta Viga num detalhamento solto: redesenhado com H = 65 (mesmo nome, V202)");
+                // análise a partir do detalhamento
+                if (!brT2.IsNull)
+                {
+                    string idT = ComandosAnaliseViga.AnalisarDetalhamento(ed, db, cfg, brT2, lidos2, new Point3d(15000, -15000, 0));
+                    Checar(brT2.IsErased && ComandosAnaliseViga.Entidades(db, idT).Count > 100 && ComandosAnaliseViga.LerRegistro(db, idT)?.Valores["H"] == "65",
+                        "análise a partir do detalhamento: o bloco sai, a análise e a viga armada entram com os valores dele");
+                }
+            }
             string N(double x) => x.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
             // sem extensão válida (nada desenhado) o ZOOM _W ficaria esperando: vai para a extensão do desenho
             doc.SendStringToExecute("_.ZOOM _E\n", true, false, true);

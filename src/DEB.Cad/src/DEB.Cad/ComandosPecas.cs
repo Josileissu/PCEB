@@ -260,7 +260,7 @@ public sealed class ComandosPecas
             var antes = Entidades(db);
             using (var tr = db.TransactionManager.StartTransaction())
             {
-                ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(xDesenho, y, p0.Z), atualizarRA: false);
+                ComandosTemplate.Desenhar(tr, db, cfg, r, new Point3d(xDesenho, y, p0.Z), atualizarRA: false, template: t, valores: g.Valores);
                 tr.Commit();
             }
             rel.TempoDesenhar.Stop();

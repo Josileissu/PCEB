@@ -93,6 +93,7 @@ internal static class PaletaArmadura
         painel.Controls.Add(_status);
         AplicarTema(painel, _status, _grid);
         _ps.Add("Propriedades", painel);
+        _ps.Add("Viga", PaletaViga.Painel());   // parâmetros da viga pré-moldada selecionada (D51)
         // ocultar automaticamente: recolhida, a paleta não fica "Visible"; ao abrir ou ativar, relê a seleção
         _ps.StateChanged += (s, e) => { if (!_aplicando) Recarregar(); };
         _ps.PaletteActivated += (s, e) => { if (!_aplicando) Recarregar(); };
@@ -163,6 +164,7 @@ internal static class PaletaArmadura
         {
             _grid.SelectedObjects = LerSelecao(CadApp.DocumentManager.MdiActiveDocument, out var status);
             _status.Text = status;
+            PaletaViga.Recarregar(CadApp.DocumentManager.MdiActiveDocument);
         }
         catch (Exception ex) { Log.Erro("Paleta.Recarregar", ex); }
     }
