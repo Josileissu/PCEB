@@ -188,16 +188,17 @@ public static class DesenhoAnaliseViga
         }
 
         // ------------------------------------------------ tabelas à direita do modelo
-        double xt = L + 40 * k, yt0 = yCargas + 3 * 25 * k + 2 * hTit;
+        // tabelas à direita do modelo, afastadas como o usuário arrumou no desenho de teste (+350 em 1:50)
+        double xt = L + 390 * k, yt0 = yCargas + 3 * 25 * k + 2 * hTit;
         string Un(string interna) => T(interna, 1).S;
         var tl = new TabelaTemplate { Titulo = TabelasAnaliseViga.TLaje, X = xt, Y = yt0, Escala = escala };
-        tl.Larguras.AddRange(new double[] { 7, 7, 6, 7, 3, 8, 6 });
+        tl.Larguras.AddRange(new double[] { 7, 7, 6, 7, 4, 9, 6 });
         tl.Linhas.Add(new[] { "TIPO", "VALOR", "UN.", "VÃO INF.", "UN.", "CARGA LINEAR", "UN." });
         foreach (var (nome, c) in new[] { ("PP,laje", ent.LajePP), ("CP,laje", ent.LajeCP), ("SC,laje", ent.LajeSC) })
             tl.Linhas.Add(new[] { nome, N(T("kN/m²", c.Valor).V), Un("kN/m²"), N(c.VaoInfluencia), "m", N(T("kN/m", c.Linear).V), Un("kN/m") });
         o.Tabelas.Add(tl);
         var tv = new TabelaTemplate { Titulo = TabelasAnaliseViga.TViga, X = xt, Y = yt0 - (tl.AlturaEmTextos() + 4) * ht, Escala = escala };
-        tv.Larguras.AddRange(new double[] { 7, 8, 6 });
+        tv.Larguras.AddRange(new double[] { 7, 9, 6 });
         tv.Linhas.Add(new[] { "TIPO", "CARGA LINEAR", "UN." });
         tv.Linhas.Add(new[] { "PP,laje", N(T("kN/m", ent.LajePP.Linear).V), Un("kN/m") });
         tv.Linhas.Add(new[] { "CP,laje", N(T("kN/m", ent.LajeCP.Linear).V), Un("kN/m") });
@@ -217,12 +218,12 @@ public static class DesenhoAnaliseViga
             yProx = tp.Y - (tp.AlturaEmTextos() + 4) * ht;
         }
         var tpar = new TabelaTemplate { Titulo = TabelasAnaliseViga.TParametros, X = xt, Y = yProx, Escala = escala };
-        tpar.Larguras.AddRange(new double[] { 16, 7, 4 });
+        tpar.Larguras.AddRange(new double[] { 22, 7, 4 });
         tpar.Linhas.AddRange(TabelasAnaliseViga.LinhasParametros(ent));
         o.Tabelas.Add(tpar);
         yProx = tpar.Y - (tpar.AlturaEmTextos() + 4) * ht;
         var tm = new TabelaTemplate { Titulo = TabelasAnaliseViga.TModelos, X = xt, Y = yProx, Escala = escala };
-        tm.Larguras.AddRange(new double[] { 14, 6, 6, 10, 9, 9 });
+        tm.Larguras.AddRange(new double[] { 22, 6, 6, 11, 11, 11 });
         tm.Linhas.Add(new[] { "MODELO", "αR,E", "αR,D", $"Rsec ({Un("kN·m")}/rad)", $"Md,máx ({Un("kN·m")})", $"Md,mín ({Un("kN·m")})" });
         foreach (var m in r.Modelos)
             tm.Linhas.Add(new[] { m.Nome, N(m.AlfaRE), N(m.AlfaRD), m.RsecE <= 0 ? "0" : double.IsInfinity(m.RsecE) ? "∞" : N(T("kN·m", m.RsecE).V, "0"),
