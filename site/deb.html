@@ -190,6 +190,44 @@
     </div>
   </section>
 
+  <section class="section section--paper2">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Novidade</p>
+          <h2 class="h2">Viga pré-moldada: da análise à armadura.</h2>
+          <p class="lead mt-24">
+            O comando <code>ARMVIGAANALISE</code> calcula a viga biapoiada pela NBR 6118 e
+            NBR 9062 e desenha a armadura resultante, com memória de cálculo completa.
+          </p>
+        </div>
+      </div>
+      <ul class="feature-list">
+        <li><span class="feature-list__icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 18h16M5 18V7M19 18V7" stroke="currentColor" stroke-width="1.6"/></svg></span><div><h3>Modelo de análise</h3><p>Apoios, seções de cada trecho (dente, vão, aba), linhas de carga, tabelas de carga e de parâmetros. Dois modelos de ligação — rotulado e semirrígido (fator αR da NBR 9062, rigidez secante da NBR 6118) — e a envoltória conservadora dos dois, conferida com PyNite.</p></div></li>
+        <li><span class="feature-list__icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 8h18M3 16h18M8 3v18M16 3v18" stroke="currentColor" stroke-width="1.5"/></svg></span><div><h3>Diagramas</h3><p>Cortante, momento (envoltória) e flecha — elástica e com fissuração e fluência, comparada com ℓ/250.</p></div></li>
+        <li><span class="feature-list__icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="4" width="18" height="16" stroke="currentColor" stroke-width="1.6"/><path d="M3 10h18M9 10v10M15 10v10" stroke="currentColor" stroke-width="1.2"/></svg></span><div><h3>Viga armada pelo cálculo</h3><p>Armadura longitudinal, negativa nas pontas (da ligação semirrígida), estribos com cortante, torção e suspensão, aba de laje como consolo corrido, consolo lateral, dente Gerber pela NBR 9062 (tirante, costura, suspensão, estribos do dente e grampo) e ligação viga–capa pelo cisalhamento na interface.</p></div></li>
+        <li><span class="feature-list__icon"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 20V8l8-4 8 4v12" stroke="currentColor" stroke-width="1.6"/><path d="M8 20v-6h8v6" stroke="currentColor" stroke-width="1.2"/></svg></span><div><h3>Memória e paleta</h3><p>Memória de cálculo completa no desenho, abaixo da viga armada, com fórmula e números, e o quadro de verificações (OK / conferir / não atende) com o item da norma. A paleta "Viga" concentra os parâmetros; ao clicar em "Atualizar viga", análise, viga armada e memória são refeitas no lugar.</p></div></li>
+      </ul>
+      <div class="grid-2 mt-40">
+        <figure class="board" style="margin:0">
+          <img src="assets/img/viga-armada.png" alt="Viga pré-moldada detalhada pelo cálculo: formas, armaduras em elevação e seções" width="1600" height="2168" loading="lazy" style="width:100%;height:auto;border-radius:8px">
+          <figcaption class="board__caption"><span>Viga armada pelo cálculo</span><span>formas, armaduras e seções</span></figcaption>
+        </figure>
+        <figure class="board" style="margin:0">
+          <img src="assets/img/viga-armadura-elevacao.png" alt="Armaduras da viga em elevação, com dente Gerber, negativas nas pontas e estribos por zona" width="1577" height="668" loading="lazy" style="width:100%;height:auto;border-radius:8px">
+          <figcaption class="board__caption"><span>Armaduras em elevação</span><span>dente Gerber, negativas e estribos</span></figcaption>
+        </figure>
+      </div>
+      <p class="lead mt-40">
+        As tabelas do desenho são a entrada: cargas da laje, cargas da viga, cargas pontuais
+        e parâmetros são digitados direto nas tabelas; rodando o comando de novo, tudo é
+        recalculado e redesenhado no lugar. Unidades da análise configuráveis (kN, tf, kgf…).
+        Também é possível partir de um detalhamento existente: selecione o bloco da viga e a
+        análise começa dele. O dente calculado vai para o catálogo de dentes do escritório.
+      </p>
+    </div>
+  </section>
+
   <section class="section" id="cad">
     <div class="wrap">
       <div class="grid-2">
@@ -205,6 +243,7 @@
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Faixas, cortes, chamadas e indicações.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Paleta de propriedades, paleta de comandos e autoteste.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Templates: pilar e viga pré-moldados (dente, aba, ressalto, protensão), blocos e reservatório.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Análise de viga pré-moldada</strong> (<code>ARMVIGAANALISE</code>): modelo de análise, diagramas Vd/Md/flecha e viga armada pelo cálculo, com memória de cálculo e paleta "Viga".</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Peças do Revit importadas (<code>ARMIMPORTARPECAS</code>) e <code>.cad</code> do QiArmaduras.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Desenho em cm, m ou mm e medidas escritas em cm, m ou mm (<code>ARMUNIDADES</code>).</span></li>
           </ul>
@@ -253,6 +292,12 @@
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Pilar: elevação frontal, lateral e corte a meia altura.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Escalas ajustadas automaticamente para caber na folha.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span>Pilares pré-moldados com o padrão de prancha do escritório e janela de opções.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Vigas pré-moldadas com cálculo:</strong> com as cargas digitadas, calcula a viga biapoiada pela NBR 6118 (flexão, cisalhamento, dente, içamento, serviço), propõe a armadura e arma a viga no modelo. Janela em abas: armação, esforços, longitudinal, transversal, dente/içamento/serviço e verificações.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Modelo de análise da estrutura</strong> com ajustes por objeto (pilar, viga, consolo, aparelho de neoprene, laje, peças de aço), cargas lançadas na janela ou lidas do Revit, e exportação para OpenSees, CalculiX e SAP2000.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Consolos:</strong> biela e tirante, tensões elásticas e campo de tensões não linear até a falha.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Estruturas de aço</strong> verificadas pela NBR 8800:2024 e biblioteca de ligações metálicas (chapa de alma, cantoneira dupla, chapa de topo, placa de base, apoio de terça, contraventamento, tubo com chapa em fenda, emenda com talas), com desenho em quatro vistas e modelagem no Revit.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Contenções:</strong> muro de arrimo em balanço (empuxo, estabilidade, armaduras) com família criada pela janela.</span></li>
+            <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Escadas</strong> de concreto armado e escada pré-moldada (cálculo, família e armadura).</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Conferir peças</strong>: seção real de cada trecho (dente, aba, ressalto, furos), marca editável.</span></li>
             <li><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.7"/></svg><span><strong>Exportar para o CAD</strong>: escolha das vigas e pilares; o CAD gera os detalhamentos.</span></li>
           </ul>
@@ -308,6 +353,9 @@
           </thead>
           <tbody>
             <tr><td><code>ARMPALETA</code></td><td>Liga/desliga a paleta de propriedades ligada à seleção.</td></tr>
+            <tr><td><code>ARMVIGAANALISE</code></td><td>Desenha o modelo de análise da viga pré-moldada (apoios, seções, cargas, diagramas Vd/Md/flecha) e a viga armada pelo cálculo, com memória de cálculo.</td></tr>
+            <tr><td><code>ARMVIGAATUALIZAR</code></td><td>Botão "Atualizar viga" da paleta Viga: refaz análise, viga armada e memória no lugar.</td></tr>
+            <tr><td><code>ARMPDFLOTE</code></td><td>Plota várias folhas em PDF, com escala fixa pela unidade do desenho.</td></tr>
             <tr><td><code>ARMCOMANDOS</code></td><td>Abre a paleta de botões com os comandos do plugin.</td></tr>
             <tr><td><code>ARMBARRA</code></td><td>Desenha barra por pontos ou por cobrimento.</td></tr>
             <tr><td><code>ARMESTRIBO</code></td><td>Estribo simples, aberto, múltiplo, pente ou circular.</td></tr>
@@ -326,21 +374,22 @@
       <div class="grid-2">
         <div>
           <p class="eyebrow">Limite claro</p>
-          <h2 class="h2">Desenha, numera e quantifica. Não dimensiona.</h2>
+          <h2 class="h2">Desenha, numera, quantifica — e já calcula vigas pré-moldadas.</h2>
         </div>
         <div class="measure">
           <div class="callout callout--oxide">
             <h3>Responsabilidade técnica</h3>
             <p>
-              O DEB não calcula esforços nem verifica seções. As tabelas e os comprimentos
-              seguem regras de detalhamento (NBR 6118 e NBR 9062), mas a decisão e a
-              responsabilidade do projeto são do engenheiro responsável.
+              O DEB calcula vigas pré-moldadas (CAD e Revit), consolos, escadas, muro de
+              arrimo, aço e ligações, com memória de cálculo. A análise global da estrutura
+              e a responsabilidade técnica do projeto continuam sendo do engenheiro
+              responsável, com o software de cálculo que ele já usa.
             </p>
           </div>
           <p class="lead mt-24">
-            Essa separação é intencional: o plugin automatiza o trabalho repetitivo sem
-            esconder a engenharia. O cálculo é o próximo passo do PCEB — e ainda está em
-            desenvolvimento.
+            O detalhamento segue sendo a base: o plugin automatiza o trabalho repetitivo sem
+            esconder a engenharia. O cálculo da estrutura completa é o próximo passo do PCEB
+            — e segue em desenvolvimento.
           </p>
           <div class="actions mt-40">
             <a class="btn btn--ghost" href="projeto.html">Sobre o projeto</a>

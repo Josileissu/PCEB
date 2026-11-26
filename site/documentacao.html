@@ -225,6 +225,8 @@
             <tr><td><code>ARMREBATER</code></td><td>Rebatimento vinculado da barra.</td></tr>
             <tr><td><code>ARMDIVIDIR</code></td><td>Divisão com traspasse.</td></tr>
             <tr><td><code>ARMTRELICA</code> / <code>ARMTELA</code></td><td>Treliça por modelo e tela por dois cantos.</td></tr>
+            <tr><td><code>ARMVIGAANALISE</code></td><td>Modelo de análise e viga armada pelo cálculo (vigas pré-moldadas), com memória de cálculo.</td></tr>
+            <tr><td><code>ARMVIGAATUALIZAR</code></td><td>Botão "Atualizar viga" da paleta Viga: refaz análise, viga armada e memória no lugar.</td></tr>
           </tbody>
         </table>
       </div>
@@ -245,6 +247,15 @@
         </table>
       </div>
 
+      <div class="callout mt-24">
+        <h3>Passo a passo — viga pré-moldada</h3>
+        <p>1. Crie a viga ("Nova") e escolha a viga a calcular. 2. Digite as cargas nas tabelas
+        (cargas da laje, cargas da viga, cargas pontuais e parâmetros). 3. Rode o comando de
+        novo, selecionando uma tabela — análise, viga armada e memória são refeitas no lugar.
+        4. Ajuste na paleta "Viga" (seção, dentes, aba, ressalto, aberturas, armaduras) e
+        clique em "Atualizar viga".</p>
+      </div>
+
       <div class="table-wrap mt-24">
         <table class="data-table">
           <caption>Configuração e apoio</caption>
@@ -261,6 +272,7 @@
             <tr><td><code>ARMUNIDADES</code></td><td>Unidade do desenho e das medidas escritas (cm, m ou mm), por desenho.</td></tr>
             <tr><td><code>ARMTEMPLATE</code></td><td>Templates de elementos.</td></tr>
             <tr><td><code>ARMTESTE</code></td><td>Autoteste integrado no CAD.</td></tr>
+            <tr><td><code>ARMPDFLOTE</code></td><td>Plota várias folhas em PDF, com escala fixa pela unidade do desenho.</td></tr>
             <tr><td><code>ARMSOBRE</code></td><td>Versão e aviso de responsabilidade.</td></tr>
           </tbody>
         </table>

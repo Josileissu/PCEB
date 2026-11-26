@@ -38,7 +38,7 @@
     "name": "Projeto PCEB",
     "url": "https://github.com/Josileissu"
   },
-  "softwareVersion": "0.1.38",
+  "softwareVersion": "0.1.50",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
 }
 </script>
@@ -284,8 +284,10 @@
             <span class="tag tag--wip">em desenvolvimento</span>
           </div>
           <p>
-            Análise e dimensionamento com normas ABNT, começando por pré-moldados.
-            O escopo ainda está em estudo e não há data de lançamento.
+            Análise e dimensionamento de vigas pré-moldadas já em uso nos dois plugins
+            (CAD e Revit), com memória de cálculo. Consolos, escadas, muro de arrimo, aço
+            e ligações também calculados no Revit. O núcleo de análise da estrutura
+            completa segue em desenvolvimento, sem data de lançamento.
           </p>
         </article>
       </div>
@@ -406,6 +408,37 @@
           </svg>
           <p class="ba-card__note">A mesma edição atualiza descrição, cota, numeração e peso — sem retrabalho.</p>
         </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--paper2">
+    <div class="wrap">
+      <div class="grid-2">
+        <div>
+          <p class="eyebrow">Cálculo com memória</p>
+          <h2 class="h2">A viga sai armada pelo cálculo, com a conta na prancha.</h2>
+          <p class="lead mt-24">
+            O comando <code>ARMVIGAANALISE</code> desenha o modelo de análise da viga
+            pré-moldada — apoios, seções de cada trecho, cargas, diagramas de cortante,
+            momento e flecha — e, em seguida, a viga armada pelo cálculo: armadura
+            longitudinal, negativas nas pontas, estribos por cortante, torção e suspensão,
+            dente Gerber e ligação viga–capa.
+          </p>
+          <p class="lead mt-24">
+            Tudo é recalculado e redesenhado no lugar quando as cargas mudam, e a memória
+            de cálculo completa fica no desenho, com fórmula, números e o quadro de
+            verificações (OK / conferir / não atende) com o item da norma.
+          </p>
+          <div class="actions mt-40">
+            <a class="btn btn--ghost" href="deb.html">Ver no DEB</a>
+            <a class="btn btn--ghost" href="documentacao.html#comandos">Comandos</a>
+          </div>
+        </div>
+        <figure class="board" style="margin:0">
+          <img src="assets/img/viga-analise.png" alt="Modelo de análise de uma viga pré-moldada no CAD, com tabelas de carga, diagramas de cortante, momento e flecha" width="1600" height="976" loading="lazy" style="width:100%;height:auto;border-radius:8px">
+          <figcaption class="board__caption"><span>Viga pré-moldada · análise e armadura</span><span>gerado pelo próprio programa</span></figcaption>
+        </figure>
       </div>
     </div>
   </section>
@@ -598,7 +631,7 @@
           </p>
           <div class="notice">
             <b>Importante</b>
-            <p>O DEB não dimensiona estruturas. Ele desenha, numera e quantifica. A verificação e a responsabilidade técnica são do engenheiro responsável.</p>
+            <p>O DEB detalha, numera e quantifica, e hoje também calcula vigas pré-moldadas (CAD e Revit), consolos, escadas, muro de arrimo, aço e ligações — com memória de cálculo e o item da norma. A decisão e a responsabilidade técnica continuam sendo do engenheiro responsável.</p>
           </div>
         </div>
       </div>
@@ -618,19 +651,19 @@
         <article class="roadmap__item roadmap__item--live">
           <span class="roadmap__phase">Agora</span>
           <h3>Detalhamento</h3>
-          <p>DEB.Cad em uso no CAD, com templates de pilar, viga pré-moldada, bloco e reservatório; DEB.Revit confere as peças do modelo e as exporta para o CAD.</p>
+          <p>DEB.Cad em uso no CAD, com templates de pilar, viga pré-moldada, bloco e reservatório; DEB.Revit confere as peças do modelo e as exporta para o CAD. Análise e dimensionamento de vigas pré-moldadas já em uso nos dois plugins.</p>
           <span class="tag tag--live">disponível</span>
         </article>
         <article class="roadmap__item roadmap__item--wip">
           <span class="roadmap__phase">Em andamento</span>
           <h3>Núcleo comum</h3>
-          <p>DEB.Core concentra normas, comprimentos, numeração e catálogos para servir aos dois plugins e ao futuro programa.</p>
+          <p>DEB.Core concentra normas, comprimentos, numeração e catálogos para servir aos dois plugins e ao futuro programa. Ampliação da análise para a estrutura completa (pilares, barras, lajes) em andamento.</p>
           <span class="tag tag--wip">em desenvolvimento</span>
         </article>
         <article class="roadmap__item">
           <span class="roadmap__phase">Depois</span>
           <h3>Cálculo PCEB</h3>
-          <p>Análise e dimensionamento com interface web e Windows, começando por pré-moldados. O escopo segue em estudo.</p>
+          <p>Análise e dimensionamento da estrutura completa, com interface web e Windows. O escopo segue em estudo; sem datas prometidas.</p>
           <span class="tag tag--next">planejado</span>
         </article>
       </div>
@@ -651,11 +684,16 @@
         <div class="faq">
           <details>
             <summary>O PCEB já calcula estruturas?</summary>
-            <p>Não. O cálculo e o dimensionamento estão em desenvolvimento. O que existe hoje é o DEB, módulo de detalhamento, numeração e quantificação de armaduras.</p>
+            <p>Sim, em parte. O DEB já calcula vigas pré-moldadas (no CAD e no Revit), consolos,
+            escadas, muro de arrimo, aço e ligações, com memória de cálculo. A análise e o
+            dimensionamento da estrutura completa seguem em desenvolvimento, sem data de
+            lançamento.</p>
           </details>
           <details>
             <summary>O DEB substitui meu software de cálculo?</summary>
-            <p>Não. O DEB não dimensiona. Ele organiza o detalhamento e fecha a relação do aço a partir das decisões do engenheiro.</p>
+            <p>Não por completo. O DEB calcula e detalha vigas pré-moldadas, consolos, escadas,
+            muro de arrimo, aço e ligações, mas a análise global da estrutura e as decisões de
+            projeto continuam sendo do engenheiro, com o software de cálculo que ele já usa.</p>
           </details>
           <details>
             <summary>Preciso do plugin para abrir o DWG?</summary>
